@@ -1,6 +1,6 @@
 {
-  "_comentario": "Equipe GreenER (ABP 2DSM 2026-2). Arquivo gerenciado pelo time: edite via PR. 'emails' sao os enderecos aceitos no trailer Co-authored-by e na checagem de autoria (noreply do GitHub + e-mails verificados na conta). 'backup' cobre as responsabilidades do papel em ausencia.",
-  "projeto": "GreenER",
+  "_comentario": "Equipe EcoPulse (ABP 2DSM 2026-2). Arquivo gerenciado pelo time: edite via PR. 'emails' sao os enderecos aceitos no trailer Co-authored-by e na checagem de autoria (noreply do GitHub + e-mails verificados na conta). 'backup' cobre as responsabilidades do papel em ausencia.",
+  "projeto": "EcoPulse",
   "org": "DEVassos",
   "repo": "DEVassos/greener-app",
   "kit": "DEVassos/agilekit",
@@ -13,7 +13,10 @@
       "backup": "travensolli",
       "area_primaria": "produto",
       "par_de_revisao": "travensolli",
-      "emails": ["233653222+henriqueptbd-cell@users.noreply.github.com"]
+      "emails": [
+        "233653222+henriqueptbd-cell@users.noreply.github.com",
+        "henriqueptbd@gmail.com"
+      ]
     },
     {
       "login": "travensolli",
@@ -21,9 +24,12 @@
       "nome": "Gabriel Travensolli",
       "papel": "sm",
       "backup": "henriqueptbd-cell",
-      "area_primaria": "infra",
+      "area_primaria": "infra/frontend",
       "par_de_revisao": "henriqueptbd-cell",
-      "emails": ["55038859+travensolli@users.noreply.github.com", "gabriel_t_silva@hotmail.com"]
+      "emails": [
+        "55038859+travensolli@users.noreply.github.com",
+        "gabriel_t_silva@hotmail.com"
+      ]
     },
     {
       "login": "DeaTuribio",
@@ -32,8 +38,10 @@
       "papel": "dev",
       "backup": "LUCASAMR23",
       "area_primaria": "frontend",
-      "par_de_revisao": "LUCASAMR23",
-      "emails": ["139165742+DeaTuribio@users.noreply.github.com"]
+      "par_de_revisao": "travensolli",
+      "emails": [
+        "139165742+DeaTuribio@users.noreply.github.com"
+      ]
     },
     {
       "login": "LUCASAMR23",
@@ -43,7 +51,10 @@
       "backup": "viniciusaugusto1997",
       "area_primaria": "backend",
       "par_de_revisao": "viniciusaugusto1997",
-      "emails": ["177771290+LUCASAMR23@users.noreply.github.com", "lucasrodriguessptvv@gmail.com"]
+      "emails": [
+        "177771290+LUCASAMR23@users.noreply.github.com",
+        "lucasrodriguessptvv@gmail.com"
+      ]
     },
     {
       "login": "viniciusaugusto1997",
@@ -51,9 +62,12 @@
       "nome": "Vinicius Augusto",
       "papel": "dev",
       "backup": "DeaTuribio",
-      "area_primaria": "db",
-      "par_de_revisao": "DeaTuribio",
-      "emails": ["261281418+viniciusaugusto1997@users.noreply.github.com"]
+      "area_primaria": "backend/db",
+      "par_de_revisao": "LUCASAMR23",
+      "emails": [
+        "261281418+viniciusaugusto1997@users.noreply.github.com",
+        "viniciusaugusto1997@gmail.com"
+      ]
     }
   ],
   "papeis": {

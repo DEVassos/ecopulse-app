@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Mensagens de commit (padrão, #issue, co-autoria do time)
@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Metadados do PR (título, branch, base, Closes #n, labels, DoD-PR)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -48,6 +48,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Documentação da rubrica (plano, api.md, vazios, placeholders)
         run: bash .github/scripts/check-docs.sh

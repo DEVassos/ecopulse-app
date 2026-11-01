@@ -1,0 +1,29 @@
+/* Estrutura comum das páginas (dashboard e configuração) */
+@layer components {
+  .page {
+    min-height: 100%;
+  }
+
+  .content {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    /* Respiros na escala de 8: em notebook a altura é o recurso escasso */
+    gap: 16px;
+  }
+
+  /* Caixa padrão de conteúdo: superfície sobre o fundo, borda sutil e cantos arredondados */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  @media (min-width: 961px) {
+    .content {
+      padding: 16px 24px 24px;
+    }
+  }
+}

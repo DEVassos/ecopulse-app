@@ -1,14 +1,21 @@
 # gerado pelo agilekit — edite em DEVassos/agilekit (repo/.github/ISSUE_TEMPLATE/historia.yml)
 name: "História de usuário"
-description: "Funcionalidade do GreenER ligada a um requisito (RF/RNF). Criada e priorizada pelo PO."
+description: "Funcionalidade do EcoPulse ligada a um requisito (RF/RNF). Criada e priorizada pelo PO."
 title: "RFxx — "
 labels: ["tipo:historia"]
+type: Feature
 body:
   - type: markdown
     attributes:
       value: |
         Escreva pensando no avaliador: esta issue é lida para **ES01** (backlog), **ES03** (critérios de aceite) e **ES04** (rastreabilidade).
         DoR em `docs/processo/definition-of-done.md`. Prioridade: adicione a label `prioridade:must|should|could`.
+  - type: input
+    id: epico
+    attributes:
+      label: "Épico (pai)"
+      description: "Número da issue do épico (tipo:epico) ao qual esta história pertence — ex.: #30. A vinculação como sub-issue é automática."
+      placeholder: "#30"
   - type: textarea
     id: historia
     attributes:

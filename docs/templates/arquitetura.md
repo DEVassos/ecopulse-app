@@ -1,10 +1,10 @@
-# Arquitetura do GreenER
+# Arquitetura do EcoPulse
 
 <!-- Template do agilekit (repo/docs/templates/arquitetura.md). Destino: docs/arquitetura.md. Criado quando frontend, backend e banco existirem em develop (previsto para a Sprint 2); descreve apenas o que está implementado. Substitua os campos `<...>` e remova seções que ainda não correspondem ao código. -->
 
 ## 1. Visão geral
 
-O GreenER é composto por três partes executadas em containers Docker (`compose.yaml`) mais duas APIs auxiliares externas fornecidas pela UniLaunch.
+O EcoPulse é composto por três partes executadas em containers Docker (`compose.yaml`) mais duas APIs auxiliares externas fornecidas pela UniLaunch.
 
 | Parte | Tecnologia | Responsabilidade | Porta local |
 |---|---|---|---|
@@ -70,8 +70,8 @@ Diagrama e restrições completas: `database/README.md` e `database/schema.sql`.
 
 | Variável | Usada por | Exemplo (`.env.example`) | Descrição |
 |---|---|---|---|
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres, backend | `greener` / `greener` / `greener` | credenciais do banco local |
-| `DATABASE_URL` | backend | `postgres://greener:greener@postgres:5432/greener` | conexão do pool |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres, backend | `ecopulse` / `ecopulse` / `ecopulse` | credenciais do banco local |
+| `DATABASE_URL` | backend | `postgres://ecopulse:ecopulse@postgres:5432/ecopulse` | conexão do pool |
 | `METRICS_API_URL` | backend | `https://metrics.unilaunch.org` | agregador de métricas |
 | `CARBON_API_URL` | backend | `https://carbon.unilaunch.org` | intensidade de carbono |
 | `COLLECT_INTERVAL_MS` | backend | `60000` | intervalo de coleta |

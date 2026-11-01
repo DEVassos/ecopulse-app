@@ -1,4 +1,4 @@
-# Onboarding — primeiro dia no GreenER
+# Onboarding — primeiro dia no EcoPulse
 
 <!-- gerado pelo agilekit — edite em DEVassos/agilekit (repo/docs/processo/onboarding.md) -->
 
@@ -10,7 +10,7 @@ Checklist para cada integrante sair do zero até o primeiro PR mergeado. Tempo e
 |---|---|---|---|
 | Git (no Windows inclui o **Git Bash**) | ≥2.40 | `git --version` | https://git-scm.com |
 | GitHub CLI | ≥2.60 | `gh --version` | https://cli.github.com |
-| Docker Desktop (com `docker compose`) | atual | `docker compose version` | https://www.docker.com — habilitar o backend WSL 2 no Windows |
+| Docker com Compose v2 | atual | `docker compose version` (Docker só no WSL: `bash .agilekit/scripts/setup-dev.sh --check`) | Docker Desktop (https://www.docker.com, backend WSL 2 no Windows) **ou**, sem Docker Desktop, Docker Engine numa distribuição WSL (seção 4) |
 | Node.js | **≥20 LTS** | `node -v` | https://nodejs.org (ou `nvm`) |
 | `jq` | qualquer | `jq --version` | **instalado pelo kit** (`install.sh`); manual: `winget install jqlang.jq` |
 | VS Code (opcional) | atual | — | extensões sugeridas: ESLint, Prettier, Docker, GitLens |
@@ -35,13 +35,13 @@ Clone em uma pasta local **fora de pastas sincronizadas** (OneDrive, Google Driv
 ```bash
 cd /c/dev                                    # ou: cd "/g/FATEC/ABPs/ABP - 2DSM"
 git clone https://github.com/DEVassos/greener-app.git
+git clone https://github.com/DEVassos/agilekit.git   # ao lado do greener-app: a raiz do projeto fica só com o projeto
 cd greener-app
-git clone https://github.com/DEVassos/agilekit.git agilekit   # fica dentro do clone, já no .gitignore
-bash agilekit/install.sh .                   # instala hooks, .gitmessage, .agilekit/, jq e pergunta o assistente de IA (seção 6)
+bash ../agilekit/install.sh .                # instala .agilekit/ (scripts, hooks, template de commit), o jq e pergunta o assistente de IA (seção 6)
 bash .agilekit/scripts/setup-dev.sh          # git config local + verificação do ambiente
 ```
 
-O `setup-dev.sh` configura `core.hooksPath=.githooks`, `commit.template=.gitmessage`, `pull.rebase=true`, `rebase.autoStash=true`, `push.autoSetupRemote=true`, `fetch.prune=true` e, no Windows, `core.longpaths=true`. Ele **falha** se `git config user.email` não for um e-mail da sua entrada em `equipe.json` verificado no GitHub. Corrija com:
+O `setup-dev.sh` configura `core.hooksPath=.agilekit/githooks`, `commit.template=.agilekit/gitmessage`, `pull.rebase=true`, `rebase.autoStash=true`, `push.autoSetupRemote=true`, `fetch.prune=true` e, no Windows, `core.longpaths=true`. Ele **falha** se `git config user.email` não for um e-mail da sua entrada em `equipe.json` verificado no GitHub. Corrija com:
 
 ```bash
 git config user.name "Seu Nome"
@@ -51,7 +51,7 @@ bash .agilekit/scripts/setup-dev.sh --check
 
 - [ ] `setup-dev.sh --check` termina sem erros.
 - [ ] `git switch develop && git pull` funciona.
-- [ ] `docker compose up --build` sobe os containers (assim que existir `compose.yaml` no repositório).
+- [ ] `docker compose up --build` sobe os containers (assim que existir `compose.yaml` no repositório; Docker só no WSL: seção 4).
 
 ## 4. Windows — detalhes que evitam dor de cabeça
 
@@ -61,8 +61,9 @@ bash .agilekit/scripts/setup-dev.sh --check
 | Fim de linha | Não mude `core.autocrlf`: o `.gitattributes` do repositório força LF em `*.sh`, hooks e código, e CRLF só em `*.bat`, `*.cmd` e `*.ps1`. Se um hook falhar com `\r: command not found`, rode `git add --renormalize .` na sua branch e commite. |
 | Caminhos com espaço | `ABP - 2DSM` tem espaços: sempre `cd "/g/FATEC/ABPs/ABP - 2DSM/greener-app"` entre aspas. Prefira `C:\dev\greener-app` se puder. |
 | Caminhos longos | `core.longpaths=true` (feito pelo `setup-dev.sh`) evita erro em `node_modules`. |
-| Conversão de caminho do MSYS | Os scripts exportam `MSYS_NO_PATHCONV=1`; se chamar `gh api` à mão no Git Bash, **não** use barra inicial (`gh api repos/...`). |
+| Conversão de caminho do MSYS | Os scripts **não** desativam a conversão de caminhos (ela é necessária para `git`, `gh` e `docker`); a única regra é nunca chamar `gh api` com barra inicial no Git Bash (`gh api repos/...`, não `gh api /repos/...`). O `jq.exe` do Windows emite CRLF; a biblioteca do kit normaliza isso. |
 | Docker Desktop | Backend WSL 2 ativo; compartilhe a unidade (`G:`) em Settings → Resources → File sharing se o compose não enxergar os arquivos. |
+| Docker só no WSL (sem Docker Desktop) | Git, `gh`, Node, VS Code e os scripts do kit continuam no Windows (Git Bash); Docker Engine e Compose ficam numa distribuição WSL 2, como a Ubuntu. Rode `bash .agilekit/scripts/setup-dev.sh --docker-wsl Ubuntu` (troque pelo nome que aparece em `wsl -l -v`). Se o docker não estiver no Windows, o `setup-dev.sh` detecta a distribuição padrão sozinho. Ele grava a escolha em `.agilekit/docker.conf` e cria `.agilekit/bin/docker`, que leva os comandos do kit ao WSL a partir da mesma pasta. O `--check` confere cliente, daemon e Compose dentro da distribuição. Para subir a aplicação: no terminal da Ubuntu, `cd "/mnt/g/FATEC/ABPs/ABP - 2DSM/greener-app" && docker compose up --build`; no Git Bash, `.agilekit/bin/docker compose up --build`; no PowerShell, `wsl -d Ubuntu docker compose up --build`. Para voltar ao Docker Desktop: `setup-dev.sh --docker-nativo`. |
 | `jq` ausente | `install.sh` tenta `winget`; sem winget, baixa o binário para `.agilekit/bin/`, que os scripts já incluem no `PATH`. |
 | Pasta sincronizada | Nunca clone dentro de OneDrive/Google Drive: hooks e `.git` quebram. |
 
@@ -71,7 +72,7 @@ bash .agilekit/scripts/setup-dev.sh --check
 Pegue uma issue pequena (estimativa 1–2) do Sprint Backlog com o seu nome, ou peça uma ao PO. Percorra o ciclo completo uma vez:
 
 1. `/tarefa <n>` (ou `git fetch && git switch -c feature/<n>-slug origin/develop`) — o cartão vai para "Em andamento".
-2. Faça a alteração; `git commit` abre o `.gitmessage` com as regras (`type(scope): descrição (#n) [RFxx]`). Ou use `/commitar`.
+2. Faça a alteração; `git commit` abre o `.agilekit/gitmessage` com as regras (`type(scope): descrição (#n) [RFxx]`). Ou use `/commitar`.
 3. `git push` (a branch é rastreada automaticamente); o hook recusa push em `main`/`develop`.
 4. `/pr` (ou `gh pr create --base develop --fill`), preenchendo o template: `Closes #n`, "Como verificar", DoD-PR. O cartão vai para "Em revisão".
 5. Peça revisão ao seu par de revisão (`equipe.json`); responda aos comentários; quando aprovado, faça o **merge commit** pela interface. A branch é apagada e a issue fechada pelo workflow `board`.
@@ -83,8 +84,8 @@ Leitura obrigatória antes do primeiro PR: [CONTRIBUTING.md](../../.github/CONTR
 Na instalação você escolhe um ou mais assistentes. Cada um recebe as mesmas 11 skills (`onboarding`, `historia`, `tarefa`, `commitar`, `pr`, `revisar`, `daily`, `painel`, `adr`, `auditar`, `sprint`), os 5 agentes, as regras do projeto e o guard que bloqueia commit fora do padrão, push em branch protegida e co-autor fora do time. Esses arquivos ficam só na sua máquina: o git os ignora.
 
 ```bash
-bash agilekit/install.sh . --llm claude          # um assistente
-bash agilekit/install.sh . --llm copilot,codex   # vários; também aceita todos ou nenhum
+bash ../agilekit/install.sh . --llm claude          # um assistente
+bash ../agilekit/install.sh . --llm copilot,codex   # vários; também aceita todos ou nenhum
 ```
 
 | Assistente | Como abrir | Chamar uma skill | Passo extra na primeira vez |

@@ -1,0 +1,78 @@
+# EcoPulse — único caminho oficial de execução (ADR 0003).
+# Uso: cp .env.example .env && docker compose up --build
+# Zerar o banco (apaga o volume e reaplica database/schema.sql): docker compose down -v
+
+# Nome do projeto no Docker: containers ecopulse-<serviço>-1 e volume ecopulse_pgdata, qualquer que seja a pasta do clone
+name: ecopulse
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ecopulse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ecopulse}
+      POSTGRES_DB: ${POSTGRES_DB:-ecopulse_db}
+      # Usadas somente pelo script de inicialização do administrador em volume novo.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL precisa estar definido no .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD precisa estar definido no .env}
+    volumes:
+      # Volume nomeado: os dados sobrevivem a restart, stop e down (BD03); só down -v apaga
+      - pgdata:/var/lib/postgresql/data
+      # Os .sql de database/ rodam só na primeira criação do volume, em ordem alfabética
+      - ./database:/docker-entrypoint-initdb.d:ro
+    ports:
+      # Dentro da rede do compose o banco é sempre postgres:5432; no host, a porta vem do .env
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      PORT: 3000
+      # Dentro da rede do compose o banco é o serviço `postgres`, não localhost
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ecopulse}:${POSTGRES_PASSWORD:-ecopulse}@postgres:5432/${POSTGRES_DB:-ecopulse_db}
+      CARBON_API_URL: ${CARBON_API_URL:-https://carbon.unilaunch.org}
+      METRICS_API_URL: ${METRICS_API_URL:-https://metrics.unilaunch.org}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET precisa estar definido no .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      # Origem do dashboard aberta no navegador (porta do frontend abaixo)
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Embutida no bundle no build: depois de mudar no .env, suba de novo com --build
+        VITE_API_URL: ${VITE_API_URL:-}
+        VITE_REFRESH_INTERVAL_MS: ${VITE_REFRESH_INTERVAL_MS:-}
+    ports:
+      - "5173:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  pgdata:

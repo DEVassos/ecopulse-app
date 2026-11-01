@@ -5,7 +5,7 @@
 # scripts e hooks sempre LF (CRLF quebra o shebang no Git Bash/Linux/macOS)
 *.sh text eol=lf
 *.bash text eol=lf
-.githooks/* text eol=lf
+**/githooks/* text eol=lf
 *.yml text eol=lf
 *.yaml text eol=lf
 *.json text eol=lf

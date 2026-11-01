@@ -6,7 +6,7 @@
 |---|---|
 | Status | proposto / aceito / rejeitado / substituído por ADR MMMM |
 | Data | `<AAAA-MM-DD>` |
-| Decisores | `<@login, @login>` (time GreenER) |
+| Decisores | `<@login, @login>` (time EcoPulse) |
 | Rastreabilidade | issue #`<n>` · requisito `<RFxx / RPxx>` · critério `<DWxx / BDxx / TPxx>` |
 
 ## Contexto e problema

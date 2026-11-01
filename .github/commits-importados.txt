@@ -1,0 +1,13 @@
+# Commits importados de outro repositório do time, com SHA, autor, data e mensagem originais preservados.
+# O check 'commits' (check-commit-msg.sh --range) não valida a mensagem destes commits: são anteriores ao padrão.
+# Formato: <sha completo> <origem>  — ver .github/CONTRIBUTING.md, seção 'Histórico importado'.
+# Origem DEVassos/Projeto-GreenER: arquivada em 16/10/2026 (#127), só para leitura; os SHAs e os links de lá continuam válidos.
+0e3f3741c4baa1037723d4599391c840edfeb8e6 DEVassos/Projeto-GreenER Henrique.Camargo 2026-10-04
+26b8ec97445d268fb87b3982fdcbe936ccf1ce53 DEVassos/Projeto-GreenER Henrique.Camargo 2026-10-04
+4bb4dda3c50342c2102723afd1348a8a75f72292 DEVassos/Projeto-GreenER Henrique.Camargo 2026-10-04
+c8f807c90a725532091a3f734cd2cf7c2a8aed55 DEVassos/Projeto-GreenER Henrique.Camargo 2026-10-04
+30944e1ff10ae500a0bb5964eb2a769e22442d49 DEVassos/Projeto-GreenER Henrique.Camargo 2026-10-04
+e87209a596f78e3bac75c11bffcc96bef700bbde DEVassos/Projeto-GreenER Henrique.Camargo 2026-10-04
+1a6527eaef39b45291729c55dbb034e3e76b2a1a DEVassos/Projeto-GreenER Vinicius Ferreira 2026-10-05
+# Commit de bot que entrou direto em main (PR #96 do Dependabot, sem #n) e volta para develop na sincronização pós-release da Sprint 1 (#153).
+dc78093382a4ac81208e2aeb6bd9ed9ce25a1fc8 DEVassos/greener-app main (PR #96) dependabot[bot] 2026-10-13

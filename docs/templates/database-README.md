@@ -1,4 +1,4 @@
-# Banco de dados — GreenER (PostgreSQL)
+# Banco de dados — EcoPulse (PostgreSQL)
 
 <!-- Template do agilekit (repo/docs/templates/database-README.md). Destino: database/README.md. Criado no PR do primeiro schema.sql e atualizado no mesmo PR de cada tabela ou script novo (DoD-PR item 5). Substitua os campos `<...>`. -->
 
@@ -24,9 +24,9 @@ docker compose up --build postgres
 Manualmente, com `psql`:
 
 ```bash
-psql "postgres://greener:greener@localhost:5432/greener" -f database/schema.sql
-psql "postgres://greener:greener@localhost:5432/greener" -f database/seeds/<nome>.sql
-psql "postgres://greener:greener@localhost:5432/greener" -f database/migrations/001-<slug>.sql   # se existir
+psql "postgres://ecopulse:ecopulse@localhost:5432/ecopulse" -f database/schema.sql
+psql "postgres://ecopulse:ecopulse@localhost:5432/ecopulse" -f database/seeds/<nome>.sql
+psql "postgres://ecopulse:ecopulse@localhost:5432/ecopulse" -f database/migrations/001-<slug>.sql   # se existir
 ```
 
 Conferir: `psql ... -c '\dt'` lista `<services, collections, ...>`; `psql ... -c '\d collections'` mostra FK para `services` e índice `<nome>`.
@@ -67,10 +67,10 @@ Verificação rápida: `grep -rn '\$1' backend/src/modules/*/*.repository.ts` e 
 ```bash
 docker compose up --build -d
 sleep 90                                   # aguarda ao menos uma coleta
-docker compose exec postgres psql -U greener -d greener -c "SELECT count(*) FROM collections;"   # anote o valor
+docker compose exec postgres psql -U ecopulse -d ecopulse -c "SELECT count(*) FROM collections;"   # anote o valor
 docker compose down                        # sem -v: o volume pgdata permanece
 docker compose up -d
-docker compose exec postgres psql -U greener -d greener -c "SELECT count(*) FROM collections;"   # igual ou maior
+docker compose exec postgres psql -U ecopulse -d ecopulse -c "SELECT count(*) FROM collections;"   # igual ou maior
 ```
 
 O volume está declarado em `compose.yaml` (`volumes: pgdata:`), montado em `/var/lib/postgresql/data`.

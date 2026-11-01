@@ -1,0 +1,39 @@
+# gerado pelo agilekit — edite em DEVassos/agilekit (repo/.github/ISSUE_TEMPLATE/epico.yml)
+name: "Épico (tema de requisitos)"
+description: "Nível 1 da hierarquia: agrupa histórias de um tema do edital. Criado pelo PO; atravessa as sprints (sem milestone)."
+title: "EPn — "
+labels: ["tipo:epico"]
+type: Epic
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Um épico junta as histórias de um mesmo tema do edital (ex.: EP1 — Descoberta e monitoramento dinâmico, RF01/RF02/RF05/RF06).
+        As histórias viram **sub-issues** deste épico (campo "Épico (pai)" do formulário de história) e o progresso aparece em *Sub-issues progress* no quadro.
+  - type: textarea
+    id: descricao
+    attributes:
+      label: "Épico"
+      description: "O que este tema entrega para o usuário e por que importa."
+    validations:
+      required: true
+  - type: dropdown
+    id: requisitos
+    attributes:
+      label: "Requisito relacionado"
+      description: "Requisitos do edital cobertos (geram as labels RFxx/RNFxx)."
+      multiple: true
+      options: ["RF01", "RF02", "RF03", "RF04", "RF05", "RF06", "RF07", "RF08", "RF09", "RF10", "RF11", "RF12", "RF13", "RF14", "RF15", "RNF01", "RNF02", "RNF03", "RNF04", "RNF05"]
+    validations:
+      required: true
+  - type: textarea
+    id: historias
+    attributes:
+      label: "Histórias previstas"
+      description: "Lista das histórias (US) que pertencem a este épico; vincule cada uma como sub-issue ao criá-la."
+      placeholder: "- US01 — Descoberta e ingestão dinâmica de serviços"
+  - type: textarea
+    id: criterio
+    attributes:
+      label: "Como saberemos que o épico terminou"
+      description: "Condição de fechamento (normalmente: todas as histórias aceitas pelo PO e critérios da rubrica relacionados atendidos)."

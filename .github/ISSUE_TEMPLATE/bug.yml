@@ -3,6 +3,7 @@ name: "Bug"
 description: "Comportamento incorreto em algo já entregue (regressões contam contra a rubrica cumulativa)."
 title: "[bug] "
 labels: ["tipo:bug"]
+type: Bug
 body:
   - type: textarea
     id: passos

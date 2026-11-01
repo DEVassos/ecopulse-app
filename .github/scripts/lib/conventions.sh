@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # gerado pelo agilekit — edite em DEVassos/agilekit (repo/.github/scripts/lib/conventions.sh)
 #
-# Biblioteca compartilhada pelos validadores e automações do GreenER.
+# Biblioteca compartilhada pelos validadores e automações do EcoPulse.
 # Uso: source "$(dirname "${BASH_SOURCE[0]}")/lib/conventions.sh"
 # Fornece: ambiente portátil (Windows/macOS/Linux/runner), regexes das convenções,
 # saída com anotações do GitHub Actions, acesso a .github/equipe.json e calendario.json.
@@ -13,6 +13,8 @@ set -euo pipefail
 # Windows (Git Bash): NÃO desative a conversão de caminhos do MSYS (git, gh e docker dependem dela).
 # Regra: nunca chame "gh api /caminho" com barra inicial (o MSYS reescreveria); use "gh api repos/...".
 ROOT="${ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+# No Git Bash o git devolve "G:/..." e o ":" quebraria o PATH; normaliza para a forma POSIX (/g/...)
+ROOT="$(cd "$ROOT" 2>/dev/null && pwd || printf "%s" "$ROOT")"
 export PATH="$ROOT/.agilekit/bin:$PATH"
 EQUIPE_JSON="${EQUIPE_JSON:-$ROOT/.github/equipe.json}"
 CALENDARIO_JSON="${CALENDARIO_JSON:-$ROOT/.github/calendario.json}"
@@ -32,7 +34,10 @@ RE_RELEASE_BRANCH='^release/sprint-[0-9]+$'
 RE_HOTFIX_BRANCH='^hotfix/[0-9]+-[a-z0-9.-]+$'
 PROTECTED_BRANCHES='main develop'
 
-RE_PR_CLOSES='(^|[^A-Za-z0-9])([Cc]lose[sd]?|[Ff]ix(e[sd])?|[Rr]esolve[sd]?|[Rr]efs?)[[:space:]]*:?[[:space:]]*#[0-9]+'
+# fecham a issue no merge: só as palavras do próprio GitHub (close/fix/resolve e flexões)
+RE_PR_CLOSES='(^|[^A-Za-z0-9])([Cc]lose[sd]?|[Ff]ix(e[sd])?|[Rr]esolve[sd]?)[[:space:]]*:?[[:space:]]*#[0-9]+'
+# só citam a issue (informativo): "Refs #n" não fecha a issue nem move o cartão
+RE_PR_REFS='(^|[^A-Za-z0-9])[Rr]efs?[[:space:]]*:?[[:space:]]*#[0-9]+'
 RE_LABEL_REQ='^(RF|RNF)[0-9]{2}$'
 RE_LABEL_ALT='^tipo:(processo|bug)$'
 PR_MAX_LINES=400
@@ -73,7 +78,7 @@ need_cmd() {
 }
 # jq.exe no Windows emite CRLF; o wrapper normaliza para LF (pipefail preserva o exit code do jq)
 jq() { command jq "$@" | tr -d '\r'; }
-need_jq() { type -P jq >/dev/null 2>&1 && return 0; err "comando 'jq' não encontrado. Rode 'bash agilekit/install.sh .' (instala o jq) ou instale: winget install jqlang.jq | brew install jq | sudo apt-get install -y jq"; exit 1; }
+need_jq() { type -P jq >/dev/null 2>&1 && return 0; err "comando 'jq' não encontrado. Rode 'bash ../agilekit/install.sh .' (instala o jq) ou instale: winget install jqlang.jq | brew install jq | sudo apt-get install -y jq"; exit 1; }
 need_gh() { need_cmd gh "Instale o GitHub CLI: https://cli.github.com e rode 'gh auth login'"; }
 lower() { tr '[:upper:]' '[:lower:]'; }
 trim()  { sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'; }

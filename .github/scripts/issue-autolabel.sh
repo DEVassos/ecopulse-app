@@ -39,7 +39,24 @@ if ! printf '%s\n' "$ATUAIS" | grep -q '^tipo:'; then
   fi
 fi
 
-if [ "${#ADD[@]}" -eq 0 ]; then info "#$N: nenhuma label a adicionar"; exit 0; fi
-LISTA="$(IFS=,; printf '%s' "${ADD[*]}")"
-gh issue edit "$N" "${REPO_FLAG[@]}" --add-label "$LISTA" >/dev/null
-ok "#$N: labels adicionadas: $LISTA"
+if [ "${#ADD[@]}" -eq 0 ]; then info "#$N: nenhuma label a adicionar"; else
+  LISTA="$(IFS=,; printf '%s' "${ADD[*]}")"
+  gh issue edit "$N" "${REPO_FLAG[@]}" --add-label "$LISTA" >/dev/null
+  ok "#$N: labels adicionadas: $LISTA"
+fi
+
+# --- Hierarquia (sub-issues): "### História pai" ou "### Épico" com #N no formulário → vincula como filho ---
+PAI="$(printf '%s\n' "$BODY" | awk '/^### *(História pai|Épico|Epico)/{f=1; next} /^### /{f=0} f' | grep -oE '#[0-9]+' | head -1 | tr -d '#' || true)"
+if [ -n "$PAI" ] && [ "$PAI" != "$N" ]; then
+  REPO_NAME="${GITHUB_REPOSITORY:-$(gh repo view --json nameWithOwner -q .nameWithOwner)}"
+  MEU_ID="$(gh api "repos/$REPO_NAME/issues/$N" --jq .id 2>/dev/null || true)"
+  if [ -n "$MEU_ID" ]; then
+    if gh api "repos/$REPO_NAME/issues/$PAI/sub_issues?per_page=100" --jq '.[].number' 2>/dev/null | grep -qx "$N"; then
+      info "#$N já é sub-issue de #$PAI"
+    elif gh api -X POST "repos/$REPO_NAME/issues/$PAI/sub_issues" -F sub_issue_id="$MEU_ID" >/dev/null 2>&1; then
+      ok "#$N vinculada como sub-issue de #$PAI"
+    else
+      warn "não consegui vincular #$N a #$PAI (a issue já tem outro pai? #$PAI existe?)"
+    fi
+  fi
+fi

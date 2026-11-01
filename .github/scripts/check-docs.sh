@@ -84,7 +84,7 @@ if [ -d docs ]; then
     if [ ! -s "$f" ]; then err "arquivo vazio: $f — a rubrica não aceita documentos vazios" "file=$f"; continue; fi
     if [ "$(grep -cvE '^[[:space:]]*$' "$f")" -le 1 ]; then warn "arquivo só com título: $f — documentos nascem quando há conteúdo" "file=$f"; fi
     while IFS= read -r l; do [ -n "$l" ] || continue; ln="${l%%:*}"; err "placeholder '_(preencha)_' em $f:$ln" "file=$f,line=$ln"; done < <(grep -nF '_(preencha)_' "$f" || true)
-    while IFS= read -r l; do [ -n "$l" ] || continue; ln="${l%%:*}"; warn "possível placeholder em $f:$ln: ${l#*:}" "file=$f,line=$ln"; done < <(grep -niE '(^|[^A-Za-z])(TODO|em breve|lorem ipsum|a preencher)([^A-Za-z]|$)' "$f" || true)
+    while IFS= read -r l; do [ -n "$l" ] || continue; ln="${l%%:*}"; warn "possível placeholder em $f:$ln: ${l#*:}" "file=$f,line=$ln"; done < <({ grep -nE '(^|[^[:alpha:]])(TODO|FIXME|TBD)([^[:alpha:]]|$)' "$f"; grep -niE '(^|[^[:alpha:]])(em breve|lorem ipsum|a preencher)([^[:alpha:]]|$)' "$f"; } | sort -t: -k1,1n -u || true)
   done < "$TMP"
 fi
 

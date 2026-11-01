@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Status | aceito |
+| Status | aceito · execução do frontend no container substituída pelo [ADR 0005](0005-frontend-nginx-build-producao.md) |
 | Data | 2026-10-05 |
 | Decisores | @viniciusaugusto1997 (db), @LUCASAMR23 (backend), @DeaTuribio (frontend), @travensolli (SM); validado pelo time |
 | Rastreabilidade | requisito RP04 (execução exclusivamente em containers) · critérios DW07 (execução containerizada), BD03 (persistência após reinício), ES08 (reprodutibilidade) |

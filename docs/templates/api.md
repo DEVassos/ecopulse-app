@@ -1,4 +1,4 @@
-# API REST do GreenER — endpoints desenvolvidos pela equipe
+# API REST do EcoPulse — endpoints desenvolvidos pela equipe
 
 <!-- Template do agilekit (repo/docs/templates/api.md). Destino: docs/api.md. Nasce no PR da primeira rota e é atualizado NO MESMO PR de cada rota nova (DoD-PR item 5; o check `docs` falha se existir *.routes.ts sem docs/api.md). Documente apenas o que está em develop. Substitua os campos `<...>`. -->
 

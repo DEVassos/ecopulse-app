@@ -5,7 +5,7 @@
 # Usado pelo board.yml (com PROJECTS_TOKEN) e pelas skills /tarefa e /pr (token do próprio dev).
 #
 # Uso: project-set-status.sh <issue-nº> <Status|-> [--only-from "_,Backlog,Sprint Backlog"]
-#                            [--text "Campo=Valor"]... [--issues-only] [--dry-run]
+#                            [--text "Campo=Valor"]... [--number "Campo=Valor"]... [--issues-only] [--dry-run]
 #   Status "-"      : não altera o Status (só campos --text)
 #   --only-from     : lista separada por vírgula dos status atuais permitidos ("_" = sem status/não está no quadro)
 #   --issues-only   : se o nº for de um PR, sai 0 sem fazer nada
@@ -19,11 +19,12 @@ need_jq; need_gh
 
 [ $# -ge 2 ] || { sed -n '3,14p' "$0"; exit 2; }
 NUM="$1"; TARGET="$2"; shift 2
-ONLY_FROM=""; TEXTS=(); ISSUES_ONLY=0; DRY=0
+ONLY_FROM=""; TEXTS=(); NUMBERS=(); ISSUES_ONLY=0; DRY=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --only-from) ONLY_FROM="$2"; shift ;;
     --text) TEXTS+=("$2"); shift ;;
+    --number) NUMBERS+=("$2"); shift ;;
     --issues-only) ISSUES_ONLY=1 ;;
     --dry-run) DRY=1 ;;
     *) err "argumento desconhecido: $1"; exit 2 ;;
@@ -109,6 +110,20 @@ for kv in "${TEXTS[@]:-}"; do
       mutation($projectId:ID!, $itemId:ID!, $fieldId:ID!, $text:String!) {
         updateProjectV2ItemFieldValue(input:{projectId:$projectId, itemId:$itemId, fieldId:$fieldId, value:{text:$text}}) { projectV2Item { id } } }' >/dev/null
     ok "#$NUM: $campo='$valor'"
+  fi
+done
+
+# 6) campos numéricos (ex.: Story Points)
+for kv in "${NUMBERS[@]:-}"; do
+  [ -n "$kv" ] || continue
+  campo="${kv%%=*}"; valor="${kv#*=}"
+  FIELD_ID="$(jq -r --arg c "$campo" '.fields.nodes[] | select(.name==$c and .dataType=="NUMBER") | .id' <<< "$PROJ")"
+  [ -n "$FIELD_ID" ] || { warn "campo numérico '$campo' não existe no projeto (rode gh-bootstrap.sh --project); ignorado"; continue; }
+  if [ "$DRY" = 1 ]; then info "[dry-run] #$NUM: $campo=$valor"; else
+    gh api graphql -f projectId="$PROJECT_ID" -f itemId="$ITEM_ID" -f fieldId="$FIELD_ID" -F number="$valor" -f query='
+      mutation($projectId:ID!, $itemId:ID!, $fieldId:ID!, $number:Float!) {
+        updateProjectV2ItemFieldValue(input:{projectId:$projectId, itemId:$itemId, fieldId:$fieldId, value:{number:$number}}) { projectV2Item { id } } }' >/dev/null
+    ok "#$NUM: $campo=$valor"
   fi
 done
 exit 0

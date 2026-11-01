@@ -1,8 +1,12 @@
 /*
- * Tailwind sem o preflight: o reset do Tailwind mudaria o visual dos componentes que já
- * têm CSS próprio. Ficam disponíveis o tema e as classes utilitárias.
+ * Camadas, da menor para a maior prioridade: tema do Tailwind < base (elementos HTML) <
+ * components (CSS dos componentes e do layout) < utilities. Assim uma classe utilitária
+ * (p-4, text-muted) sempre vence o CSS próprio do componente. Todo CSS novo entra em
+ * `@layer components`: fora de camada ele venceria as utilities.
+ * O preflight (reset) do Tailwind não é importado, para não alterar os componentes; o reset
+ * mínimo do projeto fica na camada base, abaixo.
  */
-@layer theme, utilities;
+@layer theme, base, components, utilities;
 @import 'tailwindcss/theme.css' layer(theme);
 @import 'tailwindcss/utilities.css' layer(utilities);
 
@@ -27,6 +31,9 @@
   --error: #ef4444;
   /* Vermelho mais claro para texto pequeno sobre o fundo escuro (contraste AA) */
   --danger: #f87171;
+  /* Neon: só no que pede atenção (maior impacto, pico, "ao vivo", pulso do logo) */
+  --neon: #5cffb8;
+  --neon-glow: rgb(92 255 184 / 0.35);
   --sans: 'IBM Plex Sans', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', monospace;
   --display: 'Space Grotesk', sans-serif;
@@ -43,43 +50,47 @@
   --color-muted: var(--muted);
   --color-faint: var(--faint);
   --color-primary: var(--accent);
+  --color-primary-hover: var(--accent-hover);
   --color-secondary: var(--sky);
   --color-brand: var(--yellow);
   --color-warning: var(--warning);
   --color-error: var(--error);
+  --color-danger: var(--danger);
   --font-sans: var(--sans);
   --font-mono: var(--mono);
   --font-display: var(--display);
 }
 
-* {
-  box-sizing: border-box;
-}
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
 
-html,
-body,
-#root {
-  height: 100%;
-}
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
 
-body {
-  margin: 0;
-  font-family: var(--sans);
-  font-size: 15px;
-  color: var(--text);
-  background: var(--bg);
-}
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    font-size: 15px;
+    color: var(--text);
+    background: var(--bg);
+  }
 
-a {
-  color: var(--sky);
-}
+  a {
+    color: var(--sky);
+  }
 
-a:hover {
-  color: var(--sky-hover);
-}
+  a:hover {
+    color: var(--sky-hover);
+  }
 
-a:focus-visible,
-button:focus-visible {
-  outline: 2px solid var(--sky);
-  outline-offset: 2px;
+  a:focus-visible,
+  button:focus-visible {
+    outline: 2px solid var(--sky);
+    outline-offset: 2px;
+  }
 }

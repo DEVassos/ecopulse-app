@@ -1,37 +1,182 @@
 [
-  {"name":"RF01","color":"1d76db","description":"Descoberta de serviços"},
-  {"name":"RF02","color":"1d76db","description":"Monitoramento dinâmico"},
-  {"name":"RF03","color":"1d76db","description":"Coleta de métricas por serviço"},
-  {"name":"RF04","color":"1d76db","description":"Tratamento da variação das métricas"},
-  {"name":"RF05","color":"1d76db","description":"Detecção de indisponibilidade"},
-  {"name":"RF06","color":"1d76db","description":"Detecção de ausência de métricas"},
-  {"name":"RF07","color":"1d76db","description":"Cálculo individual (energia e CO2e)"},
-  {"name":"RF08","color":"1d76db","description":"Indicadores agregados"},
-  {"name":"RF09","color":"1d76db","description":"Dashboard operacional"},
-  {"name":"RF10","color":"1d76db","description":"Histórico de coletas"},
-  {"name":"RF11","color":"1d76db","description":"Atualização contínua"},
-  {"name":"RF12","color":"1d76db","description":"Localização dos serviços"},
-  {"name":"RF13","color":"1d76db","description":"Visualização geográfica (could)"},
-  {"name":"RF14","color":"1d76db","description":"Ranking de impacto"},
-  {"name":"RF15","color":"1d76db","description":"Comparação entre serviços"},
-  {"name":"RNF01","color":"5319e7","description":"Usabilidade e responsividade"},
-  {"name":"RNF02","color":"5319e7","description":"Atualização em tempo real (intervalos e última atualização)"},
-  {"name":"RNF03","color":"5319e7","description":"Desempenho"},
-  {"name":"RNF04","color":"5319e7","description":"Tolerância a falhas"},
-  {"name":"RNF05","color":"5319e7","description":"Documentação técnica"},
-  {"name":"tipo:historia","color":"0e8a16","description":"História de usuário (PO)"},
-  {"name":"tipo:tarefa","color":"c2e0c6","description":"Tarefa técnica / enabler"},
-  {"name":"tipo:bug","color":"d73a4a","description":"Defeito em algo entregue"},
-  {"name":"tipo:processo","color":"fbca04","description":"Ação de processo, documentação ou kit"},
-  {"name":"area:backend","color":"006b75","description":"Node.js + TypeScript"},
-  {"name":"area:frontend","color":"0052cc","description":"React + TypeScript"},
-  {"name":"area:db","color":"5c3a9e","description":"PostgreSQL, DDL/DML"},
-  {"name":"area:infra","color":"3e4b9e","description":"Docker, CI, GitHub"},
-  {"name":"area:docs","color":"bfd4f2","description":"Documentação"},
-  {"name":"prioridade:must","color":"b60205","description":"Obrigatório para o MVP"},
-  {"name":"prioridade:should","color":"e99695","description":"Importante, após os must"},
-  {"name":"prioridade:could","color":"f9d0c4","description":"Desejável (ex.: RF13 mapa)"},
-  {"name":"bloqueado","color":"000000","description":"Impedimento — levar para a daily"},
-  {"name":"feedback-cliente","color":"ff7619","description":"Veio da Sprint Review com o cliente"},
-  {"name":"regressao","color":"e11d21","description":"Item aceito antes que parou de funcionar"}
+  {
+    "name": "RF01",
+    "color": "1d76db",
+    "description": "Descoberta de serviços"
+  },
+  {
+    "name": "RF02",
+    "color": "1d76db",
+    "description": "Monitoramento dinâmico"
+  },
+  {
+    "name": "RF03",
+    "color": "1d76db",
+    "description": "Coleta de métricas por serviço"
+  },
+  {
+    "name": "RF04",
+    "color": "1d76db",
+    "description": "Tratamento da variação das métricas"
+  },
+  {
+    "name": "RF05",
+    "color": "1d76db",
+    "description": "Detecção de indisponibilidade"
+  },
+  {
+    "name": "RF06",
+    "color": "1d76db",
+    "description": "Detecção de ausência de métricas"
+  },
+  {
+    "name": "RF07",
+    "color": "1d76db",
+    "description": "Cálculo individual (energia e CO2e)"
+  },
+  {
+    "name": "RF08",
+    "color": "1d76db",
+    "description": "Indicadores agregados"
+  },
+  {
+    "name": "RF09",
+    "color": "1d76db",
+    "description": "Dashboard operacional"
+  },
+  {
+    "name": "RF10",
+    "color": "1d76db",
+    "description": "Histórico de coletas"
+  },
+  {
+    "name": "RF11",
+    "color": "1d76db",
+    "description": "Atualização contínua"
+  },
+  {
+    "name": "RF12",
+    "color": "1d76db",
+    "description": "Localização dos serviços"
+  },
+  {
+    "name": "RF13",
+    "color": "1d76db",
+    "description": "Visualização geográfica (could)"
+  },
+  {
+    "name": "RF14",
+    "color": "1d76db",
+    "description": "Ranking de impacto"
+  },
+  {
+    "name": "RF15",
+    "color": "1d76db",
+    "description": "Comparação entre serviços"
+  },
+  {
+    "name": "RNF01",
+    "color": "5319e7",
+    "description": "Usabilidade e responsividade"
+  },
+  {
+    "name": "RNF02",
+    "color": "5319e7",
+    "description": "Atualização em tempo real (intervalos e última atualização)"
+  },
+  {
+    "name": "RNF03",
+    "color": "5319e7",
+    "description": "Desempenho"
+  },
+  {
+    "name": "RNF04",
+    "color": "5319e7",
+    "description": "Tolerância a falhas"
+  },
+  {
+    "name": "RNF05",
+    "color": "5319e7",
+    "description": "Documentação técnica"
+  },
+  {
+    "name": "tipo:epico",
+    "color": "6f42c1",
+    "description": "Épico: requisito/tema do edital que agrupa histórias"
+  },
+  {
+    "name": "tipo:historia",
+    "color": "0e8a16",
+    "description": "História de usuário (PO)"
+  },
+  {
+    "name": "tipo:tarefa",
+    "color": "c2e0c6",
+    "description": "Tarefa técnica / enabler"
+  },
+  {
+    "name": "tipo:bug",
+    "color": "d73a4a",
+    "description": "Defeito em algo entregue"
+  },
+  {
+    "name": "tipo:processo",
+    "color": "fbca04",
+    "description": "Ação de processo, documentação ou kit"
+  },
+  {
+    "name": "area:backend",
+    "color": "006b75",
+    "description": "Node.js + TypeScript"
+  },
+  {
+    "name": "area:frontend",
+    "color": "0052cc",
+    "description": "React + TypeScript"
+  },
+  {
+    "name": "area:db",
+    "color": "5c3a9e",
+    "description": "PostgreSQL, DDL/DML"
+  },
+  {
+    "name": "area:infra",
+    "color": "3e4b9e",
+    "description": "Docker, CI, GitHub"
+  },
+  {
+    "name": "area:docs",
+    "color": "bfd4f2",
+    "description": "Documentação"
+  },
+  {
+    "name": "prioridade:must",
+    "color": "b60205",
+    "description": "Obrigatório para o MVP"
+  },
+  {
+    "name": "prioridade:should",
+    "color": "e99695",
+    "description": "Importante, após os must"
+  },
+  {
+    "name": "prioridade:could",
+    "color": "f9d0c4",
+    "description": "Desejável (ex.: RF13 mapa)"
+  },
+  {
+    "name": "bloqueado",
+    "color": "000000",
+    "description": "Impedimento — levar para a daily"
+  },
+  {
+    "name": "feedback-cliente",
+    "color": "ff7619",
+    "description": "Veio da Sprint Review com o cliente"
+  },
+  {
+    "name": "regressao",
+    "color": "e11d21",
+    "description": "Item aceito antes que parou de funcionar"
+  }
 ]

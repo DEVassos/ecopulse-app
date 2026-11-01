@@ -1,0 +1,67 @@
+@layer components {
+  .last-updated {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .last-updated strong {
+    color: var(--text);
+    font-family: var(--mono);
+    font-weight: 500;
+  }
+
+  /* Ponto verde com onda saindo dele: discreto, mas mostra que o sistema está vivo */
+  .live-dot {
+    position: relative;
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .live-dot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: live-pulse 1.8s ease-out infinite;
+  }
+
+  @keyframes live-pulse {
+    from {
+      transform: scale(1);
+      opacity: 0.7;
+    }
+    to {
+      transform: scale(3);
+      opacity: 0;
+    }
+  }
+
+  /* Falha na última atualização: para de pulsar e fica laranja (alerta, docs/identidade-visual.md) */
+  .last-updated--stale .live-dot {
+    background: var(--warning);
+  }
+
+  .last-updated--stale .live-dot::after {
+    animation: none;
+    opacity: 0;
+  }
+
+  .last-updated--stale strong {
+    color: var(--warning);
+  }
+
+  /* Quem prefere menos movimento vê o ponto parado */
+  @media (prefers-reduced-motion: reduce) {
+    .live-dot::after {
+      animation: none;
+      opacity: 0;
+    }
+  }
+}

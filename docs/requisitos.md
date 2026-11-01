@@ -1,19 +1,19 @@
-# Requisitos do desafio — GreenER
+# Requisitos do desafio — EcoPulse
 
 <!-- gerado pelo agilekit — edite em DEVassos/agilekit (repo/docs/requisitos.md). Fonte: "Desafio 2DSM - 2026-2" (versão 30/06/2026), transcrito em .agilekit/requisitos.json. -->
 
 ## Contexto do desafio
 
-**Tema:** Plataforma para Estimativa do Impacto Ambiental de Aplicações de Software. **Produto:** GreenER.
+**Tema:** Plataforma para Estimativa do Impacto Ambiental de Aplicações de Software. **Produto:** EcoPulse (no edital do desafio: GreenER; repositório `DEVassos/greener-app`).
 
 **Parceiro:** UniLaunch (contato: Otávio Abreu dos Santos Silva; ponto focal acadêmico: Prof. Rodrigo Silva Peres). O cliente disponibiliza duas APIs auxiliares que simulam um ambiente de serviços monitorados:
 
-| API | Documentação | Uso no GreenER |
+| API | Documentação | Uso no EcoPulse |
 |---|---|---|
 | Greener Metrics Aggregator API | https://metrics.unilaunch.org/docs | `GET /services` (descoberta dos serviços e localização) e `GET /metrics/{id_servico}` (métricas de uso por serviço; os valores mudam a cada chamada) |
 | Greener Carbon Intensity API | https://carbon.unilaunch.org/docs | Intensidade de carbono (gCO₂e/kWh) por região, usada para converter energia estimada em emissão de CO₂e |
 
-O GreenER descobre os serviços, coleta métricas periodicamente, estima o consumo energético e a emissão de CO₂e de cada serviço, armazena o histórico em PostgreSQL e apresenta os dados em um dashboard React que se atualiza sem recarregar a página. A configuração do monitoramento fica em uma área protegida por autenticação JWT no backend.
+O EcoPulse descobre os serviços, coleta métricas periodicamente, estima o consumo energético e a emissão de CO₂e de cada serviço, armazena o histórico em PostgreSQL e apresenta os dados em um dashboard React que se atualiza sem recarregar a página. A configuração do monitoramento fica em uma área protegida por autenticação JWT no backend.
 
 **Cronograma (datas a confirmar pelo cliente):** kickoff em 28/09/2026 às 20h; Sprint Reviews previstas para 19/10, 09/11 e 23/11/2026 às 19h30; apresentação final no fim do semestre, a definir. O calendário operacional do time (checkpoints, congelamentos, feriados) está em [`.github/calendario.json`](../.github/calendario.json) e resumido no [plano de entregas](plano-de-entregas.md).
 
@@ -85,17 +85,17 @@ O GreenER descobre os serviços, coleta métricas periodicamente, estima o consu
 - **Edital:** O sistema PODERÁ apresentar em um mapa a posição aproximada dos serviços para os quais a API fornecer latitude e longitude. A ausência dessas coordenadas não deve impedir a visualização das demais informações.
 - **Critérios da rubrica:** DW04.
 - **Prioridade sugerida:** could (opcional no edital).
-- **Sprint prevista:** 3.
+- **Sprint prevista:** 2 (could, puxado só se as histórias must fecharem até 06/11; se não sair, 3).
 
 ### RF14 — Ranking de impacto
 - **Edital:** O sistema deve permitir ordenar os serviços por consumo energético estimado ou por emissão estimada de CO₂e, indicando o período considerado na comparação.
 - **Critérios da rubrica:** BD04 (ordenação e agregação por período), DW03 (endpoint com parâmetros de query).
-- **Sprint prevista:** 3.
+- **Sprint prevista:** 2 (antecipado por #159; BD04 avaliado na Sprint 3).
 
 ### RF15 — Comparação entre serviços
 - **Edital:** O sistema deve permitir comparar dois ou mais serviços por métricas e indicadores ambientais referentes ao mesmo período.
 - **Critérios da rubrica:** BD04, DW03.
-- **Sprint prevista:** 3.
+- **Sprint prevista:** 2 (antecipado por #159; BD04 avaliado na Sprint 3).
 
 ## Requisitos não funcionais (RNF)
 
@@ -177,9 +177,9 @@ O GreenER descobre os serviços, coleta métricas periodicamente, estima o consu
 | RF10 | BD01, BD02, BD03 | 1 |
 | RF11 | DW05 | 2 |
 | RF12 | DW04, DW05 | 1 |
-| RF13 (could) | DW04 | 3 |
-| RF14 | BD04, DW03 | 3 |
-| RF15 | BD04, DW03 | 3 |
+| RF13 (could) | DW04 | 2 (could; se não sair, 3) |
+| RF14 | BD04, DW03 | 2 (BD04 avaliado na 3) |
+| RF15 | BD04, DW03 | 2 (BD04 avaliado na 3) |
 | RNF01 | DW04 | 3 |
 | RNF02 | DW05 | 2 |
 | RNF03 | DW05, BD04 | 3 |

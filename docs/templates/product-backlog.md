@@ -1,4 +1,4 @@
-# Product Backlog — GreenER
+# Product Backlog — EcoPulse
 
 <!-- Template do agilekit (repo/docs/templates/product-backlog.md). O arquivo real, docs/backlog/product-backlog.md, NÃO é editado à mão: é gerado por `bash .github/scripts/backlog-export.sh` a partir das issues do GitHub, na planning e no fechamento de cada sprint. Este modelo documenta a estrutura gerada e serve de referência para quem lê o export. -->
 

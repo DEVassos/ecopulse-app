@@ -1,8 +1,8 @@
-# `<frontend | backend>` — GreenER
+# `<frontend | backend>` — EcoPulse
 
 <!-- Template do agilekit (repo/docs/templates/README-modulo.md). Destino: frontend/README.md ou backend/README.md. Criado no PR que cria o módulo e atualizado no mesmo PR de cada mudança relevante (pasta nova, variável nova, comando novo). Apague as linhas que não se aplicam ao módulo. Substitua os campos `<...>`. -->
 
-`<Uma frase: o que este módulo faz dentro do GreenER.>` Stack: `<React + TypeScript (Vite) | Node.js + TypeScript (<framework HTTP>) + pg>`.
+`<Uma frase: o que este módulo faz dentro do EcoPulse.>` Stack: `<React + TypeScript (Vite) | Node.js + TypeScript (<framework HTTP>) + pg>`.
 
 ## Organização das pastas
 
@@ -27,7 +27,7 @@
 |---|---|---|---|
 | `<VITE_API_URL>` | sim | `http://localhost:3000` | base da API — frontend |
 | `<VITE_REFRESH_INTERVAL_MS>` | não | `30000` | intervalo de atualização do dashboard — frontend |
-| `<DATABASE_URL>` | sim | `postgres://greener:greener@postgres:5432/greener` | conexão — backend |
+| `<DATABASE_URL>` | sim | `postgres://ecopulse:ecopulse@postgres:5432/ecopulse` | conexão — backend |
 | `<METRICS_API_URL>` / `<CARBON_API_URL>` | sim | `https://metrics.unilaunch.org` / `https://carbon.unilaunch.org` | APIs auxiliares — backend |
 | `<COLLECT_INTERVAL_MS>` | não | `60000` | intervalo de coleta — backend |
 | `<JWT_SECRET>` | sim | — | segredo dos tokens; nunca versionar o valor real — backend |

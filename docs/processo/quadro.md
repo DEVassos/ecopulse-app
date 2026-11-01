@@ -1,8 +1,8 @@
-# Quadro do time — GitHub Project v2 "GreenER"
+# Quadro do time — GitHub Project v2 "EcoPulse"
 
 <!-- gerado pelo agilekit — edite em DEVassos/agilekit (repo/docs/processo/quadro.md) -->
 
-O quadro é um **GitHub Project v2 da organização DEVassos**, público, ligado ao repositório `DEVassos/greener-app`. É a visão do Sprint Backlog para o time e para o avaliador; a fonte da verdade continua sendo as **issues** (o quadro só reflete o estado delas). O número do projeto fica na variável `PROJECT_NUMBER` do repositório; a URL é `https://github.com/orgs/DEVassos/projects/<PROJECT_NUMBER>`.
+O quadro é um **GitHub Project v2 da organização DEVassos**, público, ligado ao repositório `DEVassos/greener-app`. É a visão do Sprint Backlog para o time e para o avaliador; a fonte da verdade continua sendo as **issues** (o quadro só reflete o estado delas). O número do projeto fica na variável `PROJECT_NUMBER` do repositório (hoje `6`); a URL é `https://github.com/orgs/DEVassos/projects/<PROJECT_NUMBER>` — <https://github.com/orgs/DEVassos/projects/6>.
 
 ## 1. Colunas (campo `Status`)
 
@@ -23,8 +23,10 @@ Ordem lógica: `Backlog < Sprint Backlog < Em andamento < Em revisão < Concluí
 | `Status` | single select (nativo, opções renomeadas pelo bootstrap) | As cinco colunas acima |
 | `Milestone` | nativo da issue | Faz o papel de **Sprint**: `Sprint 1`, `Sprint 2`, `Sprint 3`. Filtra a view "Sprint atual" |
 | `Critério` | texto (criado pelo bootstrap) | Código(s) da rubrica que a issue comprova (`DW02`, `BD01`…), copiado do formulário de história; alimenta a coluna Código do plano de entregas |
-| `Assignees` | nativo | Responsável pela issue; agrupa a view "Por pessoa" (ES09) |
+| `Story Points` | número (criado pelo bootstrap) | Estimativa da issue, copiada da seção "Estimativa (pontos)" do formulário pelo workflow `board`; somada por grupo nas views em Table (ver [Story Points](#story-points-campo-numérico)) |
+| `Assignees` | nativo | Responsável pela issue; base da view "Por pessoa" (ES09) |
 | `Labels` | nativo | `RFxx`/`RNFxx`, `tipo:*`, `area:*`, `prioridade:*`, `bloqueado`, `feedback-cliente`, `regressao` |
+| `Parent issue` · `Sub-issues progress` | nativos | Hierarquia épico → história → tarefa: agrupam as views "Épicos → Histórias" e "Histórias → Tarefas" e mostram o andamento de cada pai |
 
 ## 3. Quem move o quê
 
@@ -62,14 +64,20 @@ O token padrão das Actions (`GITHUB_TOKEN`) **não acessa Projects v2**; por is
 
 **Rotação:** se o titular mudar, o token expirar ou vazar, o SM revoga em `Settings → Developer settings → Personal access tokens`, cria outro com as mesmas permissões e roda `gh secret set PROJECTS_TOKEN -R DEVassos/greener-app`. A troca é registrada na ata da daily do dia. Se a política da organização bloquear PATs fine-grained, pedir liberação ao owner (`devassosfatec`) ou usar um PAT classic com escopos `repo` e `project`.
 
-## 6. Views sugeridas
+## 6. Views do Project
 
-| View | Layout | Filtro / agrupamento | Para quê |
-|---|---|---|---|
-| **Sprint atual** | Board | `milestone:"Sprint N"` | Daily e checkpoint: o que está em cada coluna |
-| **Por pessoa** | Table | agrupar por `Assignees`, filtro `milestone:"Sprint N"` | ES09 e WIP (máximo 2 em Em andamento por pessoa) |
-| **Backlog priorizado** | Table | `no:milestone`, ordenar pela label `prioridade:*` | Refinamento e planning |
-| **Bloqueados** | Table | `label:bloqueado` | Impedimentos da daily |
+Views que existem no Project, conferidas em 09/10/2026 (#64):
+
+| View | Layout | Filtro / agrupamento | Colunas | Para quê |
+|---|---|---|---|---|
+| **Sprint atual** | Board por `Status` | `milestone:"Sprint N" -type:Epic` | Title, Assignees, Labels, Sub-issues progress, Story Points | Daily e checkpoint: o que está em cada coluna. O SM troca o `N` do filtro na planning (`/sprint N iniciar`) |
+| **Por pessoa** | Table | sem filtro fixo; ordenada por `Status` | Title, Status, Parent issue, Sub-issues progress, Story Points | ES09 e WIP (máximo 2 em Em andamento por pessoa): na barra da view, filtre `assignee:<login> milestone:"Sprint N"` |
+| **Backlog (PO)** | Table | `-type:Epic -status:Concluído`, agrupada por `Milestone` | Title, Status, Labels, Parent issue, Critério, Story Points | Refinamento e planning: o que falta por sprint, com o total de pontos de cada grupo |
+| **Épicos** | Table | `type:Epic` | Title, Status, Labels, Sub-issues progress | Visão dos temas do edital e do andamento de cada épico |
+| **Épicos → Histórias** | Table | `type:Feature`, agrupada por `Parent issue` | Title, Status, Labels, Milestone, Sub-issues progress, Story Points | Histórias de cada épico, com o andamento das tarefas |
+| **Histórias → Tarefas** | Table | `type:Task`, agrupada por `Parent issue` | Title, Assignees, Status, Labels, Milestone, Repository, Critério, Story Points | Tarefas de cada história, com responsável e critério da rubrica |
+
+Impedimentos da daily: filtre `label:bloqueado` em qualquer view.
 
 ## 7. Se a automação falhar
 
@@ -78,3 +86,26 @@ O token padrão das Actions (`GITHUB_TOKEN`) **não acessa Projects v2**; por is
 3. Lembre: o `Closes #n` nativo do GitHub **só fecha a issue em merge na branch padrão (`main`)**. Como o trabalho entra em `develop`, quem fecha a issue é o workflow `board`. Se ele falhou, feche a issue à mão com o link do PR — `gh issue close n --reason completed --comment "Entregue em #<pr>"` — e o workflow nativo "Item closed" move o cartão para Concluído.
 4. Nunca mova para Concluído um item cujo PR não foi mergeado em `develop`.
 5. Mudanças no workflow `board` ou nos scripts precisam chegar a `main` (os eventos de issues e push rodam a partir da branch padrão): PR para `develop` e PR para `main`, conforme o [CONTRIBUTING](../../.github/CONTRIBUTING.md).
+
+## Hierarquia do backlog (Épico → História → Tarefa)
+
+O backlog segue o modelo do Jira usando **sub-issues** nativas do GitHub:
+
+| Nível | O que é | Como se identifica | Quem cria |
+|---|---|---|---|
+| **Épico** | Tema de requisitos do edital (ex.: EP1 — Descoberta e monitoramento dinâmico, RF01/RF02/RF05/RF06) | label `tipo:epico` (tipo *Epic* da org, quando existir); sem milestone, atravessa as sprints | PO (uma vez, pelo seed) |
+| **História** | Valor para o usuário, com critérios de aceite e "Como verificar" | label `tipo:historia`, tipo *Feature*; milestone da sprint; sub-issue do épico | PO (formulário "História de usuário" ou `/historia`) |
+| **Tarefa** | Fatia técnica de uma história (ou enabler) | label `tipo:tarefa`, tipo *Task*; sub-issue da história; é o que vira branch e PR | Dev/SM (formulário "Tarefa técnica" ou `/tarefa --criar`) |
+
+- O campo **Épico (pai)** do formulário de história e **História pai** do formulário de tarefa (`#N`) fazem a vinculação automaticamente (workflow `board` ao abrir/editar a issue). O vínculo também pode ser feito na UI: *Sub-issues › Add existing issue*.
+- No quadro, as views **Épicos → Histórias** e **Histórias → Tarefas** ([seção 6](#6-views-do-project)) agrupam por *Parent issue* e mostram o andamento em **Sub-issues progress**: juntas, são a visão "épico → história → tarefa".
+- Uma **tarefa** fecha pelo merge do PR em `develop` (automático). Uma **história** é fechada pelo PO depois de executar o "Como verificar" (aceite). Um **épico** fecha quando todas as histórias fecham (o PO fecha na review da última sprint em que ele aparece).
+- Requisito individual (RFxx) continua como **label** em épicos, histórias e tarefas: é o que o avaliador procura para ES04.
+
+Scripts: `bash .agilekit/scripts/gh-seed-backlog.sh` (cria épicos/histórias/tarefas do seed) e `bash .agilekit/scripts/gh-link-subissues.sh` (monta/repara os vínculos, idempotente).
+
+### Story Points (campo numérico)
+
+O Project tem o campo **Story Points** (número). Ele é preenchido automaticamente pelo workflow `board` a partir da seção "Estimativa (pontos)" do formulário (histórias e tarefas) ou de "Story Points: N" no corpo, ao abrir ou editar a issue; o seed também grava. Nas views em Table, agrupar por *Parent issue*, *Assignees* ou *Milestone* mostra a **soma** por grupo (clique no cabeçalho do grupo › *Sum*): é a capacidade da sprint por pessoa e o tamanho de cada história/épico. Para ajustar à mão: `bash .github/scripts/project-set-status.sh <n> - --number "Story Points=5"`.
+
+O mesmo campo alimenta o **burndown** da sprint (`bash .github/scripts/burndown.sh N --out docs/sprints/sprint-N/burndown.md`, ver [processo § 2.2](README.md#22-burndown-da-sprint)): issue sem Story Points fica fora do gráfico e aparece listada em "Fora da soma".

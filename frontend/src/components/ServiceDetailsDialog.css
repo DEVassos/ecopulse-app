@@ -1,0 +1,54 @@
+@layer components {
+  /*
+   * Janela de detalhes do serviço: <dialog> nativo aberto com showModal().
+   * Sem padding no próprio dialog: todo clique dentro cai no cabeçalho ou no corpo, e só o fundo fecha.
+   */
+  .service-dialog {
+    width: min(960px, calc(100% - 32px));
+    max-width: none;
+    max-height: calc(100dvh - 32px);
+    margin: auto;
+    padding: 0;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  /* Cabeçalho fixo no topo da janela; só o corpo rola */
+  .service-dialog[open] {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .service-dialog__body {
+    overflow-y: auto;
+  }
+
+  .service-dialog::backdrop {
+    background: color-mix(in srgb, var(--bg) 80%, transparent);
+  }
+
+  /* A página atrás da janela não rola junto */
+  body:has(.service-dialog[open]) {
+    overflow: hidden;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .service-dialog[open] {
+      animation: service-dialog-in 160ms ease-out;
+    }
+
+    @keyframes service-dialog-in {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+      }
+    }
+  }
+}

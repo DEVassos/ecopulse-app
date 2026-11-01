@@ -3,6 +3,7 @@ name: "Ação de processo"
 description: "Melhoria vinda da retrospectiva, daily ou review (processo, documentação, kit)."
 title: "[processo] "
 labels: ["tipo:processo"]
+type: Task
 body:
   - type: textarea
     id: acao

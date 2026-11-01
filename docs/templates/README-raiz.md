@@ -1,4 +1,4 @@
-# GreenER — Plataforma para Estimativa do Impacto Ambiental de Aplicações de Software
+# EcoPulse — Plataforma para Estimativa do Impacto Ambiental de Aplicações de Software
 
 <!-- Template do agilekit (repo/docs/templates/README-raiz.md). Destino: README.md da raiz de DEVassos/greener-app. O README fica em `main` e descreve a versão entregue (tag sprint-N); desenvolvimento acontece em `develop`. A seção "Funcionalidades implementadas" começa explícita ("nenhuma ainda") e só ganha linhas depois do merge do PR correspondente. Substitua os campos `<...>`. -->
 
@@ -6,7 +6,7 @@
 
 ## Problema e solução
 
-Aplicações de software consomem energia e geram emissões de CO₂e que quase nunca são visíveis para quem as opera. O **GreenER** descobre os serviços disponíveis em um agregador de métricas, coleta periodicamente o uso de cada um, estima o consumo energético e a emissão de CO₂e com base na intensidade de carbono da região onde o serviço roda, guarda o histórico em PostgreSQL e apresenta tudo em um dashboard que se atualiza sozinho, com ranking e comparação entre serviços.
+Aplicações de software consomem energia e geram emissões de CO₂e que quase nunca são visíveis para quem as opera. O **EcoPulse** descobre os serviços disponíveis em um agregador de métricas, coleta periodicamente o uso de cada um, estima o consumo energético e a emissão de CO₂e com base na intensidade de carbono da região onde o serviço roda, guarda o histórico em PostgreSQL e apresenta tudo em um dashboard que se atualiza sozinho, com ranking e comparação entre serviços.
 
 ## Funcionalidades implementadas
 

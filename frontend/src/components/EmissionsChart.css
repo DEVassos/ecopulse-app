@@ -1,0 +1,227 @@
+/* Gráfico de emissão de CO₂e (EmissionsChart) — cores só pelos tokens de global.css */
+@layer components {
+  .emissions-chart {
+    position: relative;
+    width: 100%;
+    min-height: 280px;
+    border-radius: 8px;
+    user-select: none;
+  }
+
+  .emissions-chart:focus-visible {
+    outline: 2px solid var(--sky);
+    outline-offset: 4px;
+  }
+
+  /* Última atualização falhou: o gráfico fica apagado, como o resumo ao lado */
+  .emissions-chart--stale svg {
+    opacity: 0.45;
+    filter: grayscale(1);
+  }
+
+  .emissions-chart svg {
+    display: block;
+    overflow: visible;
+    touch-action: pan-y;
+  }
+
+  .emissions-chart__grid {
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+
+  .emissions-chart__grid--x {
+    stroke-dasharray: 2 4;
+  }
+
+  .emissions-chart__axis {
+    stroke: var(--faint);
+    stroke-width: 1;
+  }
+
+  .emissions-chart__tick {
+    fill: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  .emissions-chart__axis-title {
+    fill: var(--muted);
+    font-size: 12px;
+  }
+
+  .emissions-chart__line {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.6;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  .emissions-chart__area-top {
+    stop-color: var(--accent);
+    stop-opacity: 0.18;
+  }
+
+  .emissions-chart__area-bottom {
+    stop-color: var(--accent);
+    stop-opacity: 0;
+  }
+
+  /* Média em ciano (dado secundário); o amarelo é reservado à marca (docs/identidade-visual.md) */
+  .emissions-chart__mean {
+    stroke: var(--sky);
+    stroke-width: 1.2;
+    stroke-dasharray: 6 5;
+    opacity: 0.85;
+  }
+
+  .emissions-chart__mean-label {
+    fill: var(--sky);
+    /* contorno na cor do fundo: o rótulo continua legível quando cruza a curva */
+    paint-order: stroke;
+    stroke: var(--surface);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /*
+   * Neon só no pico: é o ponto que pede atenção. A linha continua em --accent, sem brilho
+   * (com brilho, uma série densa fica borrada).
+   */
+  .emissions-chart__peak-halo {
+    fill: var(--neon);
+    opacity: 0.18;
+  }
+
+  .emissions-chart__peak-dot {
+    fill: var(--neon);
+    stroke: var(--bg);
+    stroke-width: 1.5;
+    filter: drop-shadow(0 0 5px var(--neon-glow));
+  }
+
+  .emissions-chart__peak-label {
+    fill: var(--neon);
+    paint-order: stroke;
+    stroke: var(--surface);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
+  /* Trecho de um ponto só (entre buracos ou falhas): sem vizinho, a linha não aparece */
+  .emissions-chart__single {
+    fill: var(--accent);
+  }
+
+  /* Acumulado: liga a curva ao total até agora (intervalo em andamento) */
+  .emissions-chart__open-link {
+    stroke: var(--accent);
+    stroke-width: 1.6;
+    stroke-dasharray: 3 3;
+  }
+
+  /* Intervalo em andamento: soma parcial, ponto vazado fora da linha */
+  .emissions-chart__open {
+    fill: var(--surface);
+    stroke: var(--accent);
+    stroke-width: 1.5;
+    stroke-dasharray: 2 2;
+  }
+
+  .emissions-chart__cursor {
+    stroke: var(--muted);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+  }
+
+  .emissions-chart__dot {
+    fill: var(--accent-hover);
+    stroke: var(--surface);
+    stroke-width: 2;
+  }
+
+  /* Faixa mín./máx. do intervalo: mesma cor da linha, bem clara, atrás da área */
+  .emissions-chart__band {
+    fill: var(--accent);
+    opacity: 0.14;
+  }
+
+  /* Falhas: coleta com falha ou sem métricas (vermelho), cálculo indisponível (cinza) */
+  .emissions-chart__gap--falha {
+    fill: var(--error);
+    background: var(--error);
+  }
+
+  .emissions-chart__gap--sem_calculo {
+    fill: var(--faint);
+    background: var(--faint);
+  }
+
+  .emissions-chart__tooltip {
+    position: absolute;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 170px;
+    padding: 8px 10px;
+    background: var(--surface-3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--bg) 70%, transparent);
+    font-size: 12px;
+    color: var(--text-2);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* o display: flex acima venceria o atributo hidden */
+  .emissions-chart__tooltip[hidden] {
+    display: none;
+  }
+
+  .emissions-chart__tooltip strong {
+    color: var(--text);
+    font-family: var(--mono);
+    font-weight: 500;
+  }
+
+  .emissions-chart__tooltip-gap {
+    color: var(--warning);
+  }
+
+  .emissions-chart__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin: 4px 0 0;
+    padding: 0 0 0 64px;
+    list-style: none;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .emissions-chart__legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .emissions-chart__swatch {
+    display: inline-block;
+    width: 14px;
+    height: 6px;
+    border-radius: 2px;
+  }
+
+  .emissions-chart__swatch--band {
+    height: 10px;
+    background: color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+}

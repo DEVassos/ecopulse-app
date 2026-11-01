@@ -4,7 +4,7 @@
 
 ## 1. O que é estimado
 
-Para cada serviço monitorado, o GreenER estima o **consumo energético** (kWh) a partir das métricas coletadas e converte em **emissão de CO₂ equivalente** (gCO₂e) usando a intensidade de carbono da região onde o serviço está hospedado. Os valores são estimativas: o agregador fornece métricas de uso, não medições de energia.
+Para cada serviço monitorado, o EcoPulse estima o **consumo energético** (kWh) a partir das métricas coletadas e converte em **emissão de CO₂ equivalente** (gCO₂e) usando a intensidade de carbono da região onde o serviço está hospedado. Os valores são estimativas: o agregador fornece métricas de uso, não medições de energia.
 
 ## 2. Fórmulas
 

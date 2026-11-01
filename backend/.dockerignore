@@ -1,0 +1,20 @@
+# Fica fora do contexto de build: a imagem instala as dependências pelo package-lock e compila o próprio dist/
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+
+# Segredos e configuração local (o ambiente chega pelo compose.yaml, não em arquivo na imagem)
+.env
+.env.*
+
+# Testes não fazem parte da imagem de produção
+tests/
+
+# Metadados do repositório e arquivos que não entram na imagem
+.git
+.gitignore
+Dockerfile
+.dockerignore
+*.md

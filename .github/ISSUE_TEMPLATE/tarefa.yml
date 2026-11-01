@@ -3,12 +3,13 @@ name: "Tarefa técnica"
 description: "Fatia de trabalho de uma história (ou enabler: infra, estrutura, docs base)."
 title: "[tarefa] "
 labels: ["tipo:tarefa"]
+type: Task
 body:
   - type: input
     id: pai
     attributes:
       label: "História pai"
-      description: "Número da história (#n). Para enablers sem história, escreva 'enabler'."
+      description: "Número da história (#n) — a tarefa vira sub-issue dela automaticamente. Para enablers sem história, escreva: enabler."
       placeholder: "#12"
     validations:
       required: true

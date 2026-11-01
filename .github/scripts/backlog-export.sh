@@ -18,7 +18,7 @@ PROJ_URL=""
 DATA="$(gh issue list -R "$REPO" --state all --limit 500 --json number,title,labels,milestone,state,assignees,url,createdAt)"
 mkdir -p "$(dirname "$ROOT/$OUT")"
 {
-  echo "# Product Backlog — GreenER"
+  echo "# Product Backlog — EcoPulse"
   echo
   echo "_Exportado das issues de [$REPO](https://github.com/$REPO/issues) em $(date '+%d/%m/%Y %H:%M') por \`.github/scripts/backlog-export.sh\`. A fonte da verdade é o GitHub Issues${PROJ_URL:+ e o [quadro]($PROJ_URL)}; este arquivo é um retrato versionado para a avaliação (ES01)._"
   echo

@@ -1,21 +1,31 @@
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+@layer components {
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
 
-.brand svg {
-  color: var(--accent);
-}
+  .brand svg {
+    color: var(--accent);
+    /* A linha de batimento passa um pouco das bordas do viewBox */
+    overflow: visible;
+  }
 
-.brand-name {
-  font-family: var(--display);
-  font-size: 24px;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-}
+  /* Pulso a cada atualização (Brand.tsx): só o brilho usa o neon */
+  .brand-pulse {
+    stroke: var(--neon);
+    filter: drop-shadow(0 0 2px var(--neon-glow));
+  }
 
-/* Amarelo: exclusivo da marca (docs/identidade-visual.md) */
-.brand-name span {
-  color: var(--yellow);
+  .brand-name {
+    font-family: var(--display);
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  /* Amarelo: exclusivo da marca (docs/identidade-visual.md) */
+  .brand-name span {
+    color: var(--yellow);
+  }
 }

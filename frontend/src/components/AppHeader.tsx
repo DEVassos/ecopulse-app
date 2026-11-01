@@ -32,14 +32,16 @@ function UserMenu() {
 interface Props {
   /** Conteúdo à direita do menu (indicador de atualização, filtros da página). */
   children?: ReactNode;
+  /** Horário da última atualização dos dados, repassado ao logo para pulsar (só em páginas com polling). */
+  updatedAt?: string | null;
 }
 
-export default function AppHeader({ children }: Props) {
+export default function AppHeader({ children, updatedAt }: Props) {
   return (
     <header className="topbar">
       <div className="topbar-inner">
         <NavLink to="/" className="topbar-brand" aria-label="EcoPulse — ir para o dashboard">
-          <Brand />
+          <Brand pulseKey={updatedAt} />
         </NavLink>
 
         {/* NavLink marca o link da página atual com a classe "active" e aria-current="page" */}
@@ -47,6 +49,8 @@ export default function AppHeader({ children }: Props) {
           <NavLink to="/" end>
             Dashboard
           </NavLink>
+          <NavLink to="/emissoes">Emissões</NavLink>
+          <NavLink to="/comparacao">Comparação</NavLink>
           <NavLink to="/configuracao">Configuração</NavLink>
         </nav>
 

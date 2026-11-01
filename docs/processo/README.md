@@ -1,8 +1,8 @@
-# Como trabalhamos — processo ágil do GreenER
+# Como trabalhamos — processo ágil do EcoPulse
 
 <!-- gerado pelo agilekit — edite em DEVassos/agilekit (repo/docs/processo/README.md) -->
 
-Este documento descreve o processo Scrum do time GreenER (FATEC ABP 2DSM 2026-2, organização DEVassos). Ele existe para que qualquer pessoa — integrante novo, professor ou avaliador — entenda em poucos minutos **quem faz o quê, quando e onde fica a evidência**. A rubrica lê apenas o GitHub até o fechamento de cada sprint; por isso o processo foi desenhado para que cada atividade deixe um rastro verificável (issue, commit, PR, arquivo em `docs/`).
+Este documento descreve o processo Scrum do time EcoPulse (FATEC ABP 2DSM 2026-2, organização DEVassos). Ele existe para que qualquer pessoa — integrante novo, professor ou avaliador — entenda em poucos minutos **quem faz o quê, quando e onde fica a evidência**. A rubrica lê apenas o GitHub até o fechamento de cada sprint; por isso o processo foi desenhado para que cada atividade deixe um rastro verificável (issue, commit, PR, arquivo em `docs/`).
 
 Documentos relacionados: [Definition of Ready / Done](definition-of-done.md) · [Quadro (GitHub Project)](quadro.md) · [Onboarding](onboarding.md) · [Guia de contribuição: branches, commits, PRs, release](../../.github/CONTRIBUTING.md) · [Templates Scrum](../templates/) · [Plano de entregas](../plano-de-entregas.md) · [Requisitos](../requisitos.md) · [ADRs](../adr/README.md).
 
@@ -41,10 +41,10 @@ O calendário oficial (sprints, checkpoints, congelamentos, reviews e feriados) 
 | Cerimônia | Quando | Duração | Participantes | Saída obrigatória (evidência) |
 |---|---|---|---|---|
 | Sprint Planning | 1º dia útil da sprint | 90 min | Time inteiro | `docs/sprints/sprint-N/planning.md` + `docs/sprints/sprint-N.md` inicial, milestone `Sprint N` com as issues selecionadas e responsáveis, **PR de planejamento aberto no mesmo dia** (ES02) |
-| Daily | **Diária, seg–sex**: presencial em sala de aula nos dias de aula (19h sugerido); **assíncrona por mensagem de texto** quando não houver aula ou em feriado | ≤15 min | Time inteiro | **Ata do dia** em `docs/sprints/sprint-N/dailies/AAAA-MM-DD.md` (template [`daily.md`](../templates/daily.md)), sempre com a seção Impedimentos. Mensagens assíncronas vão na issue fixada "Daily — Sprint N"; o SM consolida com `/daily` e abre o **PR semanal das atas**, revisado pelo PO |
+| Daily | **Diária, seg–sex**: presencial em sala de aula nos dias de aula (19h sugerido); **assíncrona por mensagem de texto** quando não houver aula ou em feriado | ≤15 min | Time inteiro | **Ata do dia** em `docs/sprints/sprint-N/dailies/AAAA-MM-DD.md` (template [`daily.md`](../templates/daily.md)), sempre com a seção Impedimentos. Mensagens assíncronas vão na issue fixada "Daily — Sprint N"; o SM consolida com `/daily` e abre o **PR semanal das atas**, revisado pelo PO, que também atualiza o **burndown** (`docs/sprints/sprint-N/burndown.md`, [seção 2.2](#22-burndown-da-sprint)) |
 | Refinamento | 1× por semana, após uma daily | 30 min | PO + 1 dev (rotativo) | Histórias da próxima sprint com DoR completa; dúvidas ao cliente/professor anotadas na issue |
-| Checkpoint | Data-limite em `calendario.json` (S1 09/10 · S2 30/10 · S3 17/11) | — | PO + SM | Última data para **mover um critério** para a sprint seguinte; decisão registrada no "Histórico de alterações do plano"; `evidencias.sh N` rodado |
-| Congelamento | Domingo anterior à review, **20h** (S1 18/10 · S2 08/11 · S3 22/11) | — | SM | `develop` limpa, PRs da milestone mergeados ou movidos, CI verde, `release/sprint-N` criada e PR para `main` aberto (`/sprint N congelar`) |
+| Checkpoint | Data-limite em `calendario.json` (S1 09/10 · S2 30/10 · S3 17/11) | — | PO + SM | Última data para **mover um critério** para a sprint seguinte; decisão registrada no "Histórico de alterações do plano"; `evidencias.sh N` e `burndown.sh N` rodados |
+| Congelamento | Domingo anterior à review, **20h** (S1 18/10 · S2 08/11 · S3 22/11) | — | SM | `develop` limpa, PRs da milestone mergeados ou movidos, CI verde, `release/sprint-N` criada e PR para `main` aberto (`/sprint N congelar`); burndown final em `sprint-N/burndown.md` |
 | Sprint Review | Com o cliente (S1 19/10 · S2 09/11 · S3 23/11, 19h30, a confirmar) | 60 min | Time + cliente/professor | **Todos demonstram** ≥1 item; **o SM é o escriba**: roteiro e feedback em `docs/sprints/sprint-N/review.md` |
 | Pós-review | ≤24h após a review | — | SM + PO | Feedback consolidado em `review.md` e `sprint-N.md`; issues `feedback-cliente` na milestone N+1; entrada no "Histórico de alterações do plano"; merge do release em `main` + tag `sprint-N` (ES06) |
 | Retrospectiva | Aula seguinte à review | 30 min | Time inteiro | `docs/sprints/sprint-N/retrospectiva.md`; cada ação vira issue `tipo:processo` com dono e prazo |
@@ -57,7 +57,20 @@ Observações de calendário: feriados em 12/10, 15/10 (sem aula), 02/11 e 20/11
 2. Sem aula, cada integrante publica as mesmas três respostas como **comentário na issue fixada "Daily — Sprint N"** até as 21h.
 3. O SM (ou quem registrar) gera a ata do dia com `/daily AAAA-MM-DD` (ou `/daily --texto`, colando as mensagens) em `docs/sprints/sprint-N/dailies/AAAA-MM-DD.md`.
 4. Impedimentos viram comentário na issue bloqueada + label `bloqueado`; o SM acompanha até resolver e registra o desfecho na ata seguinte.
-5. Na sexta-feira o SM abre o PR `docs/<n>-dailies-sprint-N-semana-k` com as atas da semana; o PO revisa. Sem ata, a daily não aconteceu para a rubrica.
+5. Na sexta-feira o SM abre o PR `docs/<n>-dailies-sprint-N-semana-k` com as atas da semana e o burndown atualizado; o PO revisa. Sem ata, a daily não aconteceu para a rubrica.
+
+### 2.2 Burndown da sprint
+
+O burndown mostra, dia a dia, quantos **Story Points** da sprint ainda estão abertos, comparados com a linha ideal (do escopo inicial até zero no último dia) e com o escopo do dia. Ele é gerado a partir do GitHub, sem planilha à parte:
+
+```bash
+bash .github/scripts/burndown.sh N --out docs/sprints/sprint-N/burndown.md
+```
+
+- **Fonte:** issues da milestone `Sprint N` e o campo `Story Points` do [quadro](quadro.md#story-points-campo-numérico). Tarefas, processo e bugs entram na soma; histórias e épicos não, porque os pontos deles já estão nas tarefas filhas. Issues sem Story Points aparecem listadas à parte no arquivo, para o PO estimar.
+- **Quando atualizar:** no PR semanal das atas (sexta), no checkpoint, no congelamento e no fechamento. O arquivo de cada sprint é versionado; o do congelamento é o que fica na tag `sprint-N`.
+- **Como ler:** restante acima da linha ideal indica atraso; barra de escopo que sobe indica trabalho acrescentado durante a sprint, que a daily e o checkpoint precisam explicar.
+- **Data-base:** quando o backlog chega ao GitHub depois do início da sprint (caso da Sprint 1, importada em 04–05/10), `burndown_base` da sprint em `.github/calendario.json` define até quando as issues criadas contam como escopo planejado desde o primeiro dia.
 
 ## 3. Acordos de trabalho (10)
 
@@ -92,29 +105,36 @@ Ninguém move manualmente para Concluído: a única porta é o merge em `develop
 
 ## 5. Onde fica cada coisa
 
-| Arquivo / local | Conteúdo | Dono |
-|---|---|---|
-| GitHub Issues + [quadro](quadro.md) | Product Backlog vivo, Sprint Backlog (milestone), estado de cada item | PO (conteúdo), SM (quadro) |
-| `docs/backlog/product-backlog.md` | Retrato versionado das issues, gerado por `backlog-export.sh` na planning e no fechamento | SM |
-| `docs/plano-de-entregas.md` | Plano das três sprints exigido pela rubrica: critérios, entregas, responsáveis, evidências, situação, histórico de alterações | PO (SM revisa) |
-| `docs/requisitos.md` | RF/RNF/RP do edital com âncoras e critérios da rubrica relacionados | PO |
-| `docs/processo/*.md` | Este processo, DoR/DoD, quadro, onboarding | SM |
-| `docs/templates/*.md` | Modelos de todos os registros Scrum e dos documentos técnicos | SM |
-| `docs/sprints/sprint-N.md` | Registro oficial da sprint: objetivo, versão/tag, concluídos, pendentes, verificações realizadas, review, métricas | SM (PO valida) |
-| `docs/sprints/sprint-N/planning.md` · `review.md` · `retrospectiva.md` · `contribuicao.md` | Atas das cerimônias e relatório de participação (ES09) | SM |
-| `docs/sprints/sprint-N/dailies/AAAA-MM-DD.md` | Ata de cada daily (uma por dia útil) | SM ou quem registrar |
-| `docs/adr/` | Decisões de arquitetura no formato MADR, com rastreabilidade para issue/RF/critério | devs e SM |
-| `docs/api.md` · `docs/arquitetura.md` · `docs/calculos.md` | Documentação técnica; nasce no mesmo PR do código que documenta | dev da área (`calculos.md`: PO com o dev backend) |
-| `README.md` da raiz · `frontend/README.md` · `backend/README.md` · `database/README.md` | O que existe de fato e como executar | dev da área; raiz: SM com o PO |
-| `.github/CONTRIBUTING.md` | Regras de branch, commit, co-autoria, PR, release e tags | SM |
-| `.github/equipe.json` · `.github/calendario.json` | Dados do time e do calendário usados por scripts, hooks e CI | SM (alteração via PR) |
-| `.github/workflows` · `.github/scripts` | Checks (`commits`, `pr`, `docs`), automação do quadro, CI, exportadores | SM |
+| Arquivo / local | Conteúdo | Fonte principal de | Dono |
+|---|---|---|---|
+| GitHub Issues + [quadro](quadro.md) | Product Backlog vivo, Sprint Backlog (milestone), estado de cada item | estado e prioridade de cada item | PO (conteúdo), SM (quadro) |
+| `docs/backlog/product-backlog.md` | Retrato versionado das issues, gerado por `backlog-export.sh` na planning e no fechamento | retrato do backlog em uma data | SM |
+| `docs/plano-de-entregas.md` | Plano das três sprints exigido pela rubrica: critérios, entregas, responsáveis, evidências, situação, histórico de alterações | **critérios de cada sprint e situação de cada critério** | PO (SM revisa) |
+| `docs/requisitos.md` | RF/RNF/RP do edital com âncoras e critérios da rubrica relacionados | RF/RNF/RP do edital | PO |
+| `docs/processo/*.md` | Este processo, DoR/DoD, quadro, onboarding | processo, DoR/DoD, quadro e onboarding | SM |
+| `docs/templates/*.md` | Modelos de todos os registros Scrum e dos documentos técnicos | formato dos registros e documentos | SM |
+| `docs/sprints/sprint-N.md` | Registro oficial da sprint: objetivo, versão/tag, concluídos, pendentes, verificações realizadas, review, métricas | registro oficial de cada sprint | SM (PO valida) |
+| `docs/sprints/sprint-N/planning.md` · `review.md` · `retrospectiva.md` · `contribuicao.md` | Atas das cerimônias e relatório de participação (ES09) | atas das cerimônias e participação | SM |
+| `docs/sprints/sprint-N/burndown.md` | Burndown da sprint em Story Points, gerado por `burndown.sh N` ([seção 2.2](#22-burndown-da-sprint)) | burndown em Story Points | SM |
+| `docs/sprints/sprint-N/dailies/AAAA-MM-DD.md` | Ata de cada daily (uma por dia útil) | ata de cada daily | SM ou quem registrar |
+| `docs/adr/` | Decisões de arquitetura no formato MADR, com rastreabilidade para issue/RF/critério | decisões de arquitetura (ADR) | devs e SM |
+| `docs/api.md` · `docs/arquitetura.md` · `docs/calculos.md` | Documentação técnica; nasce no mesmo PR do código que documenta | documentação técnica (API, arquitetura, cálculos) | dev da área (`calculos.md`: PO com o dev backend) |
+| `README.md` da raiz · `frontend/README.md` · `backend/README.md` · `database/README.md` | O que existe de fato e como executar | o que existe e como executar cada módulo | dev da área; raiz: SM com o PO |
+| `.github/CONTRIBUTING.md` | Regras de branch, commit, co-autoria, PR, release e tags | regras de branch, commit, PR, release e tags | SM |
+| `.github/equipe.json` · `.github/calendario.json` | Dados do time e do calendário usados por scripts, hooks e CI | dados do time e calendário da automação | SM (alteração via PR) |
+| `.github/workflows` · `.github/scripts` | Checks (`commits`, `pr`, `docs`), automação do quadro, CI, exportadores | checks e automação do repositório | SM |
+
+**Regra de fonte principal:** a situação dos critérios de cada sprint fica apenas no plano de entregas; `sprint-N.md`, `sprint-N/review.md` e as demais atas apontam para ele em vez de repetir números ou status.
 
 ## 6. Fluxo resumido de uma sprint
 
 1. **Planning (dia 1):** PO apresenta as histórias com DoR; o time seleciona, estima e atribui; SM publica `planning.md` + `sprint-N.md` e a issue "Daily — Sprint N" por PR no mesmo dia.
 2. **Execução:** cada dev segue `issue → /tarefa → commits (#n) → /pr → revisão em ≤24h → merge`; daily todos os dias úteis com ata; refinamento semanal.
 3. **Checkpoint:** PO e SM avaliam cada critério previsto; o que não vai fechar é movido para a próxima sprint com registro no histórico do plano.
-4. **Congelamento (domingo 20h):** SM congela `develop`, roda `teste-avaliador.sh`, `check-docs.sh` e `/auditar`, abre `release/sprint-N` → `main`.
+4. **Congelamento (domingo 20h):** SM congela `develop`, roda `teste-avaliador.sh`, `check-docs.sh`, `/auditar` e `burndown.sh N`, abre `release/sprint-N` → `main`.
 5. **Review:** demonstração por RF com o cliente; SM registra o feedback.
 6. **Pós-review (≤24h) e retro:** feedback vira issues; plano, `sprint-N.md` e README atualizados; merge do release, tag `sprint-N`; retro gera ações `tipo:processo`.
+
+## Hierarquia do backlog
+
+Épico (tema de requisitos do edital) → História (valor para o usuário, com critérios de aceite) → Tarefa (fatia técnica que vira branch e PR). A relação é feita com sub-issues do GitHub e aparece no quadro em *Parent issue* e *Sub-issues progress*. Detalhes e views em [quadro.md](quadro.md#hierarquia-do-backlog-épico--história--tarefa).

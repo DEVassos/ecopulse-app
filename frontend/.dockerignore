@@ -1,0 +1,16 @@
+# Fica fora do contexto de build: a imagem instala as dependências pelo package-lock e gera o próprio dist/
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+npm-debug.log*
+
+# Segredos e configuração local (VITE_API_URL chega como argumento de build pelo compose)
+.env
+.env.*
+
+# Backend falso de desenvolvimento e arquivos que não entram no bundle
+mock/
+*.md
+Dockerfile
+.dockerignore

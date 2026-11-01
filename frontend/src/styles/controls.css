@@ -1,0 +1,23 @@
+/* Controles comuns (docs/identidade-visual.md § 3) */
+@layer components {
+  /* Botão vazado: ações secundárias. A ação principal continua com o botão cheio (--accent + --on-accent). */
+  .btn-outline {
+    cursor: pointer;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--accent);
+    font-family: var(--sans);
+    font-weight: 500;
+  }
+
+  .btn-outline:hover {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    color: var(--accent-hover);
+  }
+
+  .btn-outline[aria-disabled='true'] {
+    cursor: wait;
+    opacity: 0.6;
+  }
+}

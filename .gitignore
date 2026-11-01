@@ -41,3 +41,22 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 *.swp
+
+# --- trazidas do repositório anterior (Projeto-GreenER) ---
+.pnp
+.pnp.js
+.nyc_output/
+/frontend/build
+/backend/dist
+docker-compose.override.yml
+*.pid
+*.seed
+*.pid.lock
+logs
+*.log
+yarn-debug.log*
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
