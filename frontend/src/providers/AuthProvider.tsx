@@ -3,21 +3,29 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { setAuthToken, setSessionExpiredHandler } from '../services/api';
 import * as authService from '../services/auth.service';
+import { isRecord } from '../services/contract';
 import { AuthContext } from '../contexts/AuthContext';
 import type { AuthContextValue, AuthUser } from '../contexts/AuthContext';
 
 // O token fica no sessionStorage: some ao fechar a aba e não é compartilhado entre abas (US07)
-const STORAGE_KEY = 'greener.session';
+const STORAGE_KEY = 'ecopulse.session';
 
 interface Session {
   token: string;
   user: AuthUser;
 }
 
+/** Sessão salva com o formato esperado, ou null (nada salvo, outra versão ou conteúdo alterado à mão). */
+function parseSession(value: unknown): Session | null {
+  if (!isRecord(value) || typeof value.token !== 'string' || value.token === '' || !isRecord(value.user)) return null;
+  const { email, name } = value.user;
+  return typeof email === 'string' && typeof name === 'string' ? { token: value.token, user: { email, name } } : null;
+}
+
 function readSession(): Session | null {
   try {
     const raw = window.sessionStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Session) : null;
+    return raw ? parseSession(JSON.parse(raw)) : null;
   } catch {
     return null; // armazenamento bloqueado ou conteúdo inválido: segue como visitante
   }

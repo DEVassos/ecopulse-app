@@ -1,5 +1,4 @@
-// Contrato provisório de POST /auth/login (US07 / BE-07).
-// Ajustar quando o backend documentar a rota em docs/api.md.
+// Contrato de POST /api/auth/login e GET /api/auth/me (docs/api.md, #20).
 
 export interface LoginRequest {
   email: string;
@@ -9,4 +8,10 @@ export interface LoginRequest {
 export interface LoginResponse {
   /** JWT assinado pelo backend; enviado em Authorization: Bearer. */
   token: string;
+}
+
+/** Usuário dono do token, como o backend leu no JWT. */
+export interface CurrentUser {
+  id: string;
+  email: string;
 }
