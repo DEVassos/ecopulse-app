@@ -83,11 +83,20 @@ Depois da reunião, o cliente analisou o repositório e enviou os apontamentos p
 | Produto | Base de lógica de negócio sólida e propósito bem compreendido; gostou do cuidado com disponibilidade, histórico, estados incompletos e atualização sem apagar os dados anteriores | aceito | nenhuma |
 | Produto | Manter visível a distinção entre o que já funciona e o que está planejado, porque o protótipo tem funções ainda não implementadas | aceito | prática mantida: nada é anunciado antes do merge |
 
+### 3.2 Resposta complementar do cliente (02/11/2026)
+
+Em resposta ao e-mail enviado pela equipe, Otávio esclareceu que o consumo hídrico foi citado como contexto do problema real e **não faz parte do desafio atual**. A inclusão de dados de água pode ser considerada como extra somente depois da entrega principal e sem comprometer o escopo; o cliente alertou que todo escopo adicional também será cobrado.
+
+O cliente recomendou priorizar a usabilidade do produto de consumo de energia: revisar o que o operador precisa ver, quais filtros devem estar disponíveis e como organizar os recursos para apoiar o uso. Também pediu que a apresentação explique a diferença entre dado mensurável e informação contextualizada, e mostre quais informações foram consolidadas e por que são úteis. A resposta integral e a resposta de Henrique estão registradas na [#166, comentário de 02/11](https://github.com/DEVassos/greener-app/issues/166#issuecomment-6589732332).
+
+**Decisão do PO:** consumo hídrico fica fora do escopo atual; não foram abertas tarefas de implementação para água nem alterados os critérios da Sprint 2. O time mantém o foco nos requisitos do MVP e considera as orientações de usabilidade e de dado versus informação no refinamento da interface e na apresentação. Qualquer estudo de água fica condicionado à conclusão da entrega principal e a uma fonte confiável.
+
 ## 4. Decisões e alterações no backlog
 
 | Decisão | Issue criada ou alterada | Label | Milestone |
 |---|---|---|---|
 | Priorizar a comparação entre serviços e a análise dos dados. Na planning da Sprint 2, o PO decide se antecipa a US09, ranking ([#50](https://github.com/DEVassos/greener-app/issues/50)), e a US11, comparação ([#52](https://github.com/DEVassos/greener-app/issues/52)), hoje previstas para a Sprint 3, e reavalia os diferenciais US12 e US13 | [#159](https://github.com/DEVassos/greener-app/issues/159) | `feedback-cliente`, `RF14`, `RF15` | Sprint 2 |
+| Consumo hídrico não faz parte do desafio atual; não criar tarefa de implementação nem ampliar o escopo. Priorizar a usabilidade e a apresentação das informações consolidadas; considerar água apenas como extra após a entrega principal e com fonte confiável (§ 3.2) | [#166](https://github.com/DEVassos/greener-app/issues/166) | `feedback-cliente` | Sprint 2 |
 | Nenhum critério muda de sprint na review: o denominador da Sprint 1 continua 79 e a autenticação JWT (DW06) segue na Sprint 2 | — | — | — |
 
 Registrado no "Histórico de alterações do plano" em 20/10/2026, no fechamento da Sprint 1 ([#153](https://github.com/DEVassos/greener-app/issues/153)).
@@ -96,7 +105,7 @@ Registrado no "Histórico de alterações do plano" em 20/10/2026, no fechamento
 
 | Pendência | Quem | Prazo |
 |---|---|---|
-| Atender os apontamentos escritos do cliente (seção 3.1), exigidos a partir da Sprint 2: [#160](https://github.com/DEVassos/greener-app/issues/160), [#161](https://github.com/DEVassos/greener-app/issues/161), [#162](https://github.com/DEVassos/greener-app/issues/162), [#163](https://github.com/DEVassos/greener-app/issues/163), [#164](https://github.com/DEVassos/greener-app/issues/164), [#165](https://github.com/DEVassos/greener-app/issues/165) e [#166](https://github.com/DEVassos/greener-app/issues/166) | responsável de cada issue | Sprint 2 |
+| Acompanhar os apontamentos escritos do cliente (seção 3.1): [#160](https://github.com/DEVassos/greener-app/issues/160), [#161](https://github.com/DEVassos/greener-app/issues/161), [#162](https://github.com/DEVassos/greener-app/issues/162), [#163](https://github.com/DEVassos/greener-app/issues/163), [#164](https://github.com/DEVassos/greener-app/issues/164) e [#165](https://github.com/DEVassos/greener-app/issues/165). A dúvida de escopo da [#166](https://github.com/DEVassos/greener-app/issues/166) foi respondida em 02/11 e está registrada na seção 3.2 | responsável de cada issue | Sprint 2 |
 | Decidir a priorização de ranking e comparação ([#159](https://github.com/DEVassos/greener-app/issues/159)) | @henriqueptbd-cell | 21/10 |
 
 ## 6. Encaminhamentos pós-review (≤24h)
