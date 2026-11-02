@@ -26,6 +26,9 @@ function unavailableCalculation(message: string) {
   return { calculation_status: 'indisponivel' as const, carbon_intensity_gco2e_per_kwh: null,
     power_watts: null, energy_kwh: null, co2e_grams: null, calculation_error_message: message };
 }
+function failureMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido.';
+}
 
 /** Arredonda à escala da coluna: a API manda resíduo de float (51.248000000000005); o JSON bruto guarda o original. */
 function coordinate(value: number, precision: number): string {
@@ -89,8 +92,8 @@ export class Collector implements CollectorLifecycle {
   }
   run(): Promise<void> {
     if (this.stopping) return Promise.resolve();
-    return this.active ??= this.collect().catch(() => {
-      if (!this.stopping) this.report('Falha no ciclo de descoberta/reconciliação; cadastro preservado.');
+    return this.active ??= this.collect().catch((error: unknown) => {
+      if (!this.stopping) this.report(`Falha no ciclo de descoberta/reconciliação; cadastro preservado. ${failureMessage(error)}`);
     }).finally(() => { this.active = undefined; });
   }
   async stop(): Promise<void> {
@@ -121,7 +124,29 @@ export class Collector implements CollectorLifecycle {
     }
   }
   private async collect(): Promise<void> {
-    const found = discovery(await this.api.listServices(this.abort.signal));
+    let listed: ServiceSummary[];
+    try {
+      listed = await this.api.listServices(this.abort.signal);
+    } catch (error) {
+      if (this.stopping) return;
+      const message = `Descoberta indisponível; não foi possível consultar as métricas dos serviços. ${failureMessage(error)}`;
+      this.report(message);
+      const known = await new ServiceRepository(this.db).findAll();
+      for (const service of known) {
+        if (this.stopping) return;
+        if (service.status === 'removido') continue;
+        const previous = this.deadlines.get(service.external_id);
+        if (service.status === 'indisponivel' && previous && previous.due > this.now()) continue;
+        await this.persist(service, { service_id: service.id, collected_at: new Date(this.now()),
+          region_code: service.region_code, status: 'erro', collection_interval_seconds: null,
+          cpu_percent: null, memory_gb: null, disk_gb: null, network_gb: null, metrics: {},
+          error_message: message, ...notCalculated() });
+        const interval = previous?.interval ?? this.pollingMs;
+        this.deadlines.set(service.external_id, { interval, due: this.now() + interval });
+      }
+      return;
+    }
+    const found = discovery(listed);
     if (this.stopping) return;
     const services = await withTransaction(this.db, async tx => {
       const repo = new ServiceRepository(tx);
@@ -151,17 +176,20 @@ export class Collector implements CollectorLifecycle {
           error_message: error instanceof AppError ? error.message : 'Falha externa ao coletar métricas.',
           ...notCalculated() };
       }
-      try {
-        await withTransaction(this.db, async tx => {
-          await new CollectionRepository(tx).insert(reading);
-          const status = MonitoringStatus.fromCollection(reading.status).value();
-          if (!await new ServiceRepository(tx).updateStatus(service.id, status))
-            throw new ValidationError('Serviço da coleta não encontrado.');
-        });
-      } catch {
-        this.report('Falha na persistência da coleta; transação desfeita, próximos serviços continuam.');
-      }
+      await this.persist(service, reading);
       this.deadlines.set(service.external_id, { interval, due: this.now() + interval });
+    }
+  }
+  private async persist(service: StoredService, reading: NewCollection): Promise<void> {
+    try {
+      await withTransaction(this.db, async tx => {
+        await new CollectionRepository(tx).insert(reading);
+        const status = MonitoringStatus.fromCollection(reading.status).value();
+        if (!await new ServiceRepository(tx).updateStatus(service.id, status))
+          throw new ValidationError('Serviço da coleta não encontrado.');
+      });
+    } catch (error) {
+      this.report(`Falha na persistência da coleta; transação desfeita, próximos serviços continuam. ${failureMessage(error)}`);
     }
   }
 }

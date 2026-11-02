@@ -36,10 +36,12 @@ Os números do exemplo são o exemplo OpenAPI de [`docs/calculos.md`](calculos.m
 
 `status` do serviço: `ativo` (última métrica válida), `indisponivel` (falha do agregador ou métrica inválida), `sem_metricas` (404 do agregador para um serviço ainda listado) ou `removido` (saiu da lista do agregador; volta a `ativo` quando reaparece).
 
+Se a descoberta global em `/services` do agregador falhar, o coletor preserva o cadastro e grava diagnóstico `erro` para os conhecidos não removidos, marcando-os `indisponivel`. Isso indica impossibilidade de monitorar pelo agregador, sem afirmar que cada aplicação caiu. As medidas dessa coleta são nulas; serviços já removidos permanecem removidos. A falha não remove cadastros nem apaga o histórico. Ao recuperar a descoberta e obter métricas válidas no próximo prazo, o serviço volta a `ativo`.
+
 Falha de banco retorna 500 no envelope global, sem stack ou SQL:
 
 ```json
-{"error":{"code":"DATABASE_ERROR","message":"Não foi possível verificar a conexão com o banco de dados."}}
+{"error":{"code":"DATABASE_ERROR","message":"Não foi possível acessar o banco de dados."}}
 ```
 
 ## GET /api/services/summary
@@ -205,7 +207,7 @@ Resposta 200, Content-Type application/json, somente após verificação real:
 Falha de conexão/consulta: 500 (DatabaseError conforme Agilekit), sem encerrar HTTP. Após recuperação do banco, nova consulta pode retornar 200.
 
 ```json
-{"error":{"code":"DATABASE_ERROR","message":"Não foi possível verificar a conexão com o banco de dados."}}
+{"error":{"code":"DATABASE_ERROR","message":"Não foi possível acessar o banco de dados."}}
 ```
 
 Health comprova conectividade, não valida existência de tabelas, persistência, APIs externas ou coleta. No boot, indisponibilidade impede a abertura HTTP e encerra o processo com código não zero.

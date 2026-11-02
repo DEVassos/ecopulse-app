@@ -20,9 +20,13 @@ describe.skipIf(!process.env.WORKER_TEST_DATABASE_URL)('worker em PostgreSQL exc
       const repo = new ServiceRepository(db);
       const first = (await repo.findAll())[0]; expect(first.id).toBe('9007199254740993');
       vi.mocked(api.listServices).mockRejectedValueOnce(new Error('descoberta indisponível')); await worker.run();
-      expect((await repo.findById(first.id))?.status).toBe('ativo'); expect(await history(db)).toHaveLength(1);
+      expect((await repo.findById(first.id))?.status).toBe('indisponivel');
+      const failed = await history(db); expect(failed).toHaveLength(2);
+      expect(failed[1]).toMatchObject({ status: 'erro', cpu_percent: null, calculation_status: 'nao_calculado' });
+      expect((await repo.findById(first.id))?.last_seen_at).toEqual(first.last_seen_at);
       now = 1000; a.location.regionCode = 'eu-west'; await worker.run();
-      expect((await history(db)).map(row => row.region_code)).toEqual(['br-sudeste', 'eu-west']);
+      expect((await history(db)).map(row => row.region_code)).toEqual(['br-sudeste', 'br-sudeste', 'eu-west']);
+      expect((await repo.findById(first.id))?.status).toBe('ativo');
       vi.mocked(api.listServices).mockResolvedValueOnce([]); await worker.run();
       expect((await repo.findById(first.id))?.status).toBe('removido');
       await worker.run(); expect((await repo.findById(first.id))?.first_seen_at).toEqual(first.first_seen_at);

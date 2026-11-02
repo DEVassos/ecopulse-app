@@ -6,7 +6,7 @@ import { createApp } from '../src/app';
 import { errorHandler } from '../src/middlewares/error-handler';
 import { CollectionRepository } from '../src/modules/collections/collections.repository';
 import { ServiceRepository } from '../src/modules/services/services.repository';
-import { DatabaseError } from '../src/shared/errors';
+import { DatabaseError, ExternalApiError } from '../src/shared/errors';
 
 function repositories(collectionRows: unknown[] = [], serviceRows: unknown[] = [], serviceFailure?: Error) {
   return {
@@ -36,7 +36,9 @@ describe('HTTP', () => {
     const verify = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new DatabaseError()).mockResolvedValueOnce(undefined);
     const { collections, services } = repositories(); const url = await serve(createApp(verify, collections, services));
     expect(await (await fetch(url + '/health')).json()).toEqual({ status: 'ok', db: 'ok' });
-    expect((await fetch(url + '/health')).status).toBe(500);
+    const failed = await fetch(url + '/health');
+    expect(failed.status).toBe(500);
+    expect(await failed.json()).toEqual({ error: { code: 'DATABASE_ERROR', message: 'Não foi possível acessar o banco de dados.' } });
     expect((await fetch(url + '/health')).status).toBe(200);
   });
   it('recusa JSON inválido e rota inexistente', async () => {
@@ -125,7 +127,9 @@ describe('HTTP', () => {
   });
   it('valida filtros de collections', async () => {
     const { collections, services } = repositories();
-    expect((await fetch(await serve(createApp(async () => {}, collections, services)) + '/api/collections?limit=abc')).status).toBe(400);
+    const response = await fetch(await serve(createApp(async () => {}, collections, services)) + '/api/collections?limit=abc');
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'limit deve ser inteiro entre 1 e 500.' } });
   });
   it('retorna 404 para service_id inexistente', async () => {
     const { collections, services } = repositories([], []);
@@ -204,9 +208,23 @@ describe('HTTP', () => {
     expect(body.collections[3]).toMatchObject({ calculationStatus: 'indisponivel', energyKwh: null, co2eGrams: null });
   });
   it('protege erros inesperados', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const { collections, services } = repositories();
-    expect((await fetch(await serve(createApp(async () => { throw new Error('senha'); }, collections, services)) + '/health')).status).toBe(500);
+    const response = await fetch(await serve(createApp(async () => { throw new Error('erro interno'); }, collections, services)) + '/health');
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: { code: 'INTERNAL_ERROR', message: 'Erro interno do servidor.' } });
+    expect(log).toHaveBeenCalledWith('Erro interno ao processar requisição.', expect.objectContaining({ message: 'erro interno' }));
+  });
+  it('converte falha de integração em erro padronizado sem derrubar o servidor', async () => {
+    const app = express();
+    app.get('/integration', (_req, _res, next) => next(new ExternalApiError('API de métricas indisponível.')));
+    app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+    app.use(errorHandler);
+    const url = await serve(app);
+    const failed = await fetch(url + '/integration');
+    expect(failed.status).toBe(502);
+    expect(await failed.json()).toEqual({ error: { code: 'EXTERNAL_API_ERROR', message: 'API de métricas indisponível.' } });
+    expect(await (await fetch(url + '/health')).json()).toEqual({ status: 'ok' });
   });
   it('preserva o error handler isolado', async () => {
     const app = express(); app.use(express.json()); app.post('/test', (req, res) => res.json(req.body)); app.use(errorHandler);
