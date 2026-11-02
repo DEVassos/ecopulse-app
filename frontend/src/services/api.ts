@@ -29,6 +29,22 @@ const DEFAULT_MESSAGES: Record<number, string> = {
   404: 'O recurso pedido não foi encontrado.',
 };
 
+let authToken: string | null = null;
+let onSessionExpired: () => void = () => {};
+
+/**
+ * Token enviado em Authorization: Bearer. O AuthProvider atualiza na hora (ao abrir a página,
+ * no login e no logout), antes de qualquer tela fazer requisição.
+ */
+export function setAuthToken(token: string | null): void {
+  authToken = token;
+}
+
+/** O que fazer quando a API recusa o token (401): o AuthProvider encerra a sessão. */
+export function setSessionExpiredHandler(handler: () => void): void {
+  onSessionExpired = handler;
+}
+
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;
@@ -50,12 +66,16 @@ async function readErrorMessage(response: Response): Promise<string> {
 
 /**
  * Faz a requisição e devolve o JSON da resposta; falhas viram ApiError com mensagem em pt-BR.
+ * Com sessão aberta, envia Authorization: Bearer.
  * O JSON não é conferido aqui: o tipo `T` some no build. Quem precisa de garantia pede `unknown` e confere o
  * formato com os leitores de `contract.ts` (#161), como `services.service.ts` e `collections.service.ts`.
  */
 export async function apiRequest<T>(path: string, { method = 'GET', body, signal }: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
+
+  const token = authToken;
+  if (token) headers.Authorization = `Bearer ${token}`;
 
   let response: Response;
   try {
@@ -70,6 +90,9 @@ export async function apiRequest<T>(path: string, { method = 'GET', body, signal
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
     throw new ApiError('Não foi possível conectar ao servidor. Verifique se o backend está no ar.', 0);
   }
+
+  // Token recusado: encerra a sessão local (o controle de acesso de verdade é do backend)
+  if (response.status === 401 && token) onSessionExpired();
 
   if (!response.ok) throw new ApiError(await readErrorMessage(response), response.status);
   if (response.status === 204) return undefined as T;

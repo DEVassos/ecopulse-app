@@ -5,8 +5,31 @@
 // Uso: npm run mock  →  http://localhost:3000  (com VITE_API_URL=http://localhost:3000 no .env da raiz)
 
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 
 const PORT = Number(process.env.MOCK_PORT ?? 3000);
+
+/** Administrador do mock: o mesmo do .env.example (no backend real ele vem do seed, #6). */
+const ADMIN = { id: '1', email: 'admin@ecopulse.local', password: 'admin1234' };
+
+/** Tokens emitidos desde que o mock subiu. Reiniciar o mock invalida todos (bom para testar o 401). */
+const validTokens = new Set();
+
+/** Token do cabeçalho Authorization: Bearer <token>, ou null. */
+function bearerToken(req) {
+  const match = /^Bearer\s+(.+)$/i.exec(req.headers.authorization ?? '');
+  return match ? match[1] : null;
+}
+
+async function readJson(req) {
+  let raw = '';
+  for await (const chunk of req) raw += chunk;
+  try {
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return null; // corpo que não é JSON: a rota responde 400
+  }
+}
 
 /**
  * Cenário de GET /services, para ver os estados da tela:
@@ -138,7 +161,30 @@ function send(res, status, body) {
   res.end(body === undefined ? '' : JSON.stringify(body));
 }
 
+const UNAUTHORIZED = { error: { code: 'UNAUTHORIZED', message: 'Token ausente, inválido ou expirado.' } };
+
 const routes = {
+  // US07 / #20 — login do administrador: mesmos códigos e corpos de erro do backend real (docs/api.md)
+  'POST /auth/login': async (req, res) => {
+    const body = await readJson(req);
+    if (!body || typeof body.email !== 'string' || body.email.trim() === '' || typeof body.password !== 'string' || body.password === '') {
+      return validationError(res, 'Informe email e password.');
+    }
+    if (body.email.trim() !== ADMIN.email || body.password !== ADMIN.password) {
+      return send(res, 401, { error: { code: 'UNAUTHORIZED', message: 'Credenciais inválidas.' } });
+    }
+    const token = `mock.${randomUUID()}`;
+    validTokens.add(token);
+    return send(res, 200, { token });
+  },
+
+  // US07 / #20 — rota mínima protegida: só responde com token válido
+  'GET /auth/me': async (req, res) => {
+    const token = bearerToken(req);
+    if (!token || !validTokens.has(token)) return send(res, 401, UNAUTHORIZED);
+    return send(res, 200, { id: ADMIN.id, email: ADMIN.email });
+  },
+
   // US01 / US04 — serviços monitorados (rota pública do dashboard)
   'GET /services': async (_req, res) => {
     if (SERVICES_SCENARIO === 'erro') return send(res, 500, { error: { code: 'INTERNAL_ERROR', message: 'Falha simulada no backend falso.' } });
@@ -271,18 +317,19 @@ const routes = {
 createServer(async (req, res) => {
   // CORS: o Vite roda em outra porta (5173)
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   if (req.method === 'OPTIONS') return send(res, 204);
 
   // Aceita as rotas com ou sem o prefixo /api (o .env.example usa VITE_API_URL=http://localhost:3000/api)
   const path = new URL(req.url ?? '/', `http://localhost:${PORT}`).pathname.replace(/^\/api(?=\/)/, '');
   const route = routes[`${req.method} ${path}`];
-  console.log(`${new Date().toLocaleTimeString('pt-BR')}  ${req.method} ${path}`);
+  console.log(`${new Date().toLocaleTimeString('pt-BR')}  ${req.method} ${path}${bearerToken(req) ? '  (com Bearer)' : ''}`);
 
   if (!route) return send(res, 404, { error: { code: 'NOT_FOUND', message: 'Rota não existe no backend falso.' } });
   return route(req, res);
 }).listen(PORT, () => {
   console.log(`Backend falso em http://localhost:${PORT}`);
   console.log(`GET /services: cenário "${SERVICES_SCENARIO}" (MOCK_SERVICES=normal|vazio|erro|sem-id|cpu-texto)`);
+  console.log(`Login: ${ADMIN.email} / ${ADMIN.password}`);
 });

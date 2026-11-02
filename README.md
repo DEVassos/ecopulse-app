@@ -100,14 +100,24 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   ![Dashboard com fundo azul-escuro](docs/img/sprint-2-fundo-azul.png)
 
-- **DW06 / RP06 — Login administrativo JWT (#20, PR #208):** `POST /api/auth/login` confere a senha com bcrypt e emite JWT HS256; `GET /api/auth/me` valida o token no middleware reutilizável do backend. A área de configuração protegida continua pendente.
+- **DW06 / RP06 — Login administrativo JWT (#20, PR #208):** `POST /api/auth/login` confere a senha com bcrypt e emite JWT HS256; `GET /api/auth/me` valida o token no middleware reutilizável do backend.
+
+- **DW06 / RP06 — Tela de login e área restrita (#25, PR #243):** `/login` confere o formulário antes de chamar o backend e mostra "E-mail ou senha incorretos." quando o `POST /api/auth/login` responde 401. Com o login, o token fica no `sessionStorage` da aba e toda chamada leva `Authorization: Bearer`; um 401 com sessão aberta encerra a sessão e volta para `/login`. `/configuracao` só abre com sessão e confirma o login em `GET /api/auth/me`; **Sair** apaga o token. O dashboard, Emissões e Comparação continuam públicos. Os parâmetros de monitoramento e a rota de configuração no backend ainda não existem.
+
+  ![Tela de login depois de uma senha errada](docs/img/sprint-2-login.png)
+
+  _Backend real (`docker compose`) em 01/11/2026: o backend respondeu 401 e a tela continua em `/login`, com a mensagem acima dos campos._
+
+  ![Área de configuração com a sessão confirmada](docs/img/sprint-2-configuracao.png)
+
+  _Depois do login com o administrador do seed, em 01/11/2026: `GET /api/auth/me` devolveu o e-mail lido no token, e o cabeçalho mostra **Sair**._
 
 ## 4. Escopo planejado
 
 > Planejado, **ainda não implementado**. O andamento real está no [quadro do projeto](https://github.com/orgs/DEVassos/projects/6) e no [plano de entregas](docs/plano-de-entregas.md).
 
 - **Dashboard em três níveis:** visão executiva (kWh total, gCO₂e, serviços ativos e indisponíveis, com atualização sem recarregar), análise comparativa (ranking e distribuição geográfica) e investigação detalhada (histórico por serviço).
-- **Área de configuração autenticada:** usa o login JWT já disponível no backend; tela e rotas de configuração seguem pendentes.
+- **Parâmetros da área de configuração:** o login e a proteção de `/configuracao` já existem; os parâmetros de monitoramento e a rota de configuração protegida no backend seguem pendentes.
 - **Prioridade apontada pelo cliente na review da Sprint 1:** comparar serviços e analisar os dados já coletados, para ver o que compensa fazer ([#159](https://github.com/DEVassos/greener-app/issues/159)).
 - **Diferenciais em estudo:** simulação de migração para regiões com matriz mais limpa ([US12, #53](https://github.com/DEVassos/greener-app/issues/53)) e exportação de relatórios em PDF/CSV ([US13, #54](https://github.com/DEVassos/greener-app/issues/54)), previstas para a Sprint 3.
 
@@ -118,7 +128,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 | Frontend | React + TypeScript (Vite, Tailwind CSS) |
 | Backend | Node.js + TypeScript, API REST em módulos (routes, controllers, services, repositories) |
 | Banco de dados | PostgreSQL com DDL e DML explícitos via driver `pg`, sem ORM |
-| Segurança | Login JWT no backend e bcrypt para senhas ([#20](https://github.com/DEVassos/greener-app/issues/20), PR #208); área de configuração protegida continua pendente |
+| Segurança | Login JWT no backend e bcrypt para senhas ([#20](https://github.com/DEVassos/greener-app/issues/20), PR #208); tela de login e área restrita no frontend ([#25](https://github.com/DEVassos/greener-app/issues/25), PR #243); rota de configuração protegida no backend continua pendente |
 | Execução | Docker Compose (frontend, backend e PostgreSQL com volume persistente) |
 
 ## 6. Equipe (DEVassos)
