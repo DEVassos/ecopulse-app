@@ -159,6 +159,22 @@ Com o compose da raiz (`cp .env.example .env && docker compose up --build -d`):
 
 ## Testes
 
+### Dependências dos testes (#163)
+
+O Vitest usa a linha `~4.1.12`, compatível com o Node 22 do CI e o Node 24 do Dockerfile. O lockfile mantém Vite 7.3.7; não é necessário migrar para Vite 8, alterar os testes ou adicionar configuração de pool.
+
+- [`GHSA-82fw-gwwq-j7x9`](https://github.com/advisories/GHSA-82fw-gwwq-j7x9): leitura de arquivos fora dos limites permitidos pelo mocker, corrigida em Vitest e `@vitest/mocker` 4.1.11. O patch 4.1.12 também endurece os mocks manuais.
+- [`GHSA-5gmw-xhrv-c9v3`](https://github.com/advisories/GHSA-5gmw-xhrv-c9v3) e [`GHSA-85c8-ppgw-ccpr`](https://github.com/advisories/GHSA-85c8-ppgw-ccpr): opções de workers herdadas por poluição de protótipo no `tinypool`, corrigidas nele em 2.1.1 e 2.1.2, respectivamente. O [Vitest 4 removeu o tinypool](https://v4.vitest.dev/guide/migration.html#pool-rework); não foi necessário sobrescrever versões transitivas.
+
+Para conferir, rode `npm ci`, `npm ls vitest @vitest/mocker vite --all` e `npm audit`. Os três avisos acima não devem aparecer. O audit ainda pode sair com código 1 por alertas fora da #163: o levantamento de 31/10/2026 encontrou `body-parser` 2.3.0 (`GHSA-27r3-jxmh-p828`) e `qs` 6.16.0 (`GHSA-6pq8-jhm2-2vcw`), trazidos pelo Express. Essas dependências de produção não foram atualizadas nesta tarefa; exigem acompanhamento separado. Execute testes, tipos e build separadamente do audit, para que esses alertas não impeçam a verificação:
+
+```bash
+npm run typecheck
+npm run build
+```
+
+### Suíte e PostgreSQL
+
 `npm test` (Vitest) cobre configuração, boot e encerramento, rotas e erros HTTP, CORS, os dois clientes de API (sucesso, formato inválido, 404, 500, rede, timeout, cancelamento e cache), o coletor (descoberta, prazos, isolamento de falhas, rollback e cálculo disponível ou indisponível) e o `CarbonCalculator`. O job `backend` do CI roda `npx tsc --noEmit` e `npm test` a cada PR com um PostgreSQL 16 descartável, então as suítes de integração também executam e nenhum teste fica pulado (#162). O job `compose` constrói a imagem, o que executa o build.
 
 As suítes de integração com PostgreSQL real (`tests/repositories.integration.test.ts` e `tests/collector.integration.test.ts`) leem `REPOSITORY_TEST_DATABASE_URL` e `WORKER_TEST_DATABASE_URL` e são puladas sem elas. Cada uma precisa de um banco próprio, novo e descartável, com `database/schema.sql` aplicado; a fixture fica no próprio teste (`tests/*-test.repository.ts`): IDs de `services` acima de `Number.MAX_SAFE_INTEGER` e, na de repositories, um usuário com hash sintético só no formato exigido pelo CHECK, não credencial. No CI, o job `backend` cria os bancos `repositories_test` e `worker_test` e define as duas variáveis. Para rodar localmente, a partir de `backend/`:
