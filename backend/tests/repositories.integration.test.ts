@@ -7,6 +7,7 @@ import { UserRepository } from '../src/modules/usuarios/usuarios.repository';
 import type { DiscoveredService, NewCollection } from '../src/shared/persistence.types';
 import { DatabaseError } from '../src/shared/errors';
 import { prepare } from './repositories-test.repository';
+import { getServices } from '../src/modules/services/services.service';
 
 // URL exclusiva de teste; schema aplicado antes em banco descartável vazio, fixture no beforeAll.
 const url = process.env.REPOSITORY_TEST_DATABASE_URL;
@@ -120,5 +121,28 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
     const repo = new UserRepository(db);
     expect(await repo.findByEmail('REVIEW@example.test')).toMatchObject({ id: '9007199254740993', email: 'review@example.test' });
     expect(await repo.findByEmail("' OR true --")).toBeNull();
+  });
+  it('motivo usa última coleta, desempata por id e desaparece na recuperação', async () => {
+    const a = await services.upsert(service('status-reason'), first);
+    const latest = new Date('2026-11-03T10:00:00Z');
+    const error = { ...reading(a.id), collected_at: latest, status: 'erro' as const,
+      collection_interval_seconds: null, cpu_percent: null, memory_gb: null, disk_gb: null, network_gb: null };
+    await collections.insert({ ...error, error_message: 'Timeout' });
+    await collections.insert({ ...error, error_message: 'Serviço indisponível (HTTP 500).' });
+    await services.updateStatus(a.id, 'indisponivel');
+    const current = async () => (await getServices(services)).services.find(item => item.id === a.id)!;
+    expect((await current()).statusReason).toBe('Serviço indisponível (HTTP 500).');
+    for (const status of ['ativo', 'sem_metricas', 'removido'] as const) {
+      await services.updateStatus(a.id, status);
+      expect((await current()).statusReason).toBeNull();
+    }
+    await collections.insert({ ...reading(a.id), collected_at: new Date(latest.getTime() + 1000) });
+    await services.updateStatus(a.id, 'ativo');
+    expect((await current()).statusReason).toBeNull();
+    await services.updateStatus(a.id, 'indisponivel');
+    expect((await current()).statusReason).toBeNull();
+    const empty = await services.upsert(service('status-without-reading'), first);
+    await services.updateStatus(empty.id, 'indisponivel');
+    expect((await getServices(services)).services.find(item => item.id === empty.id)?.statusReason).toBeNull();
   });
 });
