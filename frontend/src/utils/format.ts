@@ -29,7 +29,7 @@ export function formatDayTime(iso: string): string {
 }
 
 /** Duração em segundos → "7 h 35 min", "2 min 10 s" ou "45 s". */
-export function formatDuration(totalSeconds: number): string {
+export function formatDurationSeconds(totalSeconds: number): string {
   const seconds = Math.max(0, Math.round(totalSeconds));
   const days = Math.floor(seconds / 86_400);
   const hours = Math.floor((seconds % 86_400) / 3_600);

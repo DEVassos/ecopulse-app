@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import type { CollectionStatus, ServiceCollection } from '../services/collections.types';
-import { formatDayTime, formatDuration, formatNumber } from '../utils/format';
+import { formatDayTime, formatDurationSeconds, formatNumber } from '../utils/format';
 import { missingCollectionSeconds } from '../utils/collection-history';
 import MissingValue from './MissingValue';
 
@@ -29,8 +29,8 @@ function metric(value: number | null, decimals: number) {
 function MissingCollectionRow({ seconds }: { seconds: number }) {
   return (
     <tr className="border-t border-dashed border-warning/40 bg-warning/5">
-      <td colSpan={7} className="px-4 py-2 text-center text-xs text-muted">
-        Sem coleta por <strong className="font-mono font-medium text-text">{formatDuration(seconds)}</strong>
+      <td colSpan={7} className="px-4 py-2 text-left text-xs text-muted">
+        Sem coleta por <strong className="font-mono font-medium text-text">{formatDurationSeconds(seconds)}</strong>
       </td>
     </tr>
   );

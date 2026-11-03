@@ -208,7 +208,7 @@ export function describePeriod(summary: EmissionsSummary, bucket: EmissionsBucke
     );
   }
   if (missingMs > 0) {
-    lines.push(`${formatDuration(missingMs)} sem coleta no período: esses trechos não entram no total.`);
+    lines.push(`${formatDurationMilliseconds(missingMs)} sem coleta no período: esses trechos não entram no total.`);
   }
   return lines;
 }
@@ -308,7 +308,7 @@ export function formatRatio(ratio: number): string {
 }
 
 /** Duração curta: "45 min", "1 h 30 min", "2 d 4 h". */
-export function formatDuration(ms: number): string {
+export function formatDurationMilliseconds(ms: number): string {
   const totalMin = Math.max(1, Math.round(ms / 60_000));
   const days = Math.floor(totalMin / 1440);
   const hours = Math.floor((totalMin % 1440) / 60);

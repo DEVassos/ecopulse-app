@@ -45,7 +45,8 @@ export function demoCollections(serviceId: string, limit: number): CollectionsRe
   const now = Date.now();
 
   const collections = Array.from({ length: limit }, (_, index): ServiceCollection => {
-    const time = now - index * DEMO_COLLECTION_INTERVAL_MS;
+    const gapOffset = serviceId === 'fraud-detector' && index >= 5 ? 90_000 : 0;
+    const time = now - index * DEMO_COLLECTION_INTERVAL_MS - gapOffset;
     const common = { id: `${serviceId}-${index}`, serviceId, collectedAt: new Date(time).toISOString() };
     if (time > failingSince) {
       return { ...common, status: 'erro', collectionIntervalSeconds: null, cpuPercent: null, memoryGb: null, diskGb: null, networkGb: null, errorMessage: 'Serviço indisponível (HTTP 500).' };
