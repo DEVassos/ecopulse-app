@@ -14,6 +14,11 @@ export interface ServiceCollection {
   /** Horário da coleta (ISO 8601). */
   collectedAt: string;
   status: CollectionStatus;
+  /**
+   * Intervalo informado pela API de métricas para aquela coleta, em segundos;
+   * null quando a coleta não trouxe métricas (`erro` ou `sem_metricas`).
+   */
+  collectionIntervalSeconds: number | null;
   /** Uso de CPU, em %; null quando a coleta não trouxe a métrica. */
   cpuPercent: number | null;
   memoryGb: number | null;

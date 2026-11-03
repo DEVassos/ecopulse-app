@@ -140,8 +140,10 @@ Cada coleta traz o resultado do cálculo de energia e CO₂e ([fórmulas](calcul
 
 `null` nessas três chaves significa **não calculado**, nunca zero: `energyKwh: 0` é uma coleta calculada que resultou em zero. As colunas são `numeric`, que o driver `pg` devolve como string; a conversão para número é feita na borda da API, então os valores saem em JSON numérico e não em string.
 
+`collectionIntervalSeconds` é o intervalo informado pela API de métricas naquela coleta, em segundos; é `null` quando a coleta não trouxe métricas (`erro` ou `sem_metricas`). O dashboard usa esse valor para distinguir o intervalo normal entre coletas de um período sem nenhum registro.
+
 ```json
-{"collections":[{"id":"2","serviceId":"1","collectedAt":"2026-10-14T20:00:00.000Z","status":"ok","cpuPercent":42.5,"memoryGb":1.2,"diskGb":10,"networkGb":0.3,"errorMessage":null,"calculationStatus":"disponivel","energyKwh":0.000480452625,"co2eGrams":0.040838473125,"carbonIntensityGco2ePerKwh":85},{"id":"1","serviceId":"1","collectedAt":"2026-10-14T19:45:00.000Z","status":"ok","cpuPercent":40,"memoryGb":1.1,"diskGb":10,"networkGb":0.2,"errorMessage":null,"calculationStatus":"indisponivel","energyKwh":null,"co2eGrams":null,"carbonIntensityGco2ePerKwh":null}],"period":{"from":"2026-10-14T00:00:00.000Z","to":"2026-10-14T23:59:59.999Z"}}
+{"collections":[{"id":"2","serviceId":"1","collectedAt":"2026-10-14T20:00:00.000Z","status":"ok","collectionIntervalSeconds":27,"cpuPercent":42.5,"memoryGb":1.2,"diskGb":10,"networkGb":0.3,"errorMessage":null,"calculationStatus":"disponivel","energyKwh":0.000480452625,"co2eGrams":0.040838473125,"carbonIntensityGco2ePerKwh":85},{"id":"1","serviceId":"1","collectedAt":"2026-10-14T19:45:00.000Z","status":"erro","collectionIntervalSeconds":null,"cpuPercent":null,"memoryGb":null,"diskGb":null,"networkGb":null,"errorMessage":"Timeout","calculationStatus":"nao_calculado","energyKwh":null,"co2eGrams":null,"carbonIntensityGco2ePerKwh":null}],"period":{"from":"2026-10-14T00:00:00.000Z","to":"2026-10-14T23:59:59.999Z"}}
 ```
 
 O limite `to` é **inclusivo** (`collected_at <= to`): quem precisa de um período com fim aberto deve recuar 1 ms no parâmetro.

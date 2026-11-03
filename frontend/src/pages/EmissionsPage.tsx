@@ -19,7 +19,7 @@ import {
   MAX_SPAN_DAYS,
   autoBucket,
   describePeriod,
-  formatDuration,
+  formatDurationMilliseconds,
   formatGrams,
   formatInputDate,
   formatKwh,
@@ -328,7 +328,7 @@ export default function EmissionsPage() {
                           {[
                             totals.failed > 0 && `${totals.failed.toLocaleString('pt-BR')} com falha`,
                             totals.notCalculated > 0 && `${totals.notCalculated.toLocaleString('pt-BR')} sem cálculo`,
-                            missingMs > 0 && `${formatDuration(missingMs)} sem coleta`,
+                            missingMs > 0 && `${formatDurationMilliseconds(missingMs)} sem coleta`,
                           ]
                             .filter(Boolean)
                             .join(' · ')}
