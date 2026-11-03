@@ -34,6 +34,8 @@ Setup do backend: [organização e validação](backend/README.md) e [contrato d
 
 ## 3. Funcionalidades implementadas
 
+- **RF05/RF06 — Motivo seguro da indisponibilidade ([#251](https://github.com/DEVassos/greener-app/issues/251)):** `GET /api/services` inclui `statusReason` da última coleta somente para `indisponivel`, normalizado para não expor detalhes internos; demais estados recebem `null`. [Contrato](docs/api.md#get-apiservices). A interface permanece com Andrea na #176.
+
 O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta lista quando o Pull Request correspondente é mergeado, com o requisito e o número do PR. A Sprint 1 foi encerrada em 20/10/2026 e está publicada na tag [`sprint-1`](https://github.com/DEVassos/greener-app/releases/tag/sprint-1); o registro completo, com a review e o retorno do cliente, está em [docs/sprints/sprint-1.md](docs/sprints/sprint-1.md).
 
 **Vídeo da Sprint 1 (cerca de 3 min):** [EcoPulse - ABP FATEC 2DSM](https://youtu.be/3Hx4kzuudSw), com o produto como foi entregue na Sprint 1.

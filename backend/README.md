@@ -9,6 +9,8 @@ API REST em Node.js com Express 5 e TypeScript estrito, persistência no Postgre
 
 `POST /api/auth/login` e `GET /api/auth/me` já autenticam administradores com bcrypt e JWT. A área de configuração (`/monitoring-settings`) continua pendente na Sprint 2.
 
+`GET /api/services` também devolve `statusReason` seguro somente para `indisponivel` (#251). Os 14 casos de `status-reason.test.ts` e o caso PostgreSQL em `repositories.integration.test.ts` cobrem estados, mensagens sensíveis, recuperação e desempate; a apresentação continua com Andrea na #176. Contrato em [API](../docs/api.md#get-apiservices).
+
 ## Organização
 
 ```

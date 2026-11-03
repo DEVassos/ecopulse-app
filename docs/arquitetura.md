@@ -58,6 +58,8 @@ Falha de descoberta não autoriza remover todos os serviços. Semântica externa
 
 Primeira abertura por sessão de navegação em uma aba; reload e navegação interna não geram nova entrada. Sem polling ou worker. Backend observa IP considerando só proxies confiáveis e define horário; IP não equivale à identidade de pessoa. Consulta por responsáveis autorizados usa JWT administrativo, período/paginação e não cria outro evento de entrada. Sem perfis adicionais, tenants, logs HTTP ou tentativas de login. Tabela e fluxos modelados por solicitação de Vinicius; issue/sprint/retencão e mecanismo continuam pendentes, sem aprovação presumida do PO.
 
+O backend expõe `statusReason` da última coleta somente para serviços indisponíveis, normalizando diagnósticos antes da resposta pública (#251). Contrato e desempate em [API](api.md#get-apiservices). A interface permanece com Andrea na #176.
+
 ## Inicialização e evolução
 
 Schema inicial em transação, reaplicável ao mesmo modelo. Banco anterior com bytes é recusado pelo guard; precisa de migração numerada conforme ADR 0002, sem conversão presumida nem remoção de dados. No `compose.yaml` (#27), o serviço `postgres` (16-alpine) aplica `schema.sql` e o seed idempotente do administrador na primeira criação do volume nomeado `pgdata`, que preserva os dados entre reinícios; só `docker compose down -v` os apaga. Comandos de validação isolada: [README do banco](../database/README.md). Precisão e fontes: [cálculos](calculos.md).
