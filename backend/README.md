@@ -1,36 +1,67 @@
-# Backend EcoPulse — setup da API (#8)
+# Backend EcoPulse
 
-Node 20, Express 5, TypeScript estrito, PostgreSQL pelo driver pg e imagem Docker em `node:24-alpine` ([Docker](#docker)). O setup da #8 oferece inicialização e saúde da API; a contribuição local da #14 acrescenta repositories e transações, ainda sem revisão/publicação. Não há CRUD HTTP, ingestão, worker, cálculos, JWT ou auditoria.
+API REST em Node.js com Express 5 e TypeScript estrito, persistência no PostgreSQL pelo driver `pg` (SQL escrito à mão, sem ORM) e imagem Docker em `node:24-alpine` ([Docker](#docker)). Na Sprint 1 o backend:
+
+- descobre os serviços no agregador de métricas e coleta as métricas de cada um (worker, #19);
+- consulta a intensidade de carbono por região e calcula energia e CO₂e por coleta (#17, #133);
+- grava o histórico no PostgreSQL (#14, #19);
+- expõe `GET /health`, `GET /api/services` e `GET /api/collections` (#8, #111, #112), com CORS liberado para o dashboard (#118). Na Sprint 2, `GET /api/collections/series` passou a devolver a série temporal de um serviço em intervalos (#189).
+
+`POST /api/auth/login` e `GET /api/auth/me` já autenticam administradores com bcrypt e JWT. A área de configuração (`/monitoring-settings`) continua pendente na Sprint 2.
 
 ## Organização
 
-Baseada no modelo do professor: `src/app.ts` monta Express; `src/server.ts` inicia HTTP; `src/db/connection.ts` gerencia pool único; módulos usam `routes/controller/service/repository`. A contribuição local da #14 implementa o repository no módulo `usuarios` criado por Lucas; seus outros três arquivos permanecem inalterados e sem rotas registradas. `config/env.ts`, `shared/errors.ts` e `middlewares/error-handler.ts` aplicam os padrões do Agilekit. SQL fica somente nos repositories.
+```
+src/
+├── app.ts                  monta o Express: CORS, JSON, rotas por módulo, 404 e error-handler por último
+├── server.ts               lê o ambiente, cria o pool, abre o HTTP e só então inicia o coletor; encerra limpo em SIGINT/SIGTERM
+├── config/env.ts           único lugar que lê process.env; valida tudo no boot
+├── db/                     connection.ts (pool único do pg) e transaction.repository.ts (BEGIN/COMMIT/ROLLBACK na mesma conexão)
+├── integrations/           metrics-api.ts (agregador) e carbon-api.ts (intensidade de carbono), com tipos *.types.ts
+├── domain/                 carbon-calculator.ts — potência, energia e CO₂e de uma coleta
+├── jobs/collector.ts       descoberta, reconciliação e coleta periódica (worker)
+├── middlewares/            auth.ts (JWT), cors.ts e error-handler.ts
+├── modules/                health, services, collections e usuarios em routes/controller/service/repository
+└── shared/                 errors.ts (AppError e subclasses) e persistence.types.ts (tipos das linhas do banco)
+```
 
-O tsconfig mantém ES2022, Node16 para módulo/resolução, strict, rootDir src e outDir dist. Sem type=module, o build emite CommonJS. Testes ficam fora de src.
+SQL só existe nos arquivos `*.repository.ts`, sempre com parâmetros `$1…$n`. `modules/usuarios/` contém repository, service, controller e rotas de autenticação; `middlewares/auth.ts` exporta o middleware JWT reutilizável pelas futuras rotas protegidas.
+
+O `tsconfig.json` usa ES2022, Node16 para módulo e resolução, `strict`, `rootDir` `src` e `outDir` `dist`. Sem `type=module`, o build emite CommonJS. Os testes ficam fora de `src`.
+
+## Rotas
+
+Contrato completo, com exemplos e erros, em [`docs/api.md`](../docs/api.md).
+
+| Método e caminho | O que faz | Respostas |
+|---|---|---|
+| `GET /health` | consulta o PostgreSQL a cada chamada | 200 `{"status":"ok","db":"ok"}`; 500 `DATABASE_ERROR` |
+| `GET /api/services` | lista os serviços com estado, região e a última coleta (métricas, energia e CO₂e) ([#111](https://github.com/DEVassos/greener-app/issues/111), [#133](https://github.com/DEVassos/greener-app/issues/133)) | 200 `{ services, period }`; 500 `DATABASE_ERROR` |
+| `GET /api/collections` | histórico de coletas, com filtros `service_id`, `from`, `to` e `limit` (1–500, padrão 50) ([#112](https://github.com/DEVassos/greener-app/issues/112)) | 200 `{ collections, period }`; 400 `VALIDATION_ERROR`; 404 `NOT_FOUND`; 500 |
+| `POST /api/auth/login` | valida e-mail e senha com bcrypt e emite JWT HS256 | 200 `{ token }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 |
+| `GET /api/auth/me` | devolve o administrador autenticado pelo JWT | 200 `{ id, email }`; 401 `UNAUTHORIZED`; 500 |
+| `GET /api/collections/series` | série temporal de um serviço: agrupa as coletas do período em intervalos, com contagem, energia e CO₂e por intervalo e o total do período; parâmetros obrigatórios `service_id`, `from`, `to` (período de até 31 dias) e `bucket` (`15min`, `1h` ou `1d`) ([#189](https://github.com/DEVassos/greener-app/issues/189)) | 200 `{ serviceId, from, to, bucket, buckets, totals }`; 400 `VALIDATION_ERROR`; 404 `NOT_FOUND`; 500 |
+
+JSON inválido no corpo devolve 400; rota inexistente, 404; erro inesperado, 500 `INTERNAL_ERROR` sem stack. Todo erro sai no formato `{"error":{"code","message"}}`, produzido só pelo `error-handler`.
 
 ## Ambiente e execução
 
 | Variável | Padrão | Regra |
 |---|---|---|
-| PORT | 3000 | inteiro de 1 a 65535 |
-| DATABASE_URL | sem padrão | URL postgres/postgresql com host e nome do banco; obrigatória |
-| CARBON_API_URL | https://carbon.unilaunch.org | base http(s), sem credenciais, query ou fragmento; barra final removida; vazia usa o padrão oficial |
-| METRICS_API_URL | `https://metrics.unilaunch.org` | URL http(s) da API agregadora de métricas; barra final é removida |
-| CORS_ORIGIN | `http://localhost:5173` | origens http(s) separadas por vírgula, sem caminho; só elas recebem `Access-Control-Allow-Origin` (`middlewares/cors.ts`), e o preflight `OPTIONS` responde 204 |
+| `PORT` | `3000` | inteiro de 1 a 65535. No compose a porta é fixa em 3000; a variável vale para execução fora do Docker |
+| `DATABASE_URL` | sem padrão | URL `postgres://` ou `postgresql://` com host e nome do banco; obrigatória. No compose é montada a partir de `POSTGRES_*`, com o host `postgres` |
+| `METRICS_API_URL` | `https://metrics.unilaunch.org` | URL http(s) da API agregadora; a barra final é removida |
+| `CARBON_API_URL` | `https://carbon.unilaunch.org` | base http(s), sem credenciais, query ou fragmento; vazia usa o padrão oficial |
+| `POLLING_INTERVAL_MS` | `30000` | inteiro de 1 a 2147483647 ms; intervalo da descoberta e prazo inicial e de recuperação da coleta. O `compose.yaml` ainda não repassa esta variável ao container, então no Docker vale o padrão de 30 s |
+| `CORS_ORIGIN` | `http://localhost:5173` | origens http(s) separadas por vírgula, sem caminho; só elas recebem `Access-Control-Allow-Origin`, e o preflight `OPTIONS` responde 204 |
+| `JWT_SECRET` | sem padrão | obrigatória; ao menos 16 caracteres; assina os JWTs |
+| `JWT_EXPIRES_IN` | `8h` | inteiro positivo com unidade `s`, `m`, `h` ou `d` |
 
-Somente `config/env.ts` lê process.env. Não há leitura automática de `.env`: o ambiente deve ser fornecido ao processo. A #7/#82 mantém o modelo na raiz e o `compose.yaml` (#27) injeta as variáveis no container, com a `DATABASE_URL` montada a partir de `POSTGRES_*` e do host `postgres`. JWT e polling não são exigidos pelo setup. Não registre URLs com credenciais em logs.
+Só `config/env.ts` lê `process.env`, e não há leitura automática de `.env`: o ambiente é fornecido ao processo (no caminho oficial, pelo `compose.yaml` a partir do `.env` da raiz). Ambiente inválido impede o boot com mensagem clara. `JWT_SECRET` é obrigatório e tem ao menos 16 caracteres; `JWT_EXPIRES_IN` é positivo e usa unidade, como `8h` ou `7d`. Não registre URLs com credenciais em logs.
 
-Na base atual `backend/src` consome as quatro variáveis da tabela acima. As três variáveis abaixo constam do modelo da raiz ([`.env.example`](../.env.example), [#7](https://github.com/DEVassos/greener-app/issues/7)) e estão previstas para as entregas seguintes; **ainda não têm consumidor em `backend/src`** e não são validadas no boot:
+Caminho oficial: `docker compose up --build` na raiz. O serviço `backend` usa o Dockerfile deste módulo (#26) e só sobe depois do healthcheck do `postgres` (#27).
 
-| Variável | Valor no `.env.example` | Formato | Finalidade | Consumidor futuro |
-|---|---|---|---|---|
-| JWT_SECRET | `dev-secret-change-me` (só para desenvolvimento; trocar em cada instalação) | string aleatória (sugestão: 32 bytes em hex) | chave que assina os tokens JWT da área de configuração (DW06/RP06) | [#20](https://github.com/DEVassos/greener-app/issues/20) — login JWT |
-| JWT_EXPIRES_IN | `8h` | duração no formato do `jsonwebtoken` (`8h`, `7d`) | validade do token emitido no login; sem *refresh token* no MVP | [#20](https://github.com/DEVassos/greener-app/issues/20) |
-| POLLING_INTERVAL_MS | `30000` (30 s) | inteiro em milissegundos | intervalo da descoberta de serviços e prazo inicial/de recuperação da coleta | [#19](https://github.com/DEVassos/greener-app/issues/19) — worker de coleta |
-
-Caminho oficial: `docker compose up --build` na raiz. O serviço `backend` usa este Dockerfile (#26) e só sobe depois do healthcheck do `postgres` (#27); dentro do compose o host da `DATABASE_URL` é `postgres`, não localhost.
-
-Comandos do módulo, com Node 20 ou superior e ambiente já fornecido (atalhos de desenvolvimento/validação, não substituem Compose):
+Comandos do módulo, com Node 20 ou superior e ambiente já fornecido (atalhos de desenvolvimento, não substituem o compose):
 
 ```bash
 cd backend
@@ -39,22 +70,20 @@ npm run typecheck
 npm test
 npm run build
 npm start
-# Alternativa para desenvolvimento com recarga:
+# desenvolvimento com recarga:
 npm run dev
 ```
 
-A imagem fixa `node:24-alpine`, alinhada ao frontend (ADR 0005) e ao modelo do professor; diverge da regra atual do Agilekit, que indica Node 20 — versão fora do suporte oficial. O CI compartilhado usa Node 22. A regra de área precisa ser atualizada pela equipe/SM; a #26 fixa a versão na imagem sem alterar regra ou workflow.
+A imagem fixa `node:24-alpine`, alinhada ao frontend (ADR 0005); o CI usa Node 22 e o mínimo suportado pelos comandos acima é Node 20.
 
 ## Docker
 
 `backend/Dockerfile` é multi-stage sobre `node:24-alpine`:
 
-- **build** — `npm ci` pelo `package-lock.json`, cópia de `tsconfig.json` e `src/`, `npm run build` (tsc) e `npm prune --omit=dev`.
-- **runtime** — recebe apenas `dist/`, `node_modules` de produção e `package.json`, executa `node dist/server.js` como usuário `node` (não-root) e expõe a porta 3000.
+- **build**: `npm ci` pelo `package-lock.json`, cópia de `tsconfig.json` e `src/`, `npm run build` (tsc) e `npm prune --omit=dev`;
+- **runtime**: só `dist/`, `node_modules` de produção e `package.json`; executa `node dist/server.js` como o usuário `node` (sem root) e expõe a porta 3000.
 
-`backend/.dockerignore` mantém fora do contexto `node_modules/`, `dist/`, `coverage/`, `.env*`, `tests/` e os metadados do repositório.
-
-No `compose.yaml` (#27) a imagem é construída e executada junto com o PostgreSQL:
+`backend/.dockerignore` deixa fora do contexto `node_modules/`, `dist/`, `coverage/`, `.env*`, `tests/` e os metadados do repositório.
 
 ```bash
 docker compose up --build -d
@@ -62,98 +91,108 @@ curl -i http://localhost:3000/health
 docker compose logs backend
 ```
 
-Esperado: `200` e `{"status":"ok","db":"ok"}`; no log, `API disponível na porta 3000.`. O compose também verifica `/health` no healthcheck do container (`docker compose ps` mostra `healthy`).
+Esperado: `200` e `{"status":"ok","db":"ok"}`; no log, `API disponível na porta 3000.`. O healthcheck do container também consulta `/health` (`docker compose ps` mostra `healthy`).
 
-## API auxiliar: agregador de métricas (#15)
+## Coleta e cálculo (worker)
 
-`src/integrations/metrics-api.ts` é o cliente da Greener Metrics Aggregator API (contrato em [`docs/especificacao-api.md`](../docs/especificacao-api.md), seção 1). Ainda não é chamado por nenhuma rota nem pelo coletor: quem o usa é o worker de coleta (#19) e o módulo de serviços (US01).
+`jobs/collector.ts` é iniciado pelo `server.ts` depois que o HTTP abre e parado no SIGTERM. A cada ciclo:
 
-```ts
-const api = createMetricsApi({ baseUrl: env.metricsApiUrl });
-const services = await api.listServices();             // ServiceSummary[]
-const result = await api.getServiceMetrics('billing-api', signal); // { status: 'ok', metrics, raw } | { status: 'sem_metricas' } | { status: 'indisponivel' }
-```
+1. **Descoberta:** `GET /services` no agregador. Se a consulta falhar, o cadastro é preservado, sem reconciliar remoções: os serviços conhecidos não removidos recebem coleta `erro`, medidas nulas e estado `indisponivel`, com diagnóstico explícito de falha na descoberta. A transição de `ativo` ou `sem_metricas` para `indisponivel` independe do prazo da próxima métrica; serviços já indisponíveis respeitam o prazo existente. Enquanto a falha persistir, novas tentativas seguem o último intervalo válido ou `POLLING_INTERVAL_MS`. Uma lista recebida, mas reprovada na validação interna, é descartada sem reconciliação.
+2. **Reconciliação**, numa transação: upsert por `external_id`, preservando o ID e a primeira descoberta; quem saiu da lista vira `removido` e volta a `ativo` quando reaparece. Lista vazia válida marca todos como removidos, sem fabricar coleta.
+3. **Coleta por prazo:** `GET /metrics/{id}` de cada serviço vencido, com o HTTP fora das transações. O próximo prazo segue o `collection_interval_seconds` da própria métrica; em caso de falha, vale o último intervalo válido, ou `POLLING_INTERVAL_MS` se ainda não houver um. O dispatcher agenda o próximo ciclo só depois de terminar o atual, sem sobreposição.
+4. **Cálculo** (#133): para coleta válida, consulta a intensidade de carbono da região e calcula potência, energia e CO₂e com o `CarbonCalculator` (`domain/carbon-calculator.ts`). Fórmula, constantes, unidades e exemplos em [`docs/calculos.md`](../docs/calculos.md); decisão em [ADR 0006](../docs/adr/0006-modelo-potencia-fatores-emissao.md).
+5. **Gravação**, numa transação: a coleta e o novo estado do serviço entram juntos; falha desfaz os dois e o ciclo segue para os demais serviços.
 
-- **Tipos:** `metrics-api.types.ts` tem os tipos do JSON da API (`Raw*`, snake_case) e os tipos devolvidos ao sistema (camelCase). Toda resposta é validada antes da conversão; formato inesperado não passa adiante.
-- **Estados do serviço:** em `GET /metrics/{id}`, 404 vira `sem_metricas` (removido ou sem métricas) e 500 vira `indisponivel`, como prevê a especificação. Não são exceções: a coleta de um serviço não interrompe a dos outros.
-- **JSON bruto:** no caso `ok`, `raw` devolve o corpo original já parseado, com os campos adicionais preservados, sem uma segunda chamada à API (contrato da #97, precursor da #19). Restrições de armazenamento, como o limite da coluna, ficam no consumidor, não no cliente.
-- **Cancelamento:** `listServices(signal?)` e `getServiceMetrics(id, signal?)` aceitam `AbortSignal`. O abort do consumidor conserva a razão original e não provoca retry; o timeout vale por tentativa e cobre a leitura de headers e corpo, com no máximo duas tentativas de transporte.
-- **Falhas da API:** sem conexão, mais de 10 s sem resposta, outro HTTP de erro ou corpo fora do formato lançam `ExternalApiError` (`EXTERNAL_API_ERROR`, 502, mensagem em pt-BR, causa preservada em `cause`). Falha de rede e timeout ganham mais uma tentativa; respostas HTTP não são repetidas.
-- **Testes:** `tests/metrics-api.test.ts` simula a API (sucesso, lista vazia, formato inválido, corpo não JSON, 404, 500, outros HTTP, falha de rede com nova tentativa e timeout) sem acessar a rede; `tests/metrics-cancellation.test.ts` cobre o JSON bruto com campos adicionais, o cancelamento antes e durante headers/corpo, o abort entre tentativas e o timeout de corpo.
+Resultado por serviço:
+
+| Situação | Coleta (`collections.status`) | Serviço (`services.status`) | Cálculo (`calculation_status`) |
+|---|---|---|---|
+| métrica válida e fator de carbono disponível | `ok` | `ativo` | `disponivel`, com intensidade, potência, energia e CO₂e |
+| métrica válida, mas carbono indisponível (API fora, 404 da região ou região ausente) | `ok` | `ativo` | `indisponivel`, campos ambientais `NULL` e mensagem própria; nunca valor estimado ou zero substituto |
+| 404 do agregador para serviço ainda listado | `sem_metricas` | `sem_metricas` | `nao_calculado` |
+| falha externa ou observação inválida | `erro` | `indisponivel` | `nao_calculado`, medidas `NULL` e diagnóstico |
+
+Antes do INSERT, as medidas são validadas contra as faixas das colunas e arredondadas à escala delas (a API manda resíduo de float, como `51.248000000000005` → `51.25`); o valor original fica no JSON bruto (`metrics`). Depois de um reinício, os prazos em memória são reconstruídos com uma coleta inicial, sem compensar o histórico.
+
+## Clientes das APIs auxiliares
+
+**Agregador de métricas (#15, #97)** — `integrations/metrics-api.ts`, contrato em [`docs/especificacao-api.md`](../docs/especificacao-api.md), seção 1:
+
+- **Tipos:** `metrics-api.types.ts` separa o JSON da API (`Raw*`, snake_case) dos tipos usados no sistema (camelCase). Toda resposta é validada antes da conversão.
+- **Estados:** em `GET /metrics/{id}`, 404 vira `sem_metricas` e 500 vira `indisponivel`, sem exceção, para que um serviço não interrompa os outros.
+- **JSON bruto e cancelamento:** no caso `ok`, `raw` devolve o corpo original já parseado. `listServices(signal?)` e `getServiceMetrics(id, signal?)` aceitam `AbortSignal`.
+- **Falhas:** sem conexão, mais de 10 s sem resposta, outro HTTP de erro ou corpo fora do formato lançam `ExternalApiError` (502, mensagem em pt-BR, causa em `cause`). Falha de rede e timeout ganham mais uma tentativa; respostas HTTP não são repetidas.
+
+**Intensidade de carbono (#17)** — `integrations/carbon-api.ts`, `getIntensity(regionCode)` para `GET /regions/{code}/carbon-intensity`, chamado pelo coletor a cada coleta válida:
+
+- **Decisão do PO na [#17](https://github.com/DEVassos/greener-app/issues/17#issuecomment-6157652891):** cache em memória por região e instância por 1 hora; uma tentativa; timeout de 10 s cobrindo requisição e corpo. Ler o cache não renova o prazo, e falha nunca devolve fator antigo nem zero substituto.
+- **Resposta válida:** `status: 'ok'`, `factor` (região, intensidade em gCO₂e/kWh, renováveis), `source: 'api' | 'cache'`, `fetchedAt` e `expiresAt`. 404 devolve `{ status: 'region_not_found', regionCode }`.
+- **Falhas:** rede, timeout, HTTP inesperado ou resposta inválida lançam erro tipado com causa e não entram no cache; o coletor transforma isso em cálculo `indisponivel`.
+
+## Repositories e transações (#14)
+
+- `ServiceRepository` (`modules/services`): lista com a última coleta, busca por ID, upsert por `external_id`, atualização de estado e marcação de ausentes como removidos.
+- `CollectionRepository` (`modules/collections`): insere coletas (com os campos de cálculo) e lista o histórico com filtros; `findSeries` agrupa as coletas de um serviço por `date_bin` e devolve os intervalos e o total do período na mesma consulta, com `GROUPING SETS`.
+- `UserRepository` (`modules/usuarios`): busca por e-mail sem distinção de caixa; o hash é interno, nunca vai para resposta HTTP nem log.
+- `withTransaction(database, async tx => { ... })` (`db/transaction.repository.ts`) executa BEGIN/COMMIT/ROLLBACK na mesma conexão; os repositories do callback são criados com `tx`, nunca com o pool. Erros do PostgreSQL viram `DatabaseError` com a causa preservada.
+
+Os tipos em `shared/persistence.types.ts` mantêm `bigint` e `numeric` como strings, datas como `Date` e ausência como `null`. Não há DELETE de serviços ou coletas, nem UPDATE de coletas: o histórico só cresce.
 
 ## Boot, saúde e falhas
 
-O worker descrito na seção final pertence à implementação em revisão da #19; não foi integrado nesta base.
-
-Antes de abrir HTTP, o backend valida ambiente e consulta PostgreSQL. Falha encerra com código não zero e fecha o pool. Cada GET /health executa nova consulta, sem cache de sucesso. Falha em runtime retorna DATABASE_ERROR/500 e mantém HTTP ativo; a chamada seguinte pode recuperar. Timeouts: conexão e statement 3 s; query 4 s. Health verifica conectividade, não valida schema nem ingestão.
-
-JSON inválido retorna 400; rota inexistente 404; erro inesperado 500. Envelope e exemplos em [API](../docs/api.md). SIGINT/SIGTERM fecham HTTP e pool; há limite de 10 s para encerramento do processo.
+- **Boot:** antes de abrir o HTTP, o backend valida o ambiente e consulta o PostgreSQL. Se falhar, encerra com código diferente de zero e fecha o pool.
+- **Saúde:** cada `GET /health` faz uma consulta nova, sem cache. Falha em runtime devolve 500 `DATABASE_ERROR` e mantém o HTTP no ar; a chamada seguinte pode recuperar.
+- **Timeouts:** conexão e statement, 3 s; query, 4 s.
+- **Encerramento:** SIGINT/SIGTERM param o coletor (sem novos ciclos, HTTP externo cancelado, transação ativa concluída), depois fecham o HTTP e o pool, com limite de 10 s.
 
 ## Como verificar
 
-Com o `compose.yaml` (serviços `backend` e `postgres`, #27), em ambiente descartável e com banco próprio (no passo 5, `docker compose stop postgres` e depois `docker compose start postgres`):
+Com o compose da raiz (`cp .env.example .env && docker compose up --build -d`):
 
-1. Subir com `docker compose up --build`: backend só abre a porta após consulta real ao banco.
-2. `curl -i http://localhost:3000/health`: 200 e `{"status":"ok","db":"ok"}`.
-3. `curl -i -X POST -H 'Content-Type: application/json' --data '{' http://localhost:3000/health`: 400 e VALIDATION_ERROR.
-4. `curl -i http://localhost:3000/inexistente`: 404 e NOT_FOUND.
-5. Parar somente o banco descartável: health retorna 500/DATABASE_ERROR dentro do timeout; backend permanece ativo. Reiniciar o banco: health volta a 200.
-6. Iniciar outro backend com endereço inacessível: código não zero, sem porta HTTP aberta. Ambiente inválido também impede boot.
-7. Encerrar backend por SIGTERM: HTTP e pool fechados. Não executar down -v sobre volumes existentes.
+1. `curl -i http://localhost:3000/health` → 200 e `{"status":"ok","db":"ok"}`.
+2. Depois de um ciclo (~30 s): `curl http://localhost:3000/api/services` → serviços com `status`, região e, nos ativos com fator disponível, `energyKwh` e `emissionsG` numéricos.
+3. `curl "http://localhost:3000/api/collections?limit=3"` → as coletas mais recentes; `curl -i "http://localhost:3000/api/collections?limit=0"` → 400 `VALIDATION_ERROR`.
+4. Série do dia em intervalos de 1 h (troque a data pela de hoje, em UTC): `curl "http://localhost:3000/api/collections/series?service_id=1&from=2026-10-23T00:00:00Z&to=2026-10-24T00:00:00Z&bucket=1h"` → 200 com `serviceId`, `from`, `to` e `bucket` ecoados, `buckets` em ordem crescente de `start` (só os intervalos com coleta) e `totals.collections` igual à soma das `collections` dos intervalos; com `bucket=7min` → 400 `VALIDATION_ERROR`; com `service_id=999` → 404 `NOT_FOUND`.
+5. Queda da API de carbono: `CARBON_API_URL=http://127.0.0.1:9 docker compose up -d --force-recreate backend`. As coletas seguintes ficam com `calculation_status = indisponivel`, e `GET /api/services` devolve `energyKwh: null` e `emissionsG: null` com o serviço `ativo`. Para restaurar: `docker compose up -d --force-recreate backend`.
+6. Banco fora: `docker compose stop postgres` → `/health` responde 500 `DATABASE_ERROR` e o backend continua no ar; `docker compose start postgres` → volta a 200.
+7. `curl -i http://localhost:3000/inexistente` → 404 `NOT_FOUND`.
 
-`npm test` cobre configuração, espera da verificação, falha/recuperação HTTP, parsing, erros e boot/encerramento com banco falso. É necessário complementar com PostgreSQL real descartável e registrar resultados; testes falsos não comprovam conexão real. Erro inesperado e parsing válido usam aplicações exclusivas dos testes, sem endpoints demonstrativos publicados.
+## Testes
 
-## Cliente de carbono (#17)
+### Dependências dos testes (#163)
 
-`src/integrations/carbon-api.ts` oferece `createCarbonApi({ baseUrl })` e `getIntensity(regionCode)` para `GET /regions/{code}/carbon-intensity`. A base vem de `readEnvironment().carbonApiUrl`; o cliente ainda não é chamado por rota, worker ou cálculo. Tipos ficam em `carbon-api.types.ts`; erros externos usam a única `ExternalApiError` em `shared/errors.ts`, derivada de `AppError` (502).
+O Vitest usa a linha `~4.1.12`, compatível com o Node 22 do CI e o Node 24 do Dockerfile. O lockfile mantém Vite 7.3.7; não é necessário migrar para Vite 8, alterar os testes ou adicionar configuração de pool.
 
-**Decisão do PO na [#17](https://github.com/DEVassos/greener-app/issues/17#issuecomment-6157652891):** cache em memória por região e instância por 1 hora; uma tentativa; timeout de 10 segundos abrangendo requisição e corpo. Leitura do cache não renova prazo. Entrada vencida é descartada; falha nunca retorna fator antigo ou zero substituto.
+- [`GHSA-82fw-gwwq-j7x9`](https://github.com/advisories/GHSA-82fw-gwwq-j7x9): leitura de arquivos fora dos limites permitidos pelo mocker, corrigida em Vitest e `@vitest/mocker` 4.1.11. O patch 4.1.12 também endurece os mocks manuais.
+- [`GHSA-5gmw-xhrv-c9v3`](https://github.com/advisories/GHSA-5gmw-xhrv-c9v3) e [`GHSA-85c8-ppgw-ccpr`](https://github.com/advisories/GHSA-85c8-ppgw-ccpr): opções de workers herdadas por poluição de protótipo no `tinypool`, corrigidas nele em 2.1.1 e 2.1.2, respectivamente. O [Vitest 4 removeu o tinypool](https://v4.vitest.dev/guide/migration.html#pool-rework); não foi necessário sobrescrever versões transitivas.
 
-Resposta válida retorna `status: 'ok'`, `factor` (região, intensidade em gCO₂e/kWh, renováveis), `source: 'api' | 'cache'`, `fetchedAt` e `expiresAt` (epoch em ms). Intensidade deve ser finita e não negativa, incluindo zero, com região correspondente; metadados obrigatórios seguem o OpenAPI. Não há arredondamento ou limite superior externo presumido. O SQL limita faixa/precisão na persistência futura.
-
-404 retorna `{ status: 'region_not_found', regionCode }`, sem fator. Rede, timeout, HTTP inesperado ou resposta inválida lançam erro tipado com causa; não são armazenados no cache. O consumidor futuro deve preservar métricas e mapear falha de carbono para cálculo indisponível, intensidade/emissão `NULL` e mensagem própria, conforme UML/SQL. Antes de implementar cálculo, permanece `nao_calculado`; zero conhecido não significa ausência. A #17 não altera SQL nem implementa esse consumidor.
-
-Como verificar esta entrega isolada (não exige banco): `cd backend && npm ci && npm run typecheck && npm test && npm run build`. Os testes determinísticos usam HTTP e relógio controlados, incluindo expiração exata, fator zero, 404, falhas e timeout durante leitura do corpo. Consulta real complementar:
+Para conferir, rode `npm ci`, `npm ls vitest @vitest/mocker vite --all` e `npm audit`. Os três avisos acima não devem aparecer. O audit ainda pode sair com código 1 por alertas fora da #163: o levantamento de 31/10/2026 encontrou `body-parser` 2.3.0 (`GHSA-27r3-jxmh-p828`) e `qs` 6.16.0 (`GHSA-6pq8-jhm2-2vcw`), trazidos pelo Express. Essas dependências de produção não foram atualizadas nesta tarefa; exigem acompanhamento separado. Execute testes, tipos e build separadamente do audit, para que esses alertas não impeçam a verificação:
 
 ```bash
-cd backend
-npx tsx -e "import('./src/config/env').then(async ({readEnvironment}) => { const {createCarbonApi} = await import('./src/integrations/carbon-api'); const {carbonApiUrl} = readEnvironment({DATABASE_URL:'postgresql://localhost/ecopulse'}); console.log(await createCarbonApi({baseUrl: carbonApiUrl}).getIntensity('br-sudeste')); })"
+npm run typecheck
+npm run build
 ```
 
-O comando fornece uma URL PostgreSQL sintática apenas à validação de configuração, sem abrir conexão. Esperado: fator válido com `source: 'api'`; repetir na mesma instância antes de uma hora retorna `source: 'cache'`. Falha da API real não substitui nem invalida a verificação determinística; registre o resultado observado.
+### Suíte e PostgreSQL
 
-## Repositories — contribuição local da #14
+`npm test` (Vitest) cobre configuração, boot e encerramento, rotas e erros HTTP, CORS, os dois clientes de API (sucesso, formato inválido, 404, 500, rede, timeout, cancelamento e cache), o coletor (descoberta, prazos, isolamento de falhas, rollback e cálculo disponível ou indisponível) e o `CarbonCalculator`. O job `backend` do CI roda `npx tsc --noEmit` e `npm test` a cada PR com um PostgreSQL 16 descartável, então as suítes de integração também executam e nenhum teste fica pulado (#162). O job `compose` constrói a imagem, o que executa o build.
 
-Lucas permanece responsável e futuro revisor; Vinicius atua como apoio autorizado. `ServiceRepository` em `modules/services` lista, busca por ID, faz upsert por `external_id`, atualiza estado e marca ausentes como removidos. Preserva ID/first_seen_at; upsert conserva estados de métricas e reativa reaparecidos. `CollectionRepository` em `modules/collections` somente insere; `UserRepository` no arquivo existente `modules/usuarios/usuarios.repository.ts` busca email sem distinção de caixa. Hash é informação interna, nunca resposta HTTP/log.
+As suítes de integração com PostgreSQL real (`tests/repositories.integration.test.ts` e `tests/collector.integration.test.ts`) leem `REPOSITORY_TEST_DATABASE_URL` e `WORKER_TEST_DATABASE_URL` e são puladas sem elas. Cada uma precisa de um banco próprio, novo e descartável, com `database/schema.sql` aplicado; a fixture fica no próprio teste (`tests/*-test.repository.ts`): IDs de `services` acima de `Number.MAX_SAFE_INTEGER` e, na de repositories, um usuário com hash sintético só no formato exigido pelo CHECK, não credencial. No CI, o job `backend` cria os bancos `repositories_test` e `worker_test` e define as duas variáveis. Para rodar localmente, a partir de `backend/`:
 
-Tipos em `shared/persistence.types.ts` mantêm bigint e numeric como strings, datas como Date e ausência como null. Não há parsers globais alterados. Cada coleta usa `nao_calculado`, com campos ambientais nulos; o schema valida métricas e estados. JSON recebido é preservado como objeto; validação da descoberta e mapeamento HTTP pertencem à #19/#16, não aos repositories.
-
-`withTransaction(database, async tx => { ... })`, em `db/transaction.repository.ts`, executa BEGIN/COMMIT/ROLLBACK na mesma conexão. Construa os repositories do callback com `tx`, nunca com o pool. Permite combinar upserts + marcação de ausentes ou inserção de coleta + atualização do serviço atomicamente. `withClient` libera a conexão em finally e descarta conexões quando o callback falha; erros PostgreSQL usam DatabaseError com causa. Falha de rollback preserva ambas as causas. Nenhum erro deve ser registrado como gravação bem-sucedida.
-
-Somente o futuro orquestrador pode chamar `markMissingAsRemoved` após descoberta completa válida; [] válido remove todos logicamente. Falha não é lista vazia. Não há DELETE de serviços/coletas nem UPDATE de coletas. Scheduler, API externa, rotas, JWT e cálculo não são entregues aqui.
-
-Verificação isolada: `cd backend && npm run typecheck && npm test && npm run build`; sem URL de teste, a suíte PostgreSQL é explicitamente pulada. Para executá-la, aplique `database/schema.sql` em banco descartável vazio e prepare a fixture abaixo via psql nesse banco exclusivo:
-
-```sql
-SELECT setval(pg_get_serial_sequence('services', 'id'), 9007199254740993, false);
-INSERT INTO users (id, email, password_hash) OVERRIDING SYSTEM VALUE
-VALUES (9007199254740993, 'review@example.test', '$2b$10$' || repeat('a', 53));
+```bash
+docker run -d --rm --name ecopulse-testes -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:16
+docker exec ecopulse-testes sh -c 'until pg_isready -h 127.0.0.1 -U postgres -q; do sleep 1; done'
+for db in repositories_test worker_test; do
+  docker exec ecopulse-testes psql -U postgres -qc "CREATE DATABASE $db"
+  docker exec -i ecopulse-testes psql -U postgres -d "$db" -v ON_ERROR_STOP=1 -q < ../database/schema.sql
+done
+REPOSITORY_TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/repositories_test \
+WORKER_TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/worker_test npm test
+docker stop ecopulse-testes   # o --rm apaga o container e os dois bancos
 ```
 
-A fixture contém um hash sintético apenas no formato exigido pelo CHECK, não credencial de login nem seed da aplicação. No processo de testes, forneça `REPOSITORY_TEST_DATABASE_URL` apontando exclusivamente para esse banco e execute `npm test`. A variável pertence somente ao teste, não à configuração do backend. A suíte altera dados e exige banco novo a cada execução. Use Docker/Ubuntu WSL com rede exclusiva; se localhost do Windows não alcançar o banco, execute os testes em container Node na mesma rede, copiando o backend sem node_modules, dist ou .env para diretório descartável antes de npm ci. Não escreva sobre o checkout montado.
+Esperado: `tests/repositories.integration.test.ts (7 tests)` e `tests/collector.integration.test.ts (1 test)` na lista e o resumo `Tests` só com `passed`, sem `skipped`. Para repetir, recrie o container: as suítes deixam dados nos bancos. Se a porta 55432 estiver ocupada, troque-a no `-p` e nas duas URLs.
 
-Verificação local em 11/10/2026: tipos/build no Windows aprovados; no Ubuntu WSL, PostgreSQL 16-alpine e Node 24-alpine descartáveis executaram 31/31 testes (6 de integração), tipos e build. A execução que passou compartilhou a rede do container PostgreSQL; tentativas anteriores falharam por banco encerrado/conectividade, sem comprovar integração. npm ci reportou 3 alertas nas dependências existentes, sem alteração de lockfile. Compose integrado, worker e persistência de volume não foram verificados nesta entrega.
+As variáveis de teste pertencem só ao processo de testes, não à configuração do backend, e as suítes alteram dados. A suíte de repositories voltou a passar em 28/10 (7/7, #175): as coletas de teste ganharam os campos de cálculo que o #139 tornou obrigatórios, e um caso cobre `findSummary` com 2 serviços e várias coletas cada.
 
-## Worker — implementação em revisão da #19
-
-`jobs/collector.ts` executa descoberta completa, reconciliação transacional e coleta por prazo, com HTTP fora das transações. Descoberta inválida preserva cadastro/estados; lista vazia válida marca ausentes como removidos sem fabricar coleta. IDs e primeira descoberta são preservados; retorno permite coleta imediata. Cada observação e atualização de estado usam a mesma transação; falha desfaz ambas e permite continuar os demais serviços.
-
-`POLLING_INTERVAL_MS` (padrão 30000, inteiro entre 1 e 2147483647 ms) controla descoberta e prazo inicial/de recuperação. Métrica válida define próximo prazo pelo intervalo externo; falha conserva o último válido. Dispatcher agenda um tick após o ciclo, sem sobreposição/backfill. Prazos longos ficam como deadlines numéricos, sem timers acima do limite Node; polling da tela é independente. Após reinício, prazos em memória são reconstruídos com coleta inicial, sem compensar histórico.
-
-Antes do INSERT, o worker valida faixa SQL, CPU, GB e intervalo inteiro de 1 a 2147483647 segundos; medidas são arredondadas à escala da coluna (a API manda resíduo de float, como `51.248000000000005` → `51.25`) e o valor original fica no JSON bruto. Sucesso: serviço ativo/coleta ok; 404 ainda listado: sem_metricas; falha externa/observação inválida: indisponivel/erro, medidas nulas e diagnóstico. Cálculos permanecem nao_calculado com campos ambientais nulos. SIGTERM impede novos ciclos, cancela HTTP sem diagnóstico artificial, aguarda transação ativa e só então fecha pool, dentro do limite existente de 10s.
-
-Dependência obrigatória: PR #98/#97 fornece JSON original e cancelamento ao cliente HTTP. Este PR #19 nasce diretamente de develop e não inclui commits do precursor; permanece draft até a dependência ser integrada. A #16 mantém resiliência geral; aqui existe somente o tratamento necessário ao worker. Não há confirmação sobre trabalho local não publicado de Lucas. Compose completo/volume continuam na #27; nenhuma infraestrutura concorrente foi criada.
-
-Como verificar isoladamente: `cd backend && npm ci && npm run typecheck && npm test && npm run build`. Para sete testes PostgreSQL (seis existentes e um cenário composto do worker), fornecer REPOSITORY_TEST_DATABASE_URL e WORKER_TEST_DATABASE_URL para **bancos novos distintos e exclusivos**, ambos com schema aplicado; somente o primeiro recebe a fixture sintética já documentada. Sem URLs, integrações são explicitamente puladas. Testes cobrem descoberta, intervalos, retorno, rollback, JSON adicional, bigint, região histórica e shutdown. Teste combinado com #98 deve usar checkout descartável; não duplicar seus commits nesta branch.
-
-Verificações do autor em 13/10/2026, Ubuntu WSL/Docker e PostgreSQL 16 exclusivo: branch independente em Node 24.21.0, typecheck/build e 82/82 testes aprovados (sete PostgreSQL, nenhum pulado). Snapshot descartável combinando #92/#98/#19 em Node 20.20.2: typecheck/build, 125/125 testes e smoke de JSON bruto/HTTP fora da transação/shutdown aprovados. Tentativas de preparação tiveram falhas transitórias de prontidão PostgreSQL, rede npm, esbuild/overlay e leitura do script local; a execução final usou tmpfs exclusivo e terminou com sucesso. Compose completo, volume e revisão independente não foram comprovados.
+Verificações registradas na Sprint 1: 31/31 testes com PostgreSQL descartável em 11/10 (#94), 82/82 e o snapshot combinado 125/125 em 13/10 (#99), e o compose integrado com persistência após restart em 14/10 (#113). Detalhes em [`docs/sprints/sprint-1.md`](../docs/sprints/sprint-1.md) § Verificações realizadas.

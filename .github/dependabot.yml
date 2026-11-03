@@ -1,6 +1,7 @@
 # gerado pelo agilekit — edite em DEVassos/agilekit (repo/.github/dependabot.yml)
-# Só GitHub Actions (semanal, agrupado). Dependências npm: alertas de segurança via Dependabot alerts,
-# sem PRs automáticos de versão (ruído em 8 semanas; PRs do bot não passam nos checks do time).
+# Sem PRs automáticos (#181): PRs do bot nascem sem issue, contra main, e não passam nos checks do time.
+# GitHub Actions: version updates desligadas por open-pull-requests-limit: 0 (a configuração fica registrada).
+# Dependências npm: só alertas de segurança (Dependabot alerts); as atualizações entram por issue e PR para develop.
 version: 2
 updates:
   - package-ecosystem: github-actions
@@ -10,6 +11,7 @@ updates:
       day: monday
       time: "09:00"
       timezone: America/Sao_Paulo
+    open-pull-requests-limit: 0
     groups:
       actions:
         patterns: ["*"]

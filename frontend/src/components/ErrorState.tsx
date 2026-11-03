@@ -11,7 +11,7 @@ export default function ErrorState({ message, onRetry }: Props) {
         <button
           type="button"
           onClick={onRetry}
-          className="min-h-10 cursor-pointer rounded-lg border border-border bg-transparent px-4 font-sans text-sm font-medium text-text hover:border-muted"
+          className="btn-outline min-h-10 px-4 text-sm"
         >
           Tentar novamente
         </button>

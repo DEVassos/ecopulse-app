@@ -1,12 +1,12 @@
 # Verificação reproduzível do schema
 
-Roteiro de revisão da integração local (#5/#28/#44), sem backend/worker, commit ou publicação. Use exclusivamente PostgreSQL descartável. Não executar estes dados de teste em banco do usuário. As consultas abaixo são fixtures de verificação do DDL, não DML da aplicação; a DML futura ficará nos repositories parametrizados.
+Roteiro usado na revisão da integração do schema (#5/#28/#44, PR #77, 08/10/2026), antes de existirem backend e worker. Use exclusivamente PostgreSQL descartável. Não executar estes dados de teste em banco do usuário. As consultas abaixo são fixtures de verificação do DDL, não DML da aplicação; a DML futura ficará nos repositories parametrizados.
 
 ## Ambiente e execução
 
 PostgreSQL 16 em Docker, sem portas/rede e com volume anônimo removido junto com o container criado pelo roteiro. Bash abaixo deve rodar em uma única sessão WSL para manter o Docker ativo; os checks do Agilekit continuam no Git Bash do Windows. O script só para o container cujo ID ele criou; não altera postgres-aula, volumes existentes ou configurações globais.
 
-O pacote de revisão fornece `tests/run-validation.sh` e `tests/schema-validation.sql`, extraídos integralmente dos blocos abaixo, além do schema e do log real. Em Git Bash no Windows, na raiz extraída do pacote, execute:
+Os scripts `tests/run-validation.sh` e `tests/schema-validation.sql` não estão versionados no repositório: são extraídos dos blocos abaixo, que os reproduzem por inteiro. Em Git Bash no Windows, na raiz extraída do pacote, execute:
 
 ```bash
 review_windows_path="$(pwd -W)"

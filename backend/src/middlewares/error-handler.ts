@@ -9,6 +9,6 @@ export const errorHandler: ErrorRequestHandler = (error: unknown, _req, res, nex
     res.status(failure.httpStatus).json({ error: { code: failure.code, message: failure.message } });
     return;
   }
-  console.error('Erro interno ao processar requisição.');
+  console.error('Erro interno ao processar requisição.', error);
   res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: 'Erro interno do servidor.' } });
 };

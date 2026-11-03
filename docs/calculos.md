@@ -1,6 +1,6 @@
 # Cálculos e unidades do modelo
 
-Contrato de dados para RF07 na Sprint 2 (#18), adiantado na issue #133. O motor de cálculo está implementado em `backend/src/domain/carbon-calculator.ts`; armazenamento e modelagem preservam os resultados de cada coleta.
+Contrato de dados do RF07, previsto para a Sprint 2 (#18) e adiantado na issue #133 (PR #139). O motor de cálculo está em `backend/src/domain/carbon-calculator.ts` e é chamado pelo coletor (`backend/src/jobs/collector.ts`) a cada coleta válida; os resultados ficam gravados na própria coleta. Decisão do modelo em [ADR 0006](adr/0006-modelo-potencia-fatores-emissao.md).
 
 ## Fonte e fórmula
 
@@ -14,6 +14,8 @@ P (W) = (cpu_percent / 100) × 100
 E (kWh) = P × collection_interval_seconds / 3.600.000
 C (gCO₂e) = E × carbon_intensity_gco2e_per_kwh
 ```
+
+As métricas de entrada são as mesmas gravadas na coleta, já arredondadas à escala das colunas (CPU com 2 casas, GB com 9); o valor original fica no JSON bruto. O fator de carbono vem da API de intensidade com cache de 1 h por região (decisão do PO na #17): coletas da mesma região dentro dessa hora usam o mesmo fator, e a intensidade efetivamente usada fica gravada em `carbon_intensity_gco2e_per_kwh`. Sem fator válido, o cálculo fica `indisponivel` com energia e emissão `NULL`, nunca zero.
 
 Tempo é o intervalo positivo da API por coleta, não o polling da tela. Memória/disco/rede são GB declarados pelo contrato, sem definição decimal/binária: não presumir GiB nem converter para bytes. Rede não é reinterpretada como taxa por segundo. Snapshot regional e intensidade utilizada são preservados na coleta. JSON bruto preserva a entrada original, sem copiar manualmente os resultados/fatores. Desconhecido é NULL; zero é conhecido.
 
@@ -35,7 +37,7 @@ Carga pequena: CPU/RAM/disco zero, rede 1 GB → P = 0,02 W. Em 27 s: E = 0,0000
 
 ## Precisão SQL e limites
 
-A regra local pede numeric com escala definida e cita numeric(14,6) como convenção, sem proibição explícita de outras escalas. A solicitação de Vinicius após revisão do Frank autoriza ajustar a precisão; não alteramos o kit. Energia numeric(20,12) mantém oito dígitos inteiros; emissão numeric(24,12) mantém doze, ampliando a faixa para o produto pelo fator regional. A escala da emissão evita perder valores pequenos em regiões com fator baixo. Intensidade e potência permanecem numeric(14,6); GB numeric(20,9); CPU numeric(5,2).
+A regra local pede numeric com escala definida e cita numeric(14,6) como convenção, sem proibição explícita de outras escalas. A precisão foi ampliada a pedido de Vinicius, depois da revisão do schema; a regra do kit não foi alterada. Energia numeric(20,12) mantém oito dígitos inteiros; emissão numeric(24,12) mantém doze, ampliando a faixa para o produto pelo fator regional. A escala da emissão evita perder valores pequenos em regiões com fator baixo. Intensidade e potência permanecem numeric(14,6); GB numeric(20,9); CPU numeric(5,2).
 
 | Campo | Tipo | Resolução | Maior valor positivo |
 |---|---|---|---|
@@ -55,7 +57,7 @@ A regra local pede numeric com escala definida e cita numeric(14,6) como conven�
 
 Quantização final de energia/emissão: até 0,0000000000005 na unidade por linha. Para N coletas, soma dos erros de armazenamento limitada a N × 0,0000000000005, sem considerar erros das entradas, fator/modelo ou cálculo anterior. Valores positivos abaixo de meia unidade de resolução ainda podem virar zero; valores na fronteira da faixa podem causar overflow ao arredondar. Não prometemos precisão universal nem suporte ao produto de todos os máximos possíveis de energia e intensidade.
 
-A intensidade em seis casas também pode perder valores inferiores a 0,0000005 g/kWh; os exemplos documentados 85 e 0,1 são representáveis. Potência persistida é arredondada para seis casas, mas o motor futuro deve usar seu intermediário completo para calcular energia. Verificar limites antes de gravar; falha de precisão/faixa não é medição zero. O fator externo não possui limite universal documentado.
+A intensidade em seis casas também pode perder valores inferiores a 0,0000005 g/kWh; os exemplos documentados 85 e 0,1 são representáveis. Potência persistida é arredondada para seis casas, mas o `CarbonCalculator` usa o intermediário completo para calcular energia e emissão: o arredondamento só acontece na persistência. Verificar limites antes de gravar; falha de precisão/faixa não é medição zero. O fator externo não possui limite universal documentado.
 
 ## Agregação de coletas pequenas
 

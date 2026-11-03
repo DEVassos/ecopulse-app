@@ -1,10 +1,10 @@
 # Modelagem UML — integração do banco
 
-Modelo proposto nesta branch para revisão de Vinicius, Frank e equipe. Integra a modelagem versionada (#28), a v2 local e o SQL de Lucas (#5/#44). Não declara backend, worker, JWT ou auditoria implementados. EcoPulse é o nome do produto, aplicado aos documentos na #68.
+Modelo integrado pelo PR #77 (08/10/2026), a partir da modelagem versionada (#28), da v2 da UML e do SQL de Lucas (#5/#44). O backend, o worker de coleta e o cálculo que usam este modelo estão em `develop` (#94, #99, #139; ver [arquitetura](../arquitetura.md)); JWT e a consulta de entradas (`access_entries`) estão previstos para a Sprint 2. EcoPulse é o nome do produto, aplicado aos documentos na #68.
 
 ## Fontes e sprints
 
-Foram lidos os três PDFs e o DOCX originais em `docs/contexto/`. Matriz e divergências: [registro da integração](integracao-modelagem-banco.md). O edital confirma métricas em GB e JWT na configuração. Plano atual: coleta/persistência na Sprint 1; cálculo/OO/JWT na Sprint 2; ranking/comparação/exportação na Sprint 3. Auditoria simples solicitada por Vinicius: issue e sprint pendentes. Preparar colunas não implementa funcionalidades futuras.
+Foram lidos os três PDFs e o DOCX originais em `docs/contexto/`. Matriz e divergências: [registro da integração](integracao-modelagem-banco.md). O edital confirma métricas em GB e JWT na configuração. Plano atual: coleta/persistência na Sprint 1; cálculo/OO/JWT na Sprint 2; ranking e comparação na Sprint 2 (#159); exportação na Sprint 3. Auditoria simples solicitada por Vinicius: issue e sprint pendentes. Preparar colunas não implementa funcionalidades futuras.
 
 `database/schema.sql` é a fonte física de tipos, constraints e índices. Esta visão a espelha; o modelo OO é separado e conceitual.
 
@@ -93,7 +93,7 @@ PKs: `bigint GENERATED ALWAYS AS IDENTITY`. Toda coleta pertence a um serviço, 
 | `users.created_at`, `updated_at` | `timestamptz` | Obrigatórios, default now(). |
 | `access_entries.ip_address`, `entered_at` | `inet`, `timestamptz` | Obrigatórios; IP observado no backend e horário do servidor. |
 
-Quatro índices explícitos: lower(email), coletas por (service_id, collected_at DESC) e collected_at DESC, entradas por entered_at DESC. Mais cinco índices automáticos: quatro PKs e UNIQUE de services.external_id. Total: nove índices. As consultas da aplicação ainda não foram implementadas.
+Quatro índices explícitos: lower(email), coletas por (service_id, collected_at DESC) e collected_at DESC, entradas por entered_at DESC. Mais cinco índices automáticos: quatro PKs e UNIQUE de services.external_id. Total: nove índices. As consultas da aplicação ficam nos repositories do backend (`backend/src/modules/*/*.repository.ts`, #94); o histórico por serviço usa o índice `(service_id, collected_at DESC)`.
 
 ### Estados e histórico
 

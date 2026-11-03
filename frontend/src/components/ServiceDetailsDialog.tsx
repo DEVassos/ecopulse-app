@@ -1,9 +1,11 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { Link } from 'react-router';
 import { useCollections } from '../hooks/useCollections';
 import { useMonitoring } from '../hooks/useMonitoring';
 import type { MonitoredService } from '../services/services.types';
 import { formatDayTime, formatNumber } from '../utils/format';
 import CollectionsHistoryTable from './CollectionsHistoryTable';
+import CpuHistoryChart from './CpuHistoryChart';
 import EmptyState from './EmptyState';
 import ErrorState from './ErrorState';
 import LastUpdated from './LastUpdated';
@@ -88,6 +90,14 @@ export default function ServiceDetailsDialog({ service, onClose }: Props) {
           </Detail>
         </dl>
 
+        {/* Atalho para a página Emissões já com este serviço escolhido (#190) */}
+        <Link
+          to={`/emissoes?${new URLSearchParams({ servico: service.id })}`}
+          className="btn-outline self-start px-4 py-2 text-sm no-underline"
+        >
+          Ver emissões deste serviço
+        </Link>
+
         <section aria-labelledby="service-history-title" className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 id="service-history-title" className="m-0 font-display text-base font-semibold">
@@ -108,7 +118,12 @@ export default function ServiceDetailsDialog({ service, onClose }: Props) {
             />
           )}
 
-          {data && data.collections.length > 0 && <CollectionsHistoryTable collections={data.collections} />}
+          {data && data.collections.length > 0 && (
+            <>
+              <CpuHistoryChart collections={data.collections} />
+              <CollectionsHistoryTable collections={data.collections} />
+            </>
+          )}
         </section>
       </div>
     </dialog>

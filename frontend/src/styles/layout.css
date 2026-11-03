@@ -10,7 +10,8 @@
     padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    /* Respiros na escala de 8: em notebook a altura é o recurso escasso */
+    gap: 16px;
   }
 
   /* Caixa padrão de conteúdo: superfície sobre o fundo, borda sutil e cantos arredondados */
@@ -22,7 +23,7 @@
 
   @media (min-width: 961px) {
     .content {
-      padding: 24px;
+      padding: 16px 24px 24px;
     }
   }
 }

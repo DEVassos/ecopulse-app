@@ -1,0 +1,8 @@
+@layer components {
+  /* Grade fluida: os cards dividem a largura; no celular ficam em 2 colunas (RNF01) */
+  .kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 16px;
+  }
+}

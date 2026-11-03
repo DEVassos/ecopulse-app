@@ -13,7 +13,7 @@
 
 ## 1. Objetivo da sprint e resultado
 
-`<objetivo da sprint>` — resultado: `<atingido / parcialmente atingido / não atingido>`, com `<x>` de `<y>` itens concluídos.
+`<objetivo da sprint>` — resultado: `<atingido / parcialmente atingido / não atingido>`. A situação de cada critério fica **só** no [plano de entregas](../../plano-de-entregas.md#sprint-n); esta ata aponta para ele em vez de repetir números ou status.
 
 ## 2. Roteiro da demonstração (por requisito)
 

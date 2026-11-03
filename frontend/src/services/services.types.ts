@@ -1,8 +1,8 @@
-// Contrato provisório de GET /services (US01 / US04).
-// Ajustar quando o backend documentar a rota em docs/api.md.
+// Contrato de GET /api/services (docs/api.md § GET /api/services), conferido em services.service.ts (#161).
 
 /** Estados de monitoramento de um serviço (mesmos nomes do backend). */
-export type ServiceStatus = 'ativo' | 'indisponivel' | 'sem_metricas' | 'removido';
+export const SERVICE_STATUSES = ['ativo', 'indisponivel', 'sem_metricas', 'removido'] as const;
+export type ServiceStatus = (typeof SERVICE_STATUSES)[number];
 
 export interface MonitoredService {
   id: string;
@@ -26,4 +26,11 @@ export interface ServicesResponse {
   services: MonitoredService[];
   /** Período considerado nos totais de energia e emissão, como a API devolve (ex.: "última 1 hora"). */
   period: string;
+}
+
+export interface ServicesSummaryResponse {
+  period: { from: string; to: string };
+  energyKwh: number | null;
+  co2eGrams: number | null;
+  services: { active: number; unavailable: number; withoutMetrics: number; removed: number };
 }

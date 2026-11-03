@@ -16,12 +16,13 @@
       "numero": 1,
       "milestone": "Sprint 1",
       "inicio": "2026-09-29",
+      "burndown_base": "2026-10-05",
       "fim": "2026-10-19",
       "checkpoint": "2026-10-09",
       "congelamento": "2026-10-18T20:00",
       "review": "2026-10-19T19:30",
       "pos_review_limite": "2026-10-20T23:59",
-      "a_confirmar": true,
+      "a_confirmar": false,
       "objetivo": "Pipeline de coleta persistido em Docker e primeira tela do dashboard (lista de servicos com estado e localizacao, atualizando sem recarregar)"
     },
     {

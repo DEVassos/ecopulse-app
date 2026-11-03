@@ -13,9 +13,13 @@ export class NotFoundError extends AppError {
   constructor(message = 'Rota não encontrada.') { super('NOT_FOUND', 404, message); }
 }
 
+export class UnauthorizedError extends AppError {
+  constructor(message = 'Credenciais inválidas.') { super('UNAUTHORIZED', 401, message); }
+}
+
 export class DatabaseError extends AppError {
   constructor() {
-    super('DATABASE_ERROR', 500, 'Não foi possível verificar a conexão com o banco de dados.');
+    super('DATABASE_ERROR', 500, 'Não foi possível acessar o banco de dados.');
   }
 }
 

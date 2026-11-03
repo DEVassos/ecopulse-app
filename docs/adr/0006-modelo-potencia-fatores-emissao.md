@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Status | proposto |
+| Status | aceito |
 | Data | 2026-10-16 |
 | Decisores | @henriqueptbd-cell (PO), @LUCASAMR23 (backend) |
 | Rastreabilidade | issue #133 (sub-issue de #43, história pai STORY-02/US02) · requisito RF07 (RF08 como destino do mesmo motor) · critério TP01, DW02, BD04 · restrição: ADR 0002 (sem ORM) |

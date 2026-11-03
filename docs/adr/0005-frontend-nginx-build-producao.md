@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Status | proposto |
+| Status | aceito |
 | Data | 2026-10-08 |
 | Decisores | @travensolli (SM, responsável pela #80) |
 | Rastreabilidade | issue #80 (decisão e implementação), história #46, tarefa #26 · substitui em parte o [ADR 0003](0003-docker-compose-unico-caminho.md) (execução do frontend) · requisitos RP04, RNF05 · critérios DW07, DW01, TP02 |

@@ -107,3 +107,5 @@ Scripts: `bash .agilekit/scripts/gh-seed-backlog.sh` (cria épicos/histórias/ta
 ### Story Points (campo numérico)
 
 O Project tem o campo **Story Points** (número). Ele é preenchido automaticamente pelo workflow `board` a partir da seção "Estimativa (pontos)" do formulário (histórias e tarefas) ou de "Story Points: N" no corpo, ao abrir ou editar a issue; o seed também grava. Nas views em Table, agrupar por *Parent issue*, *Assignees* ou *Milestone* mostra a **soma** por grupo (clique no cabeçalho do grupo › *Sum*): é a capacidade da sprint por pessoa e o tamanho de cada história/épico. Para ajustar à mão: `bash .github/scripts/project-set-status.sh <n> - --number "Story Points=5"`.
+
+O mesmo campo alimenta o **burndown** da sprint (`bash .github/scripts/burndown.sh N --out docs/sprints/sprint-N/burndown.md`, ver [processo § 2.2](README.md#22-burndown-da-sprint)): issue sem Story Points fica fora do gráfico e aparece listada em "Fora da soma".

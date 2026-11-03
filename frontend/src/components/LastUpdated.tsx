@@ -16,7 +16,7 @@ interface Props {
 /**
  * Selo "tempo real": ponto pulsando enquanto os dados estão em dia, laranja quando desatualizados.
  * Sem role="status": o horário mudaria a cada ciclo e seria anunciado pelo leitor de tela; a falha já é
- * anunciada pelo ErrorState (role="alert").
+ * anunciada pelo aviso da tela (ErrorState, ou UpdateFailedBanner quando há dados no dashboard).
  */
 export default function LastUpdated({ updatedAt, intervalSeconds, stale = false, children }: Props) {
   return (

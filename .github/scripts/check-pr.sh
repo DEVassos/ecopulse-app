@@ -4,6 +4,7 @@
 # Valida metadados de um Pull Request do EcoPulse (Git Flow + rastreabilidade ES04 + DoD ES07):
 #   título no padrão de commit; branch de origem no padrão; base correta (develop p/ trabalho,
 #   main só p/ release/hotfix); corpo com "Closes #n"; ≥1 label RF/RNF (ou tipo:processo|bug);
+#   seção "## DoD-PR" com os itens 1 a 6 (exceto release/*, que segue a DoD-Sprint);
 #   checklist sem "- [ ]" pendente (aceita "N/A — motivo"); sem placeholders nem rodapé "Generated with …"; aviso >400 linhas.
 # PR em rascunho: erros viram avisos.
 # Uso: check-pr.sh <número>            (usa gh pr view)
@@ -72,16 +73,25 @@ case "$TIPO" in
     if [ "$BASE_REF" = "main" ] || [ "$BASE_REF" = "develop" ]; then ok "hotfix → $BASE_REF"; else fail "hotfix/* deve ter base 'main' (e um segundo PR para 'develop')"; fi ;;
 esac
 
-# 4. corpo: Closes #n (release dispensa)
+# 4. corpo: Closes #n (release dispensa). "Refs #n" só cita a issue: não fecha e não basta aqui
 N_BRANCH="$(issue_da_branch "$HEAD_REF")"
 if [ "$TIPO" != "release" ]; then
-  if printf '%s' "$BODY" | grep -Eq "$RE_PR_CLOSES"; then
-    ok "corpo referencia a issue (Closes/Fixes/Resolves/Refs #n)"
-    if [ -n "$N_BRANCH" ] && ! printf '%s' "$BODY" | grep -Eq "#${N_BRANCH}([^0-9]|$)"; then
-      warn "o corpo não cita a issue #$N_BRANCH do nome da branch"
+  FECHA="$(printf '%s' "$BODY" | grep -oE "$RE_PR_CLOSES" | grep -oE '[0-9]+' || true)"
+  if [ -n "$FECHA" ]; then
+    ok "corpo fecha a issue (Closes/Fixes/Resolves #n)"
+    if [ -n "$N_BRANCH" ] && ! printf '%s\n' "$FECHA" | grep -qx "$N_BRANCH"; then
+      if printf '%s' "$BODY" | grep -Eq "#${N_BRANCH}([^0-9]|$)"; then
+        warn "a issue #$N_BRANCH da branch não está em 'Closes', mas fecha no merge mesmo assim (o nº da branch liga o PR à issue)"
+      else
+        warn "o corpo não cita a issue #$N_BRANCH do nome da branch"
+      fi
     fi
+  elif [ "$TIPO" = "hotfix" ] && [ "$BASE_REF" = "develop" ] && printf '%s' "$BODY" | grep -Eq "$RE_PR_REFS"; then
+    ok "hotfix → develop: 'Refs #n' aceito (a issue fecha no PR do hotfix para main)"
+  elif printf '%s' "$BODY" | grep -Eq "$RE_PR_REFS"; then
+    fail "corpo só com 'Refs #n', que não fecha a issue. Use 'Closes #n' (ou Fixes/Resolves); para entrega parcial, abra outra issue (ES04)."
   else
-    fail "corpo sem 'Closes #n' (ou Fixes/Resolves/Refs). A issue é a chave de rastreabilidade (ES04)."
+    fail "corpo sem 'Closes #n' (ou Fixes/Resolves). A issue é a chave de rastreabilidade (ES04)."
   fi
 fi
 
@@ -96,7 +106,33 @@ fi
 PENDENTES="$(printf '%s\n' "$BODY" | grep -nE '^[[:space:]]*[-*] \[ \]' | grep -viE 'N/A' || true)"
 if [ -n "$PENDENTES" ]; then
   while IFS= read -r l; do fail "item da DoD-PR não marcado nem justificado com 'N/A — motivo': ${l#*:}"; done <<< "$PENDENTES"
-else ok "DoD-PR sem pendências"; fi
+else ok "checklist sem item pendente"; fi
+# seção DoD-PR com os 6 itens do template: sem ela, um corpo sem checklist nenhuma passaria
+if [ "$TIPO" = "release" ]; then ok "release: segue a DoD-Sprint, sem DoD-PR"
+elif ! printf '%s\n' "$BODY" | grep -Eq '^##[[:space:]]+DoD-PR'; then
+  fail "corpo sem a seção '## DoD-PR' do template (.github/PULL_REQUEST_TEMPLATE.md): itens 1 a 6, cada um [x] ou 'N/A — motivo' (ES07)"
+else
+  # uma linha "<n> ok|pendente|sem-marca" por item numerado; aceita "- [x] 3. N/A — …", "- N/A — 3. …" e "- [x] 2. `N/A — …`"
+  ITENS="$(printf '%s\n' "$BODY" | tr -d '\r' | awk '
+    /^##[[:space:]]+DoD-PR/ { f = 1; next }
+    /^##[[:space:]]/        { f = 0 }
+    f && /^[[:space:]]*[-*][[:space:]]/ {
+      l = $0
+      marcado = (l ~ /^[[:space:]]*[-*][[:space:]]+\[[xX]\]/); na = (l ~ /[Nn]\/[Aa]/)
+      vazio = (l ~ /^[[:space:]]*[-*][[:space:]]+\[ \]/)
+      sub(/^[[:space:]]*[-*][[:space:]]+/, "", l); sub(/^\[[ xX]\][[:space:]]*/, "", l); sub(/^`/, "", l)
+      sub(/^[Nn]\/[Aa][^0-9]*/, "", l)
+      if (l ~ /^[1-6]\./) print substr(l, 1, 1), ((marcado || na) ? "ok" : (vazio ? "pendente" : "sem-marca"))
+    }')"
+  FALTAM=""; SEM_MARCA=""
+  for n in 1 2 3 4 5 6; do
+    if ! printf '%s\n' "$ITENS" | grep -q "^$n "; then FALTAM="$FALTAM $n"
+    elif ! printf '%s\n' "$ITENS" | grep -Eq "^$n (ok|pendente)$"; then SEM_MARCA="$SEM_MARCA $n"; fi
+  done
+  [ -z "$FALTAM" ] || fail "seção DoD-PR sem o(s) item(ns)$FALTAM do template: copie os 6 itens e marque [x] ou escreva 'N/A — motivo'"
+  [ -z "$SEM_MARCA" ] || fail "item(ns)$SEM_MARCA da DoD-PR sem [x] nem 'N/A — motivo'"
+  [ -n "$FALTAM$SEM_MARCA" ] || ok "DoD-PR com os 6 itens"
+fi
 if printf '%s' "$BODY" | grep -Fq '_(preencha)_'; then fail "o corpo ainda contém '_(preencha)_'"; fi
 if printf '%s' "$BODY" | grep -iq 'generated with'; then fail "o corpo contém 'Generated with …' (rodapé de ferramenta de IA): remova. Quem usou IA explica isso em texto no PR; atribuição de ferramenta não entra"; fi
 if printf '%s\n' "$BODY" | grep -Eq '^## Co-autoria'; then

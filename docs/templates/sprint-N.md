@@ -7,19 +7,20 @@
 | Período | `<dd/mm>` a `<dd/mm/aaaa>` · checkpoint `<dd/mm>` · congelamento `<dd/mm>` 20h · review `<dd/mm>` 19h30 |
 | Milestone | [Sprint N](https://github.com/DEVassos/greener-app/milestones) |
 | Versão entregue | tag [`sprint-N`](https://github.com/DEVassos/greener-app/releases/tag/sprint-N) · commit `<sha curto>` em `main` |
-| Critérios previstos | ES01–ES09, DW01 + `<DWxx, BDxx, TPxx>` — denominador `<pontos>` |
-| Plano | [docs/plano-de-entregas.md § Sprint N](../plano-de-entregas.md) |
-| Atas | [planning](sprint-N/planning.md) · [dailies](sprint-N/dailies/) · [review](sprint-N/review.md) · [retrospectiva](sprint-N/retrospectiva.md) · [participação](sprint-N/contribuicao.md) |
+| Plano | [docs/plano-de-entregas.md § Sprint N](../plano-de-entregas.md#sprint-n): critérios previstos, denominador e situação de cada critério |
+| Atas | [planning](sprint-N/planning.md) · [dailies](sprint-N/dailies/) · [review](sprint-N/review.md) · [retrospectiva](sprint-N/retrospectiva.md) · [participação](sprint-N/contribuicao.md) · [burndown](sprint-N/burndown.md) |
 
 ## 1. Objetivo da sprint
 
 `<objetivo em 1–2 frases, idêntico ao planning.md e ao plano de entregas>`
 
-## 2. Itens selecionados e situação
+## 2. Itens selecionados
 
-| Issue | Título | Requisito | Critério | Responsável | Situação | PR |
-|---|---|---|---|---|---|---|
-| #`<n>` | `<título>` | RF01 | DW02 | @LUCASAMR23 | concluído / pendente / movido | #`<pr>` |
+A situação de cada critério é registrada **só** no [plano de entregas](../plano-de-entregas.md#sprint-n); esta seção lista os itens selecionados e o PR de cada um.
+
+| Issue | Título | Requisito | Critério | Responsável | PR |
+|---|---|---|---|---|---|
+| #`<n>` | `<título>` | RF01 | DW02 | @LUCASAMR23 | #`<pr>` |
 
 ## 3. Itens concluídos
 
@@ -62,6 +63,7 @@ Relatório ES09 gerado por `evidencias.sh N`: [contribuicao.md](sprint-N/contrib
 | Métrica | Valor |
 |---|---|
 | Issues planejadas / concluídas | `<x>` / `<y>` |
+| Story Points: escopo inicial / final / concluídos | `<x>` / `<y>` / `<z>` — [burndown](sprint-N/burndown.md) |
 | PRs mergeados em `develop` | `<n>` |
 | PRs com revisão em >24h | `<n>` |
 | Dailies registradas / dias úteis | `<x>` / `<y>` |

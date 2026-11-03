@@ -4,7 +4,7 @@
 - **Semestre/Curso:** 2º DSM — Fatec Jacareí
 - **Data da Sprint Review 1:** 19/10/2026 às 19h30
 - **Arquivo:** `docs/sprints/sprint-1/planning.md` (planejamento do PO; o registro oficial da sprint fica em `docs/sprints/sprint-1.md`, a Definition of Done oficial em `docs/processo/definition-of-done.md` e o padrão de commit em `.github/CONTRIBUTING.md`)
-- **Revisão de 15/10/2026:** este documento registra o planejamento publicado em 29/09 e revisado em 05/10. A composição vigente da sprint (19 itens, 79 pontos), os critérios previstos e as evidências por critério estão em [`docs/plano-de-entregas.md`](../../plano-de-entregas.md); as verificações executadas estão em [`docs/sprints/sprint-1.md`](../sprint-1.md).
+- **Revisão de 15/10/2026:** este documento registra o planejamento combinado pela equipe a partir de 29/09, antes de existir repositório (discussões e acertos iniciais), versionado em 04/10 no Projeto-GreenER, replanejado em 05/10 e importado para este repositório em 07/10 (PR [#57](https://github.com/DEVassos/greener-app/pull/57)). A composição vigente da sprint (19 itens, 79 pontos), os critérios previstos e as evidências por critério estão em [`docs/plano-de-entregas.md`](../../plano-de-entregas.md); as verificações executadas estão em [`docs/sprints/sprint-1.md`](../sprint-1.md).
 
 ---
 

@@ -1,13 +1,14 @@
 import { Fragment } from 'react';
 import type { CollectionStatus, ServiceCollection } from '../services/collections.types';
 import { formatDayTime, formatDuration, formatNumber } from '../utils/format';
+import { missingCollectionSeconds } from '../utils/collection-history';
 import MissingValue from './MissingValue';
 
 /** Resultado da coleta em texto e cor (nunca só pela cor), no mesmo estilo do StatusBadge. */
 const COLLECTION_STATUS: Record<CollectionStatus, { label: string; className: string }> = {
-  ok: { label: 'OK', className: 'border-primary/50 bg-primary/10 text-emerald-300' },
-  erro: { label: 'Erro', className: 'border-error/50 bg-error/10 text-red-300' },
-  sem_metricas: { label: 'Sem métricas', className: 'border-warning/50 bg-warning/10 text-orange-300' },
+  ok: { label: 'OK', className: 'border-primary/50 bg-primary/10 text-primary-hover' },
+  erro: { label: 'Erro', className: 'border-error/50 bg-error/10 text-danger' },
+  sem_metricas: { label: 'Sem métricas', className: 'border-warning/50 bg-warning/10 text-warning' },
 };
 
 function CollectionStatusBadge({ status }: { status: CollectionStatus }) {
@@ -22,25 +23,6 @@ function CollectionStatusBadge({ status }: { status: CollectionStatus }) {
 
 function metric(value: number | null, decimals: number) {
   return value === null ? <MissingValue label="sem métrica nesta coleta" title="Sem métrica nesta coleta" /> : formatNumber(value, decimals);
-}
-
-/**
- * O worker vence a coleta em `collectedAt + collectionIntervalSeconds`, mas só a executa na
- * próxima batida de POLLING_INTERVAL_MS (30 s). A folga cobre a duração do ciclo e a latência.
- * O polling não é exposto pela API, então os padrões do backend ficam repetidos aqui.
- */
-const POLLING_INTERVAL_SECONDS = 30;
-const CYCLE_SLACK_SECONDS = 30;
-const DEFAULT_COLLECTION_INTERVAL_SECONDS = 30;
-
-/** Duração do buraco entre duas coletas, quando ele é maior do que o intervalo normal do serviço. */
-function missingCollectionSeconds(newer: ServiceCollection, older: ServiceCollection): number | null {
-  const seconds = (Date.parse(newer.collectedAt) - Date.parse(older.collectedAt)) / 1_000;
-  if (!Number.isFinite(seconds)) return null;
-  // A coleta anterior é a que agendou a seguinte; sem intervalo nela (erro/sem métricas), usa a mais nova.
-  const interval = older.collectionIntervalSeconds ?? newer.collectionIntervalSeconds ?? DEFAULT_COLLECTION_INTERVAL_SECONDS;
-  const tolerance = Math.max(1, interval) + POLLING_INTERVAL_SECONDS + CYCLE_SLACK_SECONDS;
-  return seconds > tolerance ? seconds : null;
 }
 
 /** Linha entre duas coletas: mostra o período em que não houve registro nenhum. */

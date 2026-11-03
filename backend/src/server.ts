@@ -5,6 +5,7 @@ import { createDatabase, type Database } from './db/connection';
 import { verifyConnection } from './modules/health/health.repository';
 import { CollectionRepository } from './modules/collections/collections.repository';
 import { ServiceRepository } from './modules/services/services.repository';
+import { UserRepository } from './modules/usuarios/usuarios.repository';
 import { AppError } from './shared/errors';
 import { Collector, type CollectorLifecycle } from './jobs/collector';
 import { createMetricsApi } from './integrations/metrics-api';
@@ -13,7 +14,8 @@ import { createCarbonApi } from './integrations/carbon-api';
 export async function startServer(env: Environment, database: Database, collector?: CollectorLifecycle): Promise<Server> {
   try {
     await verifyConnection(database);
-    const server = createServer(createApp(() => verifyConnection(database), new CollectionRepository(database), new ServiceRepository(database), env.corsOrigins));
+    const server = createServer(createApp(() => verifyConnection(database), new CollectionRepository(database), new ServiceRepository(database), env.corsOrigins,
+      new UserRepository(database), { jwtSecret: env.jwtSecret, jwtExpiresIn: env.jwtExpiresIn }));
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
       server.listen(env.port, () => { server.off('error', reject); resolve(); });

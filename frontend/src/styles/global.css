@@ -12,14 +12,14 @@
 
 /* Tokens do design system (docs/identidade-visual.md) — fonte única das cores */
 :root {
-  --bg: #08130f;
-  --surface: #10201a;
-  --surface-2: #0b1914;
-  --surface-3: #172b23;
-  --border: #24382f;
+  --bg: #0b1220;
+  --surface: #131c2e;
+  --surface-2: #0e1626;
+  --surface-3: #16233a;
+  --border: #22304a;
   --text: #e2e8f0;
-  --text-2: #cfdbd4;
-  --muted: #9fb3a8;
+  --text-2: #cbd5e1;
+  --muted: #94a3b8;
   --faint: #64748b;
   --accent: #10b981;
   --accent-hover: #34d399;
@@ -31,6 +31,9 @@
   --error: #ef4444;
   /* Vermelho mais claro para texto pequeno sobre o fundo escuro (contraste AA) */
   --danger: #f87171;
+  /* Neon: só no que pede atenção (maior impacto, pico, "ao vivo", pulso do logo) */
+  --neon: #5cffb8;
+  --neon-glow: rgb(92 255 184 / 0.35);
   --sans: 'IBM Plex Sans', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', monospace;
   --display: 'Space Grotesk', sans-serif;
@@ -47,10 +50,12 @@
   --color-muted: var(--muted);
   --color-faint: var(--faint);
   --color-primary: var(--accent);
+  --color-primary-hover: var(--accent-hover);
   --color-secondary: var(--sky);
   --color-brand: var(--yellow);
   --color-warning: var(--warning);
   --color-error: var(--error);
+  --color-danger: var(--danger);
   --font-sans: var(--sans);
   --font-mono: var(--mono);
   --font-display: var(--display);

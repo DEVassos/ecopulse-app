@@ -29,8 +29,10 @@
     overflow-x: auto;
   }
 
+  /* Borda transparente em todos os itens: o ativo só troca a cor dela, sem mudar de tamanho */
   .nav a {
-    padding: 8px 14px;
+    padding: 7px 13px;
+    border: 1px solid transparent;
     border-radius: 8px;
     color: var(--muted);
     text-decoration: none;
@@ -41,10 +43,13 @@
     color: var(--text);
   }
 
+  /* Item ativo: verde a 15%, borda e texto em verde. Borda de verdade (não box-shadow) para continuar
+     visível no alto contraste do sistema (forced-colors) */
   .nav a.active {
-    background: var(--surface-3);
-    color: var(--text);
-    font-weight: 500;
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    border-color: var(--accent);
+    color: var(--accent-hover);
+    font-weight: 600;
   }
 
   .topbar-actions {
@@ -56,11 +61,48 @@
     margin-left: auto;
   }
 
-  /* Tela larga: marca, menu e ações na mesma linha */
+  /* Visitante: "Entrar" é a ação principal do cabeçalho (botão cheio, alvo de toque de 44 px) */
+  .btn-login,
+  .btn-login:hover {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .btn-login:hover {
+    background: var(--accent-hover);
+  }
+
+  /* Com sessão: nome de quem entrou e o botão "Sair" (o .btn-outline de styles/controls.css) */
+  .user-menu {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .user-menu strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .user-menu .btn-outline {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
+  /* Tela larga: marca, menu e ações na mesma linha; 10 px na vertical deixa o cabeçalho com cerca de 56 px */
   @media (min-width: 961px) {
     .topbar-inner {
       flex-wrap: nowrap;
-      padding: 14px 24px;
+      padding: 10px 24px;
       gap: 32px;
     }
 

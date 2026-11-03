@@ -1,31 +1,37 @@
-# Arquitetura — modelo de dados integrado
+# Arquitetura
 
-UML e DDL foram integrados pelo PR #77. Base SQL de Lucas (#5/#44), modelagem #28; o contexto está no [registro de integração](arquitetura/integracao-modelagem-banco.md). O nome EcoPulse foi aplicado à documentação e às configurações na #68.
+O EcoPulse tem três partes, que sobem juntas por `docker compose up --build` (#26, #27, #80): o **frontend** (React + TypeScript, servido por nginx), o **backend** (Node.js + TypeScript, Express) e o **PostgreSQL** (volume `pgdata`). O backend só sobe depois do healthcheck do PostgreSQL e se conecta a ele pelo host `postgres` da rede interna. O nome EcoPulse foi aplicado à documentação e às configurações na #68.
 
-O setup local da #8, em revisão, acrescenta Express/TypeScript e pool pg: ambiente validado → consulta real ao banco → abertura HTTP. Cada GET /health percorre routes/controller/service/repository e consulta novamente o banco; falhas usam middleware global. Não entrega worker, JWT, cálculos ou auditoria. Organização e limites em [backend/README.md](../backend/README.md) e contrato em [api.md](api.md). No `compose.yaml` (#26, #27) o backend só sobe depois do healthcheck do PostgreSQL e se conecta a ele pelo host `postgres` da rede interna.
+## Fluxo de dados
 
-## Responsabilidades e fluxo projetado
+```
+Metrics API ──(GET /services, GET /metrics/{id})──► worker (jobs/collector.ts) ──► repositories pg ──► PostgreSQL
+Carbon API ───(GET /regions/{code}/carbon-intensity)──►  CarbonCalculator (energia e CO₂e por coleta)
+PostgreSQL ──► GET /api/services · GET /api/collections ──(polling do navegador)──► dashboard
+```
 
-Implementação em revisão da #19: `jobs/collector.ts` coordena HTTP externo, descoberta válida e repositories existentes. Reconciliação é atômica; coleta e estado usam transação por serviço, mantendo HTTP fora do banco. O dispatcher não sobrepõe ciclos; shutdown cancela transporte e aguarda transações antes do pool. Depende do contrato bruto/cancelamento #97/#98 e da #27 para Compose integrado. Carbono/cálculo não fazem parte deste worker; persistência continua com `nao_calculado`. Essa proposta publicada não é evidência de código já integrado.
+1. **Coleta** (#19, #99): `jobs/collector.ts` descobre os serviços no agregador, reconcilia o cadastro numa transação (novos, `removido`, reaparecidos) e coleta as métricas de cada serviço no prazo dado pelo intervalo da própria métrica. O HTTP externo fica fora das transações; a coleta e o estado do serviço são gravados juntos, e a falha de um serviço não interrompe os demais.
+2. **Cálculo** (#133, #139): para cada coleta válida, o coletor consulta a intensidade de carbono da região (`integrations/carbon-api.ts`, com cache de 1 h por região, #17) e calcula potência, energia e CO₂e com o `CarbonCalculator` (`domain/carbon-calculator.ts`). Sem fator válido, a métrica é preservada e o cálculo fica `indisponivel`, sem valor estimado. Fórmulas em [cálculos](calculos.md); decisão em [ADR 0006](adr/0006-modelo-potencia-fatores-emissao.md).
+3. **Consulta** (#111, #112): `GET /api/services` devolve os serviços com estado, localização e a última coleta (métricas, energia e CO₂e); `GET /api/collections` devolve o histórico com filtros. O CORS libera só as origens de `CORS_ORIGIN` (#118). Contrato em [api.md](api.md).
+4. **Exibição** (#22, #23, #131): o dashboard repete as consultas no intervalo de `VITE_REFRESH_INTERVAL_MS`, sem recarregar a página, e mostra "Última atualização" e o intervalo.
 
-Contribuição local da #14: repositories de services/collections e UserRepository no módulo usuarios existente recebem executor tipado do pg. `withTransaction` reserva a mesma conexão e faz commit/rollback; a #19 coordenará as operações somente após descoberta válida, mantendo a decisão de reconciliação e o mapeamento de falhas fora da persistência. IDs bigint e numeric permanecem strings. A entrega não altera UML/schema, não registra rotas e não inicia coleta; contratos e testes no [README backend](../backend/README.md#repositories--contribuição-local-da-14).
+## Backend
 
-Metrics API → worker futuro → validação de métricas → repositories pg → PostgreSQL → API REST futura → dashboard. Carbon API alimenta cálculo na Sprint 2. React/TS e Node/TS são obrigatórios, mas não implementados por esta tarefa. SQL de dados ficará exclusivamente nos repositories com parâmetros; sem ORM/query builder.
+Camadas por módulo (`health`, `services`, `collections`, `usuarios`): **routes** só mapeiam a URL → **controller** valida a entrada e escolhe o status HTTP → **service** monta a resposta → **repository** tem o SQL (`pg`, parâmetros `$1…$n`, sem ORM). `config/env.ts` é o único ponto que lê o ambiente; `shared/errors.ts` define `AppError` e as subclasses, incluindo `UnauthorizedError` (401), além de 400, 404, 500 e 502; `middlewares/error-handler.ts` converte qualquer erro no envelope `{"error":{"code","message"}}`, sem stack. O boot valida o ambiente, consulta o banco, abre o HTTP e só então inicia o coletor; SIGTERM para o coletor e fecha HTTP e pool. Organização, variáveis e verificação no [README do backend](../backend/README.md).
 
-Cliente de carbono (#17): `backend/src/integrations/carbon-api.ts` consulta o fator regional e mantém cache em memória, com configuração centralizada e tipos próprios. HTTP/relógio são injetáveis para testes; erros usam a hierarquia compartilhada `AppError`. O cliente ainda não participa do fluxo de coleta/cálculo/persistência. Política decidida pelo PO na [#17](https://github.com/DEVassos/greener-app/issues/17#issuecomment-6157652891) e roteiro de verificação em [README backend](../backend/README.md#cliente-de-carbono-17); UML e schema permanecem inalterados.
-
-Dashboard público; configuração e consulta de entradas exigirão JWT no backend com users administrativos. Personas de negócio não criam perfis de autorização automaticamente. O intervalo externo de coleta é dado de cada observação; o intervalo de polling da tela é configuração independente do frontend (`VITE_REFRESH_INTERVAL_MS`, ver [Frontend](#frontend)).
+O login administrativo usa JWT no backend e a tabela `users` (#20). Em volume PostgreSQL novo, `zz-seed-admin.sh` cria um administrador com `ADMIN_EMAIL` e hash bcrypt da senha fornecida em `ADMIN_PASSWORD` (#6); nenhum segredo ou hash fixo é versionado. A área de configuração e a consulta de entradas usarão o mesmo middleware quando forem implementadas. O intervalo externo de coleta vem de cada observação; o intervalo de atualização da tela é configuração independente do frontend (`VITE_REFRESH_INTERVAL_MS`).
 
 ## Frontend
 
-React/TypeScript com Vite, em camadas de dependência única: **pages → hooks → services**. Detalhes e passos de verificação no [README do frontend](../frontend/README.md).
+React + TypeScript com Vite (ADR 0004), servido por nginx no compose (ADR 0005). Detalhes e passos de verificação no [README do frontend](../frontend/README.md).
 
-- `pages/` monta a tela e só conversa com hooks; não faz HTTP nem guarda timer.
-- `hooks/` guarda o estado da tela: `useServices` busca a lista (dado, carregando, erro, horário da última busca) e repete a busca por `usePolling`, que agenda a próxima só depois que a anterior termina, pausa com a aba oculta e cancela a requisição pendente ao sair (`AbortController`).
-- `services/` é o único lugar com HTTP: `api.ts` (base `VITE_API_URL`, erros `{ error: { code, message } }` viram `ApiError`) e `services.service.ts` (`GET /services`). Sem `VITE_API_URL`, devolve os dados de demonstração.
-- `MonitoringProvider` (em `App.tsx`, acima das rotas) lê `VITE_REFRESH_INTERVAL_MS` uma vez e entrega o intervalo pelo `MonitoringContext` (`useMonitoring`): padrão 30 s, limitado entre 5 s e 2.147.483.647 ms (o maior atraso do `setTimeout`).
+- `pages/`: `DashboardPage` monta a tela de serviços e a janela de detalhes; `SettingsPage` é a rota reservada à configuração, que só ganha conteúdo com o login da Sprint 2. As páginas não fazem HTTP nem guardam timer; de `services/` importam só o indicador de modo demonstração.
+- `components/`: `ServicesTable` (estado com texto, localização, CPU, energia, emissão e última leitura, com busca e ordenação), `ServiceDetailsDialog` e `CollectionsHistoryTable` (histórico do serviço, #131), `LastUpdated` (selo "Última atualização · intervalo"), `StatusBadge`, `MissingValue` e os estados de carregando, erro e vazio.
+- `hooks/`: `useServices` e `useCollections` guardam dado, carregamento, erro e horário da última busca e repetem a busca por `usePolling`, que agenda a próxima só depois que a anterior termina, pausa com a aba oculta e cancela a requisição pendente ao sair (`AbortController`). `useMonitoring` lê o contexto.
+- `services/`: único lugar com HTTP. `api.ts` (base `VITE_API_URL`; erros `{ error: { code, message } }` viram `ApiError`), `services.service.ts` (`GET /services`) e `collections.service.ts` (`GET /collections`). Esses dois conferem o JSON contra o contrato de `api.md` com os leitores de `contract.ts` antes de entregá-lo aos hooks (#161): resposta fora do contrato vira `ApiError` e segue o mesmo caminho de uma falha de rede. Sem `VITE_API_URL` no build, devolvem os dados de demonstração de `demo-data.ts`, e a tela mostra uma faixa avisando que são ilustrativos.
+- `contexts/` e `providers/`: `MonitoringProvider` (em `App.tsx`, acima das rotas) lê `VITE_REFRESH_INTERVAL_MS` uma vez e entrega o intervalo pelo `MonitoringContext`: padrão 30 s, limitado entre 5 s e 2.147.483.647 ms (o maior atraso do `setTimeout`).
 
-Fluxo de uma atualização: `usePolling` dispara → `useServices` chama `fetchServices` → backend `GET /services` → estado novo → a tabela e o selo "Última atualização" mudam sem recarregar a página. Uma falha mantém o último dado na tela e marca o selo como desatualizado.
+Fluxo de uma atualização: `usePolling` dispara → `useServices` chama `fetchServices` → backend `GET /api/services` → estado novo → a tabela e o selo "Última atualização" mudam sem recarregar a página. Uma falha mantém o último dado na tela, mostra o aviso com "Tentar novamente" e marca o selo como desatualizado.
 
 ## Modelo de dados
 
@@ -44,7 +50,7 @@ CPU, GB e intervalo positivo são obrigatórios quando status=ok. Status de mét
 
 Energia usa numeric(20,12) e emissão numeric(24,12), mantendo 0,00000015 kWh por coleta e resolução de 10⁻¹² em ambas. Intensidade/potência permanecem numeric(14,6). Quatro índices explícitos somam-se aos cinco automáticos das quatro PKs e UNIQUE externo: nove no total. Casos de uso atuais constam na UML, com dashboard público e consulta/configuração autenticadas, sem ampliar a auditoria.
 
-Cada coleta futura é nova linha. FK impede excluir serviço referenciado, mas somente inserção de coletas é regra dos repositories/permissões, não trigger implementado. updated_at precisa ser atribuído nos UPDATEs. Região e intensidade de cada coleta não são consultadas retrospectivamente no cadastro atual.
+Cada coleta é uma nova linha. FK impede excluir serviço referenciado, mas somente inserção de coletas é regra dos repositories/permissões, não trigger implementado. Os UPDATEs de `services` atribuem `updated_at = now()`. Região e intensidade de cada coleta não são consultadas retrospectivamente no cadastro atual.
 
 Falha de descoberta não autoriza remover todos os serviços. Semântica externa de 404/500 permanece ambígua; o contrato documentado foi corrigido para explicitar essa pendência. Ausência de coordenadas não invalida o serviço/métricas.
 
@@ -54,4 +60,4 @@ Primeira abertura por sessão de navegação em uma aba; reload e navegação in
 
 ## Inicialização e evolução
 
-Schema inicial em transação, reaplicável ao mesmo modelo. Banco anterior com bytes é recusado pelo guard; precisa de migração numerada conforme ADR 0002, sem conversão presumida nem remoção de dados. Não há seed. No `compose.yaml` (#27) o serviço `postgres` (16-alpine) aplica o schema na primeira criação do volume nomeado `pgdata`, que preserva os dados entre reinícios; só `docker compose down -v` os apaga. Comandos de validação isolada: [README do banco](../database/README.md). Precisão e fontes: [cálculos](calculos.md).
+Schema inicial em transação, reaplicável ao mesmo modelo. Banco anterior com bytes é recusado pelo guard; precisa de migração numerada conforme ADR 0002, sem conversão presumida nem remoção de dados. No `compose.yaml` (#27), o serviço `postgres` (16-alpine) aplica `schema.sql` e o seed idempotente do administrador na primeira criação do volume nomeado `pgdata`, que preserva os dados entre reinícios; só `docker compose down -v` os apaga. Comandos de validação isolada: [README do banco](../database/README.md). Precisão e fontes: [cálculos](calculos.md).

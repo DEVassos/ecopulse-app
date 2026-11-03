@@ -85,17 +85,17 @@ O EcoPulse descobre os serviços, coleta métricas periodicamente, estima o cons
 - **Edital:** O sistema PODERÁ apresentar em um mapa a posição aproximada dos serviços para os quais a API fornecer latitude e longitude. A ausência dessas coordenadas não deve impedir a visualização das demais informações.
 - **Critérios da rubrica:** DW04.
 - **Prioridade sugerida:** could (opcional no edital).
-- **Sprint prevista:** 3.
+- **Sprint prevista:** 2 (could, puxado só se as histórias must fecharem até 06/11; se não sair, 3).
 
 ### RF14 — Ranking de impacto
 - **Edital:** O sistema deve permitir ordenar os serviços por consumo energético estimado ou por emissão estimada de CO₂e, indicando o período considerado na comparação.
 - **Critérios da rubrica:** BD04 (ordenação e agregação por período), DW03 (endpoint com parâmetros de query).
-- **Sprint prevista:** 3.
+- **Sprint prevista:** 2 (antecipado por #159; BD04 avaliado na Sprint 3).
 
 ### RF15 — Comparação entre serviços
 - **Edital:** O sistema deve permitir comparar dois ou mais serviços por métricas e indicadores ambientais referentes ao mesmo período.
 - **Critérios da rubrica:** BD04, DW03.
-- **Sprint prevista:** 3.
+- **Sprint prevista:** 2 (antecipado por #159; BD04 avaliado na Sprint 3).
 
 ## Requisitos não funcionais (RNF)
 
@@ -177,9 +177,9 @@ O EcoPulse descobre os serviços, coleta métricas periodicamente, estima o cons
 | RF10 | BD01, BD02, BD03 | 1 |
 | RF11 | DW05 | 2 |
 | RF12 | DW04, DW05 | 1 |
-| RF13 (could) | DW04 | 3 |
-| RF14 | BD04, DW03 | 3 |
-| RF15 | BD04, DW03 | 3 |
+| RF13 (could) | DW04 | 2 (could; se não sair, 3) |
+| RF14 | BD04, DW03 | 2 (BD04 avaliado na 3) |
+| RF15 | BD04, DW03 | 2 (BD04 avaliado na 3) |
 | RNF01 | DW04 | 3 |
 | RNF02 | DW05 | 2 |
 | RNF03 | DW05, BD04 | 3 |

@@ -2,9 +2,9 @@ import type { ServiceStatus } from '../services/services.types';
 
 /** Único lugar que traduz estado → texto e cor (o estado nunca é mostrado só pela cor). */
 const STATUS: Record<ServiceStatus, { label: string; className: string }> = {
-  ativo: { label: 'Ativo', className: 'border-primary/50 bg-primary/10 text-emerald-300' },
-  indisponivel: { label: 'Indisponível', className: 'border-error/50 bg-error/10 text-red-300' },
-  sem_metricas: { label: 'Sem métricas', className: 'border-warning/50 bg-warning/10 text-orange-300' },
+  ativo: { label: 'Ativo', className: 'border-primary/50 bg-primary/10 text-primary-hover' },
+  indisponivel: { label: 'Indisponível', className: 'border-error/50 bg-error/10 text-danger' },
+  sem_metricas: { label: 'Sem métricas', className: 'border-warning/50 bg-warning/10 text-warning' },
   removido: { label: 'Removido', className: 'border-border bg-surface-3 text-muted' },
 };
 

@@ -30,7 +30,7 @@
 | **Gestor de TI / Produto**             | Responsável por custo e eficiência da infraestrutura | Visão executiva rápida do impacto ambiental do ecossistema     | Painel de KPIs (Nível 1) + exportação de relatório PDF para atas/reuniões        |
 | **Engenheiro GreenOps / DevOps**       | Otimiza consumo de recursos e emissões               | Identificar qual serviço é o maior ofensor e onde otimizar     | Ranking e comparação entre serviços (Nível 2) + investigação detalhada (Nível 3) |
 | **Analista de ESG / Sustentabilidade** | Reporta métricas ambientais corporativas             | Números confiáveis de emissão (gCO₂e) e participação renovável | Indicadores consolidados + exportação CSV para planilhas de reporte              |
-| **Administrador da Plataforma**        | Configura e mantém o ambiente monitorado             | Gerenciar parâmetros e acessos da área de configuração         | Área autenticada (JWT), disponível a partir da Sprint 1                          |
+| **Administrador da Plataforma**        | Configura e mantém o ambiente monitorado             | Gerenciar parâmetros e acessos da área de configuração         | Área autenticada (JWT), prevista para a Sprint 2                                 |
 
 ---
 
@@ -99,15 +99,17 @@ A aplicação será dividida em três níveis de detalhamento:
 
 ## 9. Fronteira do Escopo (Trava de MVP vs. Futuro)
 
-### 9.1 MVP da Sprint 1 (entrega concreta)
+### 9.1 MVP da Sprint 1 (entregue na tag [`sprint-1`](https://github.com/DEVassos/greener-app/releases/tag/sprint-1), em 20/10/2026)
 
-- Descoberta e polling automático de serviços (reconciliação por conjunto de ids).
-- Cálculo individual e consolidado de Energia (kWh) e CO₂e (g).
-- Persistência em PostgreSQL sem ORM + histórico de coletas.
-- Dashboard React + TypeScript com KPIs (Nível 1), tabela de serviços e atualização sem reload.
-- Mecanismo global de exportação: CSV estruturado e PDF executivo.
-- **Autenticação JWT da área de configuração (RP06):** login (bcrypt), emissão/validação de token e proteção de rotas, com usuário admin inicial via seed.
-- Ambiente Docker completo (`compose.yaml` + volume persistente + provimento de segredos via `.env`).
+No replanejamento de 05/10 ([plano de entregas](plano-de-entregas.md)), a Sprint 1 ficou com o pipeline e a primeira tela. O que está em `develop`:
+
+- Descoberta e coleta periódica dos serviços, com reconciliação por conjunto de ids (#99).
+- Cálculo de energia (kWh) e CO₂e (g) por coleta, com o fator regional da API de carbono (#133, PR #139).
+- Persistência em PostgreSQL sem ORM e histórico de coletas (#77, #94, #99).
+- Dashboard React + TypeScript com a tabela de serviços (estado, localização, energia e emissão), atualização sem recarregar e janela de detalhes com o histórico (#69, #100, #135).
+- Ambiente Docker completo: `compose.yaml` com volume persistente e variáveis por `.env` (#81, #91, #113).
+
+Foram para a Sprint 2: os KPIs consolidados (Nível 1), a autenticação JWT da área de configuração (RP06) com o usuário admin inicial por seed. A exportação CSV/PDF foi para a Sprint 3.
 
 ### 9.2 Evoluções do Semestre (pós-MVP)
 
@@ -128,5 +130,5 @@ A aplicação será dividida em três níveis de detalhamento:
 
 - **Regra do HTTP 404 em `/metrics/{id}`:** confirmar se indica serviço **removido** ou serviço **listado sem métricas (`metrics_missing`)** — impacto direto no indicador "sem métricas" do Nível 1.
 - **Campo `status` em `/services`:** o schema define o enum `ServiceStatus`, mas ele não aparece no retorno real. Definir se o status é sempre inferido pelo cliente.
-- **Carbon Intensity API:** contrato ainda não validado via `/openapi.json` — endpoints em `especificacao-api.md` são assumidos.
+- **Carbon Intensity API (resolvido):** contrato conferido no `/openapi.json` em 08/10 e cliente implementado e testado (#17, PR #92).
 - **Área de configuração (JWT):** definir o que exatamente é configurável e como as credenciais iniciais são provisionadas no ambiente Docker.

@@ -1,12 +1,12 @@
 # Integração da modelagem e do banco
 
-Registro local para revisão, em 08/10/2026. Vinicius é responsável pela integração da modelagem e do banco; Lucas é autor da base SQL. Vinicius informou que Frank revisou os quatro arquivos completos e confirmou a correspondência UML/SQL e a aritmética dos exemplos. Isso não substitui os testes executados nem aprovação de PR ou atribuição de coautoria.
+> **Registro histórico** da integração da UML com o banco, feito em 08/10/2026 antes do merge do [PR #77](https://github.com/DEVassos/greener-app/pull/77). As menções a "nesta branch", "local" e "futuro" descrevem aquele momento. O estado atual está em [arquitetura](../arquitetura.md), no [README do banco](../../database/README.md) e no [README do backend](../../backend/README.md): repositories, worker, cálculo e compose já estão em `develop`.
 
-## Autorização e limites
+Vinicius foi o responsável pela integração da modelagem com o banco; Lucas é o autor da base SQL. A correspondência entre UML e SQL e a aritmética dos exemplos foram verificadas pelo [roteiro reproduzível](verificacao-schema.md), e o PR #77 foi aprovado por @LUCASAMR23 e @henriqueptbd-cell.
 
-Vinicius autorizou expressamente continuar na branch existente `sql/5-schema-postgres`, como única exceção à regra de branch própria a partir de `origin/develop`. Commits originais preservados: `8cbd819cc3d0932da693b919d587aea1da39970a` (DDL) e `424b21b17fe5c2dd0283c04b2801278cd913d2e5` (documentação). Nenhum reset, rebase, amend, force push ou descarte foi autorizado. `schema-lucas.sql` permanece como cópia não rastreada e inalterada do original; o arquivo atual é `database/schema.sql`.
+## Histórico da branch
 
-Alterações locais de UML/DDL/docs autorizadas; commit, push, PR, merge, issues e comentários não autorizados. A entrega local não está mergeada e não significa funcionalidade em execução. Não atualizamos situações do plano para Concluído nem atribuímos aprovação ao PO.
+A integração foi feita na branch `sql/5-schema-postgres`, preservando os commits originais do DDL (`8cbd819`) e da documentação (`424b21b`), e entrou em `develop` pelo PR #77 em 08/10/2026, às 22h49. O arquivo do modelo é `database/schema.sql`.
 
 ## Fontes primárias efetivamente lidas
 
@@ -21,7 +21,7 @@ Os PDFs possuem texto extraível, sem necessidade de OCR. Não certificamos deta
 
 O exemplo oficial arredonda 60/3600 h para 0,0167 h. Usar divisão exata evita erro intermediário; ver [cálculos](../calculos.md). Não foram encontrados requisitos obrigatórios que exijam autenticação global, quatro perfis ou auditoria genérica.
 
-Outras fontes: requisitos/rubrica locais, regras de banco, ADR 0002, issues #5/#28/#44/#18/#20/#48/#6/#24, plano de entregas e guia vigente no GitHub. A UML v2 lida está em `C:/Users/55129/OneDrive/Área de Trabalho/modelagem-uml.md`, tem 923 linhas e difere da versão de 729 linhas do repositório; permanece preservada externamente.
+Outras fontes: requisitos/rubrica locais, regras de banco, ADR 0002, issues #5/#28/#44/#18/#20/#48/#6/#24, plano de entregas e guia vigente no GitHub. Uma versão mais longa da UML (v2) foi consultada fora do repositório; a versão versionada é a de [`modelagem-uml.md`](modelagem-uml.md).
 
 ## Matriz requisito → modelo → sprint
 

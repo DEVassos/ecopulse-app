@@ -2,11 +2,32 @@
 
 > Backlog de produto consolidado por User Stories, distribuído entre as sprints do semestre. Complementa `visao-do-produto.md` (visão e personas), `abp-2026-2.md` (raciocínio técnico) e `sprints/sprint-1.md` (planejamento detalhado da Sprint 1).
 
+## Situação vigente (18/10/2026)
+
+As seções por sprint abaixo guardam a **proposta inicial do PO** (04/10), anterior ao replanejamento de 05/10. A distribuição vigente está nas milestones do GitHub e no [plano de entregas](../plano-de-entregas.md); quando as duas fontes divergem, vale esta tabela. O retrato completo das issues está em [product-backlog.md](product-backlog.md).
+
+| História | Issue | Milestone atual | Situação |
+|---|---|---|---|
+| US01 — Descoberta e ingestão dinâmica de serviços | [#42](https://github.com/DEVassos/greener-app/issues/42) | Sprint 1 | sub-issues entregues; aceite do PO pendente |
+| US02 — Motor de cálculo ambiental | [#43](https://github.com/DEVassos/greener-app/issues/43) | Sprint 2 | cálculo por coleta adiantado na [#133](https://github.com/DEVassos/greener-app/issues/133) (PR #139); domínio (TP01) e indicadores na Sprint 2 |
+| US03 — Modelagem e persistência em PostgreSQL | [#44](https://github.com/DEVassos/greener-app/issues/44) | Sprint 1 | sub-issues entregues; aceite do PO pendente |
+| US04 — Dashboard executivo e operacional | [#45](https://github.com/DEVassos/greener-app/issues/45) | Sprint 2 | tabela de serviços, atualização sem recarregar e detalhes já entregues na Sprint 1 (#69, #100, #135); KPIs na Sprint 2 |
+| US05 — Infraestrutura e dockerização total | [#46](https://github.com/DEVassos/greener-app/issues/46) | Sprint 1 | sub-issues entregues; aceite do PO pendente |
+| US06 — Gestão e documentação da sprint | [#47](https://github.com/DEVassos/greener-app/issues/47) | Sprint 1 | fechada (PR #123) |
+| US07 — Autenticação segura JWT | [#48](https://github.com/DEVassos/greener-app/issues/48) | Sprint 2 | não iniciada em `develop` |
+| US08 — Histórico de coletas e consultas de análise | [#49](https://github.com/DEVassos/greener-app/issues/49) | Sprint 2 | histórico gravado e `GET /api/collections` entregues na Sprint 1 (#99, #116); consultas de análise na Sprint 2 |
+| US09 — Ranking de impacto | [#50](https://github.com/DEVassos/greener-app/issues/50) | Sprint 2 | não iniciada |
+| US10 — Visualização geográfica (mapa) | [#51](https://github.com/DEVassos/greener-app/issues/51) | Sprint 2 | não iniciada |
+| US11 — Comparação entre serviços | [#52](https://github.com/DEVassos/greener-app/issues/52) | Sprint 3 | não iniciada |
+| US12 — Simulação de migração regional | [#53](https://github.com/DEVassos/greener-app/issues/53) | Sprint 3 | não iniciada |
+| US13 — Exportação de relatórios (PDF e CSV) | [#54](https://github.com/DEVassos/greener-app/issues/54) | Sprint 3 | não iniciada |
+| US14 — Polimento e documentação de portfólio | [#55](https://github.com/DEVassos/greener-app/issues/55) | Sprint 3 | não iniciada |
+
 **Legenda de rastreabilidade:** `RF` = Requisito Funcional · `RNF` = Requisito Não-Funcional · `RP` = Restrição de Projeto (edital) · `Rubrica` = critérios Fatec (ES / DW / BD / TP).
 
 ---
 
-## Sprint 1 — Arquitetura Base, Ingestão, Autenticação & MVP Operacional
+## Sprint 1 (proposta inicial) — Arquitetura Base, Ingestão, Autenticação & MVP Operacional
 
 **Objetivo:** Entregar o fluxo funcional de ponta a ponta (Coleta → Processamento → Banco → Tela Básica) em ambiente dockerizado, cobrindo o esqueleto da aplicação, a **autenticação JWT da área restrita** e a gestão do projeto.
 
@@ -116,13 +137,13 @@
 - **Atende aos Requisitos:** RP06.
 - **Rubrica Fatec:** DW06.
 
-> **Nota:** esta história foi **antecipada para a Sprint 1** (era prevista para a Sprint 2) para alinhar a tabela `usuarios` (criada em US03) com seu uso real, integrar o provimento de segredos à infraestrutura Docker desde o início e viabilizar a área restrita como base das evoluções seguintes.
+> **Nota:** na proposta inicial esta história era antecipada para a Sprint 1. No replanejamento de 05/10 ela voltou para a Sprint 2 (DW06), onde está a milestone da [#48](https://github.com/DEVassos/greener-app/issues/48); a autenticação ainda não está em `develop`.
 
 ---
 
-## Sprint 2 — Análises Avançadas, Histórico e Visualização
+## Sprint 2 (proposta inicial) — Análises Avançadas, Histórico e Visualização
 
-**Objetivo:** Evoluir a plataforma adicionando consultas temporais complexas, ranking de impacto e visualização geográfica sobre a autenticação já entregue na Sprint 1.
+**Objetivo:** Evoluir a plataforma adicionando consultas temporais complexas, ranking de impacto e visualização geográfica sobre o pipeline de coleta e o dashboard da Sprint 1. (Na proposta inicial a autenticação vinha da Sprint 1; no replanejamento de 05/10 ela ficou na Sprint 2.)
 
 ### [US08] Histórico de Coletas e Consultas SQL de Análise
 
@@ -170,7 +191,7 @@
 
 ---
 
-## Sprint 3 — Comparações, Simulação de Migração, Relatórios e Polimento
+## Sprint 3 (proposta inicial) — Comparações, Simulação de Migração, Relatórios e Polimento
 
 **Objetivo:** Entregar os diferenciais de negócio, simulação de migração de região, exportação de relatórios (PDF/CSV) e refinamento para a apresentação final.
 

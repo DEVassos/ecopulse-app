@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { MonitoredService, ServiceStatus } from '../services/services.types';
-import { formatNumber, formatTime } from '../utils/format';
+import { formatFixed, formatNumber, formatTime } from '../utils/format';
 import MissingValue from './MissingValue';
 import StatusBadge from './StatusBadge';
 
@@ -12,14 +12,15 @@ interface Column {
   numeric?: boolean;
 }
 
+// Status logo depois do nome: em notebook, a última coluna fica longe demais do serviço
 const COLUMNS: Column[] = [
   { key: 'name', label: 'Serviço' },
+  { key: 'status', label: 'Status' },
   { key: 'cpuPercent', label: 'CPU', numeric: true },
   { key: 'energyKwh', label: 'Energia (kWh)', numeric: true },
   { key: 'emissionsG', label: 'Emissão (g CO₂e)', numeric: true },
   { key: 'lastReadingAt', label: 'Última leitura', numeric: true },
   { key: 'location', label: 'Localização' },
-  { key: 'status', label: 'Status' },
 ];
 
 /** Ordem crescente do status: o que precisa de atenção vem primeiro. */
@@ -31,9 +32,8 @@ const STATUS_ORDER: Record<ServiceStatus, number> = {
 };
 
 interface Props {
+  /** Energia e emissão são da última leitura de cada serviço, cujo horário está na coluna "Última leitura". */
   services: MonitoredService[];
-  /** Período dos valores de energia e emissão (ex.: "última 1 hora"). */
-  period: string;
   /** Clique na linha (ou Enter no nome): abre os detalhes e o histórico do serviço. */
   onSelect: (service: MonitoredService) => void;
 }
@@ -56,17 +56,29 @@ function compare(a: MonitoredService, b: MonitoredService, key: SortKey, directi
   return ((left as number) - (right as number)) * direction;
 }
 
+/** Localização em texto discreto: "Ashburn, United States · Virginia" (cidade, país · região), só com as partes informadas. */
+function locationText(service: MonitoredService): string {
+  const place = [service.city, service.country].filter(Boolean).join(', ');
+  return [place, service.region].filter(Boolean).join(' · ');
+}
+
 /** Tabela operacional dos serviços monitorados (RF09, RF12): busca por nome, ordenação por coluna e clique para os detalhes. */
-export default function ServicesTable({ services, period, onSelect }: Props) {
+export default function ServicesTable({ services, onSelect }: Props) {
   const [search, setSearch] = useState('');
-  const [sortKey, setSortKey] = useState<SortKey>('emissionsG');
-  const [direction, setDirection] = useState<1 | -1>(-1);
+  // Ordem inicial por gravidade (Status crescente): indisponíveis e sem métricas no topo, acima da dobra
+  const [sortKey, setSortKey] = useState<SortKey>('status');
+  const [direction, setDirection] = useState<1 | -1>(1);
 
   const rows = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('pt-BR');
     return services
       .filter((service) => service.name.toLocaleLowerCase('pt-BR').includes(term))
-      .sort((a, b) => compare(a, b, sortKey, direction));
+      .sort(
+        (a, b) =>
+          compare(a, b, sortKey, direction) ||
+          // Mesmo status: maior emissão primeiro, nos dois sentidos
+          (sortKey === 'status' ? compare(a, b, 'emissionsG', -1) : 0),
+      );
   }, [services, search, sortKey, direction]);
 
   function sortBy(column: Column) {
@@ -81,9 +93,9 @@ export default function ServicesTable({ services, period, onSelect }: Props) {
 
   return (
     <section className="rounded-xl border border-border bg-surface" aria-labelledby="services-title">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-2.5">
         <h2 id="services-title" className="m-0 font-display text-lg font-semibold">
-          Serviços monitorados <span className="text-sm font-medium text-muted">· {period}</span>
+          Serviços monitorados
         </h2>
         <label className="flex items-center gap-2 text-sm text-muted">
           <span className="sr-only">Buscar serviço por nome</span>
@@ -92,7 +104,7 @@ export default function ServicesTable({ services, period, onSelect }: Props) {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar por nome…"
-            className="h-10 w-60 max-w-full rounded-lg border border-border bg-surface-2 px-3 font-sans text-sm text-text outline-none placeholder:text-muted focus:border-primary"
+            className="h-9 w-60 max-w-full rounded-lg border border-border bg-surface-2 px-3 font-sans text-sm text-text outline-none placeholder:text-muted focus:border-primary"
           />
         </label>
       </div>
@@ -107,7 +119,7 @@ export default function ServicesTable({ services, period, onSelect }: Props) {
                 <th
                   key={column.key}
                   scope="col"
-                  className={`px-5 py-3 font-medium ${column.numeric ? 'text-right' : ''}`}
+                  className={`px-5 py-2 font-medium ${column.numeric ? 'text-right' : ''}`}
                   aria-sort={sortKey === column.key ? (direction === 1 ? 'ascending' : 'descending') : 'none'}
                 >
                   <button
@@ -134,7 +146,7 @@ export default function ServicesTable({ services, period, onSelect }: Props) {
                 }}
                 className="cursor-pointer border-t border-border hover:bg-surface-2"
               >
-                <th scope="row" className="px-5 py-3 text-left font-medium">
+                <th scope="row" className="px-5 py-2 text-left font-medium">
                   <button
                     type="button"
                     aria-haspopup="dialog"
@@ -144,35 +156,29 @@ export default function ServicesTable({ services, period, onSelect }: Props) {
                     {service.name}
                   </button>
                 </th>
-                <td className="px-5 py-3 text-right font-mono">
+                {/* O badge é o único elemento colorido da linha */}
+                <td className="px-5 py-2">
+                  <StatusBadge status={service.status} />
+                </td>
+                <td className="px-5 py-2 text-right font-mono">
                   {service.cpuPercent === null ? <MissingValue /> : `${formatNumber(service.cpuPercent, 0)}%`}
                 </td>
-                <td className="px-5 py-3 text-right font-mono">
-                  {service.energyKwh === null ? <MissingValue /> : formatNumber(service.energyKwh, 4)}
+                {/* Resolução fixa por coluna (kWh com 5 casas, g com 3): vírgulas alinhadas e 0,040 g em vez de "0,0" */}
+                <td className="px-5 py-2 text-right font-mono">
+                  {service.energyKwh === null ? <MissingValue /> : formatFixed(service.energyKwh, 5)}
                 </td>
-                <td className="px-5 py-3 text-right font-mono">
-                  {service.emissionsG === null ? <MissingValue /> : formatNumber(service.emissionsG, 1)}
+                <td className="px-5 py-2 text-right font-mono">
+                  {service.emissionsG === null ? <MissingValue /> : formatFixed(service.emissionsG, 3)}
                 </td>
-                <td className="px-5 py-3 text-right font-mono text-muted">
+                <td className="px-5 py-2 text-right font-mono text-muted">
                   {service.lastReadingAt === null ? 'nunca' : formatTime(service.lastReadingAt)}
                 </td>
-                <td className="px-5 py-3">
-                  {service.region && (
-                    <span className="mr-2 rounded-md border border-secondary/40 bg-secondary/10 px-2 py-0.5 font-mono text-xs text-secondary">
-                      {service.region}
+                <td className="whitespace-nowrap px-5 py-2 text-muted">
+                  {locationText(service) || (
+                    <span title="Localização não informada pelo agregador">
+                      —<span className="sr-only">sem localização</span>
                     </span>
                   )}
-                  <span className="text-muted">
-                    {[service.city, service.country].filter(Boolean).join(', ') ||
-                      (!service.region && (
-                        <span title="Localização não informada pelo agregador">
-                          —<span className="sr-only">sem localização</span>
-                        </span>
-                      ))}
-                  </span>
-                </td>
-                <td className="px-5 py-3">
-                  <StatusBadge status={service.status} />
                 </td>
               </tr>
             ))}
