@@ -27,3 +27,16 @@ export function formatDayTime(iso: string): string {
   const day = new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
   return `${day} ${formatTime(iso)}`;
 }
+
+/** Duração em segundos → "7 h 35 min", "2 min 10 s" ou "45 s". */
+export function formatDurationSeconds(totalSeconds: number): string {
+  const seconds = Math.max(0, Math.round(totalSeconds));
+  const days = Math.floor(seconds / 86_400);
+  const hours = Math.floor((seconds % 86_400) / 3_600);
+  const minutes = Math.floor((seconds % 3_600) / 60);
+  const rest = seconds % 60;
+  if (days) return hours ? `${days} d ${hours} h` : `${days} d`;
+  if (hours) return minutes ? `${hours} h ${minutes} min` : `${hours} h`;
+  if (minutes) return rest ? `${minutes} min ${rest} s` : `${minutes} min`;
+  return `${rest} s`;
+}

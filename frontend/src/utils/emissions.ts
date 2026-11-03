@@ -97,6 +97,24 @@ export function spanDays(start: string, end: string): number {
   return Math.round((parseInputDate(end).getTime() - parseInputDate(start).getTime()) / DAY_MS) + 1;
 }
 
+/** Maior período aceito de uma vez (o mesmo limite da série da #189). */
+export const MAX_SPAN_DAYS = 31;
+
+/**
+ * Filtro de período da URL (`?de=&ate=&tempo=real`); valor inválido ou ausente cai no padrão: hoje.
+ * `ate` fora do que o formulário aceita (antes de `de`, no futuro ou a mais de 31 dias) vale como inválida.
+ * O tempo real só vale com o período de hoje: um link antigo com `tempo=real` abre as próprias datas, sem polling (#212).
+ */
+export function readPeriodFilter(params: URLSearchParams, today: string): { start: string; end: string; live: boolean } {
+  const urlStart = params.get('de');
+  const urlEnd = params.get('ate');
+  const start = isInputDate(urlStart) && urlStart <= today ? urlStart : today;
+  const end =
+    isInputDate(urlEnd) && urlEnd >= start && urlEnd <= today && spanDays(start, urlEnd) <= MAX_SPAN_DAYS ? urlEnd : start;
+  const live = params.get('tempo') === 'real' && start === today && end === today;
+  return { start, end, live };
+}
+
 /** Período do filtro em milissegundos: do início do dia inicial até o fim do dia final, ou agora, se for antes. */
 export function periodMs(start: string, end: string): { fromMs: number; toMs: number } {
   const fromMs = parseInputDate(start).getTime();
@@ -208,7 +226,7 @@ export function describePeriod(summary: EmissionsSummary, bucket: EmissionsBucke
     );
   }
   if (missingMs > 0) {
-    lines.push(`${formatDuration(missingMs)} sem coleta no período: esses trechos não entram no total.`);
+    lines.push(`${formatDurationMilliseconds(missingMs)} sem coleta no período: esses trechos não entram no total.`);
   }
   return lines;
 }
@@ -308,7 +326,7 @@ export function formatRatio(ratio: number): string {
 }
 
 /** Duração curta: "45 min", "1 h 30 min", "2 d 4 h". */
-export function formatDuration(ms: number): string {
+export function formatDurationMilliseconds(ms: number): string {
   const totalMin = Math.max(1, Math.round(ms / 60_000));
   const days = Math.floor(totalMin / 1440);
   const hours = Math.floor((totalMin % 1440) / 60);

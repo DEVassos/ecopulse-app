@@ -19,7 +19,7 @@ export class UnauthorizedError extends AppError {
 
 export class DatabaseError extends AppError {
   constructor() {
-    super('DATABASE_ERROR', 500, 'Não foi possível verificar a conexão com o banco de dados.');
+    super('DATABASE_ERROR', 500, 'Não foi possível acessar o banco de dados.');
   }
 }
 

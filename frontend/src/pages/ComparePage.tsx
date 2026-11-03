@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import AppHeader from '../components/AppHeader';
+import CompareChart from '../components/CompareChart';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import LoadingState from '../components/LoadingState';
@@ -69,10 +70,13 @@ function co2eExtremes(services: ComparedService[]): { lowest: Set<string>; highe
   return { lowest: withValue(min), highest: withValue(max) };
 }
 
-/** Destaque da coluna: verde no menor CO₂e, laranja (alerta) no maior; sempre com o texto, nunca só a cor. */
+/**
+ * Destaque da coluna e da barra de CO₂e: verde no menor CO₂e, laranja (alerta) no maior; sempre com o texto, nunca só
+ * a cor.
+ */
 const EXTREME = {
-  lowest: { label: 'menor CO₂e', arrow: '↓', text: 'text-primary-hover', tint: 'bg-primary/10' },
-  highest: { label: 'maior CO₂e', arrow: '↑', text: 'text-warning', tint: 'bg-warning/10' },
+  lowest: { kind: 'lowest', label: 'menor CO₂e', arrow: '↓', text: 'text-primary-hover', tint: 'bg-primary/10' },
+  highest: { kind: 'highest', label: 'maior CO₂e', arrow: '↑', text: 'text-warning', tint: 'bg-warning/10' },
 } as const;
 
 /**
@@ -106,12 +110,15 @@ export default function ComparePage() {
   const [draftEnd, setDraftEnd] = useState(end);
   const [formError, setFormError] = useState('');
 
-  // A URL também muda pelo "voltar" do navegador: o formulário acompanha
-  useEffect(() => {
+  // A URL também muda pelo "voltar" do navegador: o formulário acompanha (ajuste na renderização, sem efeito)
+  const urlFilter = `${idsKey}|${start}|${end}`;
+  const [formFilter, setFormFilter] = useState(urlFilter);
+  if (formFilter !== urlFilter) {
+    setFormFilter(urlFilter);
     setDraftIds(idsKey === '' ? [] : idsKey.split(','));
     setDraftStart(start);
     setDraftEnd(end);
-  }, [idsKey, start, end]);
+  }
 
   const { data, loading, error, refresh } = useComparison(ids, start, end);
   const extremes = data ? co2eExtremes(data.services) : null;
@@ -271,6 +278,8 @@ export default function ComparePage() {
                 </tbody>
               </table>
             </div>
+
+            <CompareChart services={data.services} highlightOf={extremeOf} />
 
             <p className="m-0 border-t border-border px-5 py-3 text-xs text-muted">
               Estimativa, não medição: potência calculada a partir de CPU, memória, disco e rede × intervalo da coleta ×

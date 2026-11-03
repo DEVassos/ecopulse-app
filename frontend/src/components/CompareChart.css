@@ -1,0 +1,63 @@
+@layer components {
+  /*
+   * Barras da comparação (#218). Barra em --sky (dado secundário, docs/identidade-visual.md) sobre trilho em --border;
+   * no CO₂e, o menor em --accent-hover e o maior em --warning, as mesmas cores do destaque da tabela, sempre com a seta.
+   */
+  .compare-chart svg {
+    display: block;
+  }
+
+  .compare-chart__name {
+    fill: var(--text-2);
+    font-size: 12px;
+  }
+
+  .compare-chart__value {
+    fill: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .compare-chart__value--missing {
+    fill: var(--muted);
+    font-family: var(--sans);
+  }
+
+  .compare-chart__track {
+    fill: var(--border);
+  }
+
+  .compare-chart__bar {
+    fill: var(--sky);
+  }
+
+  .compare-chart__bar--lowest,
+  .compare-chart__flag--lowest {
+    fill: var(--accent-hover);
+  }
+
+  .compare-chart__bar--highest,
+  .compare-chart__flag--highest {
+    fill: var(--warning);
+  }
+
+  .compare-chart__flag--lowest,
+  .compare-chart__flag--highest {
+    font-weight: 600;
+  }
+
+  .compare-chart__key {
+    width: 12px;
+    height: 8px;
+    border-radius: 2px;
+  }
+
+  .compare-chart__key--lowest {
+    background: var(--accent-hover);
+  }
+
+  .compare-chart__key--highest {
+    background: var(--warning);
+  }
+}

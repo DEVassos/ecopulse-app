@@ -1,5 +1,7 @@
-import { ApiError, apiRequest } from './api';
+import { apiRequest, unexpectedFormat } from './api';
+import { CALCULATION_STATUSES, COLLECTION_STATUSES } from './collections.types';
 import type { CalculationStatus, CollectionStatus } from './collections.types';
+import { amount, count, instant, isRecord } from './contract';
 import { demoEmissions } from './emissions.demo';
 import type { EmissionPoint, EmissionsQuery, EmissionsSeries, EmissionsTotals } from './emissions.types';
 import { isDemoMode } from './services.service';
@@ -10,37 +12,9 @@ const PAGE_SIZE = 500;
 /** Teto de páginas por busca de coletas (até 15 000), para um período grande não travar a tela. */
 const MAX_PAGES = 30;
 
-const COLLECTION_STATUSES: readonly CollectionStatus[] = ['ok', 'erro', 'sem_metricas'];
-const CALCULATION_STATUSES: readonly CalculationStatus[] = ['nao_calculado', 'disponivel', 'indisponivel'];
-
-// ── Conferência da resposta em tempo de execução ────────────────────────────
+// ── Conferência da resposta em tempo de execução (utilitários em contract.ts) ──
 // Os tipos do TypeScript somem no build e não garantem o que o servidor mandou: item fora do formato fica de fora
 // (e é contado), em vez de virar um ponto errado no gráfico.
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/** Número finito ≥ 0, ou null quando o campo falta ou vem null; `undefined` quando vem inválido. */
-function amount(value: unknown): number | null | undefined {
-  if (value === undefined || value === null) return null;
-  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined;
-}
-
-function count(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : undefined;
-}
-
-function instant(value: unknown): number | undefined {
-  if (typeof value !== 'string') return undefined;
-  const t = Date.parse(value);
-  return Number.isNaN(t) ? undefined : t;
-}
-
-function unexpectedFormat(): ApiError {
-  // status 0: a requisição deu certo, mas o conteúdo não é o combinado em docs/api.md
-  return new ApiError('O servidor respondeu num formato inesperado. Avise a equipe do backend.', 0);
-}
 
 /**
  * Item de GET /api/collections → ponto de uma coleta só; null quando não serve para o gráfico.

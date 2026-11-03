@@ -73,16 +73,25 @@ case "$TIPO" in
     if [ "$BASE_REF" = "main" ] || [ "$BASE_REF" = "develop" ]; then ok "hotfix → $BASE_REF"; else fail "hotfix/* deve ter base 'main' (e um segundo PR para 'develop')"; fi ;;
 esac
 
-# 4. corpo: Closes #n (release dispensa)
+# 4. corpo: Closes #n (release dispensa). "Refs #n" só cita a issue: não fecha e não basta aqui
 N_BRANCH="$(issue_da_branch "$HEAD_REF")"
 if [ "$TIPO" != "release" ]; then
-  if printf '%s' "$BODY" | grep -Eq "$RE_PR_CLOSES"; then
-    ok "corpo referencia a issue (Closes/Fixes/Resolves/Refs #n)"
-    if [ -n "$N_BRANCH" ] && ! printf '%s' "$BODY" | grep -Eq "#${N_BRANCH}([^0-9]|$)"; then
-      warn "o corpo não cita a issue #$N_BRANCH do nome da branch"
+  FECHA="$(printf '%s' "$BODY" | grep -oE "$RE_PR_CLOSES" | grep -oE '[0-9]+' || true)"
+  if [ -n "$FECHA" ]; then
+    ok "corpo fecha a issue (Closes/Fixes/Resolves #n)"
+    if [ -n "$N_BRANCH" ] && ! printf '%s\n' "$FECHA" | grep -qx "$N_BRANCH"; then
+      if printf '%s' "$BODY" | grep -Eq "#${N_BRANCH}([^0-9]|$)"; then
+        warn "a issue #$N_BRANCH da branch não está em 'Closes', mas fecha no merge mesmo assim (o nº da branch liga o PR à issue)"
+      else
+        warn "o corpo não cita a issue #$N_BRANCH do nome da branch"
+      fi
     fi
+  elif [ "$TIPO" = "hotfix" ] && [ "$BASE_REF" = "develop" ] && printf '%s' "$BODY" | grep -Eq "$RE_PR_REFS"; then
+    ok "hotfix → develop: 'Refs #n' aceito (a issue fecha no PR do hotfix para main)"
+  elif printf '%s' "$BODY" | grep -Eq "$RE_PR_REFS"; then
+    fail "corpo só com 'Refs #n', que não fecha a issue. Use 'Closes #n' (ou Fixes/Resolves); para entrega parcial, abra outra issue (ES04)."
   else
-    fail "corpo sem 'Closes #n' (ou Fixes/Resolves/Refs). A issue é a chave de rastreabilidade (ES04)."
+    fail "corpo sem 'Closes #n' (ou Fixes/Resolves). A issue é a chave de rastreabilidade (ES04)."
   fi
 fi
 

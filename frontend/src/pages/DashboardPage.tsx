@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AppHeader from '../components/AppHeader';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -11,6 +11,9 @@ import UpdateFailedBanner from '../components/UpdateFailedBanner';
 import { useMonitoring } from '../hooks/useMonitoring';
 import { useServices } from '../hooks/useServices';
 import { isDemoMode } from '../services/services.service';
+import { fetchServicesSummary } from '../services/services.service';
+import type { ServicesSummaryResponse } from '../services/services.types';
+import SummaryPanel from '../components/SummaryPanel';
 import { summarizeStatus } from '../utils/summary';
 import './DashboardPage.css';
 
@@ -18,6 +21,39 @@ export default function DashboardPage() {
   const { data, loading, error, updatedAt, refresh } = useServices();
   const { refreshIntervalMs } = useMonitoring();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [summary, setSummary] = useState<ServicesSummaryResponse | null>(null);
+  const [previousSummary, setPreviousSummary] = useState<ServicesSummaryResponse | null>(null);
+  const [summaryError, setSummaryError] = useState('');
+  const [comparisonError, setComparisonError] = useState('');
+  const [comparisonLoading, setComparisonLoading] = useState(false);
+  useEffect(() => {
+    if (isDemoMode) return;
+    const controller = new AbortController(); const to = new Date(); const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
+    const previousFrom = new Date(from.getTime() - (to.getTime() - from.getTime()));
+    void (async () => {
+      try {
+        const current = await fetchServicesSummary(from.toISOString(), to.toISOString(), controller.signal);
+        if (controller.signal.aborted) return;
+        setSummary(current);
+        setSummaryError('');
+        // A variação anterior continua na tela até chegar a nova resposta, sem piscar "Comparando…" a cada ciclo
+        setComparisonError('');
+        setComparisonLoading(true);
+        try {
+          const previous = await fetchServicesSummary(previousFrom.toISOString(), from.toISOString(), controller.signal);
+          if (!controller.signal.aborted) setPreviousSummary(previous);
+        } catch (reason: unknown) {
+          if (!controller.signal.aborted) setComparisonError(reason instanceof Error ? reason.message : 'Não foi possível carregar a comparação.');
+        } finally {
+          // Também quando cancelada: o ciclo seguinte não herda "Comparando…" de uma busca que não terminou
+          setComparisonLoading(false);
+        }
+      } catch (reason: unknown) {
+        if (!controller.signal.aborted) setSummaryError(reason instanceof Error ? reason.message : 'Não foi possível carregar os indicadores.');
+      }
+    })();
+    return () => controller.abort();
+  }, [updatedAt]);
   // A janela usa a linha atual da lista: status, CPU e última leitura acompanham cada atualização
   const selected = data?.services.find((service) => service.id === selectedId) ?? null;
 
@@ -65,6 +101,8 @@ export default function DashboardPage() {
         {/* Falha não apaga o que já estava na tela: com dados, faixa compacta junto do último dado; sem dados, o aviso grande */}
         {data && <UpdateFailedBanner message={error} updatedAt={updatedAt} onRetry={refresh} />}
         {error && !data && <ErrorState message={error} onRetry={refresh} />}
+        {summaryError && <ErrorState message={summaryError} onRetry={refresh} />}
+        {comparisonError && <ErrorState message={comparisonError} onRetry={refresh} />}
 
         {loading && !data && <LoadingState message="Carregando serviços…" />}
 
@@ -79,6 +117,7 @@ export default function DashboardPage() {
         {data && data.services.length > 0 && (
           <KpiPanel summary={summarizeStatus(data.services)} staleSince={error ? updatedAt : null} />
         )}
+        {summary && <SummaryPanel summary={summary} previousSummary={previousSummary} comparisonLoading={comparisonLoading} stale={error !== '' || summaryError !== ''} />}
 
         {data && data.services.length > 0 && (
           <ServicesTable services={data.services} onSelect={(service) => setSelectedId(service.id)} />

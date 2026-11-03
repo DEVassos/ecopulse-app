@@ -50,9 +50,21 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Dashboard com o backend real (`docker compose`) em 22/10/2026: os 8 serviços ativos, e Indisponíveis e Sem métricas zerados, sem cor._
 
+- **RF08 — Indicadores agregados e comparação por período (#175, PR #215):** abaixo dos cards de estado, o dashboard mostra a energia (kWh) e o CO₂e (g) das últimas 24 h, com o período em horário de Brasília, e a variação contra as 24 h anteriores. Sem cálculo no período, o valor é "—", nunca zero; com total anterior zero, a tela informa que não há base para a variação. A API usa `GET /api/services/summary?from=&to=`, documentada em [docs/api.md](docs/api.md).
+
+  ![Indicadores agregados com comparação às 24 h anteriores](docs/img/sprint-2-indicadores-agregados.png)
+
+  _Dashboard com o backend real (`docker compose`) em 28/10/2026, 19h32: 0,2620 kWh e 64,61 g CO₂e nas últimas 24 h. O compose ficou desligado nas 24 h anteriores, então os cards dizem "Sem cálculo no período anterior" em vez de uma variação._
+
 - **RNF02 — Indicador de última atualização (#89):** selo no cabeçalho com o horário da última busca bem-sucedida e um ponto verde pulsando enquanto os dados estão em dia; se uma busca falha, ele fica laranja e passa a dizer "Desatualizado desde …", sem apagar os dados da tela.
 
   ![Selo de última atualização no cabeçalho](docs/img/sprint-2-ultima-atualizacao.png)
+
+- **RNF04 — Resposta da API conferida antes de aparecer na tela (#161):** o frontend confere o formato de `GET /api/services` e `GET /api/collections` contra o contrato de [docs/api.md](docs/api.md) a cada busca. Um item sem `id` ou com CPU em texto faz a busca ser tratada como falha: os dados anteriores continuam com "Desatualizado desde …" e **Tentar novamente**, e o item inválido não aparece. Atende ao apontamento do cliente na review da Sprint 1. Como verificar em [frontend/README.md](frontend/README.md#conferência-das-respostas-da-api-161).
+
+  ![Dashboard depois de uma resposta com a CPU em texto](docs/img/sprint-2-resposta-fora-do-contrato.png)
+
+  _Backend falso com `MOCK_SERVICES=cpu-texto` em 30/10/2026, 11h50: a faixa laranja aponta o campo recusado e a tabela mantém os dados de 11:50:47. O aviso "Rota não existe no backend falso." é do painel de indicadores: nessa data, o backend falso ainda não respondia `GET /services/summary` (#239)._
 
   _Selo em 21/10/2026, com o backend real (`docker compose`)._
 
@@ -66,7 +78,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 - **RF10 — API dos serviços e histórico de coletas (#115, #116, #119):** `GET /api/services` devolve os serviços monitorados com a última leitura, e `GET /api/collections?service_id=&from=&to=&limit=` devolve o histórico de coletas (com `limit` de 1 a 500), com CORS liberado para o dashboard. `GET /api/collections/series?service_id=&from=&to=&bucket=` (#207) agrupa as coletas de um serviço em intervalos de 15 min, 1 h ou 1 dia, com contagem, energia e CO₂e por intervalo e o total do período. Contrato completo em [docs/api.md](docs/api.md).
 
-- **RF09, RF10 — Detalhes e histórico do serviço (#135):** clicar num serviço da tabela abre uma janela com status, localização, última leitura, CPU e as 50 coletas mais recentes do serviço (`GET /api/collections`), com o período exibido na legenda. Acima da tabela, um gráfico de linha mostra a evolução da CPU nessas coletas, interrompido nas coletas com erro ou sem métricas (#132, PR #201). O histórico se atualiza no mesmo intervalo do dashboard; se uma busca falha, as coletas continuam na tela com "Desatualizado desde …". Como verificar em [frontend/README.md](frontend/README.md).
+- **RF09, RF10 — Detalhes e histórico do serviço (#135):** clicar num serviço da tabela abre uma janela com status, localização, última leitura, CPU e até 100 coletas mais recentes do serviço (`GET /api/collections`), com o período exibido na legenda. Acima da tabela, um gráfico de linha mostra a evolução da CPU nessas coletas, interrompido nas coletas com erro ou sem métricas (#132, PR #201). O histórico se atualiza no mesmo intervalo do dashboard; se uma busca falha, as coletas continuam na tela com "Desatualizado desde …". Como verificar em [frontend/README.md](frontend/README.md). Buracos maiores que o intervalo normal aparecem como “Sem coleta por …”, indicando ausência de registro — não prova de indisponibilidade. A janela exibe até 100 coletas recentes.
 
   ![Janela de detalhes de um serviço com o gráfico da CPU e o histórico de coletas](docs/img/sprint-2-detalhe-servico.png)
 
@@ -74,11 +86,11 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 - **RF07, RF09, RF10 — Página Emissões (#190, PRs #200 e #216):** o item **Emissões** do menu abre `/emissoes`, com a emissão estimada de CO₂e e a energia de uma estação no período escolhido. A estação e as datas ficam na URL, então o link abre no mesmo filtro. O agrupamento é automático pelo tamanho do período: cada coleta até 2 h (`GET /api/collections`), 15 min até 1 dia e 1 hora acima disso (`GET /api/collections/series`). O resumo mostra emissão, energia, média por coleta, pico, intensidade da região e coletas com falha, sem cálculo e tempo sem coleta. **Tempo real** busca de novo no intervalo do dashboard. Sem cálculo aparece "—", nunca zero, e numa falha o resumo fica apagado, com "Desatualizado desde …". O gráfico em SVG mostra a faixa da menor e da maior coleta, a média, o maior ponto e as falhas, e dá para alternar para o modo acumulado. A janela de detalhes do serviço leva direto à página. Como verificar em [frontend/README.md](frontend/README.md#página-emissões-190); print em [docs/img/sprint-2-emissoes.png](docs/img/sprint-2-emissoes.png).
 
-- **RF15 — Comparação entre serviços (#193, PR #214; #194):** o item **Comparação** do menu abre `/comparacao`, com 2 a 10 serviços lado a lado no mesmo período (até 31 dias): coletas, médias de CPU, memória, disco e rede, e energia e CO₂e somados, por `GET /api/services/compare`. O menor e o maior CO₂e ficam destacados, o período aparece acima da tabela, e serviço sem coletas aparece como "sem coletas", nunca zero. Serviços e datas ficam na URL. Como verificar em [frontend/README.md](frontend/README.md#comparação-entre-serviços-194).
+- **RF15 — Comparação entre serviços (#193, PR #214; #194, PR #219; #218):** o item **Comparação** do menu abre `/comparacao`, com 2 a 10 serviços lado a lado no mesmo período (até 31 dias): coletas, médias de CPU, memória, disco e rede, e energia e CO₂e somados, por `GET /api/services/compare`. O menor e o maior CO₂e ficam destacados, o período aparece acima da tabela, e serviço sem coletas aparece como "sem coletas", nunca zero. Abaixo da tabela, barras de energia e de CO₂e por serviço, cada grandeza na sua escala, com os mesmos valores e destaques. Serviços e datas ficam na URL. Como verificar em [frontend/README.md](frontend/README.md#comparação-entre-serviços-194).
 
   ![Comparação de quatro serviços com o backend real](docs/img/sprint-2-comparacao.png)
 
-  _Quatro serviços comparados com o backend real (`docker compose`) em 27/10/2026, das 00:00 às 15:01: Fraud Detector tem o maior CO₂e do período e Inventory Sync, o menor._
+  _Quatro serviços comparados com o backend real (`docker compose`) no dia 22/10/2026: Recommendation AI gastou mais energia (0,7758 kWh), mas Fraud Detector emitiu mais CO₂e (268,97 g), porque a região dele tem intensidade de carbono maior; Inventory Sync teve o menor CO₂e (15,06 g)._
 
 - **RNF05, DW07 — Execução com Docker (#91, #113, #81):** backend, frontend (nginx) e PostgreSQL sobem juntos por `docker compose up --build`, com volume persistente para o banco e todas as variáveis documentadas em [.env.example](.env.example) (#82). Passo a passo no [README](#8-como-executar).
 
@@ -88,14 +100,24 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   ![Dashboard com fundo azul-escuro](docs/img/sprint-2-fundo-azul.png)
 
-- **DW06 / RP06 — Login administrativo JWT (#20, PR #208):** `POST /api/auth/login` confere a senha com bcrypt e emite JWT HS256; `GET /api/auth/me` valida o token no middleware reutilizável do backend. A área de configuração protegida continua pendente.
+- **DW06 / RP06 — Login administrativo JWT (#20, PR #208):** `POST /api/auth/login` confere a senha com bcrypt e emite JWT HS256; `GET /api/auth/me` valida o token no middleware reutilizável do backend.
+
+- **DW06 / RP06 — Tela de login e área restrita (#25, PR #243):** `/login` confere o formulário antes de chamar o backend e mostra "E-mail ou senha incorretos." quando o `POST /api/auth/login` responde 401. Com o login, o token fica no `sessionStorage` da aba e toda chamada leva `Authorization: Bearer`; um 401 com sessão aberta encerra a sessão e volta para `/login`. `/configuracao` só abre com sessão e confirma o login em `GET /api/auth/me`; **Sair** apaga o token. O dashboard, Emissões e Comparação continuam públicos. Os parâmetros de monitoramento e a rota de configuração no backend ainda não existem.
+
+  ![Tela de login depois de uma senha errada](docs/img/sprint-2-login.png)
+
+  _Backend real (`docker compose`) em 01/11/2026: o backend respondeu 401 e a tela continua em `/login`, com a mensagem acima dos campos._
+
+  ![Área de configuração com a sessão confirmada](docs/img/sprint-2-configuracao.png)
+
+  _Depois do login com o administrador do seed, em 01/11/2026: `GET /api/auth/me` devolveu o e-mail lido no token, e o cabeçalho mostra **Sair**._
 
 ## 4. Escopo planejado
 
 > Planejado, **ainda não implementado**. O andamento real está no [quadro do projeto](https://github.com/orgs/DEVassos/projects/6) e no [plano de entregas](docs/plano-de-entregas.md).
 
 - **Dashboard em três níveis:** visão executiva (kWh total, gCO₂e, serviços ativos e indisponíveis, com atualização sem recarregar), análise comparativa (ranking e distribuição geográfica) e investigação detalhada (histórico por serviço).
-- **Área de configuração autenticada:** usa o login JWT já disponível no backend; tela e rotas de configuração seguem pendentes.
+- **Parâmetros da área de configuração:** o login e a proteção de `/configuracao` já existem; os parâmetros de monitoramento e a rota de configuração protegida no backend seguem pendentes.
 - **Prioridade apontada pelo cliente na review da Sprint 1:** comparar serviços e analisar os dados já coletados, para ver o que compensa fazer ([#159](https://github.com/DEVassos/greener-app/issues/159)).
 - **Diferenciais em estudo:** simulação de migração para regiões com matriz mais limpa ([US12, #53](https://github.com/DEVassos/greener-app/issues/53)) e exportação de relatórios em PDF/CSV ([US13, #54](https://github.com/DEVassos/greener-app/issues/54)), previstas para a Sprint 3.
 
@@ -106,7 +128,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 | Frontend | React + TypeScript (Vite, Tailwind CSS) |
 | Backend | Node.js + TypeScript, API REST em módulos (routes, controllers, services, repositories) |
 | Banco de dados | PostgreSQL com DDL e DML explícitos via driver `pg`, sem ORM |
-| Segurança | Login JWT no backend e bcrypt para senhas ([#20](https://github.com/DEVassos/greener-app/issues/20), PR #208); área de configuração protegida continua pendente |
+| Segurança | Login JWT no backend e bcrypt para senhas ([#20](https://github.com/DEVassos/greener-app/issues/20), PR #208); tela de login e área restrita no frontend ([#25](https://github.com/DEVassos/greener-app/issues/25), PR #243); rota de configuração protegida no backend continua pendente |
 | Execução | Docker Compose (frontend, backend e PostgreSQL com volume persistente) |
 
 ## 6. Equipe (DEVassos)
@@ -156,12 +178,13 @@ Os valores de configuração vivem em um `.env` na raiz do repositório, que **n
 
 São exemplos, não um preset universal: `DATABASE_URL` depende do banco, das credenciais e do host de cada ambiente — dentro de um container, `localhost` aponta para o próprio container, não para a máquina nem para o serviço do PostgreSQL. Revise os valores em cada instalação.
 
-O `compose.yaml` lê o `.env` e repassa as variáveis aos containers ([#27](https://github.com/DEVassos/greener-app/issues/27)). Dentro do compose, a `DATABASE_URL` do backend é montada a partir de `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB` com o host `postgres`; a `DATABASE_URL` do `.env` só vale para rodar o backend fora do Docker. O compose repassa só as variáveis declaradas nele, e `POLLING_INTERVAL_MS` ainda não está entre elas. Sem `.env`, o banco pode usar os padrões do `compose.yaml`, mas o backend não inicia porque `JWT_SECRET` é obrigatório; o frontend é construído sem `VITE_API_URL` e entra em modo demonstração. Por isso, rode sempre `cp .env.example .env` antes da primeira subida.
+O `compose.yaml` lê o `.env` e repassa as variáveis aos containers ([#27](https://github.com/DEVassos/greener-app/issues/27)). Dentro do compose, a `DATABASE_URL` do backend é montada a partir de `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB` com o host `postgres`; a `DATABASE_URL` do `.env` só vale para rodar o backend fora do Docker. O compose repassa só as variáveis declaradas nele, e `POLLING_INTERVAL_MS` ainda não está entre elas. Sem `.env`, o PostgreSQL não inicializa porque `ADMIN_EMAIL` e `ADMIN_PASSWORD` são obrigatórios para o seed; o backend também exige `JWT_SECRET`, e o frontend é construído sem `VITE_API_URL` e entra em modo demonstração. Por isso, rode sempre `cp .env.example .env` antes da primeira subida.
 
 | Variável | Exemplo em `.env.example` | Para que serve |
 |---|---|---|
 | `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | `ecopulse` / `ecopulse` / `ecopulse_db` | usuário, senha e banco criados no PostgreSQL do compose na primeira subida do volume |
 | `POSTGRES_HOST_PORT` | `5433` | porta do host em que o banco do compose fica acessível; dentro do Docker é sempre `postgres:5432`. 5433 evita conflito com um PostgreSQL local; troque se ela estiver em uso |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | `admin@ecopulse.local` / `admin1234` | credenciais de desenvolvimento do administrador inicial; o seed as usa só na primeira criação do usuário. Defina valores próprios em cada instalação |
 | `PORT` | `3000` | porta HTTP da API quando o backend roda fora do Docker; no compose ela é fixa em 3000 |
 | `DATABASE_URL` | `postgresql://ecopulse:ecopulse@localhost:5433/ecopulse_db` | conexão do PostgreSQL usada pelo driver `pg` fora do Docker (no compose ela é montada com `POSTGRES_*`) |
 | `CARBON_API_URL` | `https://carbon.unilaunch.org` | base da API de intensidade de carbono do parceiro |
@@ -172,6 +195,8 @@ O `compose.yaml` lê o `.env` e repassa as variáveis aos containers ([#27](http
 | `CORS_ORIGIN` | `http://localhost:5173` | origem(ns) do dashboard liberadas pelo backend para chamar a API pelo navegador (CORS), separadas por vírgula |
 | `VITE_API_URL` | `http://localhost:3000/api` | base da API consumida pelo dashboard; vazia, o frontend entra em modo demonstração |
 | `VITE_REFRESH_INTERVAL_MS` | `30000` | intervalo da atualização automática do dashboard em ms (mínimo 5000); entra no build do frontend |
+
+Os valores de `ADMIN_EMAIL` e `ADMIN_PASSWORD` acima são apenas credenciais locais de desenvolvimento, não credenciais de produção. Cada instalação define valores próprios no `.env`; a senha não é versionada nem armazenada em texto puro. Para autenticação local, use as credenciais `ADMIN_*` do `.env` (valores de exemplo em [`.env.example`](.env.example)).
 
 Nenhum segredo real entra no repositório (RP06): cada instalação tem banco, usuários e segredo próprios, então troque esses valores no `.env` antes de publicar.
 

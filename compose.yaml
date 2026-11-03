@@ -12,6 +12,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-ecopulse}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ecopulse}
       POSTGRES_DB: ${POSTGRES_DB:-ecopulse_db}
+      # Usadas somente pelo script de inicialização do administrador em volume novo.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL precisa estar definido no .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD precisa estar definido no .env}
     volumes:
       # Volume nomeado: os dados sobrevivem a restart, stop e down (BD03); só down -v apaga
       - pgdata:/var/lib/postgresql/data
@@ -22,7 +25,7 @@ services:
       - "${POSTGRES_HOST_PORT:-5433}:5432"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10

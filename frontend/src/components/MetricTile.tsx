@@ -6,7 +6,8 @@ export type MetricTone = 'neutral' | 'success' | 'danger' | 'warning';
 
 interface Props {
   label: string;
-  value: string;
+  /** Número já formatado, ou o MissingValue quando não há valor. */
+  value: ReactNode;
   unit?: string;
   /** Texto curto ao lado do valor (proporção, base da contagem); omitido quando não acrescenta nada. */
   note?: string;

@@ -6,15 +6,15 @@ Decisões e fontes do modelo em [`integracao-modelagem-banco.md`](../docs/arquit
 
 ## Arquivos e ordem
 
-`database/schema.sql` é a fonte única de inicialização: services, users, collections e access_entries, constraints, índices e comentários em uma transação. Exige PostgreSQL 14 ou superior (numeric com valores especiais nos CHECKs); o compose usa `postgres:16-alpine`. Ainda não há seeds.
+`database/schema.sql` é a fonte única do modelo: services, users, collections e access_entries, constraints, índices e comentários em uma transação. Exige PostgreSQL 14 ou superior (numeric com valores especiais nos CHECKs); o compose usa `postgres:16-alpine`. Depois dele, `zz-seed-admin.sh` cria o administrador inicial usando `ADMIN_EMAIL` e `ADMIN_PASSWORD` do ambiente: a senha de cada instalação não é versionada nem gravada em texto puro; o `.env.example` contém apenas valores de desenvolvimento.
 
 ## Execução pelo compose (#27)
 
 A execução oficial é exclusivamente Docker (RP04, ADR 0003). O serviço `postgres` do [`compose.yaml`](../compose.yaml):
 
-- monta esta pasta em `/docker-entrypoint-initdb.d/` (somente leitura). Na **primeira** criação do volume, o entrypoint do PostgreSQL executa os `.sql` daqui em ordem alfabética, hoje só `schema.sql`, e ignora o `README.md`;
+- monta esta pasta em `/docker-entrypoint-initdb.d/` (somente leitura). Na **primeira** criação do volume, o entrypoint executa `schema.sql` e, depois, `zz-seed-admin.sh`; o script habilita `pgcrypto`, gera um hash bcrypt com custo 10 e insere um único administrador. Ele ignora o `README.md`;
 - guarda os dados no volume nomeado `pgdata` (`/var/lib/postgresql/data`). Eles sobrevivem a `docker compose restart`, `stop` e `down`; só `docker compose down -v` apaga o volume (BD03);
-- tem healthcheck `pg_isready`, e o backend só sobe depois dele (`depends_on: condition: service_healthy`);
+- tem healthcheck `pg_isready -h 127.0.0.1`, por TCP: em volume novo, o servidor temporário que aplica os `.sql` só aceita conexões pelo socket local, então o banco só fica saudável quando o backend já consegue conectar (#246). O backend só sobe depois dele (`depends_on: condition: service_healthy`);
 - atende em `postgres:5432` dentro da rede do compose (é o endereço que o backend usa) e fica exposto no host na porta `POSTGRES_HOST_PORT` (padrão e exemplo: 5433, para não conflitar com um PostgreSQL local na 5432). Se a 5433 estiver ocupada, troque no `.env`; a porta interna não muda.
 
 Para acessar do host (psql local, DBeaver): `psql -h localhost -p 5433 -U ecopulse -d ecopulse_db` (ou a porta definida em `POSTGRES_HOST_PORT`).
@@ -30,7 +30,26 @@ docker compose exec postgres psql -U ecopulse -d ecopulse_db -c '\dt'
 docker compose exec postgres psql -U ecopulse -d ecopulse_db -c 'SELECT count(*) FROM collections;'
 ```
 
-Esperado: as quatro tabelas (`access_entries`, `collections`, `services`, `users`) e a contagem do histórico. No log (`docker compose logs postgres`) aparece `running /docker-entrypoint-initdb.d/schema.sql` só na primeira subida.
+Esperado: as quatro tabelas (`access_entries`, `collections`, `services`, `users`), a contagem do histórico e um único administrador. No log (`docker compose logs postgres`) aparecem `running /docker-entrypoint-initdb.d/schema.sql` e `running /docker-entrypoint-initdb.d/zz-seed-admin.sh` só na primeira subida.
+
+```bash
+docker compose exec postgres psql -U ecopulse -d ecopulse_db \
+  -c "SELECT email, left(password_hash, 7) AS prefixo, count(*) OVER () AS total FROM users;"
+```
+
+Esperado: uma linha para `ADMIN_EMAIL`, prefixo `$2a$10$` ou `$2b$10$` e total `1`. O seed usa o índice único de e-mail sem distinguir maiúsculas/minúsculas.
+
+### Reaplicar o seed
+
+Em um volume já existente, inclua `ADMIN_EMAIL` e `ADMIN_PASSWORD` no `.env` se ainda não estiverem definidos e execute o seed sem apagar o volume:
+
+```bash
+docker compose exec postgres sh /docker-entrypoint-initdb.d/zz-seed-admin.sh
+```
+
+Esperado: `INSERT 0 0` se o administrador já existe ou `INSERT 0 1` se ele ainda não existia; a consulta acima deve continuar mostrando uma única linha. O seed é idempotente. Alterar `ADMIN_PASSWORD` e reaplicar não troca a senha já cadastrada (`ON CONFLICT DO NOTHING`).
+
+Em clones existentes, copiar as duas variáveis do `.env.example` para o `.env` e executar o comando acima preserva o volume e os demais dados. Não use `docker compose down -v` para atualizar as credenciais.
 
 Persistência (BD03): insira um registro, reinicie e conte de novo.
 

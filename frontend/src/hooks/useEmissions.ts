@@ -45,13 +45,17 @@ export function useEmissions({ serviceId, start, end, bucket, live, intervalMs }
   const [reload, setReload] = useState(0);
 
   // Trocar de estação, período ou agrupamento não deixa a série antiga na tela como se fosse a nova; o horário e o
-  // erro também são da série anterior ("Desatualizado desde …" só vale para o dado que está na tela)
-  useEffect(() => {
+  // erro também são da série anterior ("Desatualizado desde …" só vale para o dado que está na tela).
+  // O ajuste acontece na própria renderização, e não num efeito, para a série antiga não aparecer nem por um quadro.
+  const filter = `${serviceId}|${start}|${end}|${bucket}`;
+  const [shownFilter, setShownFilter] = useState(filter);
+  if (shownFilter !== filter) {
+    setShownFilter(filter);
     setData(null);
     setPeriod(null);
     setUpdatedAt(null);
     setError('');
-  }, [serviceId, start, end, bucket]);
+  }
 
   useEffect(() => {
     if (serviceId === null) return undefined;

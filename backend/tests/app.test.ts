@@ -6,7 +6,7 @@ import { createApp } from '../src/app';
 import { errorHandler } from '../src/middlewares/error-handler';
 import { CollectionRepository } from '../src/modules/collections/collections.repository';
 import { ServiceRepository } from '../src/modules/services/services.repository';
-import { DatabaseError } from '../src/shared/errors';
+import { DatabaseError, ExternalApiError } from '../src/shared/errors';
 
 function repositories(collectionRows: unknown[] = [], serviceRows: unknown[] = [], serviceFailure?: Error) {
   return {
@@ -36,7 +36,9 @@ describe('HTTP', () => {
     const verify = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new DatabaseError()).mockResolvedValueOnce(undefined);
     const { collections, services } = repositories(); const url = await serve(createApp(verify, collections, services));
     expect(await (await fetch(url + '/health')).json()).toEqual({ status: 'ok', db: 'ok' });
-    expect((await fetch(url + '/health')).status).toBe(500);
+    const failed = await fetch(url + '/health');
+    expect(failed.status).toBe(500);
+    expect(await failed.json()).toEqual({ error: { code: 'DATABASE_ERROR', message: 'Não foi possível acessar o banco de dados.' } });
     expect((await fetch(url + '/health')).status).toBe(200);
   });
   it('recusa JSON inválido e rota inexistente', async () => {
@@ -49,6 +51,59 @@ describe('HTTP', () => {
     const response = await fetch(await serve(createApp(async () => {}, collections, services)) + '/api/services');
     expect(response.status).toBe(200); expect((await response.json()).services[0]).toMatchObject({ id: '1', cpuPercent: 51.25,
       energyKwh: 0.000480452625, emissionsG: 0.040838473125 });
+  });
+  it('retorna os indicadores agregados para o período solicitado', async () => {
+    const summary = { energy_kwh: '1.2500', co2e_grams: '85.5000', active: '3', unavailable: '1', without_metrics: '2', removed: '0' };
+    const { collections, services } = repositories([], [summary]);
+    const response = await fetch(await serve(createApp(async () => {}, collections, services))
+      + '/api/services/summary?from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      period: { from: '2026-10-20T00:00:00.000Z', to: '2026-10-21T00:00:00.000Z' },
+      energyKwh: 1.25, co2eGrams: 85.5,
+      services: { active: 3, unavailable: 1, withoutMetrics: 2, removed: 0 },
+    });
+  });
+  it('preserva null nos totais quando não houve cálculo disponível no período', async () => {
+    const summary = { energy_kwh: null, co2e_grams: null, active: '1', unavailable: '0', without_metrics: '0', removed: '0' };
+    const { collections, services } = repositories([], [summary]);
+    const response = await fetch(await serve(createApp(async () => {}, collections, services))
+      + '/api/services/summary?from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ energyKwh: null, co2eGrams: null });
+  });
+  it('mantém zero quando cálculos disponíveis totalizam zero', async () => {
+    const summary = { energy_kwh: '0', co2e_grams: '0', active: '1', unavailable: '0', without_metrics: '0', removed: '0' };
+    const { collections, services } = repositories([], [summary]);
+    const response = await fetch(await serve(createApp(async () => {}, collections, services))
+      + '/api/services/summary?from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ energyKwh: 0, co2eGrams: 0 });
+  });
+  it('usa as últimas 24 horas quando o período do resumo é omitido', async () => {
+    const summary = { energy_kwh: null, co2e_grams: null, active: '0', unavailable: '0', without_metrics: '0', removed: '0' };
+    const { collections, services } = repositories([], [summary]);
+    const response = await fetch(await serve(createApp(async () => {}, collections, services)) + '/api/services/summary');
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(new Date(body.period.to).getTime() - new Date(body.period.from).getTime()).toBe(24 * 60 * 60 * 1000);
+  });
+  it('rejeita data de calendário inexistente nos filtros do resumo', async () => {
+    const { collections, services } = repositories();
+    const base = await serve(createApp(async () => {}, collections, services));
+    const response = await fetch(base + '/api/services/summary?from=2026-02-30T00:00:00Z&to=2026-03-03T00:00:00Z');
+    expect(response.status).toBe(400);
+  });
+  it.each([
+    ['só from', 'from=2026-10-20T00:00:00Z'],
+    ['from igual a to', 'from=2026-10-20T00:00:00Z&to=2026-10-20T00:00:00Z'],
+    ['from depois de to', 'from=2026-10-21T00:00:00Z&to=2026-10-20T00:00:00Z'],
+    ['período acima de 31 dias', 'from=2026-09-01T00:00:00Z&to=2026-10-03T00:00:00Z'],
+  ])('rejeita %s no resumo com 400 VALIDATION_ERROR', async (_case, query) => {
+    const { collections, services } = repositories();
+    const response = await fetch(await serve(createApp(async () => {}, collections, services)) + '/api/services/summary?' + query);
+    expect(response.status).toBe(400);
+    expect((await response.json()).error.code).toBe('VALIDATION_ERROR');
   });
   it('compara serviços no período informado', async () => {
     const rows = [
@@ -72,12 +127,30 @@ describe('HTTP', () => {
   });
   it('valida filtros de collections', async () => {
     const { collections, services } = repositories();
-    expect((await fetch(await serve(createApp(async () => {}, collections, services)) + '/api/collections?limit=abc')).status).toBe(400);
+    const response = await fetch(await serve(createApp(async () => {}, collections, services)) + '/api/collections?limit=abc');
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'limit deve ser inteiro entre 1 e 500.' } });
   });
   it('retorna 404 para service_id inexistente', async () => {
     const { collections, services } = repositories([], []);
     expect((await fetch(await serve(createApp(async () => {}, collections, services)) + '/api/collections?service_id=99')).status).toBe(404);
   });
+  it('expõe o intervalo da coleta no histórico e mantém nulo sem métricas', async () => {
+    const { collections, services } = repositories([
+      { id: '2', service_id: '1', collected_at: new Date('2026-10-14T20:01:00.000Z'), status: 'ok',
+        collection_interval_seconds: 27, cpu_percent: '42.5', memory_gb: '1.2', disk_gb: '10', network_gb: '0.3', error_message: null },
+      { id: '1', service_id: '1', collected_at: new Date('2026-10-14T20:00:00.000Z'), status: 'erro',
+        collection_interval_seconds: null, cpu_percent: null, memory_gb: null, disk_gb: null, network_gb: null, error_message: 'Timeout' },
+    ]);
+    const response = await fetch(await serve(createApp(async () => {}, collections, services)) + '/api/collections');
+    expect(response.status).toBe(200);
+    expect((await response.json()).collections).toEqual([
+      expect.objectContaining({ id: '2', collectionIntervalSeconds: 27 }),
+      expect.objectContaining({ id: '1', collectionIntervalSeconds: null }),
+    ]);
+
+  });
+
 
   it('devolve a série por intervalo com os totais do período', async () => {
     const seriesRows = [
@@ -106,13 +179,13 @@ describe('HTTP', () => {
         co2eMaxGrams: 0.089094607769, carbonIntensityGco2ePerKwh: 85 },
     });
   });
-  
+
   it('retorna 404 para série de serviço inexistente', async () => {
     const { collections, services } = repositories([], []);
     expect((await fetch(await serve(createApp(async () => {}, collections, services))
       + '/api/collections/series?service_id=99&from=2026-10-23T00:00:00Z&to=2026-10-24T00:00:00Z&bucket=1h')).status).toBe(404);
   });
-  
+
   it.each([
     'service_id=1&from=2026-10-23T00:00:00Z&to=2026-10-24T00:00:00Z',
     'from=2026-10-23T00:00:00Z&to=2026-10-24T00:00:00Z&bucket=15min',
@@ -151,9 +224,23 @@ describe('HTTP', () => {
     expect(body.collections[3]).toMatchObject({ calculationStatus: 'indisponivel', energyKwh: null, co2eGrams: null });
   });
   it('protege erros inesperados', async () => {
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const { collections, services } = repositories();
-    expect((await fetch(await serve(createApp(async () => { throw new Error('senha'); }, collections, services)) + '/health')).status).toBe(500);
+    const response = await fetch(await serve(createApp(async () => { throw new Error('erro interno'); }, collections, services)) + '/health');
+    expect(response.status).toBe(500);
+    expect(await response.json()).toEqual({ error: { code: 'INTERNAL_ERROR', message: 'Erro interno do servidor.' } });
+    expect(log).toHaveBeenCalledWith('Erro interno ao processar requisição.', expect.objectContaining({ message: 'erro interno' }));
+  });
+  it('converte falha de integração em erro padronizado sem derrubar o servidor', async () => {
+    const app = express();
+    app.get('/integration', (_req, _res, next) => next(new ExternalApiError('API de métricas indisponível.')));
+    app.get('/health', (_req, res) => res.json({ status: 'ok' }));
+    app.use(errorHandler);
+    const url = await serve(app);
+    const failed = await fetch(url + '/integration');
+    expect(failed.status).toBe(502);
+    expect(await failed.json()).toEqual({ error: { code: 'EXTERNAL_API_ERROR', message: 'API de métricas indisponível.' } });
+    expect(await (await fetch(url + '/health')).json()).toEqual({ status: 'ok' });
   });
   it('preserva o error handler isolado', async () => {
     const app = express(); app.use(express.json()); app.post('/test', (req, res) => res.json(req.body)); app.use(errorHandler);

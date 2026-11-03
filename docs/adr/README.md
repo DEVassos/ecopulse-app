@@ -14,6 +14,8 @@ Decisões técnicas e de processo que afetam o repositório inteiro são registr
 | [0004](0004-vite-tailwind-frontend.md) | Vite e Tailwind CSS no frontend | aceito | 2026-10-08 | #67 · RP01, RNF01, RNF05 · DW01, DW04, ES08 |
 | [0005](0005-frontend-nginx-build-producao.md) | Frontend servido por nginx com o build de produção no compose | aceito (PR #81) | 2026-10-08 | #80 · RP04, RNF05 · DW07, DW01, TP02 |
 | [0006](0006-modelo-potencia-fatores-emissao.md) | Modelo de potência e fatores de emissão do cálculo de energia e CO₂e | aceito (PRs #136 e #139) | 2026-10-16 | #133 · RF07, RF08 · TP01, DW02, BD04 |
+| [0007](0007-typescript-6-eslint-frontend.md) | TypeScript 6.0 no frontend para o lint com ESLint | aceito (PR #230) | 2026-10-28 | #160 · RP01 · DW01, TP02 |
+| [0008](0008-conferencia-respostas-fronteiras-api.md) | Conferência das respostas nas fronteiras de API | proposto | 2026-10-30 | #236 · RNF04 · TP02, TP03, DW02 |
 
 ## Como criar um ADR
 

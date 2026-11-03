@@ -80,7 +80,8 @@ No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg
 * Texto e cor juntos (o estado nunca é mostrado só pela cor), sempre com tokens: **Ativo**/**OK** em `--accent-hover` sobre `--accent` a 10%; **Indisponível**/**Erro** em `--danger` sobre `--error` a 10%; **Sem métricas** em `--warning` sobre `--warning` a 10%; **Removido** em `--muted` sobre `--surface-3`. Sobre a superfície, o pior caso é 5,4:1 (Sem métricas), acima do AA para texto pequeno.
 
 ### Barras de ranking e de proporção
-* Trilho em `--border`, barra em `--accent-hover` e o 1º lugar em `--neon` (com `--neon-glow` de brilho). Ainda não há componente de barras: é o padrão que o ranking da US09 (#50) e qualquer barra de proporção vão seguir. Como o neon e o `--accent-hover` ficam a 1,5:1 um do outro, o 1º lugar também precisa de rótulo ou posição, não só da cor.
+* Trilho em `--border`, barra em `--accent-hover` e o 1º lugar em `--neon` (com `--neon-glow` de brilho). É o padrão que o ranking da US09 (#50) e qualquer barra de proporção vão seguir. Como o neon e o `--accent-hover` ficam a 1,5:1 um do outro, o 1º lugar também precisa de rótulo ou posição, não só da cor.
+* Na comparação entre serviços (`CompareChart`, #218), as barras não são ranking: ficam em `--sky` sobre trilho em `--border`, e no CO₂e o menor vai em `--accent-hover` e o maior em `--warning`, os mesmos tons do destaque da tabela, sempre com a seta "↓"/"↑" e a legenda.
 
 ### Tipografia
 * Tipografia limpa e sem serifa otimizada para painéis de dados (Dashboards), em três famílias do Google Fonts carregadas em `frontend/index.html`:

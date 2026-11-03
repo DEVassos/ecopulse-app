@@ -185,7 +185,8 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
     });
     flush();
     return { line: linePath, area: areaPath, bandPath: bandD, dots: single };
-    // x e y dependem só de plotW, plotH, fromMs, toMs e yMax
+    // x e y são recriadas a cada renderização, mas dependem só de plotW, plotH, fromMs, toMs e yMax, que estão na lista
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- listar x e y refaria os caminhos do gráfico a cada renderização
   }, [points, times, values, band, stepMs, grouped, openIndex, plotW, plotH, fromMs, toMs, yMax]);
 
   // Intervalo em andamento: o meio dele passa de "agora", então o ponto fica no fim do plot

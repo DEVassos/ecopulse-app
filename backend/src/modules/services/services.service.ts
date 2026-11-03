@@ -42,13 +42,20 @@ export async function getServices(repository: ServiceRepository): Promise<Servic
   return { services: (await repository.findAllWithLastReading()).map(toMonitoredService), period: PERIOD };
 }
 
+export interface ServicesSummaryResponse { period: { from: string; to: string }; energyKwh: number | null; co2eGrams: number | null; services: { active: number; unavailable: number; withoutMetrics: number; removed: number } }
+const numberOrNull = (value: string | null): number | null => value === null ? null : Number(value);
+
+export async function getServicesSummary(repository: ServiceRepository, period: { from: Date; to: Date }): Promise<ServicesSummaryResponse> {
+  const row = await repository.findSummary(period.from, period.to);
+  return { period: { from: period.from.toISOString(), to: period.to.toISOString() }, energyKwh: numberOrNull(row.energy_kwh), co2eGrams: numberOrNull(row.co2e_grams), services: { active: Number(row.active), unavailable: Number(row.unavailable), withoutMetrics: Number(row.without_metrics), removed: Number(row.removed) } };
+}
+
 export interface ServiceComparisonInput { ids: string[]; from: Date; to: Date }
 export interface ServiceComparisonResponse {
   from: string; to: string;
   services: Array<{ id: string; name: string; region: string | null; collections: number; failed: number; notCalculated: number;
     avgCpuPercent: number | null; avgMemoryGb: number | null; avgDiskGb: number | null; avgNetworkGb: number | null; energyKwh: number | null; co2eGrams: number | null }>;
 }
-const numberOrNull = (value: string | null): number | null => value === null ? null : Number(value);
 function comparison(row: ServiceComparisonRow): ServiceComparisonResponse['services'][number] {
   return { id: row.id, name: row.name, region: row.region, collections: Number(row.collections), failed: Number(row.failed), notCalculated: Number(row.not_calculated),
     avgCpuPercent: numberOrNull(row.avg_cpu_percent), avgMemoryGb: numberOrNull(row.avg_memory_gb), avgDiskGb: numberOrNull(row.avg_disk_gb), avgNetworkGb: numberOrNull(row.avg_network_gb), energyKwh: numberOrNull(row.energy_kwh), co2eGrams: numberOrNull(row.co2e_grams) };

@@ -97,7 +97,7 @@ Esperado: `200` e `{"status":"ok","db":"ok"}`; no log, `API disponível na porta
 
 `jobs/collector.ts` é iniciado pelo `server.ts` depois que o HTTP abre e parado no SIGTERM. A cada ciclo:
 
-1. **Descoberta:** `GET /services` no agregador. A lista inteira é validada; se vier fora do formato, o ciclo é descartado e o cadastro e os estados ficam como estavam.
+1. **Descoberta:** `GET /services` no agregador. Se a consulta falhar, o cadastro é preservado, sem reconciliar remoções: os serviços conhecidos não removidos recebem coleta `erro`, medidas nulas e estado `indisponivel`, com diagnóstico explícito de falha na descoberta. A transição de `ativo` ou `sem_metricas` para `indisponivel` independe do prazo da próxima métrica; serviços já indisponíveis respeitam o prazo existente. Enquanto a falha persistir, novas tentativas seguem o último intervalo válido ou `POLLING_INTERVAL_MS`. Uma lista recebida, mas reprovada na validação interna, é descartada sem reconciliação.
 2. **Reconciliação**, numa transação: upsert por `external_id`, preservando o ID e a primeira descoberta; quem saiu da lista vira `removido` e volta a `ativo` quando reaparece. Lista vazia válida marca todos como removidos, sem fabricar coleta.
 3. **Coleta por prazo:** `GET /metrics/{id}` de cada serviço vencido, com o HTTP fora das transações. O próximo prazo segue o `collection_interval_seconds` da própria métrica; em caso de falha, vale o último intervalo válido, ou `POLLING_INTERVAL_MS` se ainda não houver um. O dispatcher agenda o próximo ciclo só depois de terminar o atual, sem sobreposição.
 4. **Cálculo** (#133): para coleta válida, consulta a intensidade de carbono da região e calcula potência, energia e CO₂e com o `CarbonCalculator` (`domain/carbon-calculator.ts`). Fórmula, constantes, unidades e exemplos em [`docs/calculos.md`](../docs/calculos.md); decisão em [ADR 0006](../docs/adr/0006-modelo-potencia-fatores-emissao.md).
@@ -159,16 +159,40 @@ Com o compose da raiz (`cp .env.example .env && docker compose up --build -d`):
 
 ## Testes
 
-`npm test` (Vitest) cobre configuração, boot e encerramento, rotas e erros HTTP, CORS, os dois clientes de API (sucesso, formato inválido, 404, 500, rede, timeout, cancelamento e cache), o coletor (descoberta, prazos, isolamento de falhas, rollback e cálculo disponível ou indisponível) e o `CarbonCalculator`. O CI roda `npx tsc --noEmit` e `npm test` a cada PR, e o job `compose` constrói a imagem, o que executa o build.
+### Dependências dos testes (#163)
 
-As suítes de integração com PostgreSQL real (`tests/repositories.integration.test.ts` e `tests/collector.integration.test.ts`) são puladas sem as variáveis `REPOSITORY_TEST_DATABASE_URL` e `WORKER_TEST_DATABASE_URL`. Para rodá-las, use bancos novos, distintos e descartáveis, com `database/schema.sql` aplicado; a suíte de repositories exige antes a fixture abaixo (hash sintético só no formato exigido pelo CHECK, não credencial):
+O Vitest usa a linha `~4.1.12`, compatível com o Node 22 do CI e o Node 24 do Dockerfile. O lockfile mantém Vite 7.3.7; não é necessário migrar para Vite 8, alterar os testes ou adicionar configuração de pool.
 
-```sql
-SELECT setval(pg_get_serial_sequence('services', 'id'), 9007199254740993, false);
-INSERT INTO users (id, email, password_hash) OVERRIDING SYSTEM VALUE
-VALUES (9007199254740993, 'review@example.test', '$2b$10$' || repeat('a', 53));
+- [`GHSA-82fw-gwwq-j7x9`](https://github.com/advisories/GHSA-82fw-gwwq-j7x9): leitura de arquivos fora dos limites permitidos pelo mocker, corrigida em Vitest e `@vitest/mocker` 4.1.11. O patch 4.1.12 também endurece os mocks manuais.
+- [`GHSA-5gmw-xhrv-c9v3`](https://github.com/advisories/GHSA-5gmw-xhrv-c9v3) e [`GHSA-85c8-ppgw-ccpr`](https://github.com/advisories/GHSA-85c8-ppgw-ccpr): opções de workers herdadas por poluição de protótipo no `tinypool`, corrigidas nele em 2.1.1 e 2.1.2, respectivamente. O [Vitest 4 removeu o tinypool](https://v4.vitest.dev/guide/migration.html#pool-rework); não foi necessário sobrescrever versões transitivas.
+
+Para conferir, rode `npm ci`, `npm ls vitest @vitest/mocker vite --all` e `npm audit`. Os três avisos acima não devem aparecer. O audit ainda pode sair com código 1 por alertas fora da #163: o levantamento de 31/10/2026 encontrou `body-parser` 2.3.0 (`GHSA-27r3-jxmh-p828`) e `qs` 6.16.0 (`GHSA-6pq8-jhm2-2vcw`), trazidos pelo Express. Essas dependências de produção não foram atualizadas nesta tarefa; exigem acompanhamento separado. Execute testes, tipos e build separadamente do audit, para que esses alertas não impeçam a verificação:
+
+```bash
+npm run typecheck
+npm run build
 ```
 
-As variáveis de teste pertencem só ao processo de testes, não à configuração do backend, e as suítes alteram dados. A suíte de repositories ainda não foi reexecutada depois que o #139 passou a gravar os campos de cálculo; o ajuste das coletas de teste está previsto com a [#140](https://github.com/DEVassos/greener-app/issues/140) (Sprint 2).
+### Suíte e PostgreSQL
+
+`npm test` (Vitest) cobre configuração, boot e encerramento, rotas e erros HTTP, CORS, os dois clientes de API (sucesso, formato inválido, 404, 500, rede, timeout, cancelamento e cache), o coletor (descoberta, prazos, isolamento de falhas, rollback e cálculo disponível ou indisponível) e o `CarbonCalculator`. O job `backend` do CI roda `npx tsc --noEmit` e `npm test` a cada PR com um PostgreSQL 16 descartável, então as suítes de integração também executam e nenhum teste fica pulado (#162). O job `compose` constrói a imagem, o que executa o build.
+
+As suítes de integração com PostgreSQL real (`tests/repositories.integration.test.ts` e `tests/collector.integration.test.ts`) leem `REPOSITORY_TEST_DATABASE_URL` e `WORKER_TEST_DATABASE_URL` e são puladas sem elas. Cada uma precisa de um banco próprio, novo e descartável, com `database/schema.sql` aplicado; a fixture fica no próprio teste (`tests/*-test.repository.ts`): IDs de `services` acima de `Number.MAX_SAFE_INTEGER` e, na de repositories, um usuário com hash sintético só no formato exigido pelo CHECK, não credencial. No CI, o job `backend` cria os bancos `repositories_test` e `worker_test` e define as duas variáveis. Para rodar localmente, a partir de `backend/`:
+
+```bash
+docker run -d --rm --name ecopulse-testes -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:16
+docker exec ecopulse-testes sh -c 'until pg_isready -h 127.0.0.1 -U postgres -q; do sleep 1; done'
+for db in repositories_test worker_test; do
+  docker exec ecopulse-testes psql -U postgres -qc "CREATE DATABASE $db"
+  docker exec -i ecopulse-testes psql -U postgres -d "$db" -v ON_ERROR_STOP=1 -q < ../database/schema.sql
+done
+REPOSITORY_TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/repositories_test \
+WORKER_TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/worker_test npm test
+docker stop ecopulse-testes   # o --rm apaga o container e os dois bancos
+```
+
+Esperado: `tests/repositories.integration.test.ts (7 tests)` e `tests/collector.integration.test.ts (1 test)` na lista e o resumo `Tests` só com `passed`, sem `skipped`. Para repetir, recrie o container: as suítes deixam dados nos bancos. Se a porta 55432 estiver ocupada, troque-a no `-p` e nas duas URLs.
+
+As variáveis de teste pertencem só ao processo de testes, não à configuração do backend, e as suítes alteram dados. A suíte de repositories voltou a passar em 28/10 (7/7, #175): as coletas de teste ganharam os campos de cálculo que o #139 tornou obrigatórios, e um caso cobre `findSummary` com 2 serviços e várias coletas cada.
 
 Verificações registradas na Sprint 1: 31/31 testes com PostgreSQL descartável em 11/10 (#94), 82/82 e o snapshot combinado 125/125 em 13/10 (#99), e o compose integrado com persistência após restart em 14/10 (#113). Detalhes em [`docs/sprints/sprint-1.md`](../docs/sprints/sprint-1.md) § Verificações realizadas.

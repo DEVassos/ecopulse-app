@@ -20,24 +20,30 @@ export interface ComparisonState {
  */
 export function useComparison(ids: string[], start: string, end: string): ComparisonState {
   const key = ids.join(',');
+  const enabled = ids.length >= 2;
   const [data, setData] = useState<ServicesComparison | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
 
-  useEffect(() => {
+  // Filtro novo (ou "Tentar novamente"): o ajuste acontece na própria renderização, e não num efeito, para a
+  // comparação anterior não aparecer nem por um quadro junto com o filtro novo
+  const filter = `${key}|${start}|${end}|${attempt}`;
+  const [shownFilter, setShownFilter] = useState(filter);
+  if (shownFilter !== filter) {
+    setShownFilter(filter);
     setData(null);
     setError('');
+    setLoading(enabled);
+  }
+
+  useEffect(() => {
     const list = key === '' ? [] : key.split(',');
-    if (list.length < 2) {
-      setLoading(false);
-      return;
-    }
+    if (list.length < 2) return;
 
     const controller = new AbortController();
     // Até 24:00 do dia final, ou até agora se for hoje (o mesmo período da página Emissões)
     const { fromMs, toMs } = periodMs(start, end);
-    setLoading(true);
     fetchComparison(list, new Date(fromMs).toISOString(), new Date(toMs).toISOString(), controller.signal)
       .then((response) => {
         if (!controller.signal.aborted) setData(response);

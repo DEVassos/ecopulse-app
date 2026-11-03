@@ -34,7 +34,10 @@ RE_RELEASE_BRANCH='^release/sprint-[0-9]+$'
 RE_HOTFIX_BRANCH='^hotfix/[0-9]+-[a-z0-9.-]+$'
 PROTECTED_BRANCHES='main develop'
 
-RE_PR_CLOSES='(^|[^A-Za-z0-9])([Cc]lose[sd]?|[Ff]ix(e[sd])?|[Rr]esolve[sd]?|[Rr]efs?)[[:space:]]*:?[[:space:]]*#[0-9]+'
+# fecham a issue no merge: só as palavras do próprio GitHub (close/fix/resolve e flexões)
+RE_PR_CLOSES='(^|[^A-Za-z0-9])([Cc]lose[sd]?|[Ff]ix(e[sd])?|[Rr]esolve[sd]?)[[:space:]]*:?[[:space:]]*#[0-9]+'
+# só citam a issue (informativo): "Refs #n" não fecha a issue nem move o cartão
+RE_PR_REFS='(^|[^A-Za-z0-9])[Rr]efs?[[:space:]]*:?[[:space:]]*#[0-9]+'
 RE_LABEL_REQ='^(RF|RNF)[0-9]{2}$'
 RE_LABEL_ALT='^tipo:(processo|bug)$'
 PR_MAX_LINES=400

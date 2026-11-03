@@ -1,4 +1,4 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDatabase } from '../src/db/connection';
 import { withTransaction } from '../src/db/transaction.repository';
 import { ServiceRepository } from '../src/modules/services/services.repository';
@@ -6,8 +6,9 @@ import { CollectionRepository } from '../src/modules/collections/collections.rep
 import { UserRepository } from '../src/modules/usuarios/usuarios.repository';
 import type { DiscoveredService, NewCollection } from '../src/shared/persistence.types';
 import { DatabaseError } from '../src/shared/errors';
+import { prepare } from './repositories-test.repository';
 
-// URL exclusiva de teste; schema e fixture aplicados antes em banco descartável vazio.
+// URL exclusiva de teste; schema aplicado antes em banco descartável vazio, fixture no beforeAll.
 const url = process.env.REPOSITORY_TEST_DATABASE_URL;
 describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
   const db = createDatabase(url ?? 'postgresql://localhost/test');
@@ -15,12 +16,22 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
   const collections = new CollectionRepository(db);
   const first = new Date('2026-10-11T10:00:00Z');
   const second = new Date('2026-10-11T11:00:00Z');
+  // Estado inicial do cálculo; o worker preenche os campos quando o cálculo roda.
+  const notCalculated = {
+    calculation_status: 'nao_calculado',
+    carbon_intensity_gco2e_per_kwh: null,
+    power_watts: null,
+    energy_kwh: null,
+    co2e_grams: null,
+    calculation_error_message: null,
+  } as const;
   const service = (external_id: string): DiscoveredService => ({ external_id, name: external_id,
     region_code: 'br-sudeste', country: 'Brazil', region: 'Sudeste', city: null, latitude: null, longitude: null });
   const reading = (service_id: string): NewCollection => ({ service_id, collected_at: first,
     region_code: 'br-sudeste', status: 'ok', collection_interval_seconds: 27, cpu_percent: '62.67',
-    memory_gb: '3.17', disk_gb: '19.26', network_gb: '0.45', error_message: null,
+    memory_gb: '3.17', disk_gb: '19.26', network_gb: '0.45', error_message: null, ...notCalculated,
     metrics: { collection_interval_seconds: 27, metrics: { cpu_percent: 62.67, memory_gb: 3.17, disk_gb: 19.26, network_gb: 0.45 } } });
+  beforeAll(() => prepare(db));
   afterAll(() => db.close());
   it('preserva bigint, upsert, datas, ausência/reaparecimento e histórico', async () => {
     const a = await services.upsert(service("a' OR '1'='1"), first);
@@ -31,6 +42,8 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
     const one = await collections.insert(reading(a.id));
     const two = await collections.insert(reading(a.id));
     expect(one.id).not.toBe(two.id);
+    expect(await collections.findAll({ serviceId: null, from: null, to: null, limit: 10 }))
+      .toContainEqual(expect.objectContaining({ id: one.id, collection_interval_seconds: 27 }));
     expect(one).toMatchObject({ service_id: a.id, calculation_status: 'nao_calculado',
       carbon_intensity_gco2e_per_kwh: null, power_watts: null, energy_kwh: null,
       co2e_grams: null, calculation_error_message: null, cpu_percent: '62.67' });
@@ -81,8 +94,35 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
     const a = await services.upsert(service(status), first);
     const result = await collections.insert({ service_id: a.id, collected_at: first, region_code: null,
       status, collection_interval_seconds: null, cpu_percent: null, memory_gb: null,
-      disk_gb: null, network_gb: null, metrics: {}, error_message: status === 'erro' ? 'Timeout' : null });
+      disk_gb: null, network_gb: null, metrics: {}, error_message: status === 'erro' ? 'Timeout' : null, ...notCalculated });
     expect(result).toMatchObject({ status, calculation_status: 'nao_calculado', cpu_percent: null, co2e_grams: null });
+  });
+  it('resumo soma só coletas calculadas em [from, to) e conta cada serviço uma vez no estado atual', async () => {
+    // Janela própria: as outras coletas desta suíte são de 11/10 e não entram nos totais
+    const from = new Date('2026-09-01T10:00:00Z');
+    const to = new Date('2026-09-01T10:10:00Z');
+    const calculated = (service_id: string, minute: number, energy: string, co2e: string): NewCollection => ({
+      ...reading(service_id), collected_at: new Date(from.getTime() + minute * 60_000),
+      calculation_status: 'disponivel', carbon_intensity_gco2e_per_kwh: '100', power_watts: '10',
+      energy_kwh: energy, co2e_grams: co2e, calculation_error_message: null });
+    const a = await services.upsert(service('summary-a'), first);
+    const b = await services.upsert(service('summary-b'), first);
+    for (const minute of [0, 3, 6]) await collections.insert(calculated(a.id, minute, '0.001', '0.1'));
+    for (const minute of [1, 4]) await collections.insert(calculated(b.id, minute, '0.002', '0.2'));
+    await collections.insert({ ...reading(b.id), collected_at: new Date(from.getTime() + 5 * 60_000) });
+    await collections.insert(calculated(a.id, 10, '9', '900')); // em `to`: fica de fora
+    await services.updateStatus(b.id, 'removido');
+    const row = await services.findSummary(from, to);
+    expect(Number(row.energy_kwh)).toBeCloseTo(0.007, 12);
+    expect(Number(row.co2e_grams)).toBeCloseTo(0.7, 12);
+    // Contagem pelo estado atual de cada serviço, sem multiplicar pelas coletas do join
+    const all = await services.findAll();
+    const count = (status: string) => String(all.filter(service => service.status === status).length);
+    expect(row).toMatchObject({ active: count('ativo'), unavailable: count('indisponivel'),
+      without_metrics: count('sem_metricas'), removed: count('removido') });
+    expect(Number(row.removed)).toBeGreaterThanOrEqual(1);
+    const empty = await services.findSummary(new Date('2026-08-01T00:00:00Z'), new Date('2026-08-02T00:00:00Z'));
+    expect(empty).toMatchObject({ energy_kwh: null, co2e_grams: null });
   });
   it('busca email sem distinção de caixa e não interpreta entrada como SQL', async () => {
     const repo = new UserRepository(db);

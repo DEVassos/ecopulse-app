@@ -38,7 +38,8 @@ estimativa_do_corpo() {
 issues_from_text() { grep -oE "$RE_ISSUE_REF" | grep -oE '[0-9]+' || true; }
 uniq_nums() { tr ' ' '\n' | grep -E '^[0-9]+$' | sort -un; }
 
-# issues ligadas a um PR: closingIssuesReferences ∪ nº da branch ∪ Closes/Refs #n do corpo
+# issues ligadas a um PR: closingIssuesReferences ∪ nº da branch ∪ Closes/Fixes/Resolves #n do corpo
+# ("Refs #n" só cita a issue: fica fora daqui, então não fecha nem move o cartão)
 issues_do_pr() { # <pr-nº> <head-ref> <body>
   local refs branch_n body_n
   refs="$(gh api graphql -f owner="${REPO%%/*}" -f name="${REPO##*/}" -F number="$1" -f query='
@@ -93,6 +94,8 @@ Trabalho iniciado na branch \`$BRANCH\` por @$(ev .sender.login) ($(ev .compare)
     BODY="$(ev '.pull_request.body // ""')"
     [ "$(ev '.pull_request.head.repo.fork // false')" = "true" ] && { info "PR de fork; nada a fazer"; exit 0; }
     NUMS="$(issues_do_pr "$PRN" "$HEAD_REF" "$BODY")"
+    SO_REFS="$(printf '%s' "$BODY" | grep -oE "$RE_PR_REFS" | grep -oE '[0-9]+' | uniq_nums | grep -vxF -f <(printf '%s\n' "$NUMS") || true)"
+    [ -n "$SO_REFS" ] && info "PR #$PRN só cita (Refs) $(printf '%s\n' "$SO_REFS" | sed 's/^/#/' | paste -sd ' ' -); o quadro dessas issues não muda"
     [ -n "$NUMS" ] || { info "PR #$PRN sem issues ligadas"; exit 0; }
     while IFS= read -r n; do
       case "$ACTION" in

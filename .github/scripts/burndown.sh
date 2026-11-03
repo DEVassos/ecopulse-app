@@ -30,8 +30,21 @@ POWNER="$(project_owner)"; [ -n "$POWNER" ] || POWNER="$(var_repo PROJECT_OWNER)
 [ -n "$PNUM" ] && [ -n "$POWNER" ] || { err "PROJECT_NUMBER/PROJECT_OWNER não definidos (env ou variáveis do repositório)"; exit 1; }
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
-gh issue list -R "$REPO" --milestone "$MS" --state all --limit 300 --json number,title,state,createdAt,closedAt,labels,url > "$TMP/issues.json"
-gh project item-list "$PNUM" --owner "$POWNER" --limit 500 --format json > "$TMP/proj.json"
+# Story Points lidos a partir de cada issue da milestone (projectItems), não da listagem do quadro:
+# em 22/10 o "gh project item-list" omitiu 5 tarefas que estavam no quadro com pontos (#205)
+MILESTONES="$(gh api "repos/$REPO/milestones?state=all&per_page=100")" || { err "falha ao listar as milestones de $REPO"; exit 1; }
+MS_NUM="$(jq -r --arg t "$MS" '.[] | select(.title == $t) | .number' <<< "$MILESTONES")"
+[ -n "$MS_NUM" ] || { err "milestone \"$MS\" não encontrada em $REPO"; exit 1; }
+gh api graphql --paginate -f owner="${REPO%%/*}" -f name="${REPO##*/}" -F ms="$MS_NUM" -f query='
+  query($owner:String!, $name:String!, $ms:Int!, $endCursor:String) {
+    repository(owner:$owner, name:$name) { milestone(number:$ms) { issues(first:100, after:$endCursor) {
+      pageInfo { hasNextPage endCursor }
+      nodes { number title url state createdAt closedAt labels(first:30) { nodes { name } }
+        projectItems(first:20) { nodes {
+          project { number owner { ... on Organization { login } ... on User { login } } }
+          fieldValueByName(name:"Story Points") { ... on ProjectV2ItemFieldNumberValue { number } } } } } } } } }' \
+  --jq '.data.repository.milestone.issues.nodes[]' > "$TMP/issues.json" \
+  || { err "falha ao ler as issues da milestone \"$MS\" e os pontos do quadro (token com escopo read:project?)"; exit 1; }
 
 # último dia do gráfico: hoje, limitado ao fim da sprint
 # UTC-3 fixo em formato POSIX: o Git Bash não traz zoneinfo e trataria America/Sao_Paulo como UTC
@@ -43,14 +56,18 @@ DIAS="$(jq -rn --arg i "$INICIO" --arg f "$ATE" '
 TOTAL_DIAS="$(jq -rn --arg i "$INICIO" --arg f "$FIM" '((($f+"T12:00:00Z"|fromdateiso8601) - ($i+"T12:00:00Z"|fromdateiso8601)) / 86400)')"
 
 # itens: tarefas/processo/bug da milestone com pontos do Project; datas em America/Sao_Paulo (UTC-3)
-jq --arg repo "$REPO" --arg ini "$INICIO" --arg base "$BASE" --slurpfile p "$TMP/proj.json" '
+jq -s --arg ini "$INICIO" --arg base "$BASE" --arg owner "$POWNER" --argjson pnum "$PNUM" '
   def brt: fromdateiso8601 - 10800 | strftime("%Y-%m-%d");
-  ($p[0].items | map(select(.content.repository == $repo) | {key: (.content.number|tostring), value: .["story Points"]}) | from_entries) as $sp
-  | map(select([.labels[].name] | (index("tipo:historia") or index("tipo:epico")) | not)
+  sort_by(.number)
+  | map(select([.labels.nodes[].name] | (index("tipo:historia") or index("tipo:epico")) | not)
+        | ([.projectItems.nodes[] | select(.project.number == $pnum and (.project.owner.login | ascii_downcase) == ($owner | ascii_downcase))] | first) as $item
         | {number, title, url, state,
-           pontos: $sp[.number|tostring],
+           noquadro: ($item != null),
+           pontos: $item.fieldValueByName.number,
            entrou: ((.createdAt|brt) as $c | if $c <= $base then $ini else $c end),
            fechou: (if .closedAt then (.closedAt|brt) else null end)})' "$TMP/issues.json" > "$TMP/itens.json"
+FORA="$(jq -c '[.[] | select(.noquadro | not) | .number]' "$TMP/itens.json")"
+[ "$FORA" = "[]" ] || warn "issues da milestone fora do quadro $PNUM (sem pontos na soma): $FORA"
 
 jq --argjson dias "$DIAS" --argjson total "$TOTAL_DIAS" '
   map(select(.pontos != null)) as $it
@@ -108,11 +125,12 @@ lista() { jq -r --arg u "https://github.com/$REPO/issues/" 'if length == 0 then 
     echo "| $d | $(jq .escopo <<< "$l") | $(jq .ideal <<< "$l") | $(jq .restante <<< "$l") | $(jq -c .fechadas <<< "$l" | lista) | $(jq -c .novas <<< "$l" | lista) |"
   done
   echo
-  SEM="$(jq -c '[.[] | select(.pontos == null) | .number]' "$TMP/itens.json")"
+  SEM="$(jq -c '[.[] | select(.noquadro and .pontos == null) | .number]' "$TMP/itens.json")"
   echo "## Fora da soma"
   echo
   echo "- Histórias (\`tipo:historia\`) e épicos: os pontos deles já estão nas tarefas filhas."
   echo "- Issues sem Story Points no quadro: $(lista <<< "$SEM")."
+  [ "$FORA" = "[]" ] || echo "- Issues da milestone que não estão no quadro: $(lista <<< "$FORA")."
   echo
   echo "## Método"
   echo

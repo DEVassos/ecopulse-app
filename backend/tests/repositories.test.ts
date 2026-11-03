@@ -66,6 +66,22 @@ it('busca cada serviço com sua última coleta por LEFT JOIN LATERAL', async () 
   expect(fake.poolQuery.mock.calls[0][0]).toContain('ORDER BY collected_at DESC, id DESC');
   expect(fake.poolQuery.mock.calls[0][1]).toEqual([]);
 });
+it('agrega indicadores por intervalo com parâmetros de data', async () => {
+  const from = new Date('2026-10-20T00:00:00.000Z');
+  const to = new Date('2026-10-21T00:00:00.000Z');
+  const row = { energy_kwh: '1.25', co2e_grams: '85.5', active: '3', unavailable: '1', without_metrics: '2', removed: '0' };
+  fake.poolQuery.mockResolvedValueOnce({ rows: [row] });
+  const result = await new ServiceRepository(createDatabase('postgresql://localhost/test')).findSummary(from, to);
+  const sql = fake.poolQuery.mock.calls[0][0] as string;
+  expect(sql).toContain('SUM(c.energy_kwh)');
+  expect(sql).toContain('SUM(c.co2e_grams)');
+  expect(sql).not.toContain('COALESCE(SUM(c.energy_kwh)');
+  expect(sql).not.toContain('COALESCE(SUM(c.co2e_grams)');
+  expect(sql).toContain('c.collected_at >= $1 AND c.collected_at < $2');
+  expect(sql).toContain('COUNT(DISTINCT s.id) FILTER (WHERE s.status = \'ativo\')');
+  expect(fake.poolQuery.mock.calls[0][1]).toEqual([from, to]);
+  expect(result).toEqual(row);
+});
 it('traz os campos de cálculo na listagem de coletas', async () => {
   fake.poolQuery.mockResolvedValueOnce({ rows: [] });
   await new CollectionRepository(createDatabase('postgresql://localhost/test'))
