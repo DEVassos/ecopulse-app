@@ -64,6 +64,7 @@ Itens de processo e qualidade (12): #159, #160, #161, #162, #163, #164, #165, #1
 | Item | Como foi verificado | Quem | Resultado |
 |---|---|---|---|
 | #164 / PRs [#191](https://github.com/DEVassos/greener-app/pull/191) e [#192](https://github.com/DEVassos/greener-app/pull/192) | Depois do merge, `bash .agilekit/scripts/gh-bootstrap.sh --rulesets`; `gh api repos/DEVassos/greener-app/rulesets/24529098` (`develop`) e `.../24529100` (`main`) mostram os sete checks obrigatórios (`commits`, `pr`, `docs`, `backend`, `frontend`, `compose`, `schema`), `bypass_actors` vazio e `require_last_push_approval: true`, iguais aos JSON versionados, e `current_user_can_bypass: never` para admin | @travensolli | aplicado em 22/10 |
+| [US02 #43](https://github.com/DEVassos/greener-app/issues/43) | `cd backend && npm test -- --run tests/carbon-calculator.test.ts tests/carbon-api.test.ts tests/collector.test.ts` (56 testes); `GET /api/collections?limit=50` retorna coleta calculada; `CarbonCalculator` com o exemplo de `docs/calculos.md` retorna 50,870000 W, 0,000847833333 kWh e 0,072065833333 gCO₂e | @henriqueptbd-cell (PO) | aceite técnico verificado em 02/11; PR de rastreabilidade aguardando revisão |
 
 **Exceções à DoD-PR**, registradas porque não há como corrigi-las depois do merge:
 
