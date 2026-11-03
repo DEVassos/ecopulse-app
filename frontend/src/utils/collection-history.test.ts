@@ -25,6 +25,17 @@ describe('missingCollectionSeconds', () => {
     )).toBeNull();
   });
 
+  it('só marca lacuna depois do intervalo esperado mais 60 s de tolerância', () => {
+    expect(missingCollectionSeconds(
+      collection('2026-10-14T20:01:30Z', 30),
+      collection('2026-10-14T20:00:00Z', 30),
+    )).toBeNull();
+    expect(missingCollectionSeconds(
+      collection('2026-10-14T20:01:31Z', 30),
+      collection('2026-10-14T20:00:00Z', 30),
+    )).toBe(91);
+  });
+
   it('devolve o intervalo entre registros quando excede a janela normal', () => {
     expect(missingCollectionSeconds(
       collection('2026-10-14T20:02:00Z', 30),
