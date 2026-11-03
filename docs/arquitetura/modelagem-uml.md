@@ -64,11 +64,16 @@ classDiagram
         +inet ip_address
         +timestamptz entered_at
     }
+    class monitoring_settings {
+        +smallint id PK CHECK_1
+        +integer refresh_interval_seconds CHECK_15_30_60
+        +timestamptz updated_at
+    }
     note for collections "energy_kwh: numeric(20,12)<br/>co2e_grams: numeric(24,12)"
     services "1" --> "0..*" collections : service_id
 ```
 
-PKs: `bigint GENERATED ALWAYS AS IDENTITY`. Toda coleta pertence a um serviço, que pode ter zero coletas. FK `ON DELETE RESTRICT`; usuários e entradas independentes, sem FK artificial.
+PKs anteriores: `bigint GENERATED ALWAYS AS IDENTITY`; `monitoring_settings` (#250) usa `smallint` fixo 1 e admite zero linhas antes do primeiro PUT. Intervalo restrito a 15/30/60 s, `updated_at NOT NULL DEFAULT now()`, sem `updated_by`; a configuração é da tela, independente do worker. O Mermaid acima incorpora essa quinta tabela; o PNG anterior representa as quatro tabelas originais. Toda coleta pertence a um serviço, que pode ter zero coletas. FK `ON DELETE RESTRICT`; usuários e entradas independentes, sem FK artificial.
 
 ### Tipos, nulabilidade e índices
 
@@ -93,7 +98,7 @@ PKs: `bigint GENERATED ALWAYS AS IDENTITY`. Toda coleta pertence a um serviço, 
 | `users.created_at`, `updated_at` | `timestamptz` | Obrigatórios, default now(). |
 | `access_entries.ip_address`, `entered_at` | `inet`, `timestamptz` | Obrigatórios; IP observado no backend e horário do servidor. |
 
-Quatro índices explícitos: lower(email), coletas por (service_id, collected_at DESC) e collected_at DESC, entradas por entered_at DESC. Mais cinco índices automáticos: quatro PKs e UNIQUE de services.external_id. Total: nove índices. As consultas da aplicação ficam nos repositories do backend (`backend/src/modules/*/*.repository.ts`, #94); o histórico por serviço usa o índice `(service_id, collected_at DESC)`.
+Quatro índices explícitos: lower(email), coletas por (service_id, collected_at DESC) e collected_at DESC, entradas por entered_at DESC. Mais seis índices automáticos: cinco PKs e UNIQUE de services.external_id. Total: dez índices. As consultas da aplicação ficam nos repositories do backend (`backend/src/modules/*/*.repository.ts`, #94); o histórico por serviço usa o índice `(service_id, collected_at DESC)`.
 
 ### Estados e histórico
 
