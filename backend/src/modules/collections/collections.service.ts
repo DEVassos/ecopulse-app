@@ -5,6 +5,7 @@ import { CollectionRepository, type CollectionFilters, type CollectionListRow, t
 
 export interface CollectionItem {
   id: string; serviceId: string; collectedAt: string; status: 'ok' | 'erro' | 'sem_metricas';
+  collectionIntervalSeconds: number | null;
   cpuPercent: number | null; memoryGb: number | null; diskGb: number | null; networkGb: number | null; errorMessage: string | null;
   calculationStatus: CalculationStatus;
   energyKwh: number | null; co2eGrams: number | null; carbonIntensityGco2ePerKwh: number | null;
@@ -32,6 +33,7 @@ function map(row: CollectionListRow): CollectionItem {
 
   return {
     id: row.id, serviceId: row.service_id, collectedAt: row.collected_at.toISOString(), status: row.status,
+    collectionIntervalSeconds: row.collection_interval_seconds,
     cpuPercent: numberOrNull(row.cpu_percent), memoryGb: numberOrNull(row.memory_gb),
     diskGb: numberOrNull(row.disk_gb), networkGb: numberOrNull(row.network_gb), errorMessage: row.error_message,
     calculationStatus: row.calculation_status, energyKwh: numberOrNull(row.energy_kwh), co2eGrams: numberOrNull(row.co2e_grams),

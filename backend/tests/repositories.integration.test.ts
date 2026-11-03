@@ -16,11 +16,17 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
   const collections = new CollectionRepository(db);
   const first = new Date('2026-10-11T10:00:00Z');
   const second = new Date('2026-10-11T11:00:00Z');
+  // Estado inicial do cálculo; o worker preenche os campos quando o cálculo roda.
+  const notCalculated = {
+    calculation_status: 'nao_calculado',
+    carbon_intensity_gco2e_per_kwh: null,
+    power_watts: null,
+    energy_kwh: null,
+    co2e_grams: null,
+    calculation_error_message: null,
+  } as const;
   const service = (external_id: string): DiscoveredService => ({ external_id, name: external_id,
     region_code: 'br-sudeste', country: 'Brazil', region: 'Sudeste', city: null, latitude: null, longitude: null });
-  // Campos de cálculo obrigatórios desde o #139; o worker grava 'nao_calculado' quando não calcula
-  const notCalculated = { calculation_status: 'nao_calculado', carbon_intensity_gco2e_per_kwh: null, power_watts: null,
-    energy_kwh: null, co2e_grams: null, calculation_error_message: null } as const;
   const reading = (service_id: string): NewCollection => ({ service_id, collected_at: first,
     region_code: 'br-sudeste', status: 'ok', collection_interval_seconds: 27, cpu_percent: '62.67',
     memory_gb: '3.17', disk_gb: '19.26', network_gb: '0.45', error_message: null, ...notCalculated,
@@ -36,6 +42,8 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
     const one = await collections.insert(reading(a.id));
     const two = await collections.insert(reading(a.id));
     expect(one.id).not.toBe(two.id);
+    expect(await collections.findAll({ serviceId: null, from: null, to: null, limit: 10 }))
+      .toContainEqual(expect.objectContaining({ id: one.id, collection_interval_seconds: 27 }));
     expect(one).toMatchObject({ service_id: a.id, calculation_status: 'nao_calculado',
       carbon_intensity_gco2e_per_kwh: null, power_watts: null, energy_kwh: null,
       co2e_grams: null, calculation_error_message: null, cpu_percent: '62.67' });
