@@ -16,6 +16,7 @@ import { isDemoMode } from '../services/services.service';
 import type { MonitoredService } from '../services/services.types';
 import {
   BUCKET_LABEL,
+  MAX_SPAN_DAYS,
   autoBucket,
   describePeriod,
   formatDuration,
@@ -25,10 +26,10 @@ import {
   formatPeakTime,
   formatRatio,
   formatShort,
-  isInputDate,
   missingTimeMs,
   peakRatio,
   periodMs,
+  readPeriodFilter,
   shiftInputDate,
   spanDays,
   summarize,
@@ -38,9 +39,6 @@ import {
 import { formatDayTime } from '../utils/format';
 import './EmissionsPage.css';
 
-/** Maior período aceito de uma vez (o mesmo limite da série da #189). */
-const MAX_SPAN_DAYS = 31;
-
 const BUCKETS: EmissionsBucket[] = ['coleta', '15min', '1h'];
 
 function locationOf(service: MonitoredService): string {
@@ -49,8 +47,8 @@ function locationOf(service: MonitoredService): string {
 
 /**
  * Página Emissões (#190): emissão estimada de CO₂e de uma estação ao longo do tempo.
- * Estação e período ficam na URL (`?servico=&de=&ate=`): o link abre no mesmo filtro e o "voltar" do navegador
- * desfaz a última troca.
+ * Estação, período e tempo real ficam na URL (`?servico=&de=&ate=&tempo=real`): o link abre no mesmo filtro e o
+ * "voltar" do navegador desfaz a última troca, desligando o tempo real junto com a volta das datas (#212).
  */
 export default function EmissionsPage() {
   const { data: servicesData, loading: servicesLoading, error: servicesError, refresh: refreshServices } = useServices();
@@ -59,13 +57,8 @@ export default function EmissionsPage() {
   const today = todayInput();
   const services = useMemo(() => servicesData?.services ?? [], [servicesData]);
 
-  // Filtro aplicado (vem da URL; valor inválido ou ausente cai no padrão: hoje e a primeira estação).
-  // `ate` fora do que o formulário aceita (antes de `de`, no futuro ou a mais de 31 dias) vale como inválida.
-  const urlStart = params.get('de');
-  const urlEnd = params.get('ate');
-  const start = isInputDate(urlStart) && urlStart <= today ? urlStart : today;
-  const end =
-    isInputDate(urlEnd) && urlEnd >= start && urlEnd <= today && spanDays(start, urlEnd) <= MAX_SPAN_DAYS ? urlEnd : start;
+  // Filtro aplicado (vem da URL; valor inválido ou ausente cai no padrão: hoje e a primeira estação)
+  const { start, end, live } = readPeriodFilter(params, today);
   const urlService = params.get('servico');
   const service = services.find((item) => item.id === urlService) ?? services[0] ?? null;
 
@@ -73,7 +66,6 @@ export default function EmissionsPage() {
   const [draftStart, setDraftStart] = useState(start);
   const [draftEnd, setDraftEnd] = useState(end);
   const [bucket, setBucket] = useState<EmissionsBucket | null>(null);
-  const [live, setLive] = useState(false);
   const [mode, setMode] = useState<EmissionsChartMode>('intervalo');
   const [formError, setFormError] = useState('');
 
@@ -89,7 +81,7 @@ export default function EmissionsPage() {
   const { data, period, loading, error, updatedAt, refresh } = useEmissions({
     serviceId: service?.id ?? null,
     start,
-    end: live ? today : end,
+    end,
     bucket,
     live,
     intervalMs: refreshIntervalMs,
@@ -101,12 +93,16 @@ export default function EmissionsPage() {
   const reading = summary && data ? describePeriod(summary, data.bucket, missingMs) : [];
   const ratio = summary ? peakRatio(summary) : null;
   const totals = data?.totals ?? null;
-  const range = periodMs(start, live ? today : end);
+  const range = periodMs(start, end);
   const autoLabel = BUCKET_LABEL[autoBucket(range.fromMs, range.toMs)];
 
-  function updateUrl(changes: Record<string, string>) {
+  /** Grava as mudanças na URL (uma entrada no histórico do navegador); `null` tira a chave. */
+  function updateUrl(changes: Record<string, string | null>) {
     const next = new URLSearchParams(params);
-    for (const [key, value] of Object.entries(changes)) next.set(key, value);
+    for (const [key, value] of Object.entries(changes)) {
+      if (value === null) next.delete(key);
+      else next.set(key, value);
+    }
     setParams(next);
   }
 
@@ -117,7 +113,7 @@ export default function EmissionsPage() {
     if (spanDays(nextStart, nextEnd) > MAX_SPAN_DAYS) return setFormError(`Escolha um período de até ${MAX_SPAN_DAYS} dias.`);
     setFormError('');
     if (nextStart === start && nextEnd === end) return refresh();
-    updateUrl({ de: nextStart, ate: nextEnd });
+    updateUrl({ de: nextStart, ate: nextEnd, tempo: null });
   }
 
   function handleSubmit(event: FormEvent) {
@@ -130,20 +126,17 @@ export default function EmissionsPage() {
   /** ◀ ▶: desloca o período inteiro pelo seu próprio tamanho (um dia, por padrão). */
   function shift(direction: -1 | 1) {
     const days = spanDays(start, end) * direction;
-    setLive(false);
     apply(shiftInputDate(start, days), shiftInputDate(end, days));
   }
 
   function toggleLive() {
-    if (live) return setLive(false);
     setFormError('');
-    updateUrl({ de: today, ate: today });
-    setLive(true);
+    if (live) return updateUrl({ tempo: null });
+    updateUrl({ de: today, ate: today, tempo: 'real' });
   }
 
   const canGoForward = !live && shiftInputDate(end, spanDays(start, end)) <= today;
-  const shownEnd = live ? today : end;
-  const periodLabel = start === shownEnd ? formatInputDate(start) : `${formatInputDate(start)} a ${formatInputDate(shownEnd)}`;
+  const periodLabel = start === end ? formatInputDate(start) : `${formatInputDate(start)} a ${formatInputDate(end)}`;
   const noCalculation = totals !== null && totals.collections > 0 && totals.co2eGrams === null;
   // A última busca falhou: o resumo na tela é o da busca anterior e fica apagado, como os cards do dashboard (#202)
   const stale = error !== '' && data !== null;
