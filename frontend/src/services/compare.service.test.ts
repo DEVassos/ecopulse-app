@@ -73,6 +73,7 @@ describe('parseComparisonResponse', () => {
     ['nome ausente', { name: undefined }, 'services[1].name'],
     ['região ausente (null precisa vir na resposta)', { region: undefined }, 'services[1].region'],
     ['contagem negativa', { collections: -1 }, 'services[1].collections'],
+    ['contagem fracionada', { collections: 1.5 }, 'services[1].collections'],
     ['falhas em texto', { failed: '0' }, 'services[1].failed'],
     ['média de CPU em texto', { avgCpuPercent: '42.5' }, 'services[1].avgCpuPercent'],
     ['CO₂e infinito', { co2eGrams: Number.POSITIVE_INFINITY }, 'services[1].co2eGrams'],
