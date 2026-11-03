@@ -8,6 +8,7 @@ import { createServer } from 'node:http';
 import { randomUUID } from 'node:crypto';
 
 const PORT = Number(process.env.MOCK_PORT ?? 3000);
+const COLLECTION_GAP_SCENARIO = process.env.MOCK_COLLECTION_GAP === 'true';
 
 /** Administrador do mock: o mesmo do .env.example (no backend real ele vem do seed, #6). */
 const ADMIN = { id: '1', email: 'admin@ecopulse.local', password: 'admin1234' };
@@ -78,7 +79,7 @@ function collectionAt(service, t, index) {
   const common = { id: `${service.id}-${slot}`, serviceId: service.id, collectedAt: new Date(t).toISOString() };
   const empty = { cpuPercent: null, memoryGb: null, diskGb: null, networkGb: null, calculationStatus: 'nao_calculado', energyKwh: null, co2eGrams: null, carbonIntensityGco2ePerKwh: null };
   if (service.status === 'indisponivel' && index < 10) {
-    return { ...common, ...empty, status: 'erro', errorMessage: 'Serviço indisponível (HTTP 500).' };
+    return { ...common, ...empty, status: 'erro', collectionIntervalSeconds: null, errorMessage: 'Serviço indisponível (HTTP 500).' };
   }
   const cpu = Math.min(100, (service.cpu ?? 30) * (0.85 + 0.3 * noise(slot)));
   // Potência simplificada (ADR 0006): CPU + memória, em W, durante os 30 s da coleta
@@ -87,6 +88,7 @@ function collectionAt(service, t, index) {
   return {
     ...common,
     status: 'ok',
+    collectionIntervalSeconds: 30,
     cpuPercent: Number(cpu.toFixed(1)),
     memoryGb: Number((1 + noise(slot + 1) * 0.2).toFixed(3)),
     diskGb: 12,
@@ -108,7 +110,15 @@ function serviceCollections(service, { from = 0, to = Date.now(), limit }) {
   const newest = Math.floor(Math.min(to, Date.now()) / 30_000) * 30_000;
   const now = Math.floor(Date.now() / 30_000) * 30_000;
   const list = [];
-  for (let t = newest; t >= from && list.length < limit; t -= 30_000) list.push(collectionAt(service, t, (now - t) / 30_000));
+  let gapInserted = false;
+  for (let t = newest; t >= from && list.length < limit; t -= 30_000) {
+    if (COLLECTION_GAP_SCENARIO && !gapInserted && list.length === 5) {
+      t -= 90_000;
+      gapInserted = true;
+    }
+    if (t < from) break;
+    list.push(collectionAt(service, t, (now - t) / 30_000));
+  }
   return list;
 }
 
