@@ -59,6 +59,8 @@ Falha de descoberta não autoriza remover todos os serviços. Semântica externa
 
 Primeira abertura por sessão de navegação em uma aba; reload e navegação interna não geram nova entrada. Sem polling ou worker. Backend observa IP considerando só proxies confiáveis e define horário; IP não equivale à identidade de pessoa. Consulta por responsáveis autorizados usa JWT administrativo, período/paginação e não cria outro evento de entrada. Sem perfis adicionais, tenants, logs HTTP ou tentativas de login. Tabela e fluxos modelados por solicitação de Vinicius; issue/sprint/retencão e mecanismo continuam pendentes, sem aprovação presumida do PO.
 
+O backend expõe `statusReason` da última coleta somente para serviços indisponíveis, normalizando diagnósticos antes da resposta pública (#251). Contrato e desempate em [API](api.md#get-apiservices). A interface permanece com Andrea na #176.
+
 ## Inicialização e evolução
 
 O módulo `monitoring-settings` recebe repository e configuração JWT na composição (`app.ts`/`server.ts`); GET público e PUT com o middleware existente. Ausência de linha produz 30 s/`updatedAt=null` sem INSERT; falha de banco permanece erro. SQL fica no repository.

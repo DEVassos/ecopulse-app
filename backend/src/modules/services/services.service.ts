@@ -13,6 +13,7 @@ export interface MonitoredService {
   energyKwh: number | null;
   emissionsG: number | null;
   status: ServiceStatus;
+  statusReason: string | null;
   lastReadingAt: string | null;
 }
 
@@ -22,6 +23,19 @@ export interface ServicesResponse {
 }
 
 const PERIOD = 'última leitura (intervalo de coleta)';
+
+/** Expõe somente diagnósticos conhecidos; detalhes arbitrários continuam restritos ao banco/log. */
+function statusReason(service: ServiceWithLastReading): string | null {
+  const message = service.error_message;
+  if (service.status !== 'indisponivel' || !message?.trim()) return null;
+  if (message === 'Serviço indisponível (HTTP 500).' || message === 'Timeout'
+    || message === 'Falha externa ao coletar métricas.') return message;
+  if (message.startsWith('Descoberta indisponível;')) return 'Descoberta indisponível; não foi possível consultar as métricas dos serviços.';
+  if (message.startsWith('A API de métricas não respondeu em ')) return 'A API de métricas não respondeu no prazo esperado.';
+  if (message.startsWith('Não foi possível conectar à API de métricas')) return 'Não foi possível conectar à API de métricas.';
+  const http = /^A API de métricas respondeu HTTP ([1-5]\d{2}) em /.exec(message);
+  return http ? `A API de métricas respondeu HTTP ${http[1]}.` : 'Não foi possível obter as métricas deste serviço.';
+}
 
 function toMonitoredService(service: ServiceWithLastReading): MonitoredService {
   return {
@@ -34,6 +48,7 @@ function toMonitoredService(service: ServiceWithLastReading): MonitoredService {
     energyKwh: service.energy_kwh === null ? null : Number(service.energy_kwh),
     emissionsG: service.co2e_grams === null ? null : Number(service.co2e_grams),
     status: MonitoringStatus.fromValue(service.status).value(),
+    statusReason: statusReason(service),
     lastReadingAt: service.last_reading_at?.toISOString() ?? null,
   };
 }

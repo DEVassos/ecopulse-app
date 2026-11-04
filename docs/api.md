@@ -26,6 +26,7 @@ Resposta 200:
     "energyKwh": 0.000480452625,
     "emissionsG": 0.040838473125,
     "status": "ativo",
+    "statusReason": null,
     "lastReadingAt": "2026-10-14T20:00:00.000Z"
   }],
   "period": "última leitura (intervalo de coleta)"
@@ -43,6 +44,8 @@ Falha de banco retorna 500 no envelope global, sem stack ou SQL:
 ```json
 {"error":{"code":"DATABASE_ERROR","message":"Não foi possível acessar o banco de dados."}}
 ```
+
+`statusReason` (#251) usa `error_message` somente da coleta mais recente, com desempate por `collected_at DESC, id DESC`. É `null` para estados diferentes de `indisponivel` ou ausência de mensagem. Diagnósticos conhecidos são apresentados sem URLs, caminhos, stack ou SQL; mensagens arbitrárias viram "Não foi possível obter as métricas deste serviço.". Exemplo: `"statusReason":"Serviço indisponível (HTTP 500)."`. Não se procura erro antigo quando a última coleta não tem mensagem.
 
 ## GET /api/monitoring-settings
 
