@@ -82,7 +82,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   ![Dashboard depois de uma atualização com falha](docs/img/sprint-2-atualizacao-automatica.png)
 
-  _Backend parado em 27/10/2026 (mesmo efeito de `docker compose stop backend`): depois de um intervalo, a faixa laranja compacta diz "Mostrando dados de 13:46:28" e oferece **Tentar novamente**, as 8 linhas da tabela continuam visíveis e o selo fica laranja ("Desatualizado desde …") (#203). Sem nenhum dado na tela, aparece o aviso de erro grande._
+  _Backend parado em 04/11/2026 (mesmo efeito de `docker compose stop backend`): na atualização seguinte, a faixa laranja compacta diz "Mostrando dados de 01:47:03" e oferece **Tentar novamente**, o selo fica laranja ("Desatualizado desde …") e a tabela continua na tela com os números em cinza, como os cards, para não parecerem atuais (#203, #261). Sem nenhum dado na tela, aparece o aviso de erro grande._
 
 - **RF01, RF02, RF03, RF04 — Descoberta e coleta periódica (#95, #98, #99):** o backend descobre os serviços no agregador de métricas, consulta `/metrics/{id}` e grava o histórico no PostgreSQL; o _worker_ roda em segundo plano e reconcilia serviços que aparecem, ficam indisponíveis ou voltam a exportar métricas.
 
