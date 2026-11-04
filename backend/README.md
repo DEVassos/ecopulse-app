@@ -7,7 +7,7 @@ API REST em Node.js com Express 5 e TypeScript estrito, persistência no Postgre
 - grava o histórico no PostgreSQL (#14, #19);
 - expõe `GET /health`, `GET /api/services` e `GET /api/collections` (#8, #111, #112), com CORS liberado para o dashboard (#118). Na Sprint 2, `GET /api/collections/series` passou a devolver a série temporal de um serviço em intervalos (#189).
 
-`POST /api/auth/login` e `GET /api/auth/me` já autenticam administradores com bcrypt e JWT. A área de configuração (`/monitoring-settings`) continua pendente na Sprint 2.
+`POST /api/auth/login` e `GET /api/auth/me` autenticam administradores com bcrypt e JWT. O módulo `modules/monitoring-settings` separa routes/controller/service/repository: GET público e PUT autenticado em `/api/monitoring-settings`, com intervalos 15/30/60 s para a tela (#250). O worker mantém seu agendamento individual. Contrato e erros: [API](../docs/api.md#get-apimonitoring-settings); volumes existentes exigem a [migração 001](../database/README.md#configuração-de-monitoramento-250). Nenhuma variável ou dependência nova.
 
 `GET /api/services` também devolve `statusReason` seguro somente para `indisponivel` (#251). Os 14 casos de `status-reason.test.ts` e o caso PostgreSQL em `repositories.integration.test.ts` cobrem estados, mensagens sensíveis, recuperação e desempate; a apresentação continua com Andrea na #176. Contrato em [API](../docs/api.md#get-apiservices).
 
@@ -23,11 +23,11 @@ src/
 ├── domain/                 carbon-calculator.ts — potência, energia e CO₂e de uma coleta
 ├── jobs/collector.ts       descoberta, reconciliação e coleta periódica (worker)
 ├── middlewares/            auth.ts (JWT), cors.ts e error-handler.ts
-├── modules/                health, services, collections e usuarios em routes/controller/service/repository
+├── modules/                health, services, collections, usuarios e monitoring-settings em routes/controller/service/repository
 └── shared/                 errors.ts (AppError e subclasses) e persistence.types.ts (tipos das linhas do banco)
 ```
 
-SQL só existe nos arquivos `*.repository.ts`, sempre com parâmetros `$1…$n`. `modules/usuarios/` contém repository, service, controller e rotas de autenticação; `middlewares/auth.ts` exporta o middleware JWT reutilizável pelas futuras rotas protegidas.
+SQL só existe nos arquivos `*.repository.ts`, sempre com parâmetros `$1…$n`. `modules/usuarios/` contém repository, service, controller e rotas de autenticação; `middlewares/auth.ts` protege também o PUT de `monitoring-settings`.
 
 O `tsconfig.json` usa ES2022, Node16 para módulo e resolução, `strict`, `rootDir` `src` e `outDir` `dist`. Sem `type=module`, o build emite CommonJS. Os testes ficam fora de `src`.
 
@@ -42,6 +42,8 @@ Contrato completo, com exemplos e erros, em [`docs/api.md`](../docs/api.md).
 | `GET /api/collections` | histórico de coletas, com filtros `service_id`, `from`, `to` e `limit` (1–500, padrão 50) ([#112](https://github.com/DEVassos/greener-app/issues/112)) | 200 `{ collections, period }`; 400 `VALIDATION_ERROR`; 404 `NOT_FOUND`; 500 |
 | `POST /api/auth/login` | valida e-mail e senha com bcrypt e emite JWT HS256 | 200 `{ token }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 |
 | `GET /api/auth/me` | devolve o administrador autenticado pelo JWT | 200 `{ id, email }`; 401 `UNAUTHORIZED`; 500 |
+| `GET /api/monitoring-settings` | consulta pública do intervalo da tela; padrão sem gravação | 200 `{ refreshIntervalSeconds, allowedIntervalsSeconds, updatedAt }`; 500 |
+| `PUT /api/monitoring-settings` | salva intervalo inteiro 15/30/60, exigindo JWT | 200 no mesmo formato do GET; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 |
 | `GET /api/collections/series` | série temporal de um serviço: agrupa as coletas do período em intervalos, com contagem, energia e CO₂e por intervalo e o total do período; parâmetros obrigatórios `service_id`, `from`, `to` (período de até 31 dias) e `bucket` (`15min`, `1h` ou `1d`) ([#189](https://github.com/DEVassos/greener-app/issues/189)) | 200 `{ serviceId, from, to, bucket, buckets, totals }`; 400 `VALIDATION_ERROR`; 404 `NOT_FOUND`; 500 |
 
 JSON inválido no corpo devolve 400; rota inexistente, 404; erro inesperado, 500 `INTERNAL_ERROR` sem stack. Todo erro sai no formato `{"error":{"code","message"}}`, produzido só pelo `error-handler`.
@@ -136,6 +138,7 @@ Antes do INSERT, as medidas são validadas contra as faixas das colunas e arredo
 - `ServiceRepository` (`modules/services`): lista com a última coleta, busca por ID, upsert por `external_id`, atualização de estado e marcação de ausentes como removidos.
 - `CollectionRepository` (`modules/collections`): insere coletas (com os campos de cálculo) e lista o histórico com filtros; `findSeries` agrupa as coletas de um serviço por `date_bin` e devolve os intervalos e o total do período na mesma consulta, com `GROUPING SETS`.
 - `UserRepository` (`modules/usuarios`): busca por e-mail sem distinção de caixa; o hash é interno, nunca vai para resposta HTTP nem log.
+- `MonitoringSettingsRepository` (`modules/monitoring-settings`): consulta e upsert parametrizado da configuração única; leitura sem registro não insere o padrão.
 - `withTransaction(database, async tx => { ... })` (`db/transaction.repository.ts`) executa BEGIN/COMMIT/ROLLBACK na mesma conexão; os repositories do callback são criados com `tx`, nunca com o pool. Erros do PostgreSQL viram `DatabaseError` com a causa preservada.
 
 Os tipos em `shared/persistence.types.ts` mantêm `bigint` e `numeric` como strings, datas como `Date` e ausência como `null`. Não há DELETE de serviços ou coletas, nem UPDATE de coletas: o histórico só cresce.
@@ -193,7 +196,9 @@ WORKER_TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/worker_t
 docker stop ecopulse-testes   # o --rm apaga o container e os dois bancos
 ```
 
-Esperado: `tests/repositories.integration.test.ts (7 tests)` e `tests/collector.integration.test.ts (1 test)` na lista e o resumo `Tests` só com `passed`, sem `skipped`. Para repetir, recrie o container: as suítes deixam dados nos bancos. Se a porta 55432 estiver ocupada, troque-a no `-p` e nas duas URLs.
+`tests/monitoring-settings.integration.test.ts` usa também `REPOSITORY_TEST_DATABASE_URL`, alterando somente `monitoring_settings`, sem interferir nas fixtures de serviços/coletas. Cobre leitura inicial, constraints, upsert e persistência em outra conexão. Os testes HTTP cobrem JWT, validação estrita e falhas de banco (#250).
+
+Esperado: as três suítes de integração na lista e o resumo `Tests` só com `passed`, sem `skipped`. Para repetir, recrie o container: as suítes deixam dados nos bancos. Se a porta 55432 estiver ocupada, troque-a no `-p` e nas duas URLs. Para limitar memória, acrescente `-- --maxWorkers=1` a `npm test`.
 
 As variáveis de teste pertencem só ao processo de testes, não à configuração do backend, e as suítes alteram dados. A suíte de repositories voltou a passar em 28/10 (7/7, #175): as coletas de teste ganharam os campos de cálculo que o #139 tornou obrigatórios, e um caso cobre `findSummary` com 2 serviços e várias coletas cada.
 
