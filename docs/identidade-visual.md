@@ -36,7 +36,7 @@ Os valores ficam em `frontend/src/styles/global.css`, fonte única das cores no 
 | **Alerta** | Estados de aviso (ex: serviço sem métricas) | Laranja | `#F97316` | `--warning` | 6,7:1 |
 | **Erro** | Estados críticos (ex: serviço indisponível/caído) | Vermelho | `#EF4444` | `--error` | 5,0:1 |
 | **Texto** | Cor padrão para textos e títulos | Cinza-claro | `#E2E8F0` | `--text` | 15,2:1 |
-| **Neon** | Só no que pede atenção: maior impacto, pico de gráfico, "ao vivo" e pulso do logo. Nunca em texto corrido, fundo de card ou linha de gráfico | Verde-neon | `#5CFFB8` | `--neon` | 14,7:1 |
+| **Neon** | Só no que pede atenção: maior impacto, pico, "ao vivo" e pulso do logo, e um destaque por vez na tela. Na página Emissões ele fica com o tile "Pico de uma coleta", o pico que a Leitura do período cita; o maior ponto do gráfico fica em `--text`, sem brilho (#258). Nunca em texto corrido, fundo de card ou linha de gráfico | Verde-neon | `#5CFFB8` | `--neon` | 14,7:1 |
 
 > **Nota de Usabilidade:** O amarelo (`#FACC15`) é utilizado restritivamente para elementos da marca. Alertas de sistema utilizam obrigatoriamente o laranja (`#F97316`) para garantir que problemas operacionais sejam imediatamente identificados sem ambiguidade.
 
@@ -57,6 +57,9 @@ Variações usadas pelos componentes para camadas, bordas, hierarquia de texto e
 | `--sky-hover` | `#7DD3FC` | Hover de links | 11,2:1 |
 | `--danger` | `#F87171` | Texto pequeno de erro; o `#EF4444` fica para ícones, bordas e fundos, porque sobre a superfície chega só a 4,5:1 | 6,8:1 |
 | `--neon-glow` | `rgb(92 255 184 / 0.35)` | Brilho do neon (`box-shadow` / `drop-shadow`); nunca sozinho | — |
+| `--focus-ring` | `0 0 0 3px` de `--accent` a 22% | Anel de foco dos campos de texto (login e busca da tabela), junto da borda em `--accent`; classe `.field-focus` em `controls.css` | — |
+
+O `:root` declara `color-scheme: dark` (#258): caixas de seleção, selects, calendários e barras de rolagem do navegador seguem o tema escuro, sem precisar de regra por campo. A seleção de texto usa `--accent` a 35%, e o cursor de digitação, `--accent`.
 
 No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg-surface-3`, `border-border`, `text-text`, `text-muted`, `text-faint`, `text-primary` (`--accent`), `text-primary-hover` (`--accent-hover`), `text-secondary` (`--sky`), `text-brand` (`--yellow`), `text-warning`, `text-error` e `text-danger` (`--danger`), além das variantes `bg-*` e `border-*` de cada uma. Os demais tokens de apoio são usados pelo CSS dos componentes, com `var(--token)`.
 
@@ -67,6 +70,8 @@ No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg
 ### Painéis e Cards
 * Utilizam a cor de superfície (`#131C2E`) sobre o fundo azul-noite (`#0B1220`) para criar profundidade e hierarquia visual.
 * Bordas sutis e cantos arredondados para manter uma aparência limpa e profissional.
+* Os ícones dos cards são SVG de linha 24×24, com o mesmo traço (`metricIconProps`, em `MetricTile.tsx`), na cor do tom do card. Caractere ou emoji não serve de ícone (#258).
+* O número isolado de um card (estado, indicadores do período, resumo da página Emissões) usa `--sans` semibold, não a fonte de título.
 
 ### Botões
 * **Botão cheio** (ação principal da tela, ex.: "Entrar"): fundo `--accent`, texto `--on-accent`. O texto fica escuro porque o branco sobre o verde dá 2,5:1 e reprova no AA.
@@ -89,7 +94,7 @@ No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg
 | Token CSS | Família | Pesos | Uso |
 | :--- | :--- | :--- | :--- |
 | `--sans` | IBM Plex Sans | 400, 500, 600 | Texto corrido, tabelas, botões e menus; fonte padrão da página, em 15 px |
-| `--mono` | IBM Plex Mono | 400, 500 | Valores numéricos e códigos: CPU, energia, emissão e horário da última leitura (alinhados à direita) e o código da região na tabela de serviços |
+| `--mono` | IBM Plex Mono | 400, 500 | Valores numéricos e códigos: CPU, energia, emissão e horário da última leitura (alinhados à direita) e o código da região na tabela de serviços. Nome de lugar (cidade, país) fica em `--sans` |
 | `--display` | Space Grotesk | 500, 600, 700 | Logotipo e títulos de página e de seção |
 
 * Contraste rigoroso entre o texto cinza-claro (`#E2E8F0`) e o fundo azul-noite (`#0B1220`), de 15,2:1, e a superfície (`#131C2E`), de 13,8:1, para garantir conforto visual em monitoramento prolongado. Texto pequeno usa no mínimo `--muted` (`#94A3B8`).
@@ -100,6 +105,8 @@ No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg
   2. Mapa reduzido.
   3. Dashboard da região/serviço selecionado.
   4. Ranking de consumo ao final da página.
+* Cabeçalho abaixo de 961 px (#258): três linhas, sem esconder nada. A primeira tem a marca e **Entrar**/**Sair**, a segunda o menu (que rola na horizontal) e a terceira a "Última atualização" com o botão de atualizar. Na tela larga, tudo fica numa linha só.
+* Os cards de energia e emissões do período ficam em uma coluna no celular, para o valor e a unidade ("g CO₂e") caberem na mesma linha.
 
 ---
 

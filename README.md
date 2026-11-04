@@ -54,7 +54,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   ![Indicadores agregados com comparação às 24 h anteriores](docs/img/sprint-2-indicadores-agregados.png)
 
-  _Dashboard com o backend real (`docker compose`) em 28/10/2026, 19h32: 0,2620 kWh e 64,61 g CO₂e nas últimas 24 h. O compose ficou desligado nas 24 h anteriores, então os cards dizem "Sem cálculo no período anterior" em vez de uma variação._
+  _Dashboard com o backend real (`docker compose`) em 03/11/2026, 21h48: 1,2258 kWh e 301,46 g CO₂e nas últimas 24 h. Não há cálculo nas 24 h anteriores, então os cards dizem "Sem cálculo no período anterior" em vez de uma variação. Ícones de linha nos dois cards (#258)._
 
 - **RNF02 — Indicador de última atualização (#89):** selo no cabeçalho com o horário da última busca bem-sucedida e um ponto verde pulsando enquanto os dados estão em dia; se uma busca falha, ele fica laranja e passa a dizer "Desatualizado desde …", sem apagar os dados da tela.
 
