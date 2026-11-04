@@ -120,7 +120,7 @@ Foram para a Sprint 2: os KPIs consolidados (Nível 1), a autenticação JWT da 
 
 ### 9.3 Fora do Escopo (Não priorizar sem validação prévia)
 
-- **Consumo de água:** Não há especificação oficial e metodologia validada no desafio atual.
+- **Consumo de água:** Não faz parte do desafio atual; o cliente admite considerá-lo como extra após a entrega principal, sem ampliar o escopo contratado. Não há API ou metodologia oficial validada. Ver [resposta do cliente na Review 1](sprints/sprint-1/review.md#32-resposta-complementar-do-cliente-02112026).
 - **Estimativas monetárias/financeiras:** O foco é puramente socioambiental (ESG).
 - **Mapeamento geográfico de alta precisão/polígonos:** A API fornece apenas coordenadas aproximadas.
 

@@ -119,3 +119,15 @@ Feriados no período: 02/11 (daily assíncrona por texto, com ata). Capacidade t
 - [x] `docs/backlog/product-backlog.md` regenerado (@travensolli) — 108 issues, incluído neste PR
 - [x] #49 e #52 quebradas em tarefas até 23/10 (@henriqueptbd-cell) — feito em 22/10 por @travensolli, como backup do PO: #188, #189 e #190 na #49; #193 e #194 na #52 (#198)
 - [ ] `docs/calculos.md` com o exemplo numérico conferido (@henriqueptbd-cell)
+
+
+## 8. Perguntas de produto para a Sprint Review 2
+
+A resposta recebida em 02/11 na [#166](https://github.com/DEVassos/greener-app/issues/166#issuecomment-6589732332) esclareceu que consumo de água não faz parte do desafio. Depois da demonstração dos itens que estiverem na release, o PO deve primeiro verificar se as funcionalidades já respondem às dúvidas abaixo; perguntar ao cliente somente o que permanecer sem resposta, para não repetir perguntas resolvidas pela própria entrega.
+
+- A comparação e o ranking ajudam o operador a decidir quais serviços compensam?
+- Quais indicadores e período ainda faltam para essa decisão, se houver?
+- As informações mostradas justificam o espaço que ocupam na interface? Quais filtros devem ficar visíveis e como os recursos devem ser organizados?
+- A distinção entre dado mensurável e informação contextualizada está clara? Se o time usar essa distinção, o overview da apresentação explica quais informações foram consolidadas e por que são úteis?
+
+Registrar as respostas literais, as decisões e as pendências em `docs/sprints/sprint-2/review.md` em até 24h. Se alguma questão continuar aberta, criar ou atualizar o acompanhamento para a Sprint 3. Responsável pelo roteiro e pelo registro: @henriqueptbd-cell; escriba da review: @travensolli.
