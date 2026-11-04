@@ -96,6 +96,12 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 - **RF07 — Cálculo socioambiental por coleta (#133, PR #139):** métricas válidas são convertidas em potência, energia e emissão de CO₂e com o fator regional da API de carbono. Se o fator não estiver disponível, a métrica continua registrada e o cálculo fica indisponível, sem criar valor estimado. As colunas "Energia (kWh)" e "Emissão (g CO₂e)" da tabela mostram o resultado da última coleta, com cerca de 30 s de operação, em resolução fixa (kWh com 5 casas, g com 3): uma emissão de 0,04 g aparece como 0,040, e não como 0,0 (#203) ([detalhes](frontend/README.md#energia-e-emissão-na-tabela)).
 
+- **RNF01 — Dashboard no celular sem esconder energia e CO₂e (#263):** abaixo de 600 px, a emissão da última leitura aparece também sob o nome de cada serviço, e a tabela de serviços e a matriz da Comparação mostram uma sombra na borda direita enquanto há colunas escondidas. O menu rola até o item da página aberta, e o selo de atualização não quebra o horário nem o intervalo no meio.
+
+  ![Dashboard no celular com a emissão sob o nome de cada serviço](docs/img/sprint-3-dashboard-celular.png)
+
+  _Dashboard com o backend real (`docker compose`) em 04/11/2026, numa tela de 390 px: cada serviço mostra a emissão da última leitura sob o nome (Fraud Detector, 0,449 g CO₂e), e a borda direita da tabela indica as colunas que faltam._
+
 - **RNF01 — Fundo azul, verde nos destaques e logo pulsante (#180, PR #184):** a base da paleta voltou ao azul-escuro e o verde ficou só em ações e destaques (botão vazado nas ações secundárias, item ativo do menu, neon no que pede atenção), em resposta ao feedback da Sprint Review 1. O logo pulsa uma vez a cada atualização bem-sucedida dos dados, como sinal de "ao vivo", e fica parado em falha ou com "reduzir movimento". Regras e contrastes em [docs/identidade-visual.md](docs/identidade-visual.md).
 
   ![Dashboard com fundo azul-escuro](docs/img/sprint-2-fundo-azul.png)
