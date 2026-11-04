@@ -26,6 +26,7 @@ Resposta 200:
     "energyKwh": 0.000480452625,
     "emissionsG": 0.040838473125,
     "status": "ativo",
+    "statusReason": null,
     "lastReadingAt": "2026-10-14T20:00:00.000Z"
   }],
   "period": "última leitura (intervalo de coleta)"
@@ -43,6 +44,40 @@ Falha de banco retorna 500 no envelope global, sem stack ou SQL:
 ```json
 {"error":{"code":"DATABASE_ERROR","message":"Não foi possível acessar o banco de dados."}}
 ```
+
+`statusReason` (#251) usa `error_message` somente da coleta mais recente, com desempate por `collected_at DESC, id DESC`. É `null` para estados diferentes de `indisponivel` ou ausência de mensagem. Diagnósticos conhecidos são apresentados sem URLs, caminhos, stack ou SQL; mensagens arbitrárias viram "Não foi possível obter as métricas deste serviço.". Exemplo: `"statusReason":"Serviço indisponível (HTTP 500)."`. Não se procura erro antigo quando a última coleta não tem mensagem.
+
+## GET /api/monitoring-settings
+
+Público, sem parâmetros ou corpo; não exige nem valida token Bearer. Resposta 200:
+
+```json
+{"refreshIntervalSeconds":30,"allowedIntervalsSeconds":[15,30,60],"updatedAt":null}
+```
+
+Sem registro, esse é o padrão e nenhuma linha é inserida. Tabela ausente ou banco indisponível retorna 500 `DATABASE_ERROR`, nunca o padrão como sucesso. A configuração controla o polling da tela; não altera o worker ou a frequência de coleta por serviço.
+
+## PUT /api/monitoring-settings
+
+Exige `Authorization: Bearer <JWT>` do login existente. Corpo JSON:
+
+```json
+{"refreshIntervalSeconds":60}
+```
+
+Somente números inteiros 15, 30 ou 60 são aceitos. Campo ausente, string, booleano, nulo, decimal ou valor fora da lista retorna 400. Upsert de `id=1`, sem `updated_by`; a última escrita concluída prevalece. Resposta 200, no mesmo formato do GET:
+
+```json
+{"refreshIntervalSeconds":60,"allowedIntervalsSeconds":[15,30,60],"updatedAt":"2026-11-03T12:00:00.000Z"}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Corpo ou intervalo inválido |
+| 401 | `UNAUTHORIZED` | PUT sem JWT, inválido ou expirado |
+| 500 | `DATABASE_ERROR` | Falha no banco, inclusive migração não aplicada |
+
+Erros seguem `{"error":{"code":"VALIDATION_ERROR","message":"refreshIntervalSeconds deve ser 15, 30 ou 60."}}`; respostas não expõem SQL ou stack. Aplicação em volumes existentes: [migração do banco](../database/README.md#configuração-de-monitoramento-250).
 
 ## GET /api/services/summary
 
@@ -108,8 +143,10 @@ Cada coleta traz o resultado do cálculo de energia e CO₂e ([fórmulas](calcul
 
 `null` nessas três chaves significa **não calculado**, nunca zero: `energyKwh: 0` é uma coleta calculada que resultou em zero. As colunas são `numeric`, que o driver `pg` devolve como string; a conversão para número é feita na borda da API, então os valores saem em JSON numérico e não em string.
 
+`collectionIntervalSeconds` é o intervalo informado pela API de métricas naquela coleta, em segundos; é `null` quando a coleta não trouxe métricas (`erro` ou `sem_metricas`). O dashboard usa esse valor para distinguir o intervalo normal entre coletas de um período sem nenhum registro.
+
 ```json
-{"collections":[{"id":"2","serviceId":"1","collectedAt":"2026-10-14T20:00:00.000Z","status":"ok","cpuPercent":42.5,"memoryGb":1.2,"diskGb":10,"networkGb":0.3,"errorMessage":null,"calculationStatus":"disponivel","energyKwh":0.000480452625,"co2eGrams":0.040838473125,"carbonIntensityGco2ePerKwh":85},{"id":"1","serviceId":"1","collectedAt":"2026-10-14T19:45:00.000Z","status":"ok","cpuPercent":40,"memoryGb":1.1,"diskGb":10,"networkGb":0.2,"errorMessage":null,"calculationStatus":"indisponivel","energyKwh":null,"co2eGrams":null,"carbonIntensityGco2ePerKwh":null}],"period":{"from":"2026-10-14T00:00:00.000Z","to":"2026-10-14T23:59:59.999Z"}}
+{"collections":[{"id":"2","serviceId":"1","collectedAt":"2026-10-14T20:00:00.000Z","status":"ok","collectionIntervalSeconds":27,"cpuPercent":42.5,"memoryGb":1.2,"diskGb":10,"networkGb":0.3,"errorMessage":null,"calculationStatus":"disponivel","energyKwh":0.000480452625,"co2eGrams":0.040838473125,"carbonIntensityGco2ePerKwh":85},{"id":"1","serviceId":"1","collectedAt":"2026-10-14T19:45:00.000Z","status":"erro","collectionIntervalSeconds":null,"cpuPercent":null,"memoryGb":null,"diskGb":null,"networkGb":null,"errorMessage":"Timeout","calculationStatus":"nao_calculado","energyKwh":null,"co2eGrams":null,"carbonIntensityGco2ePerKwh":null}],"period":{"from":"2026-10-14T00:00:00.000Z","to":"2026-10-14T23:59:59.999Z"}}
 ```
 
 O limite `to` é **inclusivo** (`collected_at <= to`): quem precisa de um período com fim aberto deve recuar 1 ms no parâmetro.

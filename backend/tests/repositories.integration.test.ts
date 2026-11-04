@@ -7,6 +7,7 @@ import { UserRepository } from '../src/modules/usuarios/usuarios.repository';
 import type { DiscoveredService, NewCollection } from '../src/shared/persistence.types';
 import { DatabaseError } from '../src/shared/errors';
 import { prepare } from './repositories-test.repository';
+import { getServices } from '../src/modules/services/services.service';
 
 // URL exclusiva de teste; schema aplicado antes em banco descartável vazio, fixture no beforeAll.
 const url = process.env.REPOSITORY_TEST_DATABASE_URL;
@@ -16,11 +17,17 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
   const collections = new CollectionRepository(db);
   const first = new Date('2026-10-11T10:00:00Z');
   const second = new Date('2026-10-11T11:00:00Z');
+  // Estado inicial do cálculo; o worker preenche os campos quando o cálculo roda.
+  const notCalculated = {
+    calculation_status: 'nao_calculado',
+    carbon_intensity_gco2e_per_kwh: null,
+    power_watts: null,
+    energy_kwh: null,
+    co2e_grams: null,
+    calculation_error_message: null,
+  } as const;
   const service = (external_id: string): DiscoveredService => ({ external_id, name: external_id,
     region_code: 'br-sudeste', country: 'Brazil', region: 'Sudeste', city: null, latitude: null, longitude: null });
-  // Campos de cálculo obrigatórios desde o #139; o worker grava 'nao_calculado' quando não calcula
-  const notCalculated = { calculation_status: 'nao_calculado', carbon_intensity_gco2e_per_kwh: null, power_watts: null,
-    energy_kwh: null, co2e_grams: null, calculation_error_message: null } as const;
   const reading = (service_id: string): NewCollection => ({ service_id, collected_at: first,
     region_code: 'br-sudeste', status: 'ok', collection_interval_seconds: 27, cpu_percent: '62.67',
     memory_gb: '3.17', disk_gb: '19.26', network_gb: '0.45', error_message: null, ...notCalculated,
@@ -36,6 +43,8 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
     const one = await collections.insert(reading(a.id));
     const two = await collections.insert(reading(a.id));
     expect(one.id).not.toBe(two.id);
+    expect(await collections.findAll({ serviceId: null, from: null, to: null, limit: 10 }))
+      .toContainEqual(expect.objectContaining({ id: one.id, collection_interval_seconds: 27 }));
     expect(one).toMatchObject({ service_id: a.id, calculation_status: 'nao_calculado',
       carbon_intensity_gco2e_per_kwh: null, power_watts: null, energy_kwh: null,
       co2e_grams: null, calculation_error_message: null, cpu_percent: '62.67' });
@@ -120,5 +129,28 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
     const repo = new UserRepository(db);
     expect(await repo.findByEmail('REVIEW@example.test')).toMatchObject({ id: '9007199254740993', email: 'review@example.test' });
     expect(await repo.findByEmail("' OR true --")).toBeNull();
+  });
+  it('motivo usa última coleta, desempata por id e desaparece na recuperação', async () => {
+    const a = await services.upsert(service('status-reason'), first);
+    const latest = new Date('2026-11-03T10:00:00Z');
+    const error = { ...reading(a.id), collected_at: latest, status: 'erro' as const,
+      collection_interval_seconds: null, cpu_percent: null, memory_gb: null, disk_gb: null, network_gb: null };
+    await collections.insert({ ...error, error_message: 'Timeout' });
+    await collections.insert({ ...error, error_message: 'Serviço indisponível (HTTP 500).' });
+    await services.updateStatus(a.id, 'indisponivel');
+    const current = async () => (await getServices(services)).services.find(item => item.id === a.id)!;
+    expect((await current()).statusReason).toBe('Serviço indisponível (HTTP 500).');
+    for (const status of ['ativo', 'sem_metricas', 'removido'] as const) {
+      await services.updateStatus(a.id, status);
+      expect((await current()).statusReason).toBeNull();
+    }
+    await collections.insert({ ...reading(a.id), collected_at: new Date(latest.getTime() + 1000) });
+    await services.updateStatus(a.id, 'ativo');
+    expect((await current()).statusReason).toBeNull();
+    await services.updateStatus(a.id, 'indisponivel');
+    expect((await current()).statusReason).toBeNull();
+    const empty = await services.upsert(service('status-without-reading'), first);
+    await services.updateStatus(empty.id, 'indisponivel');
+    expect((await getServices(services)).services.find(item => item.id === empty.id)?.statusReason).toBeNull();
   });
 });

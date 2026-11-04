@@ -5,7 +5,8 @@ import type { CollectionsResponse, ServiceCollection } from './collections.types
 import type { MonitoredService, ServicesResponse } from './services.types';
 
 /** Intervalo entre coletas do worker (POLLING_INTERVAL_MS do .env.example). */
-const DEMO_COLLECTION_INTERVAL_MS = 30_000;
+const DEMO_COLLECTION_INTERVAL_SECONDS = 30;
+const DEMO_COLLECTION_INTERVAL_MS = DEMO_COLLECTION_INTERVAL_SECONDS * 1_000;
 
 /** Horário de uma leitura feita há alguns segundos, para a demonstração parecer viva. */
 function secondsAgo(seconds: number): string {
@@ -44,15 +45,17 @@ export function demoCollections(serviceId: string, limit: number): CollectionsRe
   const now = Date.now();
 
   const collections = Array.from({ length: limit }, (_, index): ServiceCollection => {
-    const time = now - index * DEMO_COLLECTION_INTERVAL_MS;
+    const gapOffset = serviceId === 'fraud-detector' && index >= 5 ? 90_000 : 0;
+    const time = now - index * DEMO_COLLECTION_INTERVAL_MS - gapOffset;
     const common = { id: `${serviceId}-${index}`, serviceId, collectedAt: new Date(time).toISOString() };
     if (time > failingSince) {
-      return { ...common, status: 'erro', cpuPercent: null, memoryGb: null, diskGb: null, networkGb: null, errorMessage: 'Serviço indisponível (HTTP 500).' };
+      return { ...common, status: 'erro', collectionIntervalSeconds: null, cpuPercent: null, memoryGb: null, diskGb: null, networkGb: null, errorMessage: 'Serviço indisponível (HTTP 500).' };
     }
     const wave = Math.sin(index / 4 + seed) * 9 + Math.sin(index / 1.7) * 3;
     return {
       ...common,
       status: 'ok',
+      collectionIntervalSeconds: DEMO_COLLECTION_INTERVAL_SECONDS,
       cpuPercent: round(Math.min(100, Math.max(0, baseCpu + wave)), 1),
       memoryGb: round(0.5 + seed * 0.6 + Math.sin(index / 5) * 0.1, 3),
       diskGb: round(8 + seed * 3 + (limit - index) * 0.01, 3),

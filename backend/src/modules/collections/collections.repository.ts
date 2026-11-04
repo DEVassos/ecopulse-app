@@ -4,6 +4,7 @@ import type { CalculationStatus, DatabaseId, NewCollection, StoredCollection } f
 export interface CollectionFilters { serviceId: DatabaseId | null; from: Date | null; to: Date | null; limit: number }
 export interface CollectionListRow {
   id: DatabaseId; service_id: DatabaseId; collected_at: Date; status: 'ok' | 'erro' | 'sem_metricas';
+  collection_interval_seconds: number | null;
   cpu_percent: string | null; memory_gb: string | null; disk_gb: string | null; network_gb: string | null; error_message: string | null;
   calculation_status: CalculationStatus;
   carbon_intensity_gco2e_per_kwh: string | null; energy_kwh: string | null; co2e_grams: string | null;
@@ -39,7 +40,7 @@ export class CollectionRepository {
   async findAll(filters: CollectionFilters): Promise<CollectionListRow[]> {
     return (await this.db.query<CollectionListRow>(`
       SELECT id, service_id, collected_at, status, cpu_percent, memory_gb, disk_gb, network_gb, error_message,
-        calculation_status, carbon_intensity_gco2e_per_kwh, energy_kwh, co2e_grams
+        collection_interval_seconds, calculation_status, carbon_intensity_gco2e_per_kwh, energy_kwh, co2e_grams
       FROM collections
       WHERE ($1::bigint IS NULL OR service_id = $1)
         AND ($2::timestamptz IS NULL OR collected_at >= $2)
