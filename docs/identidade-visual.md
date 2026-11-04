@@ -89,12 +89,12 @@ No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg
 * Na comparação entre serviços (`CompareChart`, #218), as barras não são ranking: ficam em `--sky` sobre trilho em `--border`, e no CO₂e o menor vai em `--accent-hover` e o maior em `--warning`, os mesmos tons do destaque da tabela, sempre com a seta "↓"/"↑" e a legenda.
 
 ### Tipografia
-* Tipografia limpa e sem serifa otimizada para painéis de dados (Dashboards), em três famílias do Google Fonts carregadas em `frontend/index.html`:
+* Tipografia limpa e sem serifa otimizada para painéis de dados (Dashboards), em duas famílias do Google Fonts carregadas em `frontend/index.html` (IBM Plex Sans e Space Grotesk):
 
 | Token CSS | Família | Pesos | Uso |
 | :--- | :--- | :--- | :--- |
 | `--sans` | IBM Plex Sans | 400, 500, 600 | Texto corrido, tabelas, botões e menus; fonte padrão da página, em 15 px |
-| `--mono` | IBM Plex Mono | 400, 500 | Valores numéricos e códigos: CPU, energia, emissão e horário da última leitura (alinhados à direita) e o código da região na tabela de serviços. Nome de lugar (cidade, país) fica em `--sans` |
+| `--sans` + `tabular-nums` | IBM Plex Sans | 400, 500 | Números de dados (#266): CPU, energia, emissão, horários, eixos e rótulos dos gráficos e a matriz da comparação, alinhados à direita, com a classe `font-data` (`global.css`). Os algarismos tabulares têm a mesma largura, então as vírgulas ficam alinhadas sem fonte mono. Nome de lugar (cidade, país) fica sem `tabular-nums`. A IBM Plex Mono saiu do projeto: tinha cara de terminal para a interface |
 | `--display` | Space Grotesk | 500, 600, 700 | Logotipo e títulos de página e de seção |
 
 * Contraste rigoroso entre o texto cinza-claro (`#E2E8F0`) e o fundo azul-noite (`#0B1220`), de 15,2:1, e a superfície (`#131C2E`), de 13,8:1, para garantir conforto visual em monitoramento prolongado. Texto pequeno usa no mínimo `--muted` (`#94A3B8`).
