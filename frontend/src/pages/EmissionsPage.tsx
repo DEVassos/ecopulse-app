@@ -46,8 +46,8 @@ function locationOf(service: MonitoredService): string {
 }
 
 /**
- * Página Emissões (#190): emissão estimada de CO₂e de uma estação ao longo do tempo.
- * Estação, período e tempo real ficam na URL (`?servico=&de=&ate=&tempo=real`): o link abre no mesmo filtro e o
+ * Página Emissões (#190): emissão estimada de CO₂e de um serviço ao longo do tempo.
+ * Serviço, período e tempo real ficam na URL (`?servico=&de=&ate=&tempo=real`): o link abre no mesmo filtro e o
  * "voltar" do navegador desfaz a última troca, desligando o tempo real junto com a volta das datas (#212).
  */
 export default function EmissionsPage() {
@@ -57,12 +57,12 @@ export default function EmissionsPage() {
   const today = todayInput();
   const services = useMemo(() => servicesData?.services ?? [], [servicesData]);
 
-  // Filtro aplicado (vem da URL; valor inválido ou ausente cai no padrão: hoje e a primeira estação)
+  // Filtro aplicado (vem da URL; valor inválido ou ausente cai no padrão: hoje e o primeiro serviço)
   const { start, end, live } = readPeriodFilter(params, today);
   const urlService = params.get('servico');
   const service = services.find((item) => item.id === urlService) ?? services[0] ?? null;
 
-  // Datas digitadas: a busca só sai com "Atualizar"
+  // Datas digitadas: a busca só sai com "Aplicar"
   const [draftStart, setDraftStart] = useState(start);
   const [draftEnd, setDraftEnd] = useState(end);
   const [bucket, setBucket] = useState<EmissionsBucket | null>(null);
@@ -118,7 +118,7 @@ export default function EmissionsPage() {
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    // No tempo real o período é sempre hoje: "Atualizar" só busca de novo, sem esperar o intervalo
+    // No tempo real o período é sempre hoje: "Aplicar" só busca de novo, sem esperar o intervalo
     if (live) return refresh();
     apply(draftStart, draftEnd);
   }
@@ -153,22 +153,23 @@ export default function EmissionsPage() {
       <AppHeader updatedAt={updatedAt} />
 
       <main className="content">
-        <h1 className="sr-only">Emissões de CO₂e por estação</h1>
+        <h1 className="sr-only">Emissões de CO₂e por serviço</h1>
 
         {servicesError && !servicesData && <ErrorState message={servicesError} onRetry={refreshServices} />}
-        {servicesLoading && !servicesData && <LoadingState message="Carregando estações…" />}
+        {servicesLoading && !servicesData && <LoadingState message="Carregando serviços…" />}
         {servicesData && services.length === 0 && (
           <EmptyState
             title="Nenhum serviço monitorado ainda"
-            description="As estações aparecem aqui assim que o agregador descobrir os serviços na próxima coleta."
+            description="Os serviços aparecem aqui assim que o agregador os descobrir na próxima coleta."
           />
         )}
 
         {service && (
           <section className="emissions" aria-labelledby="emissions-title">
+            {/* Barra em grupos (#267): o quê (serviço) · quando (período, com ◀ ▶ e Aplicar juntos) · como agrupar · tempo real */}
             <form className="emissions__filters panel" onSubmit={handleSubmit}>
-              <label className="emissions__field emissions__field--station">
-                <span>Estação</span>
+              <label className="emissions__field emissions__field--service">
+                <span>Serviço</span>
                 <select value={service.id} onChange={(event) => updateUrl({ servico: event.target.value })}>
                   {services.map((item) => (
                     <option key={item.id} value={item.id}>
@@ -178,14 +179,40 @@ export default function EmissionsPage() {
                   ))}
                 </select>
               </label>
-              <label className="emissions__field">
-                <span>Data inicial</span>
-                <input type="date" value={draftStart} max={today} disabled={live} onChange={(e) => setDraftStart(e.target.value)} />
-              </label>
-              <label className="emissions__field">
-                <span>Data final</span>
-                <input type="date" value={draftEnd} max={today} disabled={live} onChange={(e) => setDraftEnd(e.target.value)} />
-              </label>
+              <fieldset className="emissions__period">
+                <legend>Período</legend>
+                <div className="emissions__period-row">
+                  <button type="button" className="emissions__btn emissions__btn--icon" onClick={() => shift(-1)} aria-label="Período anterior" title="Período anterior">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4"><path d="m15 18-6-6 6-6" /></svg>
+                  </button>
+                  <div className="emissions__dates">
+                    <label className="emissions__field">
+                      <span className="sr-only">Data inicial</span>
+                      <input type="date" value={draftStart} max={today} disabled={live} onChange={(e) => setDraftStart(e.target.value)} />
+                    </label>
+                    <span className="emissions__until" aria-hidden="true">
+                      até
+                    </span>
+                    <label className="emissions__field">
+                      <span className="sr-only">Data final</span>
+                      <input type="date" value={draftEnd} max={today} disabled={live} onChange={(e) => setDraftEnd(e.target.value)} />
+                    </label>
+                  </div>
+                  <button
+                    type="button"
+                    className="emissions__btn emissions__btn--icon"
+                    onClick={() => shift(1)}
+                    disabled={!canGoForward}
+                    aria-label="Próximo período"
+                    title="Próximo período"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4"><path d="m9 18 6-6-6-6" /></svg>
+                  </button>
+                  <button type="submit" className="emissions__btn emissions__btn--primary" aria-disabled={loading}>
+                    Aplicar
+                  </button>
+                </div>
+              </fieldset>
               <label className="emissions__field">
                 <span>Agrupar por</span>
                 <select
@@ -200,45 +227,16 @@ export default function EmissionsPage() {
                   ))}
                 </select>
               </label>
-
-              <div className="emissions__actions">
-                <div className="emissions__group">
-                  <button type="button" className="emissions__btn emissions__btn--icon" onClick={() => shift(-1)} aria-label="Período anterior" title="Período anterior">
-                    ◀
-                  </button>
-                  <button
-                    type="button"
-                    className="emissions__btn emissions__btn--icon"
-                    onClick={() => shift(1)}
-                    disabled={!canGoForward}
-                    aria-label="Próximo período"
-                    title="Próximo período"
-                  >
-                    ▶
-                  </button>
-                </div>
-                <div className="emissions__group">
-                  <button type="submit" className="emissions__btn emissions__btn--primary" aria-disabled={loading}>
-                    Atualizar
-                  </button>
-                  <button
-                    type="button"
-                    className={live ? 'emissions__btn emissions__btn--live is-on' : 'emissions__btn emissions__btn--live'}
-                    onClick={toggleLive}
-                    aria-pressed={live}
-                  >
-                    {live && <span className="emissions__live-dot" aria-hidden="true" />}
-                    Tempo real
-                  </button>
-                </div>
-                <div className="emissions__group emissions__segmented" role="group" aria-label="Forma de exibir">
-                  <button type="button" className="emissions__btn" aria-pressed={mode === 'intervalo'} onClick={() => setMode('intervalo')}>
-                    {data?.bucket === 'coleta' ? 'Por coleta' : 'Por intervalo'}
-                  </button>
-                  <button type="button" className="emissions__btn" aria-pressed={mode === 'acumulado'} onClick={() => setMode('acumulado')}>
-                    Acumulado
-                  </button>
-                </div>
+              <div className="emissions__live">
+                <button
+                  type="button"
+                  className={live ? 'emissions__btn emissions__btn--live is-on' : 'emissions__btn emissions__btn--live'}
+                  onClick={toggleLive}
+                  aria-pressed={live}
+                >
+                  {live && <span className="emissions__live-dot" aria-hidden="true" />}
+                  Tempo real
+                </button>
               </div>
               {formError && (
                 <p className="emissions__form-error" role="alert">
@@ -339,10 +337,21 @@ export default function EmissionsPage() {
                 </dl>
               )}
 
+              {/* Forma de exibir o gráfico: fica no card, junto do gráfico em que age (#267) */}
+              <div className="emissions__chart-bar">
+                <div className="emissions__segmented" role="group" aria-label="Forma de exibir o gráfico">
+                  <button type="button" className="emissions__btn" aria-pressed={mode === 'intervalo'} onClick={() => setMode('intervalo')}>
+                    {data?.bucket === 'coleta' ? 'Por coleta' : 'Por intervalo'}
+                  </button>
+                  <button type="button" className="emissions__btn" aria-pressed={mode === 'acumulado'} onClick={() => setMode('acumulado')}>
+                    Acumulado
+                  </button>
+                </div>
+              </div>
               <div className="emissions__chart">
                 {data === null && loading && <p className="emissions__empty">Carregando coletas…</p>}
                 {data !== null && points.length === 0 && (
-                  <p className="emissions__empty">Nenhuma coleta desta estação no período escolhido.</p>
+                  <p className="emissions__empty">Nenhuma coleta deste serviço no período escolhido.</p>
                 )}
                 {data !== null && period !== null && points.length > 0 && (
                   <EmissionsChart
