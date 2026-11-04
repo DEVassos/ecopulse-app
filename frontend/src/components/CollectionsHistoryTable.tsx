@@ -30,7 +30,7 @@ function MissingCollectionRow({ seconds }: { seconds: number }) {
   return (
     <tr className="border-t border-dashed border-warning/40 bg-warning/5">
       <td colSpan={7} className="px-4 py-2 text-left text-xs text-muted">
-        Sem coleta por <strong className="font-mono font-medium text-text">{formatDurationSeconds(seconds)}</strong>
+        Sem coleta por <strong className="font-data font-medium text-text">{formatDurationSeconds(seconds)}</strong>
       </td>
     </tr>
   );
@@ -57,9 +57,9 @@ export default function CollectionsHistoryTable({ collections }: Props) {
           {newest && oldest && (
             <>
               {' · de '}
-              <strong className="font-mono font-medium text-text">{formatDayTime(oldest.collectedAt)}</strong>
+              <strong className="font-data font-medium text-text">{formatDayTime(oldest.collectedAt)}</strong>
               {' a '}
-              <strong className="font-mono font-medium text-text">{formatDayTime(newest.collectedAt)}</strong>
+              <strong className="font-data font-medium text-text">{formatDayTime(newest.collectedAt)}</strong>
             </>
           )}
         </caption>
@@ -81,16 +81,16 @@ export default function CollectionsHistoryTable({ collections }: Props) {
               <Fragment key={collection.id}>
                 {gap !== null && <MissingCollectionRow seconds={gap} />}
                 <tr className="border-t border-border">
-                  <th scope="row" className="whitespace-nowrap px-4 py-2 text-left font-mono font-normal text-muted">
+                  <th scope="row" className="whitespace-nowrap px-4 py-2 text-left font-data font-normal text-muted">
                     {formatDayTime(collection.collectedAt)}
                   </th>
                   <td className="px-4 py-2">
                     <CollectionStatusBadge status={collection.status} />
                   </td>
-                  <td className="px-4 py-2 text-right font-mono">{metric(collection.cpuPercent, 1)}</td>
-                  <td className="px-4 py-2 text-right font-mono">{metric(collection.memoryGb, 2)}</td>
-                  <td className="px-4 py-2 text-right font-mono">{metric(collection.diskGb, 2)}</td>
-                  <td className="px-4 py-2 text-right font-mono">{metric(collection.networkGb, 3)}</td>
+                  <td className="px-4 py-2 text-right font-data">{metric(collection.cpuPercent, 1)}</td>
+                  <td className="px-4 py-2 text-right font-data">{metric(collection.memoryGb, 2)}</td>
+                  <td className="px-4 py-2 text-right font-data">{metric(collection.diskGb, 2)}</td>
+                  <td className="px-4 py-2 text-right font-data">{metric(collection.networkGb, 3)}</td>
                   <td className="px-4 py-2 text-muted">{collection.errorMessage}</td>
                 </tr>
               </Fragment>

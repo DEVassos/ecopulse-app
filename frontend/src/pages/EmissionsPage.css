@@ -364,7 +364,8 @@
   }
 
   .emissions__notice code {
-    font-family: var(--mono);
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
     font-size: 12px;
   }
 

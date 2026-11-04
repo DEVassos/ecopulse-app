@@ -160,17 +160,17 @@ export default function ServicesTable({ services, onSelect }: Props) {
                 <td className="px-5 py-2">
                   <StatusBadge status={service.status} />
                 </td>
-                <td className="px-5 py-2 text-right font-mono">
+                <td className="px-5 py-2 text-right font-data">
                   {service.cpuPercent === null ? <MissingValue /> : `${formatNumber(service.cpuPercent, 0)}%`}
                 </td>
                 {/* Resolução fixa por coluna (kWh com 5 casas, g com 3): vírgulas alinhadas e 0,040 g em vez de "0,0" */}
-                <td className="px-5 py-2 text-right font-mono">
+                <td className="px-5 py-2 text-right font-data">
                   {service.energyKwh === null ? <MissingValue /> : formatFixed(service.energyKwh, 5)}
                 </td>
-                <td className="px-5 py-2 text-right font-mono">
+                <td className="px-5 py-2 text-right font-data">
                   {service.emissionsG === null ? <MissingValue /> : formatFixed(service.emissionsG, 3)}
                 </td>
-                <td className="px-5 py-2 text-right font-mono text-muted">
+                <td className="px-5 py-2 text-right font-data text-muted">
                   {service.lastReadingAt === null ? 'nunca' : formatTime(service.lastReadingAt)}
                 </td>
                 <td className="whitespace-nowrap px-5 py-2 text-muted">
