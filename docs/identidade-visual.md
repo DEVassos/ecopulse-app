@@ -72,6 +72,7 @@ No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg
 * Bordas sutis e cantos arredondados para manter uma aparência limpa e profissional.
 * Os ícones dos cards são SVG de linha 24×24, com o mesmo traço (`metricIconProps`, em `MetricTile.tsx`), na cor do tom do card. Caractere ou emoji não serve de ícone (#258).
 * O número isolado de um card (estado, indicadores do período, resumo da página Emissões) usa `--sans` semibold, não a fonte de título.
+* No dashboard, o impacto vem primeiro (#259): os indicadores de energia e CO₂e do período ficam no topo, com o número em 28 px. Os cards de estado vêm logo abaixo, na versão compacta do `MetricTile` (cerca de 64 px, número em 22 px).
 
 ### Botões
 * **Botão cheio** (ação principal da tela, ex.: "Entrar"): fundo `--accent`, texto `--on-accent`. O texto fica escuro porque o branco sobre o verde dá 2,5:1 e reprova no AA.

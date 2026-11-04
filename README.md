@@ -52,19 +52,19 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   ![Tabela de serviços monitorados com o backend real](docs/img/sprint-2-dashboard-backend-real.png)
 
-  _Tabela ligada ao backend real (`docker compose`) em 27/10/2026, numa janela de 1366×657: ordem inicial por gravidade, status logo depois do nome, energia e emissão com casas fixas (kWh com 5, g com 3) e as 8 linhas visíveis sem rolar (#203)._
+  _Tabela ligada ao backend real (`docker compose`) em 04/11/2026, numa janela de 1366×657: ordem inicial por gravidade, status logo depois do nome, energia e emissão da última leitura com casas fixas (kWh com 5, g com 3) e 6 das 8 linhas visíveis sem rolar, abaixo dos indicadores do período e dos cards de estado (#203, #259)._
 
-- **RF08, RF09 — Cards de estado dos serviços (#21, PR #202):** acima da tabela, cards com o total de serviços monitorados e quantos estão ativos, indisponíveis e sem métricas, contados na mesma resposta de `GET /api/services` e atualizados no mesmo ciclo. Os removidos ficam fora do total, e a cor só aparece quando há serviços naquele estado. Sem dados, os cards não aparecem; numa falha, mantêm o último dado, apagado, com "Desatualizado desde …".
+- **RF08, RF09 — Cards de estado dos serviços (#21, PR #202):** entre os indicadores do período e a tabela, cards compactos com o total de serviços monitorados e quantos estão ativos, indisponíveis e sem métricas, contados na mesma resposta de `GET /api/services` e atualizados no mesmo ciclo. Os removidos ficam fora do total, e a cor só aparece quando há serviços naquele estado. Sem dados, os cards não aparecem; numa falha, mantêm o último dado, apagado, com "Desatualizado desde …".
 
-  ![Cards de estado acima da tabela de serviços](docs/img/sprint-2-kpis.png)
+  ![Cards de estado entre os indicadores do período e a tabela de serviços](docs/img/sprint-2-kpis.png)
 
-  _Dashboard com o backend real (`docker compose`) em 22/10/2026: os 8 serviços ativos, e Indisponíveis e Sem métricas zerados, sem cor._
+  _Dashboard com o backend real (`docker compose`) em 04/11/2026: os 8 serviços ativos, e Indisponíveis e Sem métricas zerados, sem cor, nos cards compactos abaixo dos indicadores do período (#259)._
 
-- **RF08 — Indicadores agregados e comparação por período (#175, PR #215):** abaixo dos cards de estado, o dashboard mostra a energia (kWh) e o CO₂e (g) das últimas 24 h, com o período em horário de Brasília, e a variação contra as 24 h anteriores. Sem cálculo no período, o valor é "—", nunca zero; com total anterior zero, a tela informa que não há base para a variação. A API usa `GET /api/services/summary?from=&to=`, documentada em [docs/api.md](docs/api.md).
+- **RF08 — Indicadores agregados e comparação por período (#175, PR #215):** no topo do dashboard, logo abaixo do cabeçalho (#259), a tela mostra a energia (kWh) e o CO₂e (g) das últimas 24 h, com o período em horário de Brasília, e a variação contra as 24 h anteriores. Sem cálculo no período, o valor é "—", nunca zero; com total anterior zero, a tela informa que não há base para a variação. A API usa `GET /api/services/summary?from=&to=`, documentada em [docs/api.md](docs/api.md).
 
   ![Indicadores agregados com comparação às 24 h anteriores](docs/img/sprint-2-indicadores-agregados.png)
 
-  _Dashboard com o backend real (`docker compose`) em 03/11/2026, 21h48: 1,2258 kWh e 301,46 g CO₂e nas últimas 24 h. Não há cálculo nas 24 h anteriores, então os cards dizem "Sem cálculo no período anterior" em vez de uma variação. Ícones de linha nos dois cards (#258)._
+  _Dashboard com o backend real (`docker compose`) em 04/11/2026, 1h42: 0,2884 kWh e 69,78 g CO₂e nas últimas 24 h, com o banco coletando havia cerca de 4 h. Não há cálculo nas 24 h anteriores, então os cards dizem "Sem cálculo no período anterior" em vez de uma variação. Ícones de linha nos dois cards (#258); impacto no topo (#259)._
 
 - **RNF02 — Indicador de última atualização (#89):** selo no cabeçalho com o horário da última busca bem-sucedida e um ponto verde pulsando enquanto os dados estão em dia; se uma busca falha, ele fica laranja e passa a dizer "Desatualizado desde …", sem apagar os dados da tela.
 
