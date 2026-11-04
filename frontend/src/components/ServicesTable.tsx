@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { MonitoredService, ServiceStatus } from '../services/services.types';
 import { formatFixed, formatNumber, formatTime } from '../utils/format';
+import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow';
 import MissingValue from './MissingValue';
 import StatusBadge from './StatusBadge';
 
@@ -68,6 +69,7 @@ export default function ServicesTable({ services, onSelect }: Props) {
   // Ordem inicial por gravidade (Status crescente): indisponíveis e sem métricas no topo, acima da dobra
   const [sortKey, setSortKey] = useState<SortKey>('status');
   const [direction, setDirection] = useState<1 | -1>(1);
+  const [scrollRef, hasMoreColumns] = useHorizontalOverflow<HTMLDivElement>();
 
   const rows = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('pt-BR');
@@ -111,7 +113,9 @@ export default function ServicesTable({ services, onSelect }: Props) {
 
       {/* Rolagem horizontal em telas estreitas: a tabela nunca quebra o layout (RNF01) */}
       {/* relative: os textos sr-only (position: absolute) das células ficam dentro da rolagem, sem alargar a página */}
-      <div className="relative overflow-x-auto">
+      {/* scroll-edge: sombra na borda direita enquanto há colunas escondidas (#263) */}
+      <div className={hasMoreColumns ? 'scroll-edge scroll-edge--more' : 'scroll-edge'}>
+      <div ref={scrollRef} className="relative overflow-x-auto">
         <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead>
             <tr className="whitespace-nowrap text-left text-xs text-muted">
@@ -155,6 +159,10 @@ export default function ServicesTable({ services, onSelect }: Props) {
                   >
                     {service.name}
                   </button>
+                  {/* Celular (#263): a emissão fica a uma rolagem de distância; ela aparece também sob o nome, abaixo de 600 px */}
+                  <span className="mt-0.5 block font-mono text-xs font-normal text-muted min-[600px]:hidden">
+                    {service.emissionsG === null ? 'sem emissão calculada' : `${formatFixed(service.emissionsG, 3)} g CO₂e`}
+                  </span>
                 </th>
                 {/* O badge é o único elemento colorido da linha */}
                 <td className="px-5 py-2">
@@ -191,6 +199,7 @@ export default function ServicesTable({ services, onSelect }: Props) {
             )}
           </tbody>
         </table>
+      </div>
       </div>
     </section>
   );

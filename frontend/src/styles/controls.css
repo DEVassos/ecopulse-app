@@ -21,6 +21,31 @@
     opacity: 0.6;
   }
 
+  /*
+   * Pista de "há mais colunas" (#263): sombra interna na borda direita de uma área com rolagem horizontal, só enquanto
+   * há conteúdo escondido (useHorizontalOverflow). É sinal de estado, não elevação: some quando a rolagem chega ao fim.
+   */
+  .scroll-edge {
+    position: relative;
+  }
+
+  .scroll-edge::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 24px;
+    pointer-events: none;
+    opacity: 0;
+    box-shadow: inset -20px 0 16px -16px var(--bg);
+    transition: opacity 0.15s;
+  }
+
+  .scroll-edge--more::after {
+    opacity: 1;
+  }
+
   /* Anel de foco de campo de texto, o mesmo do formulário de login (FormField.css). A borda em --accent fica com
      a utility do próprio campo (focus:border-primary), porque as utilities vencem esta camada */
   .field-focus:focus {

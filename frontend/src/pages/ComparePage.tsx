@@ -8,6 +8,7 @@ import ErrorState from '../components/ErrorState';
 import LoadingState from '../components/LoadingState';
 import MissingValue from '../components/MissingValue';
 import { useComparison } from '../hooks/useComparison';
+import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow';
 import { useServices } from '../hooks/useServices';
 import type { ComparedService } from '../services/compare.types';
 import { isDemoMode } from '../services/services.service';
@@ -111,6 +112,7 @@ export default function ComparePage() {
   const [draftStart, setDraftStart] = useState(start);
   const [draftEnd, setDraftEnd] = useState(end);
   const [formError, setFormError] = useState('');
+  const [matrixScrollRef, matrixHasMore] = useHorizontalOverflow<HTMLDivElement>();
 
   // A URL também muda pelo "voltar" do navegador: o formulário acompanha (ajuste na renderização, sem efeito)
   const urlFilter = `${idsKey}|${start}|${end}`;
@@ -236,7 +238,9 @@ export default function ComparePage() {
             </header>
 
             {/* Rolagem horizontal só na tabela: com até 10 serviços, a página nunca ganha rolagem lateral (RNF01) */}
-            <div className="relative overflow-x-auto">
+            {/* scroll-edge: sombra na borda direita enquanto há serviços escondidos (#263) */}
+            <div className={matrixHasMore ? 'scroll-edge scroll-edge--more' : 'scroll-edge'}>
+            <div ref={matrixScrollRef} className="relative overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="text-xs text-muted">
@@ -279,6 +283,7 @@ export default function ComparePage() {
                   ))}
                 </tbody>
               </table>
+            </div>
             </div>
 
             <CompareChart services={data.services} highlightOf={extremeOf} />
