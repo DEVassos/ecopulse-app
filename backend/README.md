@@ -9,7 +9,7 @@ API REST em Node.js com Express 5 e TypeScript estrito, persistência no Postgre
 
 `POST /api/auth/login` e `GET /api/auth/me` autenticam administradores com bcrypt e JWT. O módulo `modules/monitoring-settings` separa routes/controller/service/repository: GET público e PUT autenticado em `/api/monitoring-settings`, com intervalos 15/30/60 s para a tela (#250). O worker mantém seu agendamento individual. Contrato e erros: [API](../docs/api.md#get-apimonitoring-settings); volumes existentes exigem a [migração 001](../database/README.md#configuração-de-monitoramento-250). Nenhuma variável ou dependência nova.
 
-`GET /api/services` também devolve `statusReason` seguro somente para `indisponivel` (#251). Os 14 casos de `status-reason.test.ts` e o caso PostgreSQL em `repositories.integration.test.ts` cobrem estados, mensagens sensíveis, recuperação e desempate; a apresentação continua com Andrea na #176. Contrato em [API](../docs/api.md#get-apiservices).
+`GET /api/services` também devolve `statusReason` seguro somente para `indisponivel` (#251). Os 14 casos de `status-reason.test.ts` e o caso PostgreSQL em `repositories.integration.test.ts` cobrem estados, mensagens sensíveis, recuperação e desempate; a apresentação na tela é da #176 (frontend). Contrato em [API](../docs/api.md#get-apiservices).
 
 ## Organização
 
