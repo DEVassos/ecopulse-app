@@ -34,6 +34,8 @@ Setup do backend: [organização e validação](backend/README.md) e [contrato d
 
 ## 3. Funcionalidades implementadas
 
+- **RF11 — Contrato backend da configuração ([#250](https://github.com/DEVassos/greener-app/issues/250)):** GET público e PUT com JWT para intervalo de atualização da tela (15/30/60 s, padrão 30). A interface da #176 continua com Andrea. [Contrato e verificação HTTP](docs/api.md#get-apimonitoring-settings); [migração sem apagar volumes](database/README.md#configuração-de-monitoramento-250).
+
 O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta lista quando o Pull Request correspondente é mergeado, com o requisito e o número do PR. A Sprint 1 foi encerrada em 20/10/2026 e está publicada na tag [`sprint-1`](https://github.com/DEVassos/greener-app/releases/tag/sprint-1); o registro completo, com a review e o retorno do cliente, está em [docs/sprints/sprint-1.md](docs/sprints/sprint-1.md).
 
 **Vídeo da Sprint 1 (cerca de 3 min):** [EcoPulse - ABP FATEC 2DSM](https://youtu.be/3Hx4kzuudSw), com o produto como foi entregue na Sprint 1.
@@ -117,7 +119,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 > Planejado, **ainda não implementado**. O andamento real está no [quadro do projeto](https://github.com/orgs/DEVassos/projects/6) e no [plano de entregas](docs/plano-de-entregas.md).
 
 - **Dashboard em três níveis:** visão executiva (kWh total, gCO₂e, serviços ativos e indisponíveis, com atualização sem recarregar), análise comparativa (ranking e distribuição geográfica) e investigação detalhada (histórico por serviço).
-- **Parâmetros da área de configuração:** o login e a proteção de `/configuracao` já existem; os parâmetros de monitoramento e a rota de configuração protegida no backend seguem pendentes.
+- **Parâmetros da área de configuração:** o backend da #250 fornece as rotas pública/autenticada e a persistência; a interface de edição e a integração do polling continuam pendentes com Andrea, preservando o login e a proteção de `/configuracao`.
 - **Prioridade apontada pelo cliente na review da Sprint 1:** comparar serviços e analisar os dados já coletados, para ver o que compensa fazer ([#159](https://github.com/DEVassos/greener-app/issues/159)).
 - **Diferenciais em estudo:** simulação de migração para regiões com matriz mais limpa ([US12, #53](https://github.com/DEVassos/greener-app/issues/53)) e exportação de relatórios em PDF/CSV ([US13, #54](https://github.com/DEVassos/greener-app/issues/54)), previstas para a Sprint 3.
 
