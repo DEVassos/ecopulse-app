@@ -12,6 +12,8 @@
 
 /* Tokens do design system (docs/identidade-visual.md) — fonte única das cores */
 :root {
+  /* Tema escuro único: caixas de seleção, selects, calendários e barras de rolagem do navegador seguem o fundo */
+  color-scheme: dark;
   --bg: #0b1220;
   --surface: #131c2e;
   --surface-2: #0e1626;
@@ -34,6 +36,8 @@
   /* Neon: só no que pede atenção (maior impacto, pico, "ao vivo", pulso do logo) */
   --neon: #5cffb8;
   --neon-glow: rgb(92 255 184 / 0.35);
+  /* Anel de foco dos campos de texto, junto da borda em --accent */
+  --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
   --sans: 'IBM Plex Sans', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', monospace;
   --display: 'Space Grotesk', sans-serif;
@@ -92,5 +96,15 @@
   button:focus-visible {
     outline: 2px solid var(--sky);
     outline-offset: 2px;
+  }
+
+  /* Seleção de texto e cursor de digitação no tema, não no azul padrão do navegador */
+  ::selection {
+    background: color-mix(in srgb, var(--accent) 35%, transparent);
+    color: var(--text);
+  }
+
+  input {
+    caret-color: var(--accent);
   }
 }
