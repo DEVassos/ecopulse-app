@@ -119,13 +119,14 @@ export default function ServicesTable({ services, onSelect }: Props) {
                 <th
                   key={column.key}
                   scope="col"
-                  className={`px-5 py-2 font-medium ${column.numeric ? 'text-right' : ''}`}
+                  className={`px-5 py-1 font-medium ${column.numeric ? 'text-right' : ''}`}
                   aria-sort={sortKey === column.key ? (direction === 1 ? 'ascending' : 'descending') : 'none'}
                 >
                   <button
                     type="button"
                     onClick={() => sortBy(column)}
-                    className={`cursor-pointer border-0 bg-transparent p-0 font-sans text-xs font-medium hover:text-text ${sortKey === column.key ? 'text-text' : 'text-muted'}`}
+                    // 24 px de altura (#262): alvo mínimo de toque; o cabeçalho tira 4 px de cada lado para não crescer
+                    className={`min-h-6 cursor-pointer border-0 bg-transparent p-0 font-sans text-xs font-medium hover:text-text ${sortKey === column.key ? 'text-text' : 'text-muted'}`}
                   >
                     {column.label}
                     <span aria-hidden="true"> {sortKey === column.key ? (direction === 1 ? '↑' : '↓') : '↕'}</span>

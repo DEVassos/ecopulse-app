@@ -11,7 +11,7 @@ export default function SettingsPage() {
     <div className="page">
       <AppHeader />
 
-      <main className="content">
+      <main id="conteudo" tabIndex={-1} className="content">
         <section className="panel p-6">
           <h1 className="m-0 font-display text-2xl font-semibold">Configuração</h1>
           <p className="mt-2 mb-0 text-muted">Área restrita do administrador.</p>

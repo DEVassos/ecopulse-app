@@ -76,7 +76,7 @@ export default function DashboardPage() {
             aria-disabled={loading}
             aria-label="Atualizar agora"
             title="Atualizar agora"
-            className="btn-outline grid size-9 place-items-center"
+            className="btn-outline grid size-11 place-items-center"
           >
             <svg
               viewBox="0 0 24 24"
@@ -95,7 +95,7 @@ export default function DashboardPage() {
         </LastUpdated>
       </AppHeader>
 
-      <main className="content">
+      <main id="conteudo" tabIndex={-1} className="content">
         <h1 className="sr-only">Dashboard de energia e emissões</h1>
 
         {/* Falha não apaga o que já estava na tela: com dados, faixa compacta junto do último dado; sem dados, o aviso grande */}

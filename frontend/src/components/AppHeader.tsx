@@ -39,6 +39,10 @@ interface Props {
 export default function AppHeader({ children, updatedAt }: Props) {
   return (
     <header className="topbar">
+      {/* Primeiro item do Tab (#262): pula marca, menu e ações e leva ao <main id="conteudo"> da página */}
+      <a className="skip-link" href="#conteudo">
+        Pular para o conteúdo
+      </a>
       <div className="topbar-inner">
         <NavLink to="/" className="topbar-brand" aria-label="EcoPulse — ir para o dashboard">
           <Brand pulseKey={updatedAt} />

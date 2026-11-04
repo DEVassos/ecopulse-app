@@ -21,7 +21,11 @@ const MAX_SPAN_DAYS = 31;
 
 /* Mesmo foco dos filtros da página Emissões (contorno em --sky); o tema escuro do calendário vem do :root */
 const DATE_FIELD =
-  'h-9 rounded-lg border border-border bg-surface-2 px-3 font-sans text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-secondary';
+  'h-9 rounded-lg border border-border bg-surface-2 px-3 font-sans text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-secondary aria-[invalid=true]:border-danger';
+
+/** Mensagem de erro do formulário, ligada ao grupo de serviços ou aos campos de data por aria-describedby (#262). */
+const FORM_ERROR_ID = 'comparacao-erro';
+const SERVICES_ERROR = 'Escolha pelo menos dois serviços para comparar.';
 
 /** ISO 8601 → "27/10/2026, 14:05", no fuso do navegador. */
 function formatMoment(iso: string): string {
@@ -111,6 +115,8 @@ export default function ComparePage() {
   const [draftStart, setDraftStart] = useState(start);
   const [draftEnd, setDraftEnd] = useState(end);
   const [formError, setFormError] = useState('');
+  // Erro de período: marca as duas datas; o de quantidade de serviços marca o grupo de caixas
+  const dateError = formError !== '' && formError !== SERVICES_ERROR;
 
   // A URL também muda pelo "voltar" do navegador: o formulário acompanha (ajuste na renderização, sem efeito)
   const urlFilter = `${idsKey}|${start}|${end}`;
@@ -134,7 +140,7 @@ export default function ComparePage() {
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const chosen = services.filter((service) => draftIds.includes(service.id)).map((service) => service.id);
-    if (chosen.length < MIN_SERVICES) return setFormError('Escolha pelo menos dois serviços para comparar.');
+    if (chosen.length < MIN_SERVICES) return setFormError(SERVICES_ERROR);
     if (draftStart === '' || draftEnd === '') return setFormError('Preencha as duas datas.');
     if (draftStart > draftEnd) return setFormError('A data inicial deve ser anterior ou igual à data final.');
     if (draftEnd > today) return setFormError('A data final não pode estar no futuro.');
@@ -154,7 +160,7 @@ export default function ComparePage() {
 
       <AppHeader />
 
-      <main className="content">
+      <main id="conteudo" tabIndex={-1} className="content">
         <h1 className="sr-only">Comparação entre serviços</h1>
 
         {servicesError && !servicesData && <ErrorState message={servicesError} onRetry={refreshServices} />}
@@ -168,7 +174,7 @@ export default function ComparePage() {
 
         {services.length > 0 && (
           <form className="panel flex flex-col gap-4 p-4" onSubmit={handleSubmit}>
-            <fieldset className="m-0 border-0 p-0">
+            <fieldset className="m-0 border-0 p-0" aria-describedby={formError === SERVICES_ERROR ? FORM_ERROR_ID : undefined}>
               <legend className="mb-2 p-0 text-xs text-muted">Serviços (de 2 a 10)</legend>
               <div className="flex flex-wrap gap-x-5 gap-y-2">
                 {services.map((service) => {
@@ -191,11 +197,27 @@ export default function ComparePage() {
             <div className="flex flex-wrap items-end gap-3">
               <label className="flex flex-col gap-1 text-xs text-muted">
                 Data inicial
-                <input type="date" value={draftStart} max={today} onChange={(e) => setDraftStart(e.target.value)} className={DATE_FIELD} />
+                <input
+                  type="date"
+                  value={draftStart}
+                  max={today}
+                  onChange={(e) => setDraftStart(e.target.value)}
+                  className={DATE_FIELD}
+                  aria-invalid={dateError || undefined}
+                  aria-describedby={dateError ? FORM_ERROR_ID : undefined}
+                />
               </label>
               <label className="flex flex-col gap-1 text-xs text-muted">
                 Data final
-                <input type="date" value={draftEnd} max={today} onChange={(e) => setDraftEnd(e.target.value)} className={DATE_FIELD} />
+                <input
+                  type="date"
+                  value={draftEnd}
+                  max={today}
+                  onChange={(e) => setDraftEnd(e.target.value)}
+                  className={DATE_FIELD}
+                  aria-invalid={dateError || undefined}
+                  aria-describedby={dateError ? FORM_ERROR_ID : undefined}
+                />
               </label>
               <button
                 type="submit"
@@ -206,7 +228,7 @@ export default function ComparePage() {
               </button>
             </div>
             {formError && (
-              <p className="m-0 text-sm text-danger" role="alert">
+              <p id={FORM_ERROR_ID} className="m-0 text-sm text-danger" role="alert">
                 {formError}
               </p>
             )}
