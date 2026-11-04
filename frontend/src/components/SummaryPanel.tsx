@@ -1,6 +1,6 @@
 import type { ServicesSummaryResponse } from '../services/services.types';
 import { formatNumber } from '../utils/format';
-import MetricTile from './MetricTile';
+import MetricTile, { metricIconProps } from './MetricTile';
 import MissingValue from './MissingValue';
 import './KpiPanel.css';
 
@@ -53,14 +53,18 @@ export default function SummaryPanel({ summary, previousSummary, comparisonLoadi
           {formatBrasilia(summary.period.from)} a {formatBrasilia(summary.period.to)} (horário de Brasília)
         </p>
       </div>
-      <div className="kpis">
+      <div className="kpis kpis--wide">
         <MetricTile
           label="Energia no período"
           value={summary.energyKwh === null ? missing : formatNumber(summary.energyKwh, 4)}
           unit={summary.energyKwh === null ? undefined : 'kWh'}
           note={energyChange}
           stale={stale}
-          icon={<span>⚡</span>}
+          icon={
+            <svg {...metricIconProps}>
+              <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" />
+            </svg>
+          }
         />
         <MetricTile
           label="Emissões no período"
@@ -68,7 +72,11 @@ export default function SummaryPanel({ summary, previousSummary, comparisonLoadi
           unit={summary.co2eGrams === null ? undefined : 'g CO₂e'}
           note={emissionsChange}
           stale={stale}
-          icon={<span>◌</span>}
+          icon={
+            <svg {...metricIconProps}>
+              <path d="M17.5 19H9a7 7 0 1 1 6.7-9h1.8a4.5 4.5 0 1 1 0 9Z" />
+            </svg>
+          }
         />
       </div>
     </section>

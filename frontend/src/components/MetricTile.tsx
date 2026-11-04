@@ -4,6 +4,16 @@ import './MetricTile.css';
 /** Cor do card: ativo, indisponível e sem métricas seguem o StatusBadge; neutral não destaca nada. */
 export type MetricTone = 'neutral' | 'success' | 'danger' | 'warning';
 
+/** Traço comum dos ícones dos cards (SVG de linha 24×24, na cor do tom): uma família só em todos os painéis. */
+export const metricIconProps = {
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.8,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+} as const;
+
 interface Props {
   label: string;
   /** Número já formatado, ou o MissingValue quando não há valor. */

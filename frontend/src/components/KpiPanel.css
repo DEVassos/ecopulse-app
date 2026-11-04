@@ -5,4 +5,10 @@
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 16px;
   }
+
+  /* Cards com número longo e unidade (energia e emissões do período): uma coluna no celular, lado a lado a partir
+     de cerca de 500 px, para o valor e a unidade caberem na mesma linha */
+  .kpis--wide {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
 }
