@@ -21,6 +21,9 @@ export default function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/emissoes" element={<EmissionsPage />} />
             <Route path="/comparacao" element={<ComparePage />} />
+          </Route>
+          {/* Configuração exige sessão até no modo demonstração, em que não há backend para entrar */}
+          <Route element={<ProtectedRoute allowDemo={false} />}>
             <Route path="/configuracao" element={<SettingsPage />} />
           </Route>
 
