@@ -61,24 +61,6 @@
     margin-left: auto;
   }
 
-  /* Visitante: "Entrar" é a ação principal do cabeçalho (botão cheio, alvo de toque de 44 px) */
-  .btn-login,
-  .btn-login:hover {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-    padding: 10px 16px;
-    border-radius: 8px;
-    background: var(--accent);
-    color: var(--on-accent);
-    font-weight: 600;
-    text-decoration: none;
-  }
-
-  .btn-login:hover {
-    background: var(--accent-hover);
-  }
-
   /* Com sessão: nome de quem entrou e o botão "Sair" (o .btn-outline de styles/controls.css) */
   .user-menu {
     display: flex;
