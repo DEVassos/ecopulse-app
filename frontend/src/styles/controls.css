@@ -21,6 +21,64 @@
     opacity: 0.6;
   }
 
+  /* Data em DD/MM/AAAA (DateField, #267): texto com o botão do calendário dentro, à direita */
+  .date-field {
+    position: relative;
+    display: inline-flex;
+    width: 9rem;
+  }
+
+  .date-field > input[type='text'] {
+    width: 100%;
+    padding-right: 36px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .date-field__picker {
+    position: absolute;
+    top: 50%;
+    right: 3px;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transform: translateY(-50%);
+  }
+
+  .date-field__picker:hover:not(:disabled) {
+    color: var(--text);
+  }
+
+  .date-field__picker:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .date-field__picker svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Calendário nativo: só seletor, escondido sob o botão (o showPicker abre ancorado nele) */
+  .date-field .date-field__native {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 1px;
+    height: 1px;
+    min-height: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   /* Anel de foco de campo de texto, o mesmo do formulário de login (FormField.css). A borda em --accent fica com
      a utility do próprio campo (focus:border-primary), porque as utilities vencem esta camada */
   .field-focus:focus {

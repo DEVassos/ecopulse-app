@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import AppHeader from '../components/AppHeader';
+import DateField from '../components/DateField';
 import EmissionsChart from '../components/EmissionsChart';
 import type { EmissionsChartMode } from '../components/EmissionsChart';
 import EmptyState from '../components/EmptyState';
@@ -107,7 +108,7 @@ export default function EmissionsPage() {
   }
 
   function apply(nextStart: string, nextEnd: string) {
-    if (nextStart === '' || nextEnd === '') return setFormError('Preencha as duas datas.');
+    if (nextStart === '' || nextEnd === '') return setFormError('Preencha as duas datas no formato DD/MM/AAAA.');
     if (nextStart > nextEnd) return setFormError('A data inicial deve ser anterior ou igual à data final.');
     if (nextEnd > today) return setFormError('A data final não pode estar no futuro.');
     if (spanDays(nextStart, nextEnd) > MAX_SPAN_DAYS) return setFormError(`Escolha um período de até ${MAX_SPAN_DAYS} dias.`);
@@ -186,17 +187,15 @@ export default function EmissionsPage() {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4"><path d="m15 18-6-6 6-6" /></svg>
                   </button>
                   <div className="emissions__dates">
-                    <label className="emissions__field">
-                      <span className="sr-only">Data inicial</span>
-                      <input type="date" value={draftStart} max={today} disabled={live} onChange={(e) => setDraftStart(e.target.value)} />
-                    </label>
+                    <div className="emissions__field">
+                      <DateField value={draftStart} onChange={setDraftStart} label="Data inicial" max={today} disabled={live} />
+                    </div>
                     <span className="emissions__until" aria-hidden="true">
                       até
                     </span>
-                    <label className="emissions__field">
-                      <span className="sr-only">Data final</span>
-                      <input type="date" value={draftEnd} max={today} disabled={live} onChange={(e) => setDraftEnd(e.target.value)} />
-                    </label>
+                    <div className="emissions__field">
+                      <DateField value={draftEnd} onChange={setDraftEnd} label="Data final" max={today} disabled={live} />
+                    </div>
                   </div>
                   <button
                     type="button"

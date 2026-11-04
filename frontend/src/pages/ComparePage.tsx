@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import AppHeader from '../components/AppHeader';
 import CompareChart from '../components/CompareChart';
+import DateField from '../components/DateField';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import LoadingState from '../components/LoadingState';
@@ -19,9 +20,9 @@ const MIN_SERVICES = 2;
 const MAX_SERVICES = 10;
 const MAX_SPAN_DAYS = 31;
 
-/* Mesmo foco dos filtros da página Emissões (contorno em --sky); o tema escuro do calendário vem do :root */
+/* Campo de texto do DateField (DD/MM/AAAA): mesmo foco dos filtros da página Emissões (contorno em --sky) */
 const DATE_FIELD =
-  'h-9 rounded-lg border border-border bg-surface-2 px-3 font-sans text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-secondary';
+  'h-9 rounded-lg border border-border bg-surface-2 px-3 pr-9 font-sans text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-secondary';
 
 /** ISO 8601 → "27/10/2026, 14:05", no fuso do navegador. */
 function formatMoment(iso: string): string {
@@ -135,7 +136,7 @@ export default function ComparePage() {
     event.preventDefault();
     const chosen = services.filter((service) => draftIds.includes(service.id)).map((service) => service.id);
     if (chosen.length < MIN_SERVICES) return setFormError('Escolha pelo menos dois serviços para comparar.');
-    if (draftStart === '' || draftEnd === '') return setFormError('Preencha as duas datas.');
+    if (draftStart === '' || draftEnd === '') return setFormError('Preencha as duas datas no formato DD/MM/AAAA.');
     if (draftStart > draftEnd) return setFormError('A data inicial deve ser anterior ou igual à data final.');
     if (draftEnd > today) return setFormError('A data final não pode estar no futuro.');
     if (spanDays(draftStart, draftEnd) > MAX_SPAN_DAYS) return setFormError(`Escolha um período de até ${MAX_SPAN_DAYS} dias.`);
@@ -214,17 +215,11 @@ export default function ComparePage() {
               <fieldset className="m-0 min-w-0 border-0 p-0">
                 <legend className="mb-1 p-0 text-xs text-muted">Período</legend>
                 <div className="flex flex-wrap items-center gap-2">
-                  <label>
-                    <span className="sr-only">Data inicial</span>
-                    <input type="date" value={draftStart} max={today} onChange={(e) => setDraftStart(e.target.value)} className={DATE_FIELD} />
-                  </label>
+                  <DateField value={draftStart} onChange={setDraftStart} label="Data inicial" max={today} inputClassName={DATE_FIELD} />
                   <span className="text-sm text-muted" aria-hidden="true">
                     até
                   </span>
-                  <label>
-                    <span className="sr-only">Data final</span>
-                    <input type="date" value={draftEnd} max={today} onChange={(e) => setDraftEnd(e.target.value)} className={DATE_FIELD} />
-                  </label>
+                  <DateField value={draftEnd} onChange={setDraftEnd} label="Data final" max={today} inputClassName={DATE_FIELD} />
                 </div>
               </fieldset>
               <button

@@ -78,6 +78,11 @@
     min-width: 0;
   }
 
+  /* Celular: cada data ocupa metade da linha; a partir de 600 px, a largura fixa do DateField */
+  .emissions__dates .date-field {
+    width: 100%;
+  }
+
   .emissions__period-row > :nth-child(3) {
     grid-area: next;
   }
@@ -99,6 +104,10 @@
 
     .emissions__dates .emissions__field {
       flex: 0 0 auto;
+    }
+
+    .emissions__dates .date-field {
+      width: 9rem;
     }
   }
 
