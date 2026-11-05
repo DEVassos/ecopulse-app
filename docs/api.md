@@ -26,6 +26,7 @@ Resposta 200:
     "energyKwh": 0.000480452625,
     "emissionsG": 0.040838473125,
     "status": "ativo",
+    "statusReason": null,
     "lastReadingAt": "2026-10-14T20:00:00.000Z"
   }],
   "period": "última leitura (intervalo de coleta)"
@@ -43,6 +44,40 @@ Falha de banco retorna 500 no envelope global, sem stack ou SQL:
 ```json
 {"error":{"code":"DATABASE_ERROR","message":"Não foi possível acessar o banco de dados."}}
 ```
+
+`statusReason` (#251) usa `error_message` somente da coleta mais recente, com desempate por `collected_at DESC, id DESC`. É `null` para estados diferentes de `indisponivel` ou ausência de mensagem. Diagnósticos conhecidos são apresentados sem URLs, caminhos, stack ou SQL; mensagens arbitrárias viram "Não foi possível obter as métricas deste serviço.". Exemplo: `"statusReason":"Serviço indisponível (HTTP 500)."`. Não se procura erro antigo quando a última coleta não tem mensagem.
+
+## GET /api/monitoring-settings
+
+Público, sem parâmetros ou corpo; não exige nem valida token Bearer. Resposta 200:
+
+```json
+{"refreshIntervalSeconds":30,"allowedIntervalsSeconds":[15,30,60],"updatedAt":null}
+```
+
+Sem registro, esse é o padrão e nenhuma linha é inserida. Tabela ausente ou banco indisponível retorna 500 `DATABASE_ERROR`, nunca o padrão como sucesso. A configuração controla o polling da tela; não altera o worker ou a frequência de coleta por serviço.
+
+## PUT /api/monitoring-settings
+
+Exige `Authorization: Bearer <JWT>` do login existente. Corpo JSON:
+
+```json
+{"refreshIntervalSeconds":60}
+```
+
+Somente números inteiros 15, 30 ou 60 são aceitos. Campo ausente, string, booleano, nulo, decimal ou valor fora da lista retorna 400. Upsert de `id=1`, sem `updated_by`; a última escrita concluída prevalece. Resposta 200, no mesmo formato do GET:
+
+```json
+{"refreshIntervalSeconds":60,"allowedIntervalsSeconds":[15,30,60],"updatedAt":"2026-11-03T12:00:00.000Z"}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | Corpo ou intervalo inválido |
+| 401 | `UNAUTHORIZED` | PUT sem JWT, inválido ou expirado |
+| 500 | `DATABASE_ERROR` | Falha no banco, inclusive migração não aplicada |
+
+Erros seguem `{"error":{"code":"VALIDATION_ERROR","message":"refreshIntervalSeconds deve ser 15, 30 ou 60."}}`; respostas não expõem SQL ou stack. Aplicação em volumes existentes: [migração do banco](../database/README.md#configuração-de-monitoramento-250).
 
 ## GET /api/services/summary
 

@@ -27,7 +27,7 @@
   }
 
   .service-dialog::backdrop {
-    background: color-mix(in srgb, var(--bg) 80%, transparent);
+    background: var(--scrim);
   }
 
   /* A página atrás da janela não rola junto */

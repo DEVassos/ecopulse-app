@@ -9,8 +9,8 @@ const TEXT_Y = 13; // linha de base do nome e do valor, acima da barra
 const BAR_Y = 20;
 const BAR_HEIGHT = 12;
 const MIN_BAR = 2; // valor positivo muito menor que o maior nunca parece zero
-// Largura média de um caractere a 12 px (IBM Plex Mono e Sans): corta o nome longo antes de encostar no valor
-const MONO_CHAR = 7.2;
+// Largura média de um caractere a 12 px (IBM Plex Sans; algarismos tabulares no valor, #266): corta o nome longo antes de encostar no valor
+const DATA_CHAR = 6.8;
 const SANS_CHAR = 6.6;
 
 /** Destaque de CO₂e de um serviço, o mesmo da tabela: seta e texto, nunca só a cor. */
@@ -89,7 +89,7 @@ function MetricBars({ metric, services, highlightOf }: MetricBarsProps) {
           {rows.map(({ service, value, text, highlight }, index) => {
             const top = index * ROW_HEIGHT;
             const flag = highlight ? `${highlight.arrow} ` : '';
-            const nameRoom = width - text.length * MONO_CHAR - 12 - flag.length * SANS_CHAR;
+            const nameRoom = width - text.length * DATA_CHAR - 12 - flag.length * SANS_CHAR;
             const barWidth = value === null || max === 0 ? 0 : Math.max((value / max) * width, value > 0 ? MIN_BAR : 0);
             return (
               <g key={service.id}>
