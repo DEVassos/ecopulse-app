@@ -16,6 +16,7 @@ function validBody() {
         energyKwh: 0.000480452625,
         emissionsG: 0.040838473125,
         status: 'ativo',
+        statusReason: null,
         lastReadingAt: '2026-10-14T20:00:00.000Z',
       },
       {
@@ -28,6 +29,7 @@ function validBody() {
         energyKwh: null,
         emissionsG: null,
         status: 'sem_metricas',
+        statusReason: null,
         lastReadingAt: null,
       },
     ],
@@ -67,6 +69,15 @@ describe('parseServicesResponse', () => {
     expect(error.message).toBe('O servidor respondeu num formato inesperado (services[1].id). Avise a equipe do backend.');
   });
 
+  it('mantém o motivo do estado (statusReason) como veio', () => {
+    const body = withSecondService({ status: 'indisponivel', statusReason: 'Serviço indisponível (HTTP 500).' });
+    expect(parseServicesResponse(body).services[1].statusReason).toBe('Serviço indisponível (HTTP 500).');
+  });
+
+  it('trata statusReason ausente como null (backend anterior à #176)', () => {
+    expect(parseServicesResponse(withSecondService({ statusReason: undefined })).services[1].statusReason).toBeNull();
+  });
+
   it('recusa cpuPercent em texto', () => {
     expect(rejection(withSecondService({ cpuPercent: '62.67' })).message).toContain('(services[1].cpuPercent)');
   });
@@ -79,6 +90,7 @@ describe('parseServicesResponse', () => {
     ['energia negativa', { energyKwh: -1 }, 'services[1].energyKwh'],
     ['emissão infinita', { emissionsG: Number.POSITIVE_INFINITY }, 'services[1].emissionsG'],
     ['status fora da lista', { status: 'pausado' }, 'services[1].status'],
+    ['motivo numérico', { statusReason: 500 }, 'services[1].statusReason'],
     ['horário que não é data', { lastReadingAt: 'ontem' }, 'services[1].lastReadingAt'],
   ])('recusa %s', (_case, changes, field) => {
     expect(rejection(withSecondService(changes)).message).toContain(`(${field})`);
