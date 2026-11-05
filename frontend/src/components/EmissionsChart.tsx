@@ -475,10 +475,9 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
             onPointerLeave={(event) => event.pointerType !== 'touch' && setHover(null)}
           />
 
-          {/* Chip do pico por cima da área de toque, para o tooltip dele (a frase inteira) abrir no ponteiro */}
+          {/* Chip do pico por cima da área de toque, para o tooltip único (#274) dele, com a frase inteira, abrir no ponteiro */}
           {peak && (
-            <g className="emissions-chart__chip">
-              {peakNote && <title>{peakNote}</title>}
+            <g className="emissions-chart__chip" data-tooltip={peakNote ?? undefined}>
               {peakBox && (
                 <rect
                   className="emissions-chart__chip-bg"

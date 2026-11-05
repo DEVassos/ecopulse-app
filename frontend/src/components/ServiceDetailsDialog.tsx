@@ -72,7 +72,7 @@ export default function ServiceDetailsDialog({ service, onClose }: Props) {
           type="button"
           onClick={() => dialogRef.current?.close()}
           aria-label="Fechar detalhes do serviço"
-          title="Fechar (Esc)"
+          data-tooltip="Fechar (Esc)"
           className="grid size-9 shrink-0 cursor-pointer place-items-center rounded-lg border border-border bg-transparent text-muted hover:border-muted hover:text-text"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true" className="size-4">

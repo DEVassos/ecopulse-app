@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import type { ServicesSummaryResponse } from '../services/services.types';
 import { formatNumber } from '../utils/format';
-import { formatInScale, scaleFor } from '../utils/units';
+import { scaleFor } from '../utils/units';
 import MetricTile, { metricIconProps } from './MetricTile';
+import CompactValue from './CompactValue';
 import MissingValue from './MissingValue';
 import './KpiPanel.css';
 
@@ -24,7 +25,7 @@ function variation(current: number | null, previous: number | null, hasPreviousP
   // Só mostra "Comparando…" na primeira busca: nos ciclos seguintes a variação anterior fica até chegar a nova
   if (loading && !hasPreviousPeriod) return 'Comparando…';
   const noBase = (reason: string) => (
-    <span title={reason}>
+    <span data-tooltip={reason}>
       — {BASELINE}
     </span>
   );
@@ -36,7 +37,7 @@ function variation(current: number | null, previous: number | null, hasPreviousP
   const exact = `${percent > 0 ? '+' : ''}${formatNumber(percent, 1)}% ${BASELINE}`;
   if (Math.abs(percent) < 0.5) {
     return (
-      <span title={exact}>
+      <span data-tooltip={exact}>
         <span className="metric-delta">±0%</span> {BASELINE}
       </span>
     );
@@ -46,7 +47,7 @@ function variation(current: number | null, previous: number | null, hasPreviousP
   const magnitude = Math.abs(percent);
   const size = up && percent > 999 ? '10×+' : `${formatNumber(magnitude, magnitude >= 100 ? 0 : 1)}%`;
   return (
-    <span title={exact}>
+    <span data-tooltip={exact}>
       <span className={`metric-delta ${up ? 'metric-delta--worse' : 'metric-delta--better'}`}>
         <span aria-hidden="true">{up ? '▲' : '▼'} </span>
         <span className="sr-only">{up ? 'subiu ' : 'caiu '}</span>
@@ -93,7 +94,13 @@ export default function SummaryPanel({ summary, previousSummary, comparisonLoadi
       <div className="kpis kpis--wide">
         <MetricTile
           label="Energia no período"
-          value={summary.energyKwh === null ? missing : formatInScale(summary.energyKwh, energyScale)}
+          value={
+            summary.energyKwh === null ? (
+              missing
+            ) : (
+              <CompactValue quantity="energy" value={summary.energyKwh} scale={energyScale} label="Energia nas últimas 24 h" />
+            )
+          }
           unit={summary.energyKwh === null ? undefined : energyScale.unit}
           note={energyChange}
           stale={stale}
@@ -105,7 +112,13 @@ export default function SummaryPanel({ summary, previousSummary, comparisonLoadi
         />
         <MetricTile
           label="Emissões no período"
-          value={summary.co2eGrams === null ? missing : formatInScale(summary.co2eGrams, co2eScale)}
+          value={
+            summary.co2eGrams === null ? (
+              missing
+            ) : (
+              <CompactValue quantity="co2e" value={summary.co2eGrams} scale={co2eScale} label="CO₂e nas últimas 24 h" />
+            )
+          }
           unit={summary.co2eGrams === null ? undefined : `${co2eScale.unit} CO₂e`}
           note={emissionsChange}
           stale={stale}

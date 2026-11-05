@@ -60,3 +60,13 @@ export function formatQuantity(quantity: Quantity, value: number): string {
   const scale = scaleFor(quantity, [value]);
   return `${formatInScale(value, scale)} ${scale.unit}`;
 }
+
+/**
+ * Valor exato para o tooltip de um número compacto (#274): 4 algarismos significativos na unidade do próprio valor,
+ * "1,438 Wh" para o 1,44 da coluna, ou "301,5 g" para o 301 do card.
+ */
+export function formatPrecise(quantity: Quantity, value: number): string {
+  if (value === 0) return `0 ${BASE[quantity].unit}`;
+  const scale = scaleFor(quantity, [value]);
+  return `${(value * scale.factor).toLocaleString('pt-BR', { maximumSignificantDigits: 4 })} ${scale.unit}`;
+}

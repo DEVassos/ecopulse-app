@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { MonitoredService, ServiceStatus } from '../services/services.types';
 import { formatNumber, formatTime } from '../utils/format';
-import { formatInScale, scaleFor } from '../utils/units';
+import { scaleFor } from '../utils/units';
 import type { Quantity } from '../utils/units';
+import CompactValue from './CompactValue';
 import MissingValue from './MissingValue';
 import StatusBadge from './StatusBadge';
 
@@ -168,7 +169,7 @@ export default function ServicesTable({ services, onSelect }: Props) {
                   <button
                     type="button"
                     aria-haspopup="dialog"
-                    title="Ver detalhes e histórico de coletas"
+                    data-tooltip="Ver detalhes e histórico de coletas"
                     className="cursor-pointer border-0 bg-transparent p-0 text-left font-sans text-sm font-medium text-text underline decoration-border underline-offset-4 hover:decoration-primary"
                   >
                     {service.name}
@@ -183,7 +184,7 @@ export default function ServicesTable({ services, onSelect }: Props) {
                         type="button"
                         aria-haspopup="dialog"
                         aria-label={`Ver histórico de ${service.name}`}
-                        title="Ver histórico"
+                        data-tooltip="Ver histórico"
                         className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md border border-border bg-transparent p-0 text-muted hover:border-primary hover:text-text"
                       >
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -200,17 +201,25 @@ export default function ServicesTable({ services, onSelect }: Props) {
                 </td>
                 {/* Mesma unidade e casas na coluna inteira (escala única, #271): vírgulas alinhadas e nenhum "0,000…" */}
                 <td className="px-5 py-2 text-right font-mono">
-                  {service.energyKwh === null ? <MissingValue /> : formatInScale(service.energyKwh, scales.energy)}
+                  {service.energyKwh === null ? (
+                    <MissingValue />
+                  ) : (
+                    <CompactValue quantity="energy" value={service.energyKwh} scale={scales.energy} label="Energia na última leitura" />
+                  )}
                 </td>
                 <td className="px-5 py-2 text-right font-mono">
-                  {service.emissionsG === null ? <MissingValue /> : formatInScale(service.emissionsG, scales.co2e)}
+                  {service.emissionsG === null ? (
+                    <MissingValue />
+                  ) : (
+                    <CompactValue quantity="co2e" value={service.emissionsG} scale={scales.co2e} label="CO₂e na última leitura" />
+                  )}
                 </td>
                 <td className="px-5 py-2 text-right font-mono text-muted">
                   {service.lastReadingAt === null ? 'nunca' : formatTime(service.lastReadingAt)}
                 </td>
                 <td className="whitespace-nowrap px-5 py-2 text-muted">
                   {locationText(service) || (
-                    <span title="Localização não informada pelo agregador">
+                    <span data-tooltip="Localização não informada pelo agregador">
                       —<span className="sr-only">sem localização</span>
                     </span>
                   )}
