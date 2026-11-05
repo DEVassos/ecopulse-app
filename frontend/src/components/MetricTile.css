@@ -100,8 +100,10 @@
     color: var(--accent-hover);
   }
 
-  /* Dado da última busca bem-sucedida, exibido durante uma falha: número apagado, mas legível */
-  .metric--stale .metric-value {
+  /* Dado da última busca bem-sucedida, exibido durante uma falha: número apagado, mas legível; a seta perde a cor,
+     porque a variação também é da última busca */
+  .metric--stale .metric-value,
+  .metric--stale .metric-delta {
     color: var(--muted);
   }
 }
