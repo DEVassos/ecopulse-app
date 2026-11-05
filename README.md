@@ -34,6 +34,16 @@ Setup do backend: [organização e validação](backend/README.md) e [contrato d
 
 ## 3. Funcionalidades implementadas
 
+- **RF05/RF06 — Motivo seguro da indisponibilidade ([#251](https://github.com/DEVassos/greener-app/issues/251)):** `GET /api/services` inclui `statusReason` da última coleta somente para `indisponivel`, normalizado para não expor detalhes internos; demais estados recebem `null`. [Contrato](docs/api.md#get-apiservices). Na tela, o motivo aparece com a #176, abaixo.
+
+- **RF11 — Contrato backend da configuração ([#250](https://github.com/DEVassos/greener-app/issues/250)):** GET público e PUT com JWT para intervalo de atualização da tela (15/30/60 s, padrão 30). A interface é a da #176, abaixo. [Contrato e verificação HTTP](docs/api.md#get-apimonitoring-settings); [migração sem apagar volumes](database/README.md#configuração-de-monitoramento-250).
+
+- **RF05, RF06, RF11 — Intervalo configurável e estado com motivo (#176):** na **Configuração**, o administrador escolhe o intervalo da atualização automática (15, 30 ou 60 s) e salva com `PUT /api/monitoring-settings`. O dashboard lê `GET /api/monitoring-settings` a cada ciclo, então a troca vale em todas as abas e navegadores no ciclo seguinte, sem recarregar; sem resposta, usa `VITE_REFRESH_INTERVAL_MS` como reserva. Na tabela e na janela de detalhes, um serviço **Indisponível** mostra o motivo seguro (`statusReason`) abaixo do selo. Como verificar em [frontend/README.md](frontend/README.md#estado-com-motivo-176).
+
+  ![Configuração com o intervalo de 15 s salvo](docs/img/sprint-2-configuracao-intervalo.png)
+
+  _Backend real (`docker compose`) em 04/11/2026: depois de salvar 15 s, o dashboard buscou `GET /api/services` aos 13, 28 e 43 s._
+
 O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta lista quando o Pull Request correspondente é mergeado, com o requisito e o número do PR. A Sprint 1 foi encerrada em 20/10/2026 e está publicada na tag [`sprint-1`](https://github.com/DEVassos/greener-app/releases/tag/sprint-1); o registro completo, com a review e o retorno do cliente, está em [docs/sprints/sprint-1.md](docs/sprints/sprint-1.md).
 
 **Vídeo da Sprint 1 (cerca de 3 min):** [EcoPulse - ABP FATEC 2DSM](https://youtu.be/3Hx4kzuudSw), com o produto como foi entregue na Sprint 1.
@@ -42,19 +52,19 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   ![Tabela de serviços monitorados com o backend real](docs/img/sprint-2-dashboard-backend-real.png)
 
-  _Tabela ligada ao backend real (`docker compose`) em 27/10/2026, numa janela de 1366×657: ordem inicial por gravidade, status logo depois do nome, energia e emissão com casas fixas (kWh com 5, g com 3) e as 8 linhas visíveis sem rolar (#203)._
+  _Tabela ligada ao backend real (`docker compose`) em 04/11/2026, numa janela de 1366×657: ordem inicial por gravidade, status logo depois do nome, energia e emissão da última leitura com casas fixas (kWh com 5, g com 3) e 6 das 8 linhas visíveis sem rolar, abaixo dos indicadores do período e dos cards de estado (#203, #259)._
 
-- **RF08, RF09 — Cards de estado dos serviços (#21, PR #202):** acima da tabela, cards com o total de serviços monitorados e quantos estão ativos, indisponíveis e sem métricas, contados na mesma resposta de `GET /api/services` e atualizados no mesmo ciclo. Os removidos ficam fora do total, e a cor só aparece quando há serviços naquele estado. Sem dados, os cards não aparecem; numa falha, mantêm o último dado, apagado, com "Desatualizado desde …".
+- **RF08, RF09 — Cards de estado dos serviços (#21, PR #202):** entre os indicadores do período e a tabela, cards compactos com o total de serviços monitorados e quantos estão ativos, indisponíveis e sem métricas, contados na mesma resposta de `GET /api/services` e atualizados no mesmo ciclo. Os removidos ficam fora do total, e a cor só aparece quando há serviços naquele estado. Sem dados, os cards não aparecem; numa falha, mantêm o último dado, apagado, com "Desatualizado desde …".
 
-  ![Cards de estado acima da tabela de serviços](docs/img/sprint-2-kpis.png)
+  ![Cards de estado entre os indicadores do período e a tabela de serviços](docs/img/sprint-2-kpis.png)
 
-  _Dashboard com o backend real (`docker compose`) em 22/10/2026: os 8 serviços ativos, e Indisponíveis e Sem métricas zerados, sem cor._
+  _Dashboard com o backend real (`docker compose`) em 04/11/2026: os 8 serviços ativos, e Indisponíveis e Sem métricas zerados, sem cor, nos cards compactos abaixo dos indicadores do período (#259)._
 
-- **RF08 — Indicadores agregados e comparação por período (#175, PR #215):** abaixo dos cards de estado, o dashboard mostra a energia (kWh) e o CO₂e (g) das últimas 24 h, com o período em horário de Brasília, e a variação contra as 24 h anteriores. Sem cálculo no período, o valor é "—", nunca zero; com total anterior zero, a tela informa que não há base para a variação. A API usa `GET /api/services/summary?from=&to=`, documentada em [docs/api.md](docs/api.md).
+- **RF08 — Indicadores agregados e comparação por período (#175, PR #215):** no topo do dashboard, logo abaixo do cabeçalho (#259), a tela mostra a energia (kWh) e o CO₂e (g) das últimas 24 h, com o período em horário de Brasília, e a variação contra as 24 h anteriores. Sem cálculo no período, o valor é "—", nunca zero; com total anterior zero, a tela informa que não há base para a variação. A API usa `GET /api/services/summary?from=&to=`, documentada em [docs/api.md](docs/api.md).
 
   ![Indicadores agregados com comparação às 24 h anteriores](docs/img/sprint-2-indicadores-agregados.png)
 
-  _Dashboard com o backend real (`docker compose`) em 03/11/2026, 21h48: 1,2258 kWh e 301,46 g CO₂e nas últimas 24 h. Não há cálculo nas 24 h anteriores, então os cards dizem "Sem cálculo no período anterior" em vez de uma variação. Ícones de linha nos dois cards (#258)._
+  _Dashboard com o backend real (`docker compose`) em 04/11/2026, 1h42: 0,2884 kWh e 69,78 g CO₂e nas últimas 24 h, com o banco coletando havia cerca de 4 h. Não há cálculo nas 24 h anteriores, então os cards dizem "Sem cálculo no período anterior" em vez de uma variação. Ícones de linha nos dois cards (#258); impacto no topo (#259)._
 
 - **RNF02 — Indicador de última atualização (#89):** selo no cabeçalho com o horário da última busca bem-sucedida e um ponto verde pulsando enquanto os dados estão em dia; se uma busca falha, ele fica laranja e passa a dizer "Desatualizado desde …", sem apagar os dados da tela.
 
@@ -72,7 +82,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   ![Dashboard depois de uma atualização com falha](docs/img/sprint-2-atualizacao-automatica.png)
 
-  _Backend parado em 27/10/2026 (mesmo efeito de `docker compose stop backend`): depois de um intervalo, a faixa laranja compacta diz "Mostrando dados de 13:46:28" e oferece **Tentar novamente**, as 8 linhas da tabela continuam visíveis e o selo fica laranja ("Desatualizado desde …") (#203). Sem nenhum dado na tela, aparece o aviso de erro grande._
+  _Backend parado em 04/11/2026 (mesmo efeito de `docker compose stop backend`): na atualização seguinte, a faixa laranja compacta diz "Mostrando dados de 01:47:03" e oferece **Tentar novamente**, o selo fica laranja ("Desatualizado desde …") e a tabela continua na tela com os números em cinza, como os cards, para não parecerem atuais (#203, #261). Sem nenhum dado na tela, aparece o aviso de erro grande._
 
 - **RF01, RF02, RF03, RF04 — Descoberta e coleta periódica (#95, #98, #99):** o backend descobre os serviços no agregador de métricas, consulta `/metrics/{id}` e grava o histórico no PostgreSQL; o _worker_ roda em segundo plano e reconcilia serviços que aparecem, ficam indisponíveis ou voltam a exportar métricas.
 
@@ -96,6 +106,12 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 - **RF07 — Cálculo socioambiental por coleta (#133, PR #139):** métricas válidas são convertidas em potência, energia e emissão de CO₂e com o fator regional da API de carbono. Se o fator não estiver disponível, a métrica continua registrada e o cálculo fica indisponível, sem criar valor estimado. As colunas "Energia (kWh)" e "Emissão (g CO₂e)" da tabela mostram o resultado da última coleta, com cerca de 30 s de operação, em resolução fixa (kWh com 5 casas, g com 3): uma emissão de 0,04 g aparece como 0,040, e não como 0,0 (#203) ([detalhes](frontend/README.md#energia-e-emissão-na-tabela)).
 
+- **RNF01 — Dashboard no celular sem esconder energia e CO₂e (#263):** abaixo de 600 px, a emissão da última leitura aparece também sob o nome de cada serviço, e a tabela de serviços e a matriz da Comparação mostram uma sombra na borda direita enquanto há colunas escondidas. O menu rola até o item da página aberta, e o selo de atualização não quebra o horário nem o intervalo no meio.
+
+  ![Dashboard no celular com a emissão sob o nome de cada serviço](docs/img/sprint-3-dashboard-celular.png)
+
+  _Dashboard com o backend real (`docker compose`) em 04/11/2026, numa tela de 390 px: cada serviço mostra a emissão da última leitura sob o nome (Fraud Detector, 0,449 g CO₂e), e a borda direita da tabela indica as colunas que faltam._
+
 - **RNF01 — Fundo azul, verde nos destaques e logo pulsante (#180, PR #184):** a base da paleta voltou ao azul-escuro e o verde ficou só em ações e destaques (botão vazado nas ações secundárias, item ativo do menu, neon no que pede atenção), em resposta ao feedback da Sprint Review 1. O logo pulsa uma vez a cada atualização bem-sucedida dos dados, como sinal de "ao vivo", e fica parado em falha ou com "reduzir movimento". Regras e contrastes em [docs/identidade-visual.md](docs/identidade-visual.md).
 
   ![Dashboard com fundo azul-escuro](docs/img/sprint-2-fundo-azul.png)
@@ -117,7 +133,6 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 > Planejado, **ainda não implementado**. O andamento real está no [quadro do projeto](https://github.com/orgs/DEVassos/projects/6) e no [plano de entregas](docs/plano-de-entregas.md).
 
 - **Dashboard em três níveis:** visão executiva (kWh total, gCO₂e, serviços ativos e indisponíveis, com atualização sem recarregar), análise comparativa (ranking e distribuição geográfica) e investigação detalhada (histórico por serviço).
-- **Parâmetros da área de configuração:** o login e a proteção de `/configuracao` já existem; os parâmetros de monitoramento e a rota de configuração protegida no backend seguem pendentes.
 - **Prioridade apontada pelo cliente na review da Sprint 1:** comparar serviços e analisar os dados já coletados, para ver o que compensa fazer ([#159](https://github.com/DEVassos/greener-app/issues/159)).
 - **Diferenciais em estudo:** simulação de migração para regiões com matriz mais limpa ([US12, #53](https://github.com/DEVassos/greener-app/issues/53)) e exportação de relatórios em PDF/CSV ([US13, #54](https://github.com/DEVassos/greener-app/issues/54)), previstas para a Sprint 3.
 

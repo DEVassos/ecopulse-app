@@ -9,6 +9,7 @@ import ErrorState from '../components/ErrorState';
 import LoadingState from '../components/LoadingState';
 import MissingValue from '../components/MissingValue';
 import { useComparison } from '../hooks/useComparison';
+import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow';
 import { useServices } from '../hooks/useServices';
 import type { ComparedService } from '../services/compare.types';
 import { isDemoMode } from '../services/services.service';
@@ -22,7 +23,11 @@ const MAX_SPAN_DAYS = 31;
 
 /* Campo de texto do DateField (DD/MM/AAAA): mesmo foco dos filtros da página Emissões (contorno em --sky) */
 const DATE_FIELD =
-  'h-9 rounded-lg border border-border bg-surface-2 px-3 pr-9 font-sans text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-secondary';
+  'h-9 rounded-lg border border-border bg-surface-2 px-3 pr-9 font-sans text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-secondary aria-[invalid=true]:border-danger';
+
+/** Mensagem de erro do formulário, ligada ao grupo de serviços ou aos campos de data por aria-describedby (#262). */
+const FORM_ERROR_ID = 'comparacao-erro';
+const SERVICES_ERROR = 'Escolha pelo menos dois serviços para comparar.';
 
 /** ISO 8601 → "27/10/2026, 14:05", no fuso do navegador. */
 function formatMoment(iso: string): string {
@@ -112,6 +117,9 @@ export default function ComparePage() {
   const [draftStart, setDraftStart] = useState(start);
   const [draftEnd, setDraftEnd] = useState(end);
   const [formError, setFormError] = useState('');
+  // Erro de período: marca as duas datas; o de quantidade de serviços marca o grupo de caixas
+  const dateError = formError !== '' && formError !== SERVICES_ERROR;
+  const [matrixScrollRef, matrixHasMore] = useHorizontalOverflow<HTMLDivElement>();
 
   // A URL também muda pelo "voltar" do navegador: o formulário acompanha (ajuste na renderização, sem efeito)
   const urlFilter = `${idsKey}|${start}|${end}`;
@@ -135,7 +143,7 @@ export default function ComparePage() {
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const chosen = services.filter((service) => draftIds.includes(service.id)).map((service) => service.id);
-    if (chosen.length < MIN_SERVICES) return setFormError('Escolha pelo menos dois serviços para comparar.');
+    if (chosen.length < MIN_SERVICES) return setFormError(SERVICES_ERROR);
     if (draftStart === '' || draftEnd === '') return setFormError('Preencha as duas datas no formato DD/MM/AAAA.');
     if (draftStart > draftEnd) return setFormError('A data inicial deve ser anterior ou igual à data final.');
     if (draftEnd > today) return setFormError('A data final não pode estar no futuro.');
@@ -155,7 +163,7 @@ export default function ComparePage() {
 
       <AppHeader />
 
-      <main className="content">
+      <main id="conteudo" tabIndex={-1} className="content">
         <h1 className="sr-only">Comparação entre serviços</h1>
 
         {servicesError && !servicesData && <ErrorState message={servicesError} onRetry={refreshServices} />}
@@ -170,7 +178,7 @@ export default function ComparePage() {
         {/* Chips com região (#267): marcar um serviço é um clique, e a região ao lado lembra o efeito da matriz elétrica */}
         {services.length > 0 && (
           <form className="panel flex flex-col gap-4 p-4" onSubmit={handleSubmit}>
-            <fieldset className="m-0 min-w-0 border-0 p-0">
+            <fieldset className="m-0 min-w-0 border-0 p-0" aria-describedby={formError === SERVICES_ERROR ? FORM_ERROR_ID : undefined}>
               <legend className="float-left mb-2 p-0 text-xs text-muted">
                 Serviços <span className="text-text">· {draftIds.length} de {MAX_SERVICES} selecionados</span>
               </legend>
@@ -215,11 +223,11 @@ export default function ComparePage() {
               <fieldset className="m-0 min-w-0 border-0 p-0">
                 <legend className="mb-1 p-0 text-xs text-muted">Período</legend>
                 <div className="flex flex-wrap items-center gap-2">
-                  <DateField value={draftStart} onChange={setDraftStart} label="Data inicial" max={today} inputClassName={DATE_FIELD} />
+                  <DateField value={draftStart} onChange={setDraftStart} label="Data inicial" max={today} inputClassName={DATE_FIELD} invalid={dateError} describedBy={dateError ? FORM_ERROR_ID : undefined} />
                   <span className="text-sm text-muted" aria-hidden="true">
                     até
                   </span>
-                  <DateField value={draftEnd} onChange={setDraftEnd} label="Data final" max={today} inputClassName={DATE_FIELD} />
+                  <DateField value={draftEnd} onChange={setDraftEnd} label="Data final" max={today} inputClassName={DATE_FIELD} invalid={dateError} describedBy={dateError ? FORM_ERROR_ID : undefined} />
                 </div>
               </fieldset>
               <button
@@ -231,7 +239,7 @@ export default function ComparePage() {
               </button>
             </div>
             {formError && (
-              <p className="m-0 text-sm text-danger" role="alert">
+              <p id={FORM_ERROR_ID} className="m-0 text-sm text-danger" role="alert">
                 {formError}
               </p>
             )}
@@ -261,7 +269,9 @@ export default function ComparePage() {
             </header>
 
             {/* Rolagem horizontal só na tabela: com até 10 serviços, a página nunca ganha rolagem lateral (RNF01) */}
-            <div className="relative overflow-x-auto">
+            {/* scroll-edge: sombra na borda direita enquanto há serviços escondidos (#263) */}
+            <div className={matrixHasMore ? 'scroll-edge scroll-edge--more' : 'scroll-edge'}>
+            <div ref={matrixScrollRef} className="relative overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="text-xs text-muted">
@@ -296,7 +306,7 @@ export default function ComparePage() {
                         {row.label}
                       </th>
                       {data.services.map((service) => (
-                        <td key={service.id} className={`px-5 py-2 text-right font-mono ${extremeOf(service.id)?.tint ?? ''}`}>
+                        <td key={service.id} className={`px-5 py-2 text-right font-data ${extremeOf(service.id)?.tint ?? ''}`}>
                           {row.cell(service)}
                         </td>
                       ))}
@@ -304,6 +314,7 @@ export default function ComparePage() {
                   ))}
                 </tbody>
               </table>
+            </div>
             </div>
 
             <CompareChart services={data.services} highlightOf={extremeOf} />

@@ -36,11 +36,52 @@
   /* Neon: só no que pede atenção (maior impacto, pico, "ao vivo", pulso do logo) */
   --neon: #5cffb8;
   --neon-glow: rgb(92 255 184 / 0.35);
+  /* Sombra da borda de rolagem (.scroll-edge): no escuro, a própria cor do fundo; cada tema pode trocar */
+  --edge-shadow: var(--bg);
+  /* Texto no papel do neon (ex.: número do tile do pico): no escuro é o próprio neon; no claro, um tom que passa no AA (#265) */
+  --neon-text: var(--neon);
+  /* Fundo atrás da janela de detalhes */
+  --scrim: color-mix(in srgb, var(--bg) 80%, transparent);
   /* Anel de foco dos campos de texto, junto da borda em --accent */
   --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
   --sans: 'IBM Plex Sans', system-ui, sans-serif;
-  --mono: 'IBM Plex Mono', monospace;
   --display: 'Space Grotesk', sans-serif;
+}
+
+/*
+ * Tema claro (#265): os mesmos papéis, remapeados, e não o escuro invertido. Componentes não têm cor própria: só os
+ * tokens trocam. Contraste conferido (WCAG 2.1) sobre o fundo #F4F6FA, a superfície #FFFFFF e a superfície 2 #EEF2F7,
+ * pior caso entre parênteses: texto 15,9:1, texto 2 9,2:1, muted 5,7:1, accent 4,9:1, accent-hover 6,8:1, sky 5,3:1,
+ * warning 5,6:1 (também sobre o fundo tingido de alerta), danger 5,8:1, neon-text 5,1:1; neon (só gráfico) 3,3:1; amarelo da marca (só o logo, texto grande) 3,5:1.
+ * --faint fica só para decoração. O atributo vem do index.html (sistema ou escolha guardada) e do botão do cabeçalho.
+ */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --surface-2: #eef2f7;
+  --surface-3: #e2e8f0;
+  --border: #d3dbe6;
+  --text: #0f172a;
+  --text-2: #334155;
+  --muted: #526072;
+  --faint: #94a3b8;
+  --accent: #047857;
+  --accent-hover: #065f46;
+  /* Branco sobre o verde do botão cheio: 5,5:1 */
+  --on-accent: #ffffff;
+  --sky: #0369a1;
+  --sky-hover: #075985;
+  --yellow: #a87700;
+  --warning: #a8380b;
+  --error: #dc2626;
+  --danger: #b91c1c;
+  --neon: #009966;
+  --neon-glow: rgb(0 153 102 / 0.28);
+  --neon-text: #00754e;
+  --scrim: rgb(15 23 42 / 0.45);
+  /* Sombra da borda de rolagem (.scroll-edge): no claro, cinza translúcido em vez da cor do fundo */
+  --edge-shadow: rgb(15 23 42 / 0.16);
 }
 
 /* Os mesmos tokens como classes do Tailwind: bg-surface, text-muted, border-border, text-warning… */
@@ -61,8 +102,16 @@
   --color-error: var(--error);
   --color-danger: var(--danger);
   --font-sans: var(--sans);
-  --font-mono: var(--mono);
   --font-display: var(--display);
+}
+
+/*
+ * Números de dados (#266): a fonte de texto com algarismos tabulares, no lugar da IBM Plex Mono. Os dígitos têm a mesma
+ * largura, então as vírgulas continuam alinhadas nas colunas, sem a cara de terminal. Classe font-data nos componentes.
+ */
+@utility font-data {
+  font-family: var(--sans);
+  font-variant-numeric: tabular-nums;
 }
 
 @layer base {

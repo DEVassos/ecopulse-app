@@ -262,7 +262,7 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
     peak !== null &&
     mean !== null &&
     labelsOverlap(
-      labelBox(peakText, peak.cx, peak.cy - 14, peakAnchor, CHAR_WIDTH.mono12, 12),
+      labelBox(peakText, peak.cx, peak.cy - 14, peakAnchor, CHAR_WIDTH.data12, 12),
       labelBox(meanText, meanLabelX, y(mean) - 6, 'end', CHAR_WIDTH.sans11, 11),
     );
   const meanLabelY = mean === null ? 0 : meanCollides ? y(mean) + 15 : y(mean) - 6;

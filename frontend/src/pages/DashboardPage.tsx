@@ -76,7 +76,7 @@ export default function DashboardPage() {
             aria-disabled={loading}
             aria-label="Atualizar agora"
             title="Atualizar agora"
-            className="btn-outline grid size-9 place-items-center"
+            className="btn-outline grid size-11 place-items-center"
           >
             <svg
               viewBox="0 0 24 24"
@@ -95,7 +95,7 @@ export default function DashboardPage() {
         </LastUpdated>
       </AppHeader>
 
-      <main className="content">
+      <main id="conteudo" tabIndex={-1} className="content">
         <h1 className="sr-only">Dashboard de energia e emissões</h1>
 
         {/* Falha não apaga o que já estava na tela: com dados, faixa compacta junto do último dado; sem dados, o aviso grande */}
@@ -113,14 +113,20 @@ export default function DashboardPage() {
           />
         )}
 
-        {/* Sem dado ainda, os cards não aparecem (nunca zeros inventados); depois de uma falha, mostram o último dado */}
-        {data && data.services.length > 0 && (
-          <KpiPanel summary={summarizeStatus(data.services)} staleSince={error ? updatedAt : null} />
+        {/* Impacto primeiro (#259): energia e CO₂e do período no topo. Com os serviços na tela e o resumo a caminho, o painel
+            já ocupa o lugar dele em "Calculando…", para a página não pular quando a resposta chega */}
+        {(summary || (data && data.services.length > 0 && !isDemoMode && !summaryError)) && (
+          <SummaryPanel summary={summary} previousSummary={previousSummary} comparisonLoading={comparisonLoading} stale={error !== '' || summaryError !== ''} />
         )}
-        {summary && <SummaryPanel summary={summary} previousSummary={previousSummary} comparisonLoading={comparisonLoading} stale={error !== '' || summaryError !== ''} />}
+
+        {/* Estado dos serviços logo abaixo, em cards compactos. Sem dado ainda, os cards não aparecem (nunca zeros inventados);
+            depois de uma falha, mostram o último dado */}
+        {data && data.services.length > 0 && (
+          <KpiPanel summary={summarizeStatus(data.services)} staleSince={error ? updatedAt : null} compact />
+        )}
 
         {data && data.services.length > 0 && (
-          <ServicesTable services={data.services} onSelect={(service) => setSelectedId(service.id)} />
+          <ServicesTable services={data.services} onSelect={(service) => setSelectedId(service.id)} stale={error !== ''} />
         )}
 
         {/* Montada só enquanto aberta: fechar desmonta e cancela o polling do histórico */}
