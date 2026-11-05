@@ -2,6 +2,7 @@
   /* Mobile-first: em tela estreita são três linhas, sem nada sumir: marca e Entrar/Sair, o menu (que rola na
      horizontal) e a atualização. Na tela larga, tudo numa linha só */
   .topbar {
+    position: relative;
     border-bottom: 1px solid var(--border);
     background: var(--surface-2);
   }
@@ -106,6 +107,111 @@
   .user-menu .btn-outline {
     min-height: 44px;
     padding: 10px 16px;
+  }
+
+  /*
+   * Celular (#274): abaixo de 600 px, a faixa do menu some e o botão "Menu" abre uma grade de duas colunas, logo abaixo
+   * do cabeçalho, sobre o fundo apagado. A partir de 600 px as quatro páginas cabem na faixa, sem rolar de lado.
+   */
+  .mobile-menu {
+    display: none;
+  }
+
+  @media (max-width: 599px) {
+    .nav {
+      display: none;
+    }
+
+    .mobile-menu {
+      display: block;
+      order: 1;
+      margin-left: auto;
+    }
+
+    .topbar-user {
+      margin-left: 0;
+    }
+  }
+
+  .mobile-menu__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .mobile-menu__button[aria-expanded='true'] {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+
+  .mobile-menu__scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+  }
+
+  .mobile-menu__grid {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    z-index: 41;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    padding: 12px 16px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+    box-shadow: 0 18px 30px -20px rgb(0 0 0 / 0.6);
+  }
+
+  /* Ícone sobre o rótulo, alvo de toque bem maior que 44 px; o item atual com o mesmo verde da faixa */
+  .mobile-menu__grid a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 76px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text-2);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .mobile-menu__grid a.active {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--accent-hover);
+    font-weight: 600;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .mobile-menu__grid {
+      animation: mobile-menu-in 160ms ease-out;
+    }
+  }
+
+  @keyframes mobile-menu-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
   }
 
   /* Tela larga: marca, menu e ações na mesma linha; 10 px na vertical deixa o cabeçalho com cerca de 56 px */
