@@ -1,6 +1,7 @@
 import AppHeader from '../components/AppHeader';
 import ErrorState from '../components/ErrorState';
 import LoadingState from '../components/LoadingState';
+import RefreshIntervalForm from '../components/RefreshIntervalForm';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 
 /** Área restrita: a sessão é confirmada no backend (GET /auth/me) antes de mostrar a configuração. */
@@ -27,7 +28,9 @@ export default function SettingsPage() {
                 </div>
                 <div className="rounded-lg border border-border bg-surface-2 p-4">
                   <dt className="text-sm text-muted">Parâmetros do monitoramento</dt>
-                  <dd className="m-0 mt-1">Nenhum parâmetro de monitoramento disponível nesta versão.</dd>
+                  <dd className="m-0 mt-3">
+                    <RefreshIntervalForm />
+                  </dd>
                 </div>
               </dl>
             )}
