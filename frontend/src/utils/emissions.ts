@@ -264,10 +264,16 @@ export function describePeak(points: EmissionPoint[], stats: SeriesStats, bucket
   const peak = stats.peakIndex !== null ? points[stats.peakIndex] : null;
   if (!peak || peak.co2eGrams === null || ratio === null) return null;
   const when = formatPeakTime(peak, bucket);
-  const where = bucket === 'coleta' ? 'numa coleta' : 'num intervalo';
+  const grams = formatGrams(peak.co2eGrams);
+  // Os mesmos nomes do chip e do tile: "pico" de uma coleta, "maior intervalo" quando os pontos são somas (#272)
+  if (bucket === 'coleta') {
+    return ratio >= 1.5
+      ? `Pico de ${grams} CO₂e numa coleta em ${when}, ${formatRatio(ratio)} a média do período. Vale ver o que rodou nesse horário.`
+      : `Emissão estável: o pico (${grams} em ${when}) ficou perto da média.`;
+  }
   return ratio >= 1.5
-    ? `Pico de ${formatGrams(peak.co2eGrams)} CO₂e ${where} em ${when}, ${formatRatio(ratio)} a média do período. Vale ver o que rodou nesse horário.`
-    : `Emissão estável: o pico (${formatGrams(peak.co2eGrams)} em ${when}) ficou perto da média.`;
+    ? `Maior intervalo: ${grams} CO₂e em ${when}, ${formatRatio(ratio)} a média do período. Vale ver o que rodou nesse horário.`
+    : `Emissão estável: o maior intervalo (${grams} em ${when}) ficou perto da média.`;
 }
 
 /** O tempo sem coleta em uma frase; null quando não faltou nada. */
