@@ -33,10 +33,10 @@ Os valores ficam em `frontend/src/styles/global.css`, fonte única das cores no 
 | **Primária** | Marca, botões de ação principal e elementos ativos | Verde-esmeralda | `#10B981` | `--accent` | 7,4:1 |
 | **Secundária** | Dados secundários, links e destaques auxiliares | Azul-ciano | `#38BDF8` | `--sky` | 8,7:1 |
 | **Destaque da marca** | Elementos exclusivos da identidade visual/logotipo | Amarelo | `#FACC15` | `--yellow` | 12,2:1 |
-| **Alerta** | Estados de aviso (ex: serviço sem métricas) | Laranja | `#F97316` | `--warning` | 6,7:1 |
+| **Alerta** | Estados de aviso (ex: serviço sem métricas) e a seta ▲ de energia ou CO₂e que subiu contra o período anterior (#271), porque nessas métricas menos é melhor; a seta ▼ fica em `--accent-hover` e a variação abaixo de 0,5% ("±0%") em `--muted` | Laranja | `#F97316` | `--warning` | 6,7:1 |
 | **Erro** | Estados críticos (ex: serviço indisponível/caído) | Vermelho | `#EF4444` | `--error` | 5,0:1 |
 | **Texto** | Cor padrão para textos e títulos | Cinza-claro | `#E2E8F0` | `--text` | 15,2:1 |
-| **Neon** | Só no que pede atenção: maior impacto, pico, "ao vivo" e pulso do logo, e um destaque por vez na tela. Na página Emissões ele fica com o tile "Pico de uma coleta", o pico que a Leitura do período cita; o maior ponto do gráfico fica em `--text`, sem brilho (#258). Nunca em texto corrido, fundo de card ou linha de gráfico | Verde-neon | `#5CFFB8` | `--neon` | 14,7:1 |
+| **Neon** | Só no que pede atenção: maior impacto, pico, "ao vivo" e pulso do logo, e um destaque por vez na tela. Na página Emissões ele fica com o tile de pico ("Pico de uma coleta" ou, agrupado, "Maior intervalo"), o mesmo pico do gráfico e da Leitura do período (#271); o maior ponto do gráfico fica em `--text`, sem brilho (#258). Nunca em texto corrido, fundo de card ou linha de gráfico | Verde-neon | `#5CFFB8` | `--neon` | 14,7:1 |
 
 > **Nota de Usabilidade:** O amarelo (`#FACC15`) é utilizado restritivamente para elementos da marca. Alertas de sistema utilizam obrigatoriamente o laranja (`#F97316`) para garantir que problemas operacionais sejam imediatamente identificados sem ambiguidade.
 
@@ -107,6 +107,7 @@ No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg
   4. Ranking de consumo ao final da página.
 * Cabeçalho abaixo de 961 px (#258): três linhas, sem esconder nada. A primeira tem a marca e **Entrar**/**Sair**, a segunda o menu (que rola na horizontal) e a terceira a "Última atualização" com o botão de atualizar. Na tela larga, tudo fica numa linha só.
 * Os cards de energia e emissões do período ficam em uma coluna no celular, para o valor e a unidade ("g CO₂e") caberem na mesma linha.
+* Energia e CO₂e aparecem na unidade que o valor pede (Wh, kWh, mg, g…), uma só por coluna, linha ou eixo, com a unidade no cabeçalho (#271); a regra está em [frontend/README.md](../frontend/README.md#unidades-de-energia-e-emissão-271).
 
 ---
 
