@@ -18,8 +18,9 @@ const COLUMNS: Column[] = [
   { key: 'name', label: 'Serviço' },
   { key: 'status', label: 'Status' },
   { key: 'cpuPercent', label: 'CPU', numeric: true },
-  { key: 'energyKwh', label: 'Energia (kWh)', numeric: true },
-  { key: 'emissionsG', label: 'Emissão (g CO₂e)', numeric: true },
+  // "na última leitura": a tabela fica logo abaixo dos totais de 24 h e não pode parecer um total do período (#259)
+  { key: 'energyKwh', label: 'Energia na última leitura (kWh)', numeric: true },
+  { key: 'emissionsG', label: 'Emissão na última leitura (g CO₂e)', numeric: true },
   { key: 'lastReadingAt', label: 'Última leitura', numeric: true },
   { key: 'location', label: 'Localização' },
 ];
