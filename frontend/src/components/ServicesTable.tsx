@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import type { MonitoredService, ServiceStatus } from '../services/services.types';
-import { formatFixed, formatNumber, formatTime } from '../utils/format';
+import { formatNumber, formatTime } from '../utils/format';
+import { formatInScale, scaleFor } from '../utils/units';
+import type { Quantity } from '../utils/units';
 import MissingValue from './MissingValue';
 import StatusBadge from './StatusBadge';
 
@@ -10,6 +12,8 @@ interface Column {
   key: SortKey;
   label: string;
   numeric?: boolean;
+  /** Energia ou CO₂e: a unidade da escala da coluna entra no cabeçalho (#271). */
+  quantity?: Quantity;
 }
 
 // Status logo depois do nome: em notebook, a última coluna fica longe demais do serviço
@@ -17,8 +21,8 @@ const COLUMNS: Column[] = [
   { key: 'name', label: 'Serviço' },
   { key: 'status', label: 'Status' },
   { key: 'cpuPercent', label: 'CPU', numeric: true },
-  { key: 'energyKwh', label: 'Energia (kWh)', numeric: true },
-  { key: 'emissionsG', label: 'Emissão (g CO₂e)', numeric: true },
+  { key: 'energyKwh', label: 'Energia', numeric: true, quantity: 'energy' },
+  { key: 'emissionsG', label: 'Emissão', numeric: true, quantity: 'co2e' },
   { key: 'lastReadingAt', label: 'Última leitura', numeric: true },
   { key: 'location', label: 'Localização' },
 ];
@@ -68,6 +72,15 @@ export default function ServicesTable({ services, onSelect }: Props) {
   // Ordem inicial por gravidade (Status crescente): indisponíveis e sem métricas no topo, acima da dobra
   const [sortKey, setSortKey] = useState<SortKey>('status');
   const [direction, setDirection] = useState<1 | -1>(1);
+  // Uma unidade por coluna, escolhida pelo maior valor de todos os serviços (e não só dos filtrados pela busca, para a
+  // unidade não pular enquanto se digita): números comparáveis e alinhados, com a unidade no cabeçalho (#271)
+  const scales = useMemo(
+    () => ({
+      energy: scaleFor('energy', services.map((service) => service.energyKwh)),
+      co2e: scaleFor('co2e', services.map((service) => service.emissionsG)),
+    }),
+    [services],
+  );
 
   const rows = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('pt-BR');
@@ -127,7 +140,7 @@ export default function ServicesTable({ services, onSelect }: Props) {
                     onClick={() => sortBy(column)}
                     className={`cursor-pointer border-0 bg-transparent p-0 font-sans text-xs font-medium hover:text-text ${sortKey === column.key ? 'text-text' : 'text-muted'}`}
                   >
-                    {column.label}
+                    {column.quantity ? `${column.label} (${scales[column.quantity].unit}${column.quantity === 'co2e' ? ' CO₂e' : ''})` : column.label}
                     <span aria-hidden="true"> {sortKey === column.key ? (direction === 1 ? '↑' : '↓') : '↕'}</span>
                   </button>
                 </th>
@@ -163,12 +176,12 @@ export default function ServicesTable({ services, onSelect }: Props) {
                 <td className="px-5 py-2 text-right font-mono">
                   {service.cpuPercent === null ? <MissingValue /> : `${formatNumber(service.cpuPercent, 0)}%`}
                 </td>
-                {/* Resolução fixa por coluna (kWh com 5 casas, g com 3): vírgulas alinhadas e 0,040 g em vez de "0,0" */}
+                {/* Mesma unidade e casas na coluna inteira (escala única, #271): vírgulas alinhadas e nenhum "0,000…" */}
                 <td className="px-5 py-2 text-right font-mono">
-                  {service.energyKwh === null ? <MissingValue /> : formatFixed(service.energyKwh, 5)}
+                  {service.energyKwh === null ? <MissingValue /> : formatInScale(service.energyKwh, scales.energy)}
                 </td>
                 <td className="px-5 py-2 text-right font-mono">
-                  {service.emissionsG === null ? <MissingValue /> : formatFixed(service.emissionsG, 3)}
+                  {service.emissionsG === null ? <MissingValue /> : formatInScale(service.emissionsG, scales.co2e)}
                 </td>
                 <td className="px-5 py-2 text-right font-mono text-muted">
                   {service.lastReadingAt === null ? 'nunca' : formatTime(service.lastReadingAt)}

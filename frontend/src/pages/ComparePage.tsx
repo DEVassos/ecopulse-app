@@ -13,6 +13,7 @@ import type { ComparedService } from '../services/compare.types';
 import { isDemoMode } from '../services/services.service';
 import { isInputDate, spanDays, timeZoneLabel, todayInput } from '../utils/emissions';
 import { formatNumber } from '../utils/format';
+import { formatInScale, scaleFor } from '../utils/units';
 
 /** Limites de GET /api/services/compare (docs/api.md). */
 const MIN_SERVICES = 2;
@@ -48,15 +49,25 @@ function collectionsCell(service: ComparedService): ReactNode {
 }
 
 /** Uma métrica por linha e um serviço por coluna: os serviços ficam lado a lado. */
-const ROWS: { label: string; cell: (service: ComparedService) => ReactNode }[] = [
-  { label: 'Coletas', cell: collectionsCell },
-  { label: 'CPU média', cell: (service) => amount(service.avgCpuPercent, (value) => `${formatNumber(value, 1)}%`) },
-  { label: 'Memória média (GB)', cell: (service) => amount(service.avgMemoryGb, (value) => formatNumber(value, 2)) },
-  { label: 'Disco médio (GB)', cell: (service) => amount(service.avgDiskGb, (value) => formatNumber(value, 2)) },
-  { label: 'Rede média (GB)', cell: (service) => amount(service.avgNetworkGb, (value) => formatNumber(value, 3)) },
-  { label: 'Energia (kWh)', cell: (service) => amount(service.energyKwh, (value) => formatNumber(value, 4)) },
-  { label: 'CO₂e (g)', cell: (service) => amount(service.co2eGrams, (value) => formatNumber(value, 2)) },
-];
+interface Row {
+  label: string;
+  cell: (service: ComparedService) => ReactNode;
+}
+
+/** Linhas da matriz; energia e CO₂e na escala única dos serviços comparados (#271), com a unidade no rótulo. */
+function rowsFor(services: ComparedService[]): Row[] {
+  const energy = scaleFor('energy', services.map((service) => service.energyKwh));
+  const co2e = scaleFor('co2e', services.map((service) => service.co2eGrams));
+  return [
+    { label: 'Coletas', cell: collectionsCell },
+    { label: 'CPU média', cell: (service) => amount(service.avgCpuPercent, (value) => `${formatNumber(value, 1)}%`) },
+    { label: 'Memória média (GB)', cell: (service) => amount(service.avgMemoryGb, (value) => formatNumber(value, 2)) },
+    { label: 'Disco médio (GB)', cell: (service) => amount(service.avgDiskGb, (value) => formatNumber(value, 2)) },
+    { label: 'Rede média (GB)', cell: (service) => amount(service.avgNetworkGb, (value) => formatNumber(value, 3)) },
+    { label: `Energia (${energy.unit})`, cell: (service) => amount(service.energyKwh, (value) => formatInScale(value, energy)) },
+    { label: `CO₂e (${co2e.unit})`, cell: (service) => amount(service.co2eGrams, (value) => formatInScale(value, co2e)) },
+  ];
+}
 
 /**
  * Serviços com o menor e o maior CO₂e do período (empate marca todos). Nenhum destaque quando menos de dois serviços
@@ -265,7 +276,7 @@ export default function ComparePage() {
                 </thead>
                 <tbody>
                   {/* Linhas alternadas; a cor da coluna em destaque é translúcida e deixa a alternância aparecer */}
-                  {ROWS.map((row) => (
+                  {rowsFor(data.services).map((row) => (
                     <tr key={row.label} className="border-t border-border even:bg-surface-3">
                       <th scope="row" className="whitespace-nowrap px-5 py-2 text-left font-medium text-muted">
                         {row.label}
