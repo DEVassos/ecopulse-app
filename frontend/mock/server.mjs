@@ -49,13 +49,14 @@ const SERVICES = [
   { id: 'audit-stream', name: 'Audit Stream', country: 'Japão', region: 'jp-east', city: 'Tóquio', cpu: 41, kwh: 0.0533, gramsPerKwh: 465, status: 'ativo' },
   { id: 'checkout-worker', name: 'Checkout Worker', country: 'Estados Unidos', region: 'us-east', city: 'Virgínia', cpu: 45, kwh: 0.0467, gramsPerKwh: 377, status: 'ativo' },
   { id: 'reporting-batch', name: 'Reporting Batch', country: 'Canadá', region: 'ca-central', city: 'Montreal', cpu: 52, kwh: 0.0726, gramsPerKwh: 40, status: 'ativo' },
-  { id: 'email-dispatcher', name: 'Email Dispatcher', country: 'Brasil', region: 'br-sudeste', city: 'São Paulo', status: 'indisponivel' },
+  { id: 'email-dispatcher', name: 'Email Dispatcher', country: 'Brasil', region: 'br-sudeste', city: 'São Paulo', status: 'indisponivel', reason: 'Serviço indisponível (HTTP 500).' },
   { id: 'inventory-sync', name: 'Inventory Sync', country: 'Canadá', region: 'ca-central', city: null, status: 'sem_metricas' },
 ];
 
 /** Leitura "ao vivo": a CPU varia um pouco a cada chamada, para a atualização mostrar mudança na tela. */
 function readService(service) {
-  const base = { id: service.id, name: service.name, country: service.country, region: service.region, city: service.city, status: service.status };
+  // statusReason (#176): motivo da coleta mais recente, só em `indisponivel`
+  const base = { id: service.id, name: service.name, country: service.country, region: service.region, city: service.city, status: service.status, statusReason: service.reason ?? null };
   if (service.status !== 'ativo') {
     return { ...base, cpuPercent: null, energyKwh: null, emissionsG: null, lastReadingAt: null };
   }
@@ -174,6 +175,18 @@ function send(res, status, body) {
   res.end(body === undefined ? '' : JSON.stringify(body));
 }
 
+/**
+ * Configuração do dashboard (#176). Vale até reiniciar o mock, como uma linha só na tabela monitoring_settings.
+ * MOCK_REFRESH_INTERVAL_SECONDS muda só o valor inicial (ex.: 5, para ver o polling rápido); o PUT aceita só a lista.
+ */
+const ALLOWED_INTERVALS = [15, 30, 60];
+const INITIAL_INTERVAL = Number(process.env.MOCK_REFRESH_INTERVAL_SECONDS ?? 30);
+let monitoringSettings = {
+  refreshIntervalSeconds: Number.isInteger(INITIAL_INTERVAL) && INITIAL_INTERVAL > 0 ? INITIAL_INTERVAL : 30,
+  allowedIntervalsSeconds: ALLOWED_INTERVALS,
+  updatedAt: null,
+};
+
 const UNAUTHORIZED = { error: { code: 'UNAUTHORIZED', message: 'Token ausente, inválido ou expirado.' } };
 
 const routes = {
@@ -196,6 +209,20 @@ const routes = {
     const token = bearerToken(req);
     if (!token || !validTokens.has(token)) return send(res, 401, UNAUTHORIZED);
     return send(res, 200, { id: ADMIN.id, email: ADMIN.email });
+  },
+
+  // #176 — intervalo de atualização do dashboard: leitura pública, troca só com token (contrato na issue)
+  'GET /monitoring-settings': async (_req, res) => send(res, 200, monitoringSettings),
+
+  'PUT /monitoring-settings': async (req, res) => {
+    const token = bearerToken(req);
+    if (!token || !validTokens.has(token)) return send(res, 401, UNAUTHORIZED);
+    const body = await readJson(req);
+    if (!body || !ALLOWED_INTERVALS.includes(body.refreshIntervalSeconds)) {
+      return validationError(res, 'refreshIntervalSeconds deve ser 15, 30 ou 60.');
+    }
+    monitoringSettings = { ...monitoringSettings, refreshIntervalSeconds: body.refreshIntervalSeconds, updatedAt: new Date().toISOString() };
+    return send(res, 200, monitoringSettings);
   },
 
   // US01 / US04 — serviços monitorados (rota pública do dashboard)
@@ -335,7 +362,7 @@ createServer(async (req, res) => {
   // CORS: o Vite roda em outra porta (5173)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
   if (req.method === 'OPTIONS') return send(res, 204);
 
   // Aceita as rotas com ou sem o prefixo /api (o .env.example usa VITE_API_URL=http://localhost:3000/api)
@@ -349,4 +376,5 @@ createServer(async (req, res) => {
   console.log(`Backend falso em http://localhost:${PORT}`);
   console.log(`GET /services: cenário "${SERVICES_SCENARIO}" (MOCK_SERVICES=normal|vazio|erro|sem-id|cpu-texto|resumo-texto|comparacao-sem-id)`);
   console.log(`Login: ${ADMIN.email} / ${ADMIN.password}`);
+  console.log(`GET /monitoring-settings: intervalo inicial ${monitoringSettings.refreshIntervalSeconds} s (MOCK_REFRESH_INTERVAL_SECONDS)`);
 });
