@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router';
 import ProtectedRoute from './components/ProtectedRoute';
+import TooltipLayer from './components/TooltipLayer';
 import ComparePage from './pages/ComparePage';
 import DashboardPage from './pages/DashboardPage';
 import EmissionsPage from './pages/EmissionsPage';
@@ -31,6 +32,8 @@ export default function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        {/* Um tooltip só para a aplicação inteira (#274): qualquer elemento com data-tooltip */}
+        <TooltipLayer />
       </MonitoringProvider>
     </AuthProvider>
   );

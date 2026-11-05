@@ -1,0 +1,73 @@
+/* Tooltip único (#274): cartão sempre escuro, nos dois temas, com tokens próprios (global.css) */
+@layer components {
+  .tooltip {
+    position: fixed;
+    /* O popover do navegador centraliza na tela (inset: 0; margin: auto): a posição vem do TooltipLayer */
+    inset: auto;
+    z-index: 1000;
+    max-width: min(280px, calc(100vw - 16px));
+    margin: 0;
+    padding: 6px 10px;
+    overflow: visible;
+    border: 1px solid var(--tooltip-border);
+    border-radius: 8px;
+    background: var(--tooltip-bg);
+    color: var(--tooltip-text);
+    box-shadow: 0 12px 28px -14px rgb(0 0 0 / 0.65);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.4;
+    text-align: left;
+    pointer-events: none;
+  }
+
+  .tooltip[hidden] {
+    display: none;
+  }
+
+  /* Valor exato em destaque; com ele, o texto fica em segundo plano */
+  .tooltip strong {
+    display: block;
+    color: var(--tooltip-text);
+    font-size: 15px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tooltip strong + span {
+    color: var(--tooltip-muted);
+  }
+
+  /* Seta apontando o centro do elemento, embaixo (tooltip acima) ou em cima (tooltip abaixo) */
+  .tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: var(--tooltip-arrow, 50%);
+    width: 8px;
+    height: 8px;
+    border-right: 1px solid var(--tooltip-border);
+    border-bottom: 1px solid var(--tooltip-border);
+    background: var(--tooltip-bg);
+    transform: translateX(-50%) rotate(45deg);
+  }
+
+  .tooltip[data-side='bottom']::after {
+    top: -5px;
+    bottom: auto;
+    transform: translateX(-50%) rotate(-135deg);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .tooltip {
+      animation: tooltip-in 120ms ease-out;
+    }
+  }
+
+  @keyframes tooltip-in {
+    from {
+      opacity: 0;
+    }
+  }
+}

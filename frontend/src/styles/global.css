@@ -38,6 +38,13 @@
   --neon-glow: rgb(92 255 184 / 0.35);
   /* Anel de foco dos campos de texto, junto da borda em --accent */
   --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+  /* Tooltip único (#274): cartão sempre escuro, também no tema claro, com o valor exato em destaque */
+  --tooltip-bg: #0f172a;
+  --tooltip-border: #334155;
+  --tooltip-text: #f8fafc;
+  --tooltip-muted: #cbd5e1;
+  /* Aviso dentro do cartão escuro: o --warning do tema claro é escuro demais para ele */
+  --tooltip-warning: #fb923c;
   --sans: 'IBM Plex Sans', system-ui, sans-serif;
   --mono: 'IBM Plex Mono', monospace;
   --display: 'Space Grotesk', sans-serif;
