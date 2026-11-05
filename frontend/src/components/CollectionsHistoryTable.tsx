@@ -50,7 +50,13 @@ export default function CollectionsHistoryTable({ collections }: Props) {
 
   return (
     // relative: os textos sr-only (position: absolute) das células ficam dentro da rolagem, sem alargar a janela
-    <div className="relative overflow-x-auto rounded-xl border border-border">
+    // Focável e nomeada (#262): no celular as colunas cortadas só aparecem rolando, e pelo teclado a rolagem precisa do foco
+    <div
+      className="relative overflow-x-auto rounded-xl border border-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+      tabIndex={0}
+      role="region"
+      aria-label="Histórico de coletas (role na horizontal para ver todas as colunas)"
+    >
       <table className="w-full min-w-[720px] border-collapse text-sm">
         <caption className="px-4 py-3 text-left text-sm text-muted">
           {collections.length === 1 ? '1 coleta' : `${collections.length} coletas mais recentes`}

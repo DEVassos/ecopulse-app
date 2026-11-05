@@ -39,6 +39,9 @@ import {
 import { formatDayTime } from '../utils/format';
 import './EmissionsPage.css';
 
+/** Mensagem de erro do período, ligada aos dois campos de data por aria-describedby (#262). */
+const FORM_ERROR_ID = 'emissoes-erro-periodo';
+
 const BUCKETS: EmissionsBucket[] = ['coleta', '15min', '1h'];
 
 function locationOf(service: MonitoredService): string {
@@ -152,7 +155,7 @@ export default function EmissionsPage() {
 
       <AppHeader updatedAt={updatedAt} />
 
-      <main className="content">
+      <main id="conteudo" tabIndex={-1} className="content">
         <h1 className="sr-only">Emissões de CO₂e por estação</h1>
 
         {servicesError && !servicesData && <ErrorState message={servicesError} onRetry={refreshServices} />}
@@ -180,11 +183,27 @@ export default function EmissionsPage() {
               </label>
               <label className="emissions__field">
                 <span>Data inicial</span>
-                <input type="date" value={draftStart} max={today} disabled={live} onChange={(e) => setDraftStart(e.target.value)} />
+                <input
+                  type="date"
+                  value={draftStart}
+                  max={today}
+                  disabled={live}
+                  onChange={(e) => setDraftStart(e.target.value)}
+                  aria-invalid={formError !== '' || undefined}
+                  aria-describedby={formError ? FORM_ERROR_ID : undefined}
+                />
               </label>
               <label className="emissions__field">
                 <span>Data final</span>
-                <input type="date" value={draftEnd} max={today} disabled={live} onChange={(e) => setDraftEnd(e.target.value)} />
+                <input
+                  type="date"
+                  value={draftEnd}
+                  max={today}
+                  disabled={live}
+                  onChange={(e) => setDraftEnd(e.target.value)}
+                  aria-invalid={formError !== '' || undefined}
+                  aria-describedby={formError ? FORM_ERROR_ID : undefined}
+                />
               </label>
               <label className="emissions__field">
                 <span>Agrupar por</span>
@@ -241,7 +260,7 @@ export default function EmissionsPage() {
                 </div>
               </div>
               {formError && (
-                <p className="emissions__form-error" role="alert">
+                <p id={FORM_ERROR_ID} className="emissions__form-error" role="alert">
                   {formError}
                 </p>
               )}
@@ -274,7 +293,8 @@ export default function EmissionsPage() {
                 <div
                   className={stale ? 'emissions__reading emissions__reading--stale' : 'emissions__reading'}
                   title={staleTitle}
-                  aria-live="polite"
+                  // Sem aria-live (#262): no Tempo real a frase muda a cada ciclo e seria anunciada a cada 30 s;
+                  // a falha já é anunciada uma vez pelo ErrorState
                 >
                   <h3>Leitura do período</h3>
                   <ul>

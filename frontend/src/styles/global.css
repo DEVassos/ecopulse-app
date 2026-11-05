@@ -36,6 +36,8 @@
   /* Neon: só no que pede atenção (maior impacto, pico, "ao vivo", pulso do logo) */
   --neon: #5cffb8;
   --neon-glow: rgb(92 255 184 / 0.35);
+  /* Sombra da borda de rolagem (.scroll-edge): no escuro, a própria cor do fundo; cada tema pode trocar */
+  --edge-shadow: var(--bg);
   /* Texto no papel do neon (ex.: número do tile do pico): no escuro é o próprio neon; no claro, um tom que passa no AA (#265) */
   --neon-text: var(--neon);
   /* Fundo atrás da janela de detalhes */

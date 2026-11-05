@@ -90,8 +90,10 @@ No tema escuro, `--neon-text` é o próprio `--neon`. Os dois só se separam no 
 * Bordas sutis e cantos arredondados para manter uma aparência limpa e profissional.
 * Os ícones dos cards são SVG de linha 24×24, com o mesmo traço (`metricIconProps`, em `MetricTile.tsx`), na cor do tom do card. Caractere ou emoji não serve de ícone (#258).
 * O número isolado de um card (estado, indicadores do período, resumo da página Emissões) usa `--sans` semibold, não a fonte de título.
+* No dashboard, o impacto vem primeiro (#259): os indicadores de energia e CO₂e do período ficam no topo, com o número em 28 px. Os cards de estado vêm logo abaixo, na versão compacta do `MetricTile` (cerca de 64 px, número em 22 px).
 
 ### Botões
+* Alvo de toque: pelo menos 24×24 px em qualquer botão, e 44 px nas ações do cabeçalho e dos formulários (#262).
 * **Botão cheio** (ação principal da tela, ex.: "Entrar"): fundo `--accent`, texto `--on-accent`. O texto fica escuro porque o branco sobre o verde dá 2,5:1 e reprova no AA.
 * **Botão vazado** (ações secundárias, ex.: "Tentar novamente", "Atualizar agora"): classe `.btn-outline` (`frontend/src/styles/controls.css`), fundo transparente, borda e texto `--accent`; no hover, `--accent` a 10% no fundo e texto `--accent-hover`.
 
@@ -115,7 +117,7 @@ No tema escuro, `--neon-text` é o próprio `--neon`. Os dois só se separam no 
 | `--mono` | IBM Plex Mono | 400, 500 | Valores numéricos e códigos: CPU, energia, emissão e horário da última leitura (alinhados à direita) e o código da região na tabela de serviços. Nome de lugar (cidade, país) fica em `--sans` |
 | `--display` | Space Grotesk | 500, 600, 700 | Logotipo e títulos de página e de seção |
 
-* Contraste rigoroso entre o texto cinza-claro (`#E2E8F0`) e o fundo azul-noite (`#0B1220`), de 15,2:1, e a superfície (`#131C2E`), de 13,8:1, para garantir conforto visual em monitoramento prolongado. Texto pequeno usa no mínimo `--muted` (`#94A3B8`).
+* Contraste rigoroso entre o texto cinza-claro (`#E2E8F0`) e o fundo azul-noite (`#0B1220`), de 15,2:1, e a superfície (`#131C2E`), de 13,8:1, para garantir conforto visual em monitoramento prolongado. Texto pequeno usa no mínimo `--muted` (`#94A3B8`). Isso vale também para o placeholder dos campos (#262). O menor tamanho de texto é 12 px.
 
 ### Responsividade (Mobile First)
 * Em telas menores (dispositivos móveis), o layout se reorganiza em uma única coluna fluida:
@@ -125,6 +127,8 @@ No tema escuro, `--neon-text` é o próprio `--neon`. Os dois só se separam no 
   4. Ranking de consumo ao final da página.
 * Cabeçalho abaixo de 961 px (#258): três linhas, sem esconder nada. A primeira tem a marca e **Entrar**/**Sair**, a segunda o menu (que rola na horizontal) e a terceira a "Última atualização" com o botão de atualizar. Na tela larga, tudo fica numa linha só.
 * Os cards de energia e emissões do período ficam em uma coluna no celular, para o valor e a unidade ("g CO₂e") caberem na mesma linha.
+* Tabela de serviços abaixo de 600 px (#263): a emissão da última leitura aparece também sob o nome, em `--mono` 12 px e `--muted`. Toda área com rolagem horizontal (tabela de serviços, matriz da Comparação) mostra uma sombra interna em `--bg` na borda direita enquanto há colunas escondidas (`.scroll-edge`). É um sinal de estado, não elevação, e some quando a rolagem chega ao fim.
+* O menu do topo rola até o item ativo ao abrir cada página, e o selo de atualização não quebra o horário nem o intervalo no meio.
 
 ---
 

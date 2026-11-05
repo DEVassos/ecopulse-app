@@ -28,6 +28,11 @@ export function formatDayTime(iso: string): string {
   return `${day} ${formatTime(iso)}`;
 }
 
+/** Só a hora quando o horário é de hoje (no relógio do navegador); com a data quando é de outro dia (#261). */
+export function formatTimeOrDayTime(iso: string, now: Date = new Date()): string {
+  return new Date(iso).toDateString() === now.toDateString() ? formatTime(iso) : formatDayTime(iso);
+}
+
 /** Duração em segundos → "7 h 35 min", "2 min 10 s" ou "45 s". */
 export function formatDurationSeconds(totalSeconds: number): string {
   const seconds = Math.max(0, Math.round(totalSeconds));
