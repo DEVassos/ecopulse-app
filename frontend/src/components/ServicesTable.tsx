@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { MonitoredService, ServiceStatus } from '../services/services.types';
 import { formatFixed, formatNumber, formatTime } from '../utils/format';
+import { statusReasonText } from '../utils/status';
 import MissingValue from './MissingValue';
 import StatusBadge from './StatusBadge';
 
@@ -156,9 +157,12 @@ export default function ServicesTable({ services, onSelect }: Props) {
                     {service.name}
                   </button>
                 </th>
-                {/* O badge é o único elemento colorido da linha */}
+                {/* O badge é o único elemento colorido da linha; o motivo vem em texto logo abaixo (#176) */}
                 <td className="px-5 py-2">
                   <StatusBadge status={service.status} />
+                  {statusReasonText(service) && (
+                    <span className="mt-1 block max-w-56 text-xs leading-snug text-muted">{statusReasonText(service)}</span>
+                  )}
                 </td>
                 <td className="px-5 py-2 text-right font-mono">
                   {service.cpuPercent === null ? <MissingValue /> : `${formatNumber(service.cpuPercent, 0)}%`}
