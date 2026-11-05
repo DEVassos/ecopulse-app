@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHAR_WIDTH, labelBox, labelsOverlap } from './chart-labels';
+import { CHAR_WIDTH, freeBaseline, labelBox, labelsOverlap } from './chart-labels';
 
 describe('labelBox', () => {
   it('posiciona a caixa conforme a âncora do texto', () => {
@@ -27,5 +27,18 @@ describe('labelsOverlap', () => {
     const left = labelBox('pico 1,2 g · 02:00', 80, 60, 'start', CHAR_WIDTH.mono12, 12);
     const right = labelBox('média 0,9 g', 1300, 62, 'end', CHAR_WIDTH.sans11, 11);
     expect(labelsOverlap(left, right)).toBe(false);
+  });
+});
+
+describe('freeBaseline', () => {
+  const boxAt = (baseline: number) => labelBox('sem coleta 16 h 45 min', 200, baseline, 'middle', CHAR_WIDTH.sans11, 11);
+  const meanLabel = labelBox('média por intervalo 4,27 g', 260, 150, 'end', CHAR_WIDTH.sans11, 11);
+
+  it('pula a posição que encosta no rótulo da média e fica com a seguinte (#272)', () => {
+    expect(freeBaseline([150, 260, 40], boxAt, [meanLabel])).toBe(260);
+  });
+
+  it('devolve null quando nenhuma posição está livre', () => {
+    expect(freeBaseline([150], boxAt, [meanLabel])).toBeNull();
   });
 });

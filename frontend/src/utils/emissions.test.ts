@@ -79,18 +79,24 @@ describe('seriesStats', () => {
 describe('describePeriod', () => {
   const origin = Date.UTC(2026, 10, 2, 12);
 
-  it('usa o mesmo pico dos tiles e diz se foi numa coleta ou num intervalo', () => {
+  it('usa o mesmo pico dos tiles e o nome do chip: pico de uma coleta ou maior intervalo', () => {
     const points = [point(origin, 0.2), point(origin + 30_000, 0.2), point(origin + 60_000, 0.8)];
     const stats = seriesStats(points, 'coleta', origin + 60_000);
     const [line] = describePeriod(points, stats, 'coleta', 0);
     expect(line).toMatch(/^Pico de 800 mg CO₂e numa coleta em .+, 2× a média do período\./);
   });
 
+  it('no agrupado, chama o maior ponto de maior intervalo, como o chip e o tile (#272)', () => {
+    const points = [point(origin, 1), point(origin + 15 * 60_000, 1), point(origin + 30 * 60_000, 4)];
+    const stats = seriesStats(points, '15min', origin + 60 * 60_000);
+    expect(describePeriod(points, stats, '15min', 0)[0]).toMatch(/^Maior intervalo: 4,00 g CO₂e em .+, 2× a média do período\./);
+  });
+
   it('chama de estável um pico perto da média e soma o tempo sem coleta', () => {
     const points = [point(origin, 10), point(origin + 15 * 60_000, 11)];
     const stats = seriesStats(points, '15min', origin + 60 * 60_000);
     expect(describePeriod(points, stats, '15min', 45 * 60_000)).toEqual([
-      expect.stringMatching(/^Emissão estável: o pico \(11,0 g em .+\) ficou perto da média\.$/),
+      expect.stringMatching(/^Emissão estável: o maior intervalo \(11,0 g em .+\) ficou perto da média\.$/),
       '45 min sem coleta no período: esses trechos não entram no total.',
     ]);
   });
