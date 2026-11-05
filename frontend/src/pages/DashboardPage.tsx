@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import AppHeader from '../components/AppHeader';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -13,6 +13,9 @@ import { useServices } from '../hooks/useServices';
 import { isDemoMode } from '../services/services.service';
 import { fetchServicesSummary } from '../services/services.service';
 import type { ServicesSummaryResponse } from '../services/services.types';
+import { fetchServicesRanking } from '../services/ranking.service';
+import type { ServicesRankingResponse } from '../services/ranking.types';
+import { rankingShares, rankingSentence } from '../utils/ranking';
 import SummaryPanel from '../components/SummaryPanel';
 import { summarizeStatus } from '../utils/summary';
 import './DashboardPage.css';
@@ -26,6 +29,29 @@ export default function DashboardPage() {
   const [summaryError, setSummaryError] = useState('');
   const [comparisonError, setComparisonError] = useState('');
   const [comparisonLoading, setComparisonLoading] = useState(false);
+  const [ranking, setRanking] = useState<ServicesRankingResponse | null>(null);
+  const [rankingError, setRankingError] = useState('');
+  // Ranking de CO₂e das mesmas 24 h do painel (#260): busca a cada ciclo, inclusive no modo demonstração.
+  // Numa falha, a última parte continua na tela, em cinza, e a tabela mantém a ordem.
+  useEffect(() => {
+    const controller = new AbortController();
+    const to = new Date();
+    const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
+    void (async () => {
+      try {
+        const current = await fetchServicesRanking('co2e', from.toISOString(), to.toISOString(), controller.signal);
+        if (controller.signal.aborted) return;
+        setRanking(current);
+        setRankingError('');
+      } catch (reason: unknown) {
+        if (!controller.signal.aborted) setRankingError(reason instanceof Error ? reason.message : 'Não foi possível carregar o ranking.');
+      }
+    })();
+    return () => controller.abort();
+  }, [updatedAt]);
+  const shares = useMemo(() => (ranking ? rankingShares(ranking) : null), [ranking]);
+  const sentence = ranking ? rankingSentence(ranking, 'das últimas 24 h') : null;
+  const rankingStale = rankingError !== '' || error !== '';
   useEffect(() => {
     if (isDemoMode) return;
     const controller = new AbortController(); const to = new Date(); const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
@@ -103,6 +129,7 @@ export default function DashboardPage() {
         {error && !data && <ErrorState message={error} onRetry={refresh} />}
         {summaryError && <ErrorState message={summaryError} onRetry={refresh} />}
         {comparisonError && <ErrorState message={comparisonError} onRetry={refresh} />}
+        {rankingError && <ErrorState message={rankingError} onRetry={refresh} />}
 
         {loading && !data && <LoadingState message="Carregando serviços…" />}
 
@@ -119,8 +146,20 @@ export default function DashboardPage() {
         )}
         {summary && <SummaryPanel summary={summary} previousSummary={previousSummary} comparisonLoading={comparisonLoading} stale={error !== '' || summaryError !== ''} />}
 
+        {data && data.services.length > 0 && sentence && (
+          <p className={rankingStale ? 'dashboard-reading dashboard-reading--stale' : 'dashboard-reading'} aria-live="polite">
+            <span className="dashboard-reading__title">Quem pesa mais</span>
+            {sentence}
+          </p>
+        )}
+
         {data && data.services.length > 0 && (
-          <ServicesTable services={data.services} onSelect={(service) => setSelectedId(service.id)} />
+          <ServicesTable
+            services={data.services}
+            onSelect={(service) => setSelectedId(service.id)}
+            shares={shares}
+            sharesStale={rankingStale}
+          />
         )}
 
         {/* Montada só enquanto aberta: fechar desmonta e cancela o polling do histórico */}

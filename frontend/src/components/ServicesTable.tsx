@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react';
 import type { MonitoredService, ServiceStatus } from '../services/services.types';
 import { formatFixed, formatNumber, formatTime } from '../utils/format';
+import { formatShare } from '../utils/ranking';
+import type { RankingShare } from '../utils/ranking';
 import { statusReasonText } from '../utils/status';
 import MissingValue from './MissingValue';
 import StatusBadge from './StatusBadge';
 
-type SortKey = 'name' | 'cpuPercent' | 'energyKwh' | 'emissionsG' | 'lastReadingAt' | 'location' | 'status';
+type SortKey = 'name' | 'cpuPercent' | 'energyKwh' | 'emissionsG' | 'share' | 'lastReadingAt' | 'location' | 'status';
 
 interface Column {
   key: SortKey;
@@ -20,6 +22,7 @@ const COLUMNS: Column[] = [
   { key: 'cpuPercent', label: 'CPU', numeric: true },
   { key: 'energyKwh', label: 'Energia (kWh)', numeric: true },
   { key: 'emissionsG', label: 'Emissão (g CO₂e)', numeric: true },
+  { key: 'share', label: 'Parte do CO₂e (24 h)', numeric: true },
   { key: 'lastReadingAt', label: 'Última leitura', numeric: true },
   { key: 'location', label: 'Localização' },
 ];
@@ -37,19 +40,29 @@ interface Props {
   services: MonitoredService[];
   /** Clique na linha (ou Enter no nome): abre os detalhes e o histórico do serviço. */
   onSelect: (service: MonitoredService) => void;
+  /**
+   * Parte de cada serviço no CO₂e das últimas 24 h, pelo id (GET /services/ranking, #260). Também dá a ordem inicial,
+   * que segue o período e não a leitura instantânea. null enquanto o ranking não chegou: a coluna mostra "—".
+   */
+  shares?: Map<string, RankingShare> | null;
+  /** Ranking desatualizado (a última busca falhou): a coluna fica em --muted, como os cards. */
+  sharesStale?: boolean;
 }
 
-/** Valor de ordenação da coluna: localização por região, país e cidade; status pela gravidade. */
-function sortValue(service: MonitoredService, key: SortKey): string | number | null {
+type Shares = Map<string, RankingShare> | null | undefined;
+
+/** Valor de ordenação da coluna: localização por região, país e cidade; status pela gravidade; parte pelo CO₂e do período. */
+function sortValue(service: MonitoredService, key: SortKey, shares: Shares): string | number | null {
+  if (key === 'share') return shares?.get(service.id)?.co2eGrams ?? null;
   if (key === 'location') return [service.region, service.country, service.city].filter(Boolean).join(' ') || null;
   if (key === 'status') return STATUS_ORDER[service.status];
   return service[key];
 }
 
 /** Compara dois serviços pela coluna; valores ausentes (sem métrica) vão sempre para o fim. */
-function compare(a: MonitoredService, b: MonitoredService, key: SortKey, direction: 1 | -1): number {
-  const left = sortValue(a, key);
-  const right = sortValue(b, key);
+function compare(a: MonitoredService, b: MonitoredService, key: SortKey, direction: 1 | -1, shares: Shares): number {
+  const left = sortValue(a, key, shares);
+  const right = sortValue(b, key, shares);
   if (left === null && right === null) return 0;
   if (left === null) return 1;
   if (right === null) return -1;
@@ -63,12 +76,33 @@ function locationText(service: MonitoredService): string {
   return [place, service.region].filter(Boolean).join(' · ');
 }
 
+/**
+ * Barra da parte no período (docs/identidade-visual.md § Barras de ranking): o 1º em neon e com o rótulo "1º", nunca só
+ * a cor. A barra é proporcional ao 1º (`leaderShare`, que fica cheio); a porcentagem ao lado é a parte no total.
+ */
+function ShareCell({ share, leaderShare, stale }: { share: RankingShare | undefined; leaderShare: number; stale: boolean }) {
+  if (!share || share.share === null) return <MissingValue label="sem cálculo no período" title="Sem CO₂e calculado nas últimas 24 h" />;
+  const first = share.position === 1 && !stale;
+  const bar = stale ? 'bg-muted' : first ? 'bg-[var(--neon)] shadow-[0_0_6px_var(--neon-glow)]' : 'bg-primary-hover';
+  return (
+    <span className={`inline-flex items-center justify-end gap-2 ${stale ? 'text-muted' : ''}`}>
+      {share.position === 1 && <span className={`font-sans text-xs font-semibold ${stale ? '' : 'text-[var(--neon)]'}`}>1º</span>}
+      <span className="block h-1.5 w-16 overflow-hidden rounded-full bg-border" aria-hidden="true">
+        <span className={`block h-full rounded-full ${bar}`} style={{ width: `${Math.max((share.share / leaderShare) * 100, 1)}%` }} />
+      </span>
+      <span className={`w-12 ${first ? 'text-text' : ''}`}>{formatShare(share.share)}</span>
+    </span>
+  );
+}
+
 /** Tabela operacional dos serviços monitorados (RF09, RF12): busca por nome, ordenação por coluna e clique para os detalhes. */
-export default function ServicesTable({ services, onSelect }: Props) {
+export default function ServicesTable({ services, onSelect, shares = null, sharesStale = false }: Props) {
   const [search, setSearch] = useState('');
   // Ordem inicial por gravidade (Status crescente): indisponíveis e sem métricas no topo, acima da dobra
   const [sortKey, setSortKey] = useState<SortKey>('status');
   const [direction, setDirection] = useState<1 | -1>(1);
+
+  const leaderShare = useMemo(() => Math.max(0, ...[...(shares?.values() ?? [])].map((item) => item.share ?? 0)), [shares]);
 
   const rows = useMemo(() => {
     const term = search.trim().toLocaleLowerCase('pt-BR');
@@ -76,11 +110,13 @@ export default function ServicesTable({ services, onSelect }: Props) {
       .filter((service) => service.name.toLocaleLowerCase('pt-BR').includes(term))
       .sort(
         (a, b) =>
-          compare(a, b, sortKey, direction) ||
-          // Mesmo status: maior emissão primeiro, nos dois sentidos
-          (sortKey === 'status' ? compare(a, b, 'emissionsG', -1) : 0),
+          compare(a, b, sortKey, direction, shares) ||
+          // Mesmo status: maior CO₂e das 24 h primeiro, nos dois sentidos (#260). Pela leitura instantânea, a ordem
+          // mudaria a cada ciclo; ela só serve enquanto o ranking não chegou. O nome desempata, para a ordem ficar estável.
+          (sortKey === 'status' ? compare(a, b, shares ? 'share' : 'emissionsG', -1, shares) : 0) ||
+          a.name.localeCompare(b.name, 'pt-BR'),
       );
-  }, [services, search, sortKey, direction]);
+  }, [services, search, sortKey, direction, shares]);
 
   function sortBy(column: Column) {
     if (column.key === sortKey) {
@@ -113,7 +149,7 @@ export default function ServicesTable({ services, onSelect }: Props) {
       {/* Rolagem horizontal em telas estreitas: a tabela nunca quebra o layout (RNF01) */}
       {/* relative: os textos sr-only (position: absolute) das células ficam dentro da rolagem, sem alargar a página */}
       <div className="relative overflow-x-auto">
-        <table className="w-full min-w-[760px] border-collapse text-sm">
+        <table className="w-full min-w-[880px] border-collapse text-sm">
           <thead>
             <tr className="whitespace-nowrap text-left text-xs text-muted">
               {COLUMNS.map((column) => (
@@ -173,6 +209,9 @@ export default function ServicesTable({ services, onSelect }: Props) {
                 </td>
                 <td className="px-5 py-2 text-right font-mono">
                   {service.emissionsG === null ? <MissingValue /> : formatFixed(service.emissionsG, 3)}
+                </td>
+                <td className="px-5 py-2 text-right font-mono">
+                  <ShareCell share={shares?.get(service.id)} leaderShare={leaderShare} stale={sharesStale} />
                 </td>
                 <td className="px-5 py-2 text-right font-mono text-muted">
                   {service.lastReadingAt === null ? 'nunca' : formatTime(service.lastReadingAt)}
