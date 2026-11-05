@@ -15,6 +15,7 @@ function service(id: string, status: ServiceStatus, emissionsG: number, lastRead
     emissionsG,
     status,
     lastReadingAt,
+    statusReason: null,
   };
 }
 
