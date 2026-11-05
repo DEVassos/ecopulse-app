@@ -19,6 +19,8 @@ function parseService(value: unknown, at: string): MonitoredService {
     energyKwh: readAmountOrNull(item.energyKwh, `${at}.energyKwh`),
     emissionsG: readAmountOrNull(item.emissionsG, `${at}.emissionsG`),
     status: readOneOf(item.status, SERVICE_STATUSES, `${at}.status`),
+    // Campo novo da #176: ausente vale null, para o frontend funcionar antes e depois do backend subir
+    statusReason: item.statusReason === undefined ? null : readTextOrNull(item.statusReason, `${at}.statusReason`),
     lastReadingAt: readInstantOrNull(item.lastReadingAt, `${at}.lastReadingAt`),
   };
 }

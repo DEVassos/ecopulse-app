@@ -31,4 +31,10 @@ describe('CollectionsHistoryTable', () => {
     expect(html).toContain('text-left text-xs text-muted');
     expect(html).toContain('Sem coleta por <strong');
   });
+
+  it('deixa a área rolável focável e nomeada para rolar pelo teclado', () => {
+    const html = renderToStaticMarkup(<CollectionsHistoryTable collections={[collection('only', '2026-10-14T20:00:00Z')]} />);
+    expect(html).toMatch(/tabindex="0"[^>]*role="region"|role="region"[^>]*tabindex="0"/);
+    expect(html).toContain('aria-label="Histórico de coletas');
+  });
 });
