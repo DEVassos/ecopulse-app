@@ -1,6 +1,6 @@
 import { useId, useLayoutEffect, useRef, useState } from 'react';
 import type { ComparedService } from '../services/compare.types';
-import { formatNumber } from '../utils/format';
+import { formatInScale, scaleFor } from '../utils/units';
 import './CompareChart.css';
 
 // Geometria em px reais, como no CpuHistoryChart: o SVG é desenhado na largura medida do contêiner
@@ -9,8 +9,8 @@ const TEXT_Y = 13; // linha de base do nome e do valor, acima da barra
 const BAR_Y = 20;
 const BAR_HEIGHT = 12;
 const MIN_BAR = 2; // valor positivo muito menor que o maior nunca parece zero
-// Largura média de um caractere a 12 px (IBM Plex Mono e Sans): corta o nome longo antes de encostar no valor
-const MONO_CHAR = 7.2;
+// Largura média de um caractere a 12 px (IBM Plex Sans; algarismos tabulares no valor, #266): corta o nome longo antes de encostar no valor
+const DATA_CHAR = 6.8;
 const SANS_CHAR = 6.6;
 
 /** Destaque de CO₂e de um serviço, o mesmo da tabela: seta e texto, nunca só a cor. */
@@ -23,16 +23,21 @@ export interface CompareHighlight {
 interface Metric {
   title: string;
   value: (service: ComparedService) => number | null;
-  /** Mesmas casas da tabela, para os valores baterem com ela. */
+  /** Mesma unidade e casas da matriz, para os valores baterem com ela. */
   format: (value: number) => string;
   /** Só o CO₂e leva o destaque de menor e maior, como na tabela. */
   highlighted: boolean;
 }
 
-const METRICS: Metric[] = [
-  { title: 'Energia (kWh)', value: (service) => service.energyKwh, format: (value) => `${formatNumber(value, 4)} kWh`, highlighted: false },
-  { title: 'CO₂e (g)', value: (service) => service.co2eGrams, format: (value) => `${formatNumber(value, 2)} g`, highlighted: true },
-];
+/** Energia e CO₂e na escala única dos serviços comparados (#271): a mesma unidade da matriz e da página Emissões. */
+function metricsFor(services: ComparedService[]): Metric[] {
+  const energy = scaleFor('energy', services.map((service) => service.energyKwh));
+  const co2e = scaleFor('co2e', services.map((service) => service.co2eGrams));
+  return [
+    { title: `Energia (${energy.unit})`, value: (service) => service.energyKwh, format: (value) => `${formatInScale(value, energy)} ${energy.unit}`, highlighted: false },
+    { title: `CO₂e (${co2e.unit})`, value: (service) => service.co2eGrams, format: (value) => `${formatInScale(value, co2e)} ${co2e.unit}`, highlighted: true },
+  ];
+}
 
 const HIGHLIGHT_ORDER: CompareHighlight['kind'][] = ['lowest', 'highest'];
 
@@ -84,7 +89,7 @@ function MetricBars({ metric, services, highlightOf }: MetricBarsProps) {
           {rows.map(({ service, value, text, highlight }, index) => {
             const top = index * ROW_HEIGHT;
             const flag = highlight ? `${highlight.arrow} ` : '';
-            const nameRoom = width - text.length * MONO_CHAR - 12 - flag.length * SANS_CHAR;
+            const nameRoom = width - text.length * DATA_CHAR - 12 - flag.length * SANS_CHAR;
             const barWidth = value === null || max === 0 ? 0 : Math.max((value / max) * width, value > 0 ? MIN_BAR : 0);
             return (
               <g key={service.id}>
@@ -133,6 +138,8 @@ interface Props {
  * Energia e CO₂e por serviço em barras (RF15, #218), cada grandeza na sua escala, na mesma ordem da tabela. Barras em
  * SVG, sem biblioteca; a tabela continua sendo a fonte completa dos dados.
  */
+const SCALE_NOTE = 'Cada gráfico tem a sua escala: a barra mais longa é o maior valor daquela grandeza no período.';
+
 export default function CompareChart({ services, highlightOf }: Props) {
   const found = new Map(
     services.flatMap((service) => {
@@ -145,12 +152,14 @@ export default function CompareChart({ services, highlightOf }: Props) {
   return (
     <figure className="m-0 flex flex-col gap-3 border-t border-border px-5 py-4">
       <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
-        {METRICS.map((metric) => (
+        {metricsFor(services).map((metric) => (
           <MetricBars key={metric.title} metric={metric} services={services} highlightOf={highlightOf} />
         ))}
       </div>
-      <figcaption className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-        <span>Cada gráfico tem a sua escala: a barra mais longa é o maior valor daquela grandeza no período.</span>
+      {/* A regra da escala vai no tooltip da legenda (#272); o leitor de tela ouve a frase inteira */}
+      <figcaption className="flex cursor-help flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted" title={SCALE_NOTE}>
+        <span className="sr-only">{SCALE_NOTE}</span>
+        <span aria-hidden="true">Escala própria por grandeza</span>
         {legend.map((highlight) => (
           <span key={highlight.kind} className="inline-flex items-center gap-1.5">
             <span className={`compare-chart__key compare-chart__key--${highlight.kind}`} aria-hidden="true" />

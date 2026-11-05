@@ -43,12 +43,13 @@ Fonte física: [schema.sql](../database/schema.sql). Modelos persistente/OO e se
 | collections | Métricas normalizadas em GB, intervalo, snapshot regional, intensidade usada e resultados disponíveis. | service_id obrigatório, FK RESTRICT. |
 | users | Email e hash bcrypt para o acesso administrativo futuro. | Sem propriedade de serviços/coletas. |
 | access_entries | Somente ID técnico, IP e instante de entrada. | Sem FK de usuário. |
+| monitoring_settings | Configuração global de atualização da tela (#250), sem alterar o coletor. | No máximo uma linha: smallint id=1, intervalo integer em 15/30/60, updated_at timestamptz. Sem updated_by. |
 
 CPU, GB e intervalo positivo são obrigatórios quando status=ok. Status de métricas (ok/erro/sem_metricas) é independente de calculation_status (nao_calculado/disponivel/indisponivel). Sem cálculo, campos ambientais ficam nulos; falha de carbono preserva métricas e não usa emissão zero. Quando disponível, cálculo exige região histórica, intensidade e resultados completos. JSONB preserva a resposta bruta, sem duplicação manual de todo o modelo.
 
 ## Histórico e falhas
 
-Energia usa numeric(20,12) e emissão numeric(24,12), mantendo 0,00000015 kWh por coleta e resolução de 10⁻¹² em ambas. Intensidade/potência permanecem numeric(14,6). Quatro índices explícitos somam-se aos cinco automáticos das quatro PKs e UNIQUE externo: nove no total. Casos de uso atuais constam na UML, com dashboard público e consulta/configuração autenticadas, sem ampliar a auditoria.
+Energia usa numeric(20,12) e emissão numeric(24,12), mantendo 0,00000015 kWh por coleta e resolução de 10⁻¹² em ambas. Intensidade/potência permanecem numeric(14,6). Quatro índices explícitos somam-se aos seis automáticos das cinco PKs e UNIQUE externo: dez no total. Casos de uso atuais constam na UML, com dashboard público e consulta/configuração autenticadas, sem ampliar a auditoria.
 
 Cada coleta é uma nova linha. FK impede excluir serviço referenciado, mas somente inserção de coletas é regra dos repositories/permissões, não trigger implementado. Os UPDATEs de `services` atribuem `updated_at = now()`. Região e intensidade de cada coleta não são consultadas retrospectivamente no cadastro atual.
 
@@ -58,6 +59,12 @@ Falha de descoberta não autoriza remover todos os serviços. Semântica externa
 
 Primeira abertura por sessão de navegação em uma aba; reload e navegação interna não geram nova entrada. Sem polling ou worker. Backend observa IP considerando só proxies confiáveis e define horário; IP não equivale à identidade de pessoa. Consulta por responsáveis autorizados usa JWT administrativo, período/paginação e não cria outro evento de entrada. Sem perfis adicionais, tenants, logs HTTP ou tentativas de login. Tabela e fluxos modelados por solicitação de Vinicius; issue/sprint/retencão e mecanismo continuam pendentes, sem aprovação presumida do PO.
 
+O backend expõe `statusReason` da última coleta somente para serviços indisponíveis, normalizando diagnósticos antes da resposta pública (#251). Contrato e desempate em [API](api.md#get-apiservices). A interface permanece com Andrea na #176.
+
 ## Inicialização e evolução
+
+O módulo `monitoring-settings` recebe repository e configuração JWT na composição (`app.ts`/`server.ts`); GET público e PUT com o middleware existente. Ausência de linha produz 30 s/`updatedAt=null` sem INSERT; falha de banco permanece erro. SQL fica no repository.
+
+A quinta tabela é criada no schema inicial; bancos existentes recebem `database/migrations/001-monitoring-settings.sql`, aditiva, transacional e reaplicável, com rejeição de estrutura incompatível. Comandos e preservação de dados no [README do banco](../database/README.md#configuração-de-monitoramento-250). O frontend da #176 integra esse contrato separadamente, aproveitando login e selo existentes.
 
 Schema inicial em transação, reaplicável ao mesmo modelo. Banco anterior com bytes é recusado pelo guard; precisa de migração numerada conforme ADR 0002, sem conversão presumida nem remoção de dados. No `compose.yaml` (#27), o serviço `postgres` (16-alpine) aplica `schema.sql` e o seed idempotente do administrador na primeira criação do volume nomeado `pgdata`, que preserva os dados entre reinícios; só `docker compose down -v` os apaga. Comandos de validação isolada: [README do banco](../database/README.md). Precisão e fontes: [cálculos](calculos.md).

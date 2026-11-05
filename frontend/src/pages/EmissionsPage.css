@@ -218,6 +218,14 @@
     gap: 8px 16px;
   }
 
+  /* Nome do serviço e a etiqueta "estimado" na mesma linha; a etiqueta desce para baixo do nome se faltar espaço */
+  .emissions__heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+  }
+
   .emissions__title {
     margin: 0;
     font-family: var(--display);
@@ -282,9 +290,10 @@
     color: var(--text);
   }
 
+  /* 12 px: o menor degrau da escala tipográfica (#262) */
   .emissions__stats small {
     font-family: var(--sans);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 400;
     color: var(--muted);
   }
@@ -296,7 +305,8 @@
   }
 
   .emissions__stat--peak dd {
-    color: var(--neon);
+    /* --neon-text: no tema claro o neon de gráfico não passa no AA como texto (#265) */
+    color: var(--neon-text);
   }
 
   /* Dado da última busca bem-sucedida, exibido durante uma falha: números apagados, mas legíveis (como o MetricTile) */
@@ -308,42 +318,6 @@
   .emissions__stats--stale > .emissions__stat--peak {
     border-color: var(--border);
     box-shadow: none;
-  }
-
-  /* Leitura do período: frases que dizem o que o gráfico mostra */
-  .emissions__reading {
-    padding: 10px 14px;
-    border-left: 2px solid var(--neon);
-    border-radius: 0 8px 8px 0;
-    background: var(--surface-2);
-  }
-
-  .emissions__reading h3 {
-    margin: 0 0 4px;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .emissions__reading ul {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    font-size: 14px;
-    color: var(--text-2);
-  }
-
-  .emissions__reading--stale {
-    border-left-color: var(--border);
-  }
-
-  .emissions__reading--stale ul {
-    color: var(--muted);
   }
 
   .emissions__chart {
@@ -373,14 +347,8 @@
   }
 
   .emissions__notice code {
-    font-family: var(--mono);
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
     font-size: 12px;
   }
-
-  .emissions__footnote {
-    margin: 0;
-    font-size: 12px;
-    color: var(--muted);
-  }
-
 }

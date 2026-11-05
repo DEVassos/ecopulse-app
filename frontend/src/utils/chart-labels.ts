@@ -13,9 +13,9 @@ export interface LabelBox {
 /**
  * Largura média de um caractere, em px, para estimar o tamanho do rótulo sem medir no DOM (o SVG é desenhado
  * antes da medição, e a estimativa só decide de que lado da linha o rótulo fica). Valores das fontes do
- * EmissionsChart.css: IBM Plex Mono 12px (0,6 em) e IBM Plex Sans 11px semibold (cerca de 0,56 em).
+ * EmissionsChart.css: IBM Plex Sans 12px com algarismos tabulares (cerca de 0,57 em, #266) e 11px semibold (cerca de 0,56 em).
  */
-export const CHAR_WIDTH = { mono12: 7.2, sans11: 6.2 } as const;
+export const CHAR_WIDTH = { data12: 6.8, sans11: 6.2 } as const;
 
 /** Caixa de um texto ancorado em (x, linha de base), como o `<text>` do SVG com `text-anchor`. */
 export function labelBox(text: string, x: number, baseline: number, anchor: LabelAnchor, charWidth: number, fontSize: number): LabelBox {
@@ -27,4 +27,12 @@ export function labelBox(text: string, x: number, baseline: number, anchor: Labe
 /** Duas caixas se tocam, contando uma folga mínima entre elas. */
 export function labelsOverlap(a: LabelBox, b: LabelBox, gap = 4): boolean {
   return a.left < b.right + gap && b.left < a.right + gap && a.top < b.bottom + gap && b.top < a.bottom + gap;
+}
+
+/**
+ * Primeira linha de base, na ordem das candidatas, em que o rótulo não encosta em nenhum obstáculo (outros rótulos,
+ * linhas de referência). Null quando nenhuma serve: aí o rótulo fica de fora, e a legenda diz o que a marca é.
+ */
+export function freeBaseline(candidates: number[], boxAt: (baseline: number) => LabelBox, obstacles: LabelBox[]): number | null {
+  return candidates.find((baseline) => obstacles.every((obstacle) => !labelsOverlap(boxAt(baseline), obstacle))) ?? null;
 }

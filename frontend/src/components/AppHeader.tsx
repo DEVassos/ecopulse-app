@@ -1,7 +1,9 @@
+import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { Link, NavLink } from 'react-router';
+import { Link, NavLink, useLocation } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
 import Brand from './Brand';
+import ThemeToggle from './ThemeToggle';
 import './AppHeader.css';
 
 /** Visitante vê "Entrar"; quem tem sessão vê o nome e o botão de sair. */
@@ -37,15 +39,27 @@ interface Props {
 }
 
 export default function AppHeader({ children, updatedAt }: Props) {
+  const navRef = useRef<HTMLElement>(null);
+  const { pathname } = useLocation();
+  // Celular (#263): o menu rola na horizontal e o item ativo podia ficar cortado ("Con…"); a cada página, ele rola até
+  // aparecer inteiro. Com "nearest", nada se move quando o item já está à vista (sempre, na tela larga)
+  useEffect(() => {
+    navRef.current?.querySelector('a.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [pathname]);
+
   return (
     <header className="topbar">
+      {/* Primeiro item do Tab (#262): pula marca, menu e ações e leva ao <main id="conteudo"> da página */}
+      <a className="skip-link" href="#conteudo">
+        Pular para o conteúdo
+      </a>
       <div className="topbar-inner">
         <NavLink to="/" className="topbar-brand" aria-label="EcoPulse — ir para o dashboard">
           <Brand pulseKey={updatedAt} />
         </NavLink>
 
         {/* NavLink marca o link da página atual com a classe "active" e aria-current="page" */}
-        <nav className="nav" aria-label="Principal">
+        <nav ref={navRef} className="nav" aria-label="Principal">
           <NavLink to="/" end>
             Dashboard
           </NavLink>
@@ -58,7 +72,9 @@ export default function AppHeader({ children, updatedAt }: Props) {
             baixo do menu (AppHeader.css) */}
         <div className="topbar-actions">
           {children && <div className="topbar-status">{children}</div>}
+          {/* Tema junto do Entrar/Sair: as duas ações da pessoa, não da página (#265) */}
           <div className="topbar-user">
+            <ThemeToggle />
             <UserMenu />
           </div>
         </div>

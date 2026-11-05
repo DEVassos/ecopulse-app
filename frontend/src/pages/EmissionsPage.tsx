@@ -5,6 +5,7 @@ import EmissionsChart from '../components/EmissionsChart';
 import type { EmissionsChartMode } from '../components/EmissionsChart';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
+import EstimateTag from '../components/EstimateTag';
 import LastUpdated from '../components/LastUpdated';
 import LoadingState from '../components/LoadingState';
 import PeriodPicker from '../components/PeriodPicker';
@@ -18,7 +19,6 @@ import {
   BUCKET_LABEL,
   MAX_SPAN_DAYS,
   autoBucket,
-  describePeriod,
   formatDurationMilliseconds,
   formatGrams,
   formatInputDate,
@@ -26,8 +26,9 @@ import {
   formatPeakTime,
   formatRatio,
   formatShort,
-  missingTimeMs,
+  missingSpans,
   peakRatio,
+  seriesStats,
   periodMs,
   readPeriodFilter,
   spanDays,
@@ -37,6 +38,9 @@ import {
 } from '../utils/emissions';
 import { formatDayTime } from '../utils/format';
 import './EmissionsPage.css';
+
+/** Mensagem de erro do período, ligada aos dois campos de data por aria-describedby (#262). */
+const FORM_ERROR_ID = 'emissoes-erro-periodo';
 
 const BUCKETS: EmissionsBucket[] = ['coleta', '15min', '1h'];
 
@@ -76,9 +80,17 @@ export default function EmissionsPage() {
 
   const points = useMemo(() => data?.points ?? [], [data]);
   const summary = useMemo(() => (data ? summarize(data.points, data.totals) : null), [data]);
-  const missingMs = data && period ? missingTimeMs(data.points, data.bucket, period.fromMs, period.toMs) : 0;
-  const reading = summary && data ? describePeriod(summary, data.bucket, missingMs) : [];
-  const ratio = summary ? peakRatio(summary) : null;
+  // Trechos sem coleta: o gráfico desenha cada um e o card Coletas mostra a soma, com a mesma regra (#272)
+  const missing = useMemo(
+    () => (data && period ? missingSpans(data.points, data.bucket, period.fromMs, period.toMs) : []),
+    [data, period],
+  );
+  const missingMs = missing.reduce((sum, span) => sum + span.end - span.start, 0);
+  // Média e maior ponto com a mesma conta do gráfico (sem o intervalo ainda aberto): tiles, gráfico e Leitura dizem o mesmo (#271)
+  const stats = useMemo(() => (data && period ? seriesStats(data.points, data.bucket, period.toMs) : null), [data, period]);
+  const ratio = stats && data ? peakRatio(data.points, stats) : null;
+  const peakPoint = stats && stats.peakIndex !== null && data ? data.points[stats.peakIndex] : null;
+  const grouped = data ? data.bucket !== 'coleta' : false;
   const totals = data?.totals ?? null;
   const range = periodMs(start, end);
   const autoLabel = BUCKET_LABEL[autoBucket(range.fromMs, range.toMs)];
@@ -125,7 +137,7 @@ export default function EmissionsPage() {
 
       <AppHeader updatedAt={updatedAt} />
 
-      <main className="content">
+      <main id="conteudo" tabIndex={-1} className="content">
         <h1 className="sr-only">Emissões de CO₂e por serviço</h1>
 
         {servicesError && !servicesData && <ErrorState message={servicesError} onRetry={refreshServices} />}
@@ -190,7 +202,7 @@ export default function EmissionsPage() {
                 </button>
               </div>
               {formError && (
-                <p className="emissions__form-error" role="alert">
+                <p id={FORM_ERROR_ID} className="emissions__form-error" role="alert">
                   {formError}
                 </p>
               )}
@@ -199,9 +211,13 @@ export default function EmissionsPage() {
             <div className="emissions__card panel">
               <header className="emissions__header">
                 <div>
-                  <h2 id="emissions-title" className="emissions__title">
-                    {service.name}
-                  </h2>
+                  {/* O método da estimativa fica no tooltip da etiqueta, não numa frase sob o gráfico (#272) */}
+                  <div className="emissions__heading">
+                    <h2 id="emissions-title" className="emissions__title">
+                      {service.name}
+                    </h2>
+                    <EstimateTag />
+                  </div>
                   <p className="emissions__subtitle">
                     Emissão estimada de CO₂e {mode === 'acumulado' ? 'acumulada ' : ''}— {periodLabel} ({timeZoneLabel(start)})
                     {locationOf(service) && ` · ${locationOf(service)}`}
@@ -219,21 +235,6 @@ export default function EmissionsPage() {
 
               {error && <ErrorState message={error} onRetry={refresh} />}
 
-              {reading.length > 0 && (
-                <div
-                  className={stale ? 'emissions__reading emissions__reading--stale' : 'emissions__reading'}
-                  title={staleTitle}
-                  aria-live="polite"
-                >
-                  <h3>Leitura do período</h3>
-                  <ul>
-                    {reading.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
               {totals && summary && (
                 <dl className={stale ? 'emissions__stats emissions__stats--stale' : 'emissions__stats'} title={staleTitle}>
                   <div>
@@ -244,18 +245,26 @@ export default function EmissionsPage() {
                     <dt>Energia no período</dt>
                     <dd>{totals.energyKwh !== null ? formatKwh(totals.energyKwh) : '—'}</dd>
                   </div>
+                  {/* Média e pico seguem o agrupamento do gráfico; a maior coleta dentro do intervalo fica no tooltip (#271) */}
                   <div>
-                    <dt>Média por coleta</dt>
-                    <dd>{summary.meanGrams !== null ? formatGrams(summary.meanGrams) : '—'}</dd>
+                    <dt>{grouped && data ? `Média a cada ${BUCKET_LABEL[data.bucket]}` : 'Média por coleta'}</dt>
+                    <dd>{stats?.meanGrams != null ? formatGrams(stats.meanGrams) : '—'}</dd>
                   </div>
-                  <div className={summary.peak ? 'emissions__stat--peak' : undefined}>
-                    <dt>Pico de uma coleta</dt>
+                  <div
+                    className={peakPoint ? 'emissions__stat--peak' : undefined}
+                    title={
+                      grouped && summary.peak?.co2eMaxGrams != null && data
+                        ? `Maior coleta: ${formatGrams(summary.peak.co2eMaxGrams)} CO₂e em ${formatPeakTime(summary.peak, data.bucket)}`
+                        : undefined
+                    }
+                  >
+                    <dt>{grouped ? 'Maior intervalo' : 'Pico de uma coleta'}</dt>
                     <dd>
-                      {summary.peak?.co2eMaxGrams != null && data ? (
+                      {peakPoint?.co2eGrams != null && data ? (
                         <>
-                          {formatGrams(summary.peak.co2eMaxGrams)}
+                          {formatGrams(peakPoint.co2eGrams)}
                           <small>
-                            {formatPeakTime(summary.peak, data.bucket)}
+                            {formatPeakTime(peakPoint, data.bucket)}
                             {ratio !== null && ` · ${formatRatio(ratio)} a média`}
                           </small>
                         </>
@@ -311,6 +320,7 @@ export default function EmissionsPage() {
                     mode={mode}
                     fromMs={period.fromMs}
                     toMs={period.toMs}
+                    missing={missing}
                     stale={stale}
                   />
                 )}
@@ -333,11 +343,6 @@ export default function EmissionsPage() {
                   1 hora para ver o período inteiro.
                 </p>
               )}
-
-              <p className="emissions__footnote">
-                Estimativa, não medição: potência calculada a partir de CPU, memória, disco e rede × intervalo da coleta ×
-                intensidade de carbono da região (ADR 0006).
-              </p>
             </div>
           </section>
         )}

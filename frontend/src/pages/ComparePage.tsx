@@ -5,20 +5,27 @@ import AppHeader from '../components/AppHeader';
 import CompareChart from '../components/CompareChart';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
+import EstimateTag from '../components/EstimateTag';
 import LoadingState from '../components/LoadingState';
 import MissingValue from '../components/MissingValue';
 import PeriodPicker from '../components/PeriodPicker';
 import { useComparison } from '../hooks/useComparison';
+import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow';
 import { useServices } from '../hooks/useServices';
 import type { ComparedService } from '../services/compare.types';
 import { isDemoMode } from '../services/services.service';
 import { isInputDate, spanDays, timeZoneLabel, todayInput } from '../utils/emissions';
 import { formatNumber } from '../utils/format';
+import { formatInScale, scaleFor } from '../utils/units';
 
 /** Limites de GET /api/services/compare (docs/api.md). */
 const MIN_SERVICES = 2;
 const MAX_SERVICES = 10;
 const MAX_SPAN_DAYS = 31;
+
+/** Mensagem de erro do formulário, ligada ao grupo de serviços ou aos campos de data por aria-describedby (#262). */
+const FORM_ERROR_ID = 'comparacao-erro';
+const SERVICES_ERROR = 'Escolha pelo menos dois serviços para comparar.';
 
 /** ISO 8601 → "27/10/2026, 14:05", no fuso do navegador. */
 function formatMoment(iso: string): string {
@@ -45,15 +52,25 @@ function collectionsCell(service: ComparedService): ReactNode {
 }
 
 /** Uma métrica por linha e um serviço por coluna: os serviços ficam lado a lado. */
-const ROWS: { label: string; cell: (service: ComparedService) => ReactNode }[] = [
-  { label: 'Coletas', cell: collectionsCell },
-  { label: 'CPU média', cell: (service) => amount(service.avgCpuPercent, (value) => `${formatNumber(value, 1)}%`) },
-  { label: 'Memória média (GB)', cell: (service) => amount(service.avgMemoryGb, (value) => formatNumber(value, 2)) },
-  { label: 'Disco médio (GB)', cell: (service) => amount(service.avgDiskGb, (value) => formatNumber(value, 2)) },
-  { label: 'Rede média (GB)', cell: (service) => amount(service.avgNetworkGb, (value) => formatNumber(value, 3)) },
-  { label: 'Energia (kWh)', cell: (service) => amount(service.energyKwh, (value) => formatNumber(value, 4)) },
-  { label: 'CO₂e (g)', cell: (service) => amount(service.co2eGrams, (value) => formatNumber(value, 2)) },
-];
+interface Row {
+  label: string;
+  cell: (service: ComparedService) => ReactNode;
+}
+
+/** Linhas da matriz; energia e CO₂e na escala única dos serviços comparados (#271), com a unidade no rótulo. */
+function rowsFor(services: ComparedService[]): Row[] {
+  const energy = scaleFor('energy', services.map((service) => service.energyKwh));
+  const co2e = scaleFor('co2e', services.map((service) => service.co2eGrams));
+  return [
+    { label: 'Coletas', cell: collectionsCell },
+    { label: 'CPU média', cell: (service) => amount(service.avgCpuPercent, (value) => `${formatNumber(value, 1)}%`) },
+    { label: 'Memória média (GB)', cell: (service) => amount(service.avgMemoryGb, (value) => formatNumber(value, 2)) },
+    { label: 'Disco médio (GB)', cell: (service) => amount(service.avgDiskGb, (value) => formatNumber(value, 2)) },
+    { label: 'Rede média (GB)', cell: (service) => amount(service.avgNetworkGb, (value) => formatNumber(value, 3)) },
+    { label: `Energia (${energy.unit})`, cell: (service) => amount(service.energyKwh, (value) => formatInScale(value, energy)) },
+    { label: `CO₂e (${co2e.unit})`, cell: (service) => amount(service.co2eGrams, (value) => formatInScale(value, co2e)) },
+  ];
+}
 
 /**
  * Serviços com o menor e o maior CO₂e do período (empate marca todos). Nenhum destaque quando menos de dois serviços
@@ -108,6 +125,7 @@ export default function ComparePage() {
   const [draftStart, setDraftStart] = useState(start);
   const [draftEnd, setDraftEnd] = useState(end);
   const [formError, setFormError] = useState('');
+  const [matrixScrollRef, matrixHasMore] = useHorizontalOverflow<HTMLDivElement>();
 
   // A URL também muda pelo "voltar" do navegador: o formulário acompanha (ajuste na renderização, sem efeito)
   const urlFilter = `${idsKey}|${start}|${end}`;
@@ -145,7 +163,7 @@ export default function ComparePage() {
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const chosen = chosenIds();
-    if (chosen.length < MIN_SERVICES) return setFormError('Escolha pelo menos dois serviços para comparar.');
+    if (chosen.length < MIN_SERVICES) return setFormError(SERVICES_ERROR);
     if (draftStart > draftEnd) return setFormError('A data inicial deve ser anterior ou igual à data final.');
     if (draftEnd > today) return setFormError('A data final não pode estar no futuro.');
     if (spanDays(draftStart, draftEnd) > MAX_SPAN_DAYS) return setFormError(`Escolha um período de até ${MAX_SPAN_DAYS} dias.`);
@@ -164,7 +182,7 @@ export default function ComparePage() {
 
       <AppHeader />
 
-      <main className="content">
+      <main id="conteudo" tabIndex={-1} className="content">
         <h1 className="sr-only">Comparação entre serviços</h1>
 
         {servicesError && !servicesData && <ErrorState message={servicesError} onRetry={refreshServices} />}
@@ -179,7 +197,7 @@ export default function ComparePage() {
         {/* Chips com região (#267): marcar um serviço é um clique, e a região ao lado lembra o efeito da matriz elétrica */}
         {services.length > 0 && (
           <form className="panel flex flex-col gap-4 p-4" onSubmit={handleSubmit}>
-            <fieldset className="m-0 min-w-0 border-0 p-0">
+            <fieldset className="m-0 min-w-0 border-0 p-0" aria-describedby={formError === SERVICES_ERROR ? FORM_ERROR_ID : undefined}>
               <legend className="float-left mb-2 p-0 text-xs text-muted">
                 Serviços <span className="text-text">· {draftIds.length} de {MAX_SERVICES} selecionados</span>
               </legend>
@@ -234,7 +252,7 @@ export default function ComparePage() {
               </button>
             </div>
             {formError && (
-              <p className="m-0 text-sm text-danger" role="alert">
+              <p id={FORM_ERROR_ID} className="m-0 text-sm text-danger" role="alert">
                 {formError}
               </p>
             )}
@@ -255,16 +273,22 @@ export default function ComparePage() {
         {data && (
           <section className="panel" aria-labelledby="compare-title">
             <header className="border-b border-border px-5 py-3">
-              <h2 id="compare-title" className="m-0 font-display text-lg font-semibold">
-                Comparação de {data.services.length} serviços
-              </h2>
+              {/* O método da estimativa fica no tooltip da etiqueta, não numa frase no rodapé (#272) */}
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                <h2 id="compare-title" className="m-0 font-display text-lg font-semibold">
+                  Comparação de {data.services.length} serviços
+                </h2>
+                <EstimateTag note="Energia e CO₂e somam só as coletas calculadas." />
+              </div>
               <p className="mt-1 mb-0 text-sm text-muted">
                 Período: {formatMoment(data.from)} a {formatMoment(data.to)} ({timeZoneLabel(start)})
               </p>
             </header>
 
             {/* Rolagem horizontal só na tabela: com até 10 serviços, a página nunca ganha rolagem lateral (RNF01) */}
-            <div className="relative overflow-x-auto">
+            {/* scroll-edge: sombra na borda direita enquanto há serviços escondidos (#263) */}
+            <div className={matrixHasMore ? 'scroll-edge scroll-edge--more' : 'scroll-edge'}>
+            <div ref={matrixScrollRef} className="relative overflow-x-auto">
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="text-xs text-muted">
@@ -293,13 +317,13 @@ export default function ComparePage() {
                 </thead>
                 <tbody>
                   {/* Linhas alternadas; a cor da coluna em destaque é translúcida e deixa a alternância aparecer */}
-                  {ROWS.map((row) => (
+                  {rowsFor(data.services).map((row) => (
                     <tr key={row.label} className="border-t border-border even:bg-surface-3">
                       <th scope="row" className="whitespace-nowrap px-5 py-2 text-left font-medium text-muted">
                         {row.label}
                       </th>
                       {data.services.map((service) => (
-                        <td key={service.id} className={`px-5 py-2 text-right font-mono ${extremeOf(service.id)?.tint ?? ''}`}>
+                        <td key={service.id} className={`px-5 py-2 text-right font-data ${extremeOf(service.id)?.tint ?? ''}`}>
                           {row.cell(service)}
                         </td>
                       ))}
@@ -308,13 +332,10 @@ export default function ComparePage() {
                 </tbody>
               </table>
             </div>
+            </div>
 
             <CompareChart services={data.services} highlightOf={extremeOf} />
 
-            <p className="m-0 border-t border-border px-5 py-3 text-xs text-muted">
-              Estimativa, não medição: potência calculada a partir de CPU, memória, disco e rede × intervalo da coleta ×
-              intensidade de carbono da região (ADR 0006). Energia e CO₂e somam só as coletas calculadas.
-            </p>
           </section>
         )}
       </main>

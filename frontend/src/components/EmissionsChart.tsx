@@ -1,22 +1,30 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent, RefObject } from 'react';
 import type { EmissionPoint, EmissionsBucket } from '../services/emissions.types';
+import type { TimeSpan } from '../utils/emissions';
 import {
   BUCKET_LABEL,
   BUCKET_MS,
   cumulative,
+  describePeak,
+  describePeriod,
+  formatDurationMilliseconds,
   formatGrams,
   formatKwh,
   formatPeakTime,
   formatPointTime,
+  formatRatio,
   formatShort,
   formatTimeTick,
   niceTicks,
+  peakRatio,
+  seriesStats,
   timeTicks,
   typicalIntervalMs,
 } from '../utils/emissions';
-import { CHAR_WIDTH, labelBox, labelsOverlap } from '../utils/chart-labels';
-import type { LabelAnchor } from '../utils/chart-labels';
+import { CHAR_WIDTH, freeBaseline, labelBox, labelsOverlap } from '../utils/chart-labels';
+import { scaleFor } from '../utils/units';
+import type { LabelAnchor, LabelBox } from '../utils/chart-labels';
 import './EmissionsChart.css';
 
 /** `intervalo`: a emissão de cada ponto (coleta ou intervalo); `acumulado`: a soma ao longo do período. */
@@ -29,6 +37,8 @@ interface Props {
   /** Início e fim do eixo do tempo (ms), iguais ao período buscado. */
   fromMs: number;
   toMs: number;
+  /** Trechos sem nenhuma coleta (`missingSpans`), desenhados no gráfico com a duração de cada um (#272). */
+  missing?: TimeSpan[];
   /** A última atualização falhou: o gráfico fica apagado, como o resumo. */
   stale?: boolean;
 }
@@ -90,7 +100,10 @@ function nearestIndex(times: number[], t: number): number {
  * todas as coletas fossem a menor ou a maior do intervalo (o pico de uma coleta não some na soma).
  * A linha é interrompida onde não há cálculo ou onde a coleta parou; falhas aparecem na faixa acima do eixo do tempo.
  */
-export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, stale = false }: Props) {
+/** Sem trechos sem coleta: a mesma referência em toda renderização. */
+const NO_SPANS: TimeSpan[] = [];
+
+export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, missing = NO_SPANS, stale = false }: Props) {
   const [containerRef, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -118,14 +131,16 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
     [points, grouped, mode],
   );
 
-  // Último intervalo ainda aberto (o período termina em "agora"): soma parcial, fica fora da linha
-  const openIndex = grouped && points.length > 0 && points[points.length - 1].t + stepMs > toMs ? points.length - 1 : null;
-
-  const known = raw.filter((v, i): v is number => v !== null && i !== openIndex);
+  // Média, maior ponto e o último intervalo ainda aberto (soma parcial): a mesma conta dos tiles e da Leitura (#271)
+  const stats = useMemo(() => seriesStats(points, bucket, toMs), [points, bucket, toMs]);
+  const openIndex = stats.openIndex;
   // Com um ponto só, a média seria o próprio ponto e o rótulo cairia em cima do "maior intervalo"
-  const mean = mode === 'intervalo' && known.length > 1 ? known.reduce((a, b) => a + b, 0) / known.length : null;
-  const peakIndex =
-    mode === 'intervalo' && known.length > 0 ? raw.reduce<number>((best, v, i) => (v !== null && i !== openIndex && v > (raw[best] ?? -1) ? i : best), 0) : null;
+  const mean = mode === 'intervalo' && stats.count > 1 ? stats.meanGrams : null;
+  const peakIndex = mode === 'intervalo' ? stats.peakIndex : null;
+  // Quantas vezes o maior ponto ficou acima da média, no chip do pico; só quando a linha da média aparece
+  const ratio = mean !== null ? peakRatio(points, stats) : null;
+  // Unidade do eixo pela escala única: mg quando a série inteira fica abaixo de 1 g (#271)
+  const axisScale = useMemo(() => scaleFor('co2e', values), [values]);
 
   const plotW = Math.max(0, width - MARGIN.left - MARGIN.right);
   const plotH = height - MARGIN.top - MARGIN.bottom;
@@ -253,7 +268,14 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
   const presentGaps = new Set(gaps.map((g) => g.kind));
   const unit = grouped ? `a cada ${BUCKET_LABEL[bucket]}` : 'por coleta';
   const peak = peakIndex !== null ? { cx: x(times[peakIndex]), cy: y(raw[peakIndex] as number), point: points[peakIndex] } : null;
-  const peakText = peak ? `${grouped ? 'maior intervalo' : 'pico'} ${formatGrams(raw[peakIndex as number] as number)} · ${formatTimeTick(peak.point.t, 0)}` : '';
+  // Chip do pico (#272): o fato curto fica sobre o dado; a frase inteira, com o horário, vai no tooltip dele
+  const peakText = peak
+    ? `${grouped ? 'maior intervalo' : 'pico'} ${formatGrams(raw[peakIndex as number] as number)}${ratio !== null ? ` · ${formatRatio(ratio)} média` : ''}`
+    : '';
+  const peakNote = describePeak(points, stats, bucket);
+  // Resumo do período para leitor de tela: as mesmas frases dos tooltips
+  const missingTotal = missing.reduce((sum, item) => sum + item.end - item.start, 0);
+  const reading = describePeriod(points, stats, bucket, missingTotal);
   const peakAnchor: LabelAnchor = !peak ? 'middle' : peak.cx > MARGIN.left + plotW * 0.85 ? 'end' : peak.cx < MARGIN.left + plotW * 0.15 ? 'start' : 'middle';
   const meanText = mean !== null ? `${grouped ? 'média por intervalo' : 'média'} ${formatGrams(mean)}` : '';
   // Rótulo da média acima da linha; desce para baixo dela quando encostaria no rótulo do maior ponto (tela estreita, #258)
@@ -262,10 +284,34 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
     peak !== null &&
     mean !== null &&
     labelsOverlap(
-      labelBox(peakText, peak.cx, peak.cy - 14, peakAnchor, CHAR_WIDTH.mono12, 12),
+      labelBox(peakText, peak.cx, peak.cy - 14, peakAnchor, CHAR_WIDTH.data12, 12),
       labelBox(meanText, meanLabelX, y(mean) - 6, 'end', CHAR_WIDTH.sans11, 11),
     );
   const meanLabelY = mean === null ? 0 : meanCollides ? y(mean) + 15 : y(mean) - 6;
+  // O que o rótulo de um trecho sem coleta não pode cobrir: a linha e o rótulo da média e o chip do pico (#272)
+  const labelObstacles: LabelBox[] = [];
+  if (mean !== null) {
+    labelObstacles.push({ left: MARGIN.left, right: MARGIN.left + plotW, top: y(mean) - 2, bottom: y(mean) + 2 });
+    labelObstacles.push(labelBox(meanText, meanLabelX, meanLabelY, 'end', CHAR_WIDTH.sans11, 11));
+  }
+  if (peak) {
+    const chip = labelBox(peakText, peak.cx, peak.cy - 14, peakAnchor, CHAR_WIDTH.data12, 12);
+    labelObstacles.push({ left: chip.left - 6, right: chip.right + 6, top: chip.top - 3, bottom: peak.cy + 10 });
+  }
+  // Embaixo primeiro (no trecho sem coleta não há linha perto do zero), depois no meio e no alto
+  const nodataBaselines = [MARGIN.top + plotH - 10, MARGIN.top + plotH / 2 + 4, MARGIN.top + 18];
+  // Fundo do chip do pico na medida do texto já desenhado; sem getBBox (jsdom), o rótulo fica sem fundo
+  const peakLabelRef = useRef<SVGTextElement>(null);
+  const [peakBox, setPeakBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  useLayoutEffect(() => {
+    const label = peakLabelRef.current;
+    if (label && typeof label.getBBox === 'function') {
+      const box = label.getBBox();
+      setPeakBox({ x: box.x, y: box.y, width: box.width, height: box.height });
+    } else {
+      setPeakBox(null);
+    }
+  }, [peakText, width, mode, bucket, points]);
 
   return (
     <div
@@ -289,12 +335,17 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
           height={height}
           role="img"
           aria-label={`Emissão de CO₂e ${mode === 'acumulado' ? 'acumulada' : unit} entre ${formatPointTime(fromMs)} e ${formatPointTime(toMs)}`}
+          aria-describedby={reading.length > 0 ? `${ids}-reading` : undefined}
         >
           <defs>
             <linearGradient id={`${ids}-area`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" className="emissions-chart__area-top" />
               <stop offset="100%" className="emissions-chart__area-bottom" />
             </linearGradient>
+            {/* Hachura dos trechos sem coleta: ausência de registro, não um valor (#272) */}
+            <pattern id={`${ids}-nodata`} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <line className="emissions-chart__nodata-hatch" x1="0" y1="0" x2="0" y2="6" />
+            </pattern>
             <clipPath id={`${ids}-plot`}>
               <rect x={MARGIN.left} y={MARGIN.top} width={plotW} height={plotH} />
             </clipPath>
@@ -305,12 +356,12 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
             <g key={tick}>
               <line className="emissions-chart__grid" x1={MARGIN.left} x2={MARGIN.left + plotW} y1={y(tick)} y2={y(tick)} />
               <text className="emissions-chart__tick" x={MARGIN.left - 8} y={y(tick)} textAnchor="end" dominantBaseline="middle">
-                {formatShort(tick)}
+                {formatShort(tick * axisScale.factor)}
               </text>
             </g>
           ))}
           <text className="emissions-chart__axis-title" transform={`translate(16 ${MARGIN.top + plotH / 2}) rotate(-90)`} textAnchor="middle">
-            {mode === 'acumulado' ? 'g CO₂e acumulado' : `g CO₂e ${unit}`}
+            {mode === 'acumulado' ? `${axisScale.unit} CO₂e acumulado` : `${axisScale.unit} CO₂e ${unit}`}
           </text>
 
           {/* Eixo X */}
@@ -326,6 +377,17 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
 
           {/* Série */}
           <g clipPath={`url(#${ids}-plot)`}>
+            {missing.map((item) => (
+              <rect
+                key={item.start}
+                className="emissions-chart__nodata"
+                x={x(item.start)}
+                y={MARGIN.top}
+                width={Math.max(1, x(item.end) - x(item.start))}
+                height={plotH}
+                fill={`url(#${ids}-nodata)`}
+              />
+            ))}
             {bandPath && <path d={bandPath} className="emissions-chart__band" />}
             {/* Com a faixa mín./máx., a área preenchida embaixo da linha ficaria pesada demais */}
             {!bandPath && <path d={area} fill={`url(#${ids}-area)`} />}
@@ -352,11 +414,35 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
             <g className="emissions-chart__peak" pointerEvents="none">
               <circle className="emissions-chart__peak-halo" cx={peak.cx} cy={peak.cy} r={10} />
               <circle className="emissions-chart__peak-dot" cx={peak.cx} cy={peak.cy} r={4.5} />
-              <text className="emissions-chart__peak-label" x={peak.cx} y={peak.cy - 14} textAnchor={peakAnchor}>
-                {peakText}
-              </text>
             </g>
           )}
+
+          {/* Duração de cada trecho sem coleta, quando cabe nele; os estreitos ficam só com a hachura e a legenda */}
+          {missing.map((item) => {
+            const text = `sem coleta ${formatDurationMilliseconds(item.end - item.start)}`;
+            const left = Math.max(x(item.start), MARGIN.left);
+            const right = Math.min(x(item.end), MARGIN.left + plotW);
+            if (right - left < text.length * CHAR_WIDTH.sans11 + 16) return null;
+            const center = (left + right) / 2;
+            const baseline = freeBaseline(
+              nodataBaselines,
+              (candidate) => labelBox(text, center, candidate, 'middle', CHAR_WIDTH.sans11, 11),
+              labelObstacles,
+            );
+            if (baseline === null) return null;
+            return (
+              <text
+                key={item.start}
+                className="emissions-chart__nodata-label"
+                x={center}
+                y={baseline}
+                textAnchor="middle"
+                pointerEvents="none"
+              >
+                {text}
+              </text>
+            );
+          })}
 
           {/* Faixa de falhas */}
           {gaps.map((gap) => (
@@ -388,6 +474,26 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
             // No toque, o dedo saindo da tela não fecha o detalhe: ele fica até o próximo toque
             onPointerLeave={(event) => event.pointerType !== 'touch' && setHover(null)}
           />
+
+          {/* Chip do pico por cima da área de toque, para o tooltip dele (a frase inteira) abrir no ponteiro */}
+          {peak && (
+            <g className="emissions-chart__chip">
+              {peakNote && <title>{peakNote}</title>}
+              {peakBox && (
+                <rect
+                  className="emissions-chart__chip-bg"
+                  x={peakBox.x - 6}
+                  y={peakBox.y - 3}
+                  width={peakBox.width + 12}
+                  height={peakBox.height + 6}
+                  rx={4}
+                />
+              )}
+              <text ref={peakLabelRef} className="emissions-chart__peak-label" x={peak.cx} y={peak.cy - 14} textAnchor={peakAnchor}>
+                {peakText}
+              </text>
+            </g>
+          )}
         </svg>
       )}
 
@@ -425,12 +531,24 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
         )}
       </div>
 
-      {(presentGaps.size > 0 || bandPath) && (
+      {reading.length > 0 && (
+        <p id={`${ids}-reading`} className="sr-only">
+          {reading.join(' ')}
+        </p>
+      )}
+
+      {(presentGaps.size > 0 || bandPath || missing.length > 0) && (
         <ul className="emissions-chart__legend" aria-label="Legenda do gráfico">
           {bandPath && (
             <li>
               <span className="emissions-chart__swatch emissions-chart__swatch--band" aria-hidden="true" />
               Faixa: menor e maior coleta do intervalo
+            </li>
+          )}
+          {missing.length > 0 && (
+            <li>
+              <span className="emissions-chart__swatch emissions-chart__swatch--nodata" aria-hidden="true" />
+              Sem coleta
             </li>
           )}
           {(Object.keys(GAP_LABEL) as GapKind[])
