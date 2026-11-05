@@ -118,6 +118,11 @@
   }
 
   @media (max-width: 599px) {
+    /* Marca, Menu e Entrar na mesma linha até 360 px */
+    .topbar-inner {
+      column-gap: 8px;
+    }
+
     .nav {
       display: none;
     }
@@ -147,6 +152,24 @@
     font-size: 14px;
     font-weight: 500;
     cursor: pointer;
+  }
+
+  /* Abaixo de 360 px, só o ícone: o nome "Menu" continua para o leitor de tela */
+  @media (max-width: 359px) {
+    .mobile-menu__button {
+      justify-content: center;
+      width: 44px;
+      padding: 0;
+    }
+
+    .mobile-menu__label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
   }
 
   .mobile-menu__button[aria-expanded='true'] {
