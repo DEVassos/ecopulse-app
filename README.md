@@ -34,9 +34,15 @@ Setup do backend: [organização e validação](backend/README.md) e [contrato d
 
 ## 3. Funcionalidades implementadas
 
-- **RF05/RF06 — Motivo seguro da indisponibilidade ([#251](https://github.com/DEVassos/greener-app/issues/251)):** `GET /api/services` inclui `statusReason` da última coleta somente para `indisponivel`, normalizado para não expor detalhes internos; demais estados recebem `null`. [Contrato](docs/api.md#get-apiservices). A interface permanece com Andrea na #176.
+- **RF05/RF06 — Motivo seguro da indisponibilidade ([#251](https://github.com/DEVassos/greener-app/issues/251)):** `GET /api/services` inclui `statusReason` da última coleta somente para `indisponivel`, normalizado para não expor detalhes internos; demais estados recebem `null`. [Contrato](docs/api.md#get-apiservices). Na tela, o motivo aparece com a #176, abaixo.
 
-- **RF11 — Contrato backend da configuração ([#250](https://github.com/DEVassos/greener-app/issues/250)):** GET público e PUT com JWT para intervalo de atualização da tela (15/30/60 s, padrão 30). A interface da #176 continua com Andrea. [Contrato e verificação HTTP](docs/api.md#get-apimonitoring-settings); [migração sem apagar volumes](database/README.md#configuração-de-monitoramento-250).
+- **RF11 — Contrato backend da configuração ([#250](https://github.com/DEVassos/greener-app/issues/250)):** GET público e PUT com JWT para intervalo de atualização da tela (15/30/60 s, padrão 30). A interface é a da #176, abaixo. [Contrato e verificação HTTP](docs/api.md#get-apimonitoring-settings); [migração sem apagar volumes](database/README.md#configuração-de-monitoramento-250).
+
+- **RF05, RF06, RF11 — Intervalo configurável e estado com motivo (#176):** na **Configuração**, o administrador escolhe o intervalo da atualização automática (15, 30 ou 60 s) e salva com `PUT /api/monitoring-settings`. O dashboard lê `GET /api/monitoring-settings` a cada ciclo, então a troca vale em todas as abas e navegadores no ciclo seguinte, sem recarregar; sem resposta, usa `VITE_REFRESH_INTERVAL_MS` como reserva. Na tabela e na janela de detalhes, um serviço **Indisponível** mostra o motivo seguro (`statusReason`) abaixo do selo. Como verificar em [frontend/README.md](frontend/README.md#estado-com-motivo-176).
+
+  ![Configuração com o intervalo de 15 s salvo](docs/img/sprint-2-configuracao-intervalo.png)
+
+  _Backend real (`docker compose`) em 04/11/2026: depois de salvar 15 s, o dashboard buscou `GET /api/services` aos 13, 28 e 43 s._
 
 O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta lista quando o Pull Request correspondente é mergeado, com o requisito e o número do PR. A Sprint 1 foi encerrada em 20/10/2026 e está publicada na tag [`sprint-1`](https://github.com/DEVassos/greener-app/releases/tag/sprint-1); o registro completo, com a review e o retorno do cliente, está em [docs/sprints/sprint-1.md](docs/sprints/sprint-1.md).
 
@@ -121,7 +127,6 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 > Planejado, **ainda não implementado**. O andamento real está no [quadro do projeto](https://github.com/orgs/DEVassos/projects/6) e no [plano de entregas](docs/plano-de-entregas.md).
 
 - **Dashboard em três níveis:** visão executiva (kWh total, gCO₂e, serviços ativos e indisponíveis, com atualização sem recarregar), análise comparativa (ranking e distribuição geográfica) e investigação detalhada (histórico por serviço).
-- **Parâmetros da área de configuração:** o backend da #250 fornece as rotas pública/autenticada e a persistência; a interface de edição e a integração do polling continuam pendentes com Andrea, preservando o login e a proteção de `/configuracao`.
 - **Prioridade apontada pelo cliente na review da Sprint 1:** comparar serviços e analisar os dados já coletados, para ver o que compensa fazer ([#159](https://github.com/DEVassos/greener-app/issues/159)).
 - **Diferenciais em estudo:** simulação de migração para regiões com matriz mais limpa ([US12, #53](https://github.com/DEVassos/greener-app/issues/53)) e exportação de relatórios em PDF/CSV ([US13, #54](https://github.com/DEVassos/greener-app/issues/54)), previstas para a Sprint 3.
 
