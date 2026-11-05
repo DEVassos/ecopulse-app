@@ -36,7 +36,7 @@ Os valores ficam em `frontend/src/styles/global.css`, fonte única das cores no 
 | **Alerta** | Estados de aviso (ex: serviço sem métricas) e a seta ▲ de energia ou CO₂e que subiu contra o período anterior (#271), porque nessas métricas menos é melhor; a seta ▼ fica em `--accent-hover` e a variação abaixo de 0,5% ("±0%") em `--muted` | Laranja | `#F97316` | `--warning` | 6,7:1 |
 | **Erro** | Estados críticos (ex: serviço indisponível/caído) | Vermelho | `#EF4444` | `--error` | 5,0:1 |
 | **Texto** | Cor padrão para textos e títulos | Cinza-claro | `#E2E8F0` | `--text` | 15,2:1 |
-| **Neon** | Só no que pede atenção: maior impacto, pico, "ao vivo" e pulso do logo, e um destaque por vez na tela. Na página Emissões ele fica com o tile de pico ("Pico de uma coleta" ou, agrupado, "Maior intervalo"), o mesmo pico do gráfico e da Leitura do período (#271); o maior ponto do gráfico fica em `--text`, sem brilho (#258). Nunca em texto corrido, fundo de card ou linha de gráfico | Verde-neon | `#5CFFB8` | `--neon` | 14,7:1 |
+| **Neon** | Só no que pede atenção: maior impacto, pico, "ao vivo" e pulso do logo, e um destaque por vez na tela. Na página Emissões ele fica com o tile de pico ("Pico de uma coleta" ou, agrupado, "Maior intervalo"), o mesmo pico do chip do gráfico (#271, #272); o maior ponto do gráfico fica em `--text`, sem brilho (#258). Nunca em texto corrido, fundo de card ou linha de gráfico | Verde-neon | `#5CFFB8` | `--neon` | 14,7:1 |
 
 > **Nota de Usabilidade:** O amarelo (`#FACC15`) é utilizado restritivamente para elementos da marca. Alertas de sistema utilizam obrigatoriamente o laranja (`#F97316`) para garantir que problemas operacionais sejam imediatamente identificados sem ambiguidade.
 
@@ -52,7 +52,7 @@ Variações usadas pelos componentes para camadas, bordas, hierarquia de texto e
 | `--text-2` | `#CBD5E1` | Texto secundário, como avisos e parágrafos de apoio | 12,6:1 |
 | `--muted` | `#94A3B8` | Rótulos, legendas, rodapé e metadados; a cor mais apagada permitida para texto pequeno | 7,3:1 |
 | `--faint` | `#64748B` | Só elementos decorativos ou texto grande; não serve para texto pequeno | 3,9:1 |
-| `--accent-hover` | `#34D399` | Hover de elementos na cor Primária, texto do item ativo e do selo "Ativo", barras de ranking | 9,7:1 |
+| `--accent-hover` | `#34D399` | Hover de elementos na cor Primária, texto do item ativo, seta ▼ da variação, barras de ranking | 9,7:1 |
 | `--on-accent` | `#04120C` | Texto e ícones sobre fundo na cor Primária (ex.: botão principal) | 7,6:1 sobre `#10B981` |
 | `--sky-hover` | `#7DD3FC` | Hover de links | 11,2:1 |
 | `--danger` | `#F87171` | Texto pequeno de erro; o `#EF4444` fica para ícones, bordas e fundos, porque sobre a superfície chega só a 4,5:1 | 6,8:1 |
@@ -74,7 +74,7 @@ No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg
 * O número isolado de um card (estado, indicadores do período, resumo da página Emissões) usa `--sans` semibold, não a fonte de título.
 
 ### Botões
-* **Botão cheio** (ação principal da tela, ex.: "Entrar"): fundo `--accent`, texto `--on-accent`. O texto fica escuro porque o branco sobre o verde dá 2,5:1 e reprova no AA.
+* **Botão cheio** (ação principal da tela, ex.: "Aplicar", "Comparar"): fundo `--accent`, texto `--on-accent`. "Entrar" e "Sair" ficam vazados (#272), porque o login não é a ação da página. O texto fica escuro porque o branco sobre o verde dá 2,5:1 e reprova no AA.
 * **Botão vazado** (ações secundárias, ex.: "Tentar novamente", "Atualizar agora"): classe `.btn-outline` (`frontend/src/styles/controls.css`), fundo transparente, borda e texto `--accent`; no hover, `--accent` a 10% no fundo e texto `--accent-hover`.
 
 ### Item ativo (menu do topo)
@@ -82,7 +82,7 @@ No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg
 * Ainda não há abas na interface; quando houver, o item selecionado segue este mesmo padrão.
 
 ### Selos de estado
-* Texto e cor juntos (o estado nunca é mostrado só pela cor), sempre com tokens: **Ativo**/**OK** em `--accent-hover` sobre `--accent` a 10%; **Indisponível**/**Erro** em `--danger` sobre `--error` a 10%; **Sem métricas** em `--warning` sobre `--warning` a 10%; **Removido** em `--muted` sobre `--surface-3`. Sobre a superfície, o pior caso é 5,4:1 (Sem métricas), acima do AA para texto pequeno.
+* Texto e cor juntos (o estado nunca é mostrado só pela cor), sempre com tokens: **Ativo** com o texto em `--muted`, borda `--border` e o ponto em `--accent`, sem fundo, porque o estado saudável fica calmo e só o problema ganha cor (#272; o card **Ativos** também não ganha tom nem borda); **Indisponível**/**Erro** em `--danger` sobre `--error` a 10%; **Sem métricas** em `--warning` sobre `--warning` a 10%; **Removido** em `--muted` sobre `--surface-3`. Sobre a superfície, o pior caso é 5,4:1 (Sem métricas), acima do AA para texto pequeno.
 
 ### Barras de ranking e de proporção
 * Trilho em `--border`, barra em `--accent-hover` e o 1º lugar em `--neon` (com `--neon-glow` de brilho). É o padrão que o ranking da US09 (#50) e qualquer barra de proporção vão seguir. Como o neon e o `--accent-hover` ficam a 1,5:1 um do outro, o 1º lugar também precisa de rótulo ou posição, não só da cor.
