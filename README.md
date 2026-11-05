@@ -66,6 +66,12 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Dashboard com o backend real (`docker compose`) em 28/10/2026, 19h32: 0,2620 kWh e 64,61 g CO₂e nas últimas 24 h. O compose ficou desligado nas 24 h anteriores, então os cards dizem "Sem cálculo no período anterior" em vez de uma variação._
 
+- **RF14 — Quem pesa mais no CO₂e (#260):** a tabela de serviços mostra a parte de cada serviço no CO₂e das últimas 24 h, com barra (o 1º lugar em neon e com o rótulo "1º"), e a frase acima dela diz quem respondeu por mais. Dentro de cada estado, a ordem segue o período e não muda a cada leitura. A API é `GET /api/services/ranking?metric=co2e&from=&to=`, com o contrato aprovado na #50; até o backend dela entrar, a tela funciona com o backend falso (`npm run mock`).
+
+  ![Coluna Parte do CO₂e e frase "Quem pesa mais" no dashboard](docs/img/sprint-2-ranking-co2e.png)
+
+  _Dashboard com o backend falso (`npm run mock`) em 05/11/2026: o Fraud Detector respondeu por 29,0% do CO₂e das últimas 24 h._
+
 - **RNF02 — Indicador de última atualização (#89):** selo no cabeçalho com o horário da última busca bem-sucedida e um ponto verde pulsando enquanto os dados estão em dia; se uma busca falha, ele fica laranja e passa a dizer "Desatualizado desde …", sem apagar os dados da tela.
 
   ![Selo de última atualização no cabeçalho](docs/img/sprint-2-ultima-atualizacao.png)
