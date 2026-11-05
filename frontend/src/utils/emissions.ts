@@ -187,13 +187,29 @@ export function summarize(points: EmissionPoint[], totals: EmissionsTotals): Emi
  * É ausência de registro, não indisponibilidade.
  */
 export function missingTimeMs(points: EmissionPoint[], bucket: EmissionsBucket, fromMs: number, toMs: number): number {
+  return missingSpans(points, bucket, fromMs, toMs).reduce((sum, span) => sum + span.end - span.start, 0);
+}
+
+/** Trecho do período sem nenhuma coleta registrada, em ms (epoch): início fechado, fim aberto. */
+export interface TimeSpan {
+  start: number;
+  end: number;
+}
+
+/**
+ * Os trechos que somam o `missingTimeMs`, para o gráfico desenhar onde a coleta parou com o mesmo número do card
+ * (#272). Mesma regra: só entre a primeira e a última coleta, em trechos alinhados ao agrupamento.
+ */
+export function missingSpans(points: EmissionPoint[], bucket: EmissionsBucket, fromMs: number, toMs: number): TimeSpan[] {
   const stepMs = Math.max(BUCKET_MS[autoBucket(fromMs, toMs) === '1h' ? '1h' : '15min'], BUCKET_MS[bucket]);
   const slots = [
     ...new Set(points.filter((point) => point.collections > 0).map((point) => Math.floor(point.t / stepMs) * stepMs)),
   ].sort((a, b) => a - b);
-  let missing = 0;
-  for (let i = 1; i < slots.length; i += 1) missing += slots[i] - slots[i - 1] - stepMs;
-  return missing;
+  const spans: TimeSpan[] = [];
+  for (let i = 1; i < slots.length; i += 1) {
+    if (slots[i] - slots[i - 1] > stepMs) spans.push({ start: slots[i - 1] + stepMs, end: slots[i] });
+  }
+  return spans;
 }
 
 /**
@@ -240,26 +256,28 @@ export function formatPeakTime(point: EmissionPoint, bucket: EmissionsBucket): s
 }
 
 /**
- * Leitura do período em frases curtas, para quem precisa decidir sem interpretar o gráfico: quando foi o maior ponto e
- * quanto ele se afasta da média (os mesmos números do gráfico e dos tiles, #271), e quanto tempo ficou sem coleta.
+ * O maior ponto em uma frase, com os mesmos números do gráfico e dos tiles (#271): quando foi e quanto se afasta da
+ * média. Vai no tooltip do chip do pico e no resumo do gráfico para leitor de tela (#272). Null sem cálculo.
  */
-export function describePeriod(points: EmissionPoint[], stats: SeriesStats, bucket: EmissionsBucket, missingMs: number): string[] {
-  const lines: string[] = [];
+export function describePeak(points: EmissionPoint[], stats: SeriesStats, bucket: EmissionsBucket): string | null {
   const ratio = peakRatio(points, stats);
   const peak = stats.peakIndex !== null ? points[stats.peakIndex] : null;
-  if (peak && peak.co2eGrams !== null && ratio !== null) {
-    const when = formatPeakTime(peak, bucket);
-    const where = bucket === 'coleta' ? 'numa coleta' : 'num intervalo';
-    lines.push(
-      ratio >= 1.5
-        ? `Pico de ${formatGrams(peak.co2eGrams)} CO₂e ${where} em ${when}, ${formatRatio(ratio)} a média do período. Vale ver o que rodou nesse horário.`
-        : `Emissão estável: o pico (${formatGrams(peak.co2eGrams)} em ${when}) ficou perto da média.`,
-    );
-  }
-  if (missingMs > 0) {
-    lines.push(`${formatDurationMilliseconds(missingMs)} sem coleta no período: esses trechos não entram no total.`);
-  }
-  return lines;
+  if (!peak || peak.co2eGrams === null || ratio === null) return null;
+  const when = formatPeakTime(peak, bucket);
+  const where = bucket === 'coleta' ? 'numa coleta' : 'num intervalo';
+  return ratio >= 1.5
+    ? `Pico de ${formatGrams(peak.co2eGrams)} CO₂e ${where} em ${when}, ${formatRatio(ratio)} a média do período. Vale ver o que rodou nesse horário.`
+    : `Emissão estável: o pico (${formatGrams(peak.co2eGrams)} em ${when}) ficou perto da média.`;
+}
+
+/** O tempo sem coleta em uma frase; null quando não faltou nada. */
+export function describeMissing(missingMs: number): string | null {
+  return missingMs > 0 ? `${formatDurationMilliseconds(missingMs)} sem coleta no período: esses trechos não entram no total.` : null;
+}
+
+/** Leitura do período em frases curtas: o pico e o tempo sem coleta. Na tela, ela vira fatos sobre o gráfico (#272). */
+export function describePeriod(points: EmissionPoint[], stats: SeriesStats, bucket: EmissionsBucket, missingMs: number): string[] {
+  return [describePeak(points, stats, bucket), describeMissing(missingMs)].filter((line): line is string => line !== null);
 }
 
 // ── Gráfico ─────────────────────────────────────────────────────────────────

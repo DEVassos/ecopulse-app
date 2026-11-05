@@ -147,6 +147,39 @@
   }
 
   /* Faixa mín./máx. do intervalo: mesma cor da linha, bem clara, atrás da área */
+  /* Chip do pico (#272): fundo da superfície elevada, borda fina; o cursor de ajuda indica o tooltip com a frase */
+  .emissions-chart__chip {
+    cursor: help;
+  }
+
+  .emissions-chart__chip-bg {
+    fill: var(--surface-2);
+    stroke: var(--border);
+    stroke-width: 1px;
+  }
+
+  /* O contorno do rótulo acompanha o fundo do chip, para não desenhar um halo em volta das letras */
+  .emissions-chart__chip .emissions-chart__peak-label {
+    stroke: var(--surface-2);
+  }
+
+  /* Trecho sem coleta (#272): hachura em --border, calma, e a duração no meio em --muted */
+  .emissions-chart__nodata-hatch {
+    stroke: var(--border);
+    stroke-width: 2px;
+  }
+
+  .emissions-chart__nodata-label {
+    fill: var(--muted);
+    paint-order: stroke;
+    stroke: var(--surface);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 500;
+  }
+
   .emissions-chart__band {
     fill: var(--accent);
     opacity: 0.14;
@@ -218,6 +251,12 @@
     width: 14px;
     height: 6px;
     border-radius: 2px;
+  }
+
+  .emissions-chart__swatch--nodata {
+    height: 10px;
+    background: repeating-linear-gradient(45deg, var(--border) 0 2px, transparent 2px 5px);
+    box-shadow: inset 0 0 0 1px var(--border);
   }
 
   .emissions-chart__swatch--band {
