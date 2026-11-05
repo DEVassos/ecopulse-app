@@ -160,9 +160,8 @@ export default function EmissionsPage() {
                   end={end}
                   today={today}
                   maxDays={MAX_SPAN_DAYS}
+                  // Com o tempo real ligado, outro período o desliga (como o ◀ da #212); "Hoje" só busca de novo
                   onChange={apply}
-                  disabled={live}
-                  disabledReason="O tempo real acompanha o dia de hoje: desligue-o para escolher outro período"
                 />
               </fieldset>
               <label className="emissions__field">
