@@ -16,6 +16,9 @@ interface Column {
   quantity?: Quantity;
 }
 
+/** Estados que pedem investigação: a linha ganha o botão de ver o histórico ao lado do selo (#272). */
+const NEEDS_ACTION: ReadonlySet<ServiceStatus> = new Set<ServiceStatus>(['indisponivel', 'sem_metricas']);
+
 // Status logo depois do nome: em notebook, a última coluna fica longe demais do serviço
 const COLUMNS: Column[] = [
   { key: 'name', label: 'Serviço' },
@@ -154,7 +157,9 @@ export default function ServicesTable({ services, onSelect }: Props) {
               <tr
                 key={service.id}
                 onClick={(event) => {
-                  event.currentTarget.querySelector('button')?.focus();
+                  // O foco volta, ao fechar, para o botão clicado (nome ou "Ver histórico"); fora deles, para o nome
+                  const clicked = event.target instanceof Element ? event.target.closest('button') : null;
+                  (clicked ?? event.currentTarget.querySelector('button'))?.focus();
                   onSelect(service);
                 }}
                 className="cursor-pointer border-t border-border hover:bg-surface-2"
@@ -169,9 +174,26 @@ export default function ServicesTable({ services, onSelect }: Props) {
                     {service.name}
                   </button>
                 </th>
-                {/* O badge é o único elemento colorido da linha */}
+                {/* O badge é o único elemento colorido da linha; com problema, a ação de investigar fica ao lado dele (#272) */}
                 <td className="px-5 py-2">
-                  <StatusBadge status={service.status} />
+                  <span className="inline-flex items-center gap-2">
+                    <StatusBadge status={service.status} />
+                    {NEEDS_ACTION.has(service.status) && (
+                      <button
+                        type="button"
+                        aria-haspopup="dialog"
+                        aria-label={`Ver histórico de ${service.name}`}
+                        title="Ver histórico"
+                        className="inline-flex size-7 cursor-pointer items-center justify-center rounded-md border border-border bg-transparent p-0 text-muted hover:border-primary hover:text-text"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                          <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                          <path d="M3 3v5h5" />
+                          <path d="M12 7v5l3 2" />
+                        </svg>
+                      </button>
+                    )}
+                  </span>
                 </td>
                 <td className="px-5 py-2 text-right font-mono">
                   {service.cpuPercent === null ? <MissingValue /> : `${formatNumber(service.cpuPercent, 0)}%`}
