@@ -85,6 +85,21 @@
     color: var(--muted);
   }
 
+  /* Variação com sinal (#271): energia e CO₂e são métricas em que menos é melhor, então subir é alerta e cair é bom */
+  .metric-delta {
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+
+  .metric-delta--worse {
+    color: var(--warning);
+  }
+
+  .metric-delta--better {
+    color: var(--accent-hover);
+  }
+
   /* Dado da última busca bem-sucedida, exibido durante uma falha: número apagado, mas legível */
   .metric--stale .metric-value {
     color: var(--muted);

@@ -1,5 +1,7 @@
+import type { ReactNode } from 'react';
 import type { ServicesSummaryResponse } from '../services/services.types';
 import { formatNumber } from '../utils/format';
+import { formatInScale, scaleFor } from '../utils/units';
 import MetricTile, { metricIconProps } from './MetricTile';
 import MissingValue from './MissingValue';
 import './KpiPanel.css';
@@ -11,16 +13,46 @@ interface Props {
   stale: boolean;
 }
 
-function variation(current: number | null, previous: number | null, hasPreviousPeriod: boolean, loading: boolean): string {
+/** Base da comparação, em poucas palavras; o detalhe fica no tooltip. */
+const BASELINE = 'vs 24 h anteriores';
+
+/**
+ * Variação contra as 24 h anteriores (#271). Energia e CO₂e são métricas em que menos é melhor: ▲ em alerta, ▼ em
+ * verde, ±0% em cinza abaixo de 0,5%. Sem base, "—" com o motivo no tooltip, nunca um zero ou um 100% enganoso.
+ */
+function variation(current: number | null, previous: number | null, hasPreviousPeriod: boolean, loading: boolean): ReactNode {
   // Só mostra "Comparando…" na primeira busca: nos ciclos seguintes a variação anterior fica até chegar a nova
-  if (loading && !hasPreviousPeriod) return 'Comparando período anterior…';
-  if (current === null) return 'Sem cálculo disponível neste período';
-  if (!hasPreviousPeriod) return 'Comparação indisponível';
-  if (previous === null) return 'Sem cálculo no período anterior';
-  if (previous === 0) return 'Sem base para comparação';
+  if (loading && !hasPreviousPeriod) return 'Comparando…';
+  const noBase = (reason: string) => (
+    <span title={reason}>
+      — {BASELINE}
+    </span>
+  );
+  if (current === null) return noBase('Sem cálculo neste período');
+  if (!hasPreviousPeriod) return noBase('A comparação com as 24 h anteriores não foi carregada');
+  if (previous === null) return noBase('Sem cálculo nas 24 h anteriores: não há base para a variação');
+  if (previous === 0) return noBase('O total das 24 h anteriores foi zero: não há base para a variação');
   const percent = ((current - previous) / previous) * 100;
-  const sign = percent > 0 ? '+' : '';
-  return `${sign}${formatNumber(percent, 1)}% vs. 24 h anteriores`;
+  const exact = `${percent > 0 ? '+' : ''}${formatNumber(percent, 1)}% ${BASELINE}`;
+  if (Math.abs(percent) < 0.5) {
+    return (
+      <span title={exact}>
+        <span className="metric-delta">±0%</span> {BASELINE}
+      </span>
+    );
+  }
+  const up = percent > 0;
+  const size = up && percent > 999 ? '10×+' : `${formatNumber(Math.abs(percent), 1)}%`;
+  return (
+    <span title={exact}>
+      <span className={`metric-delta ${up ? 'metric-delta--worse' : 'metric-delta--better'}`}>
+        <span aria-hidden="true">{up ? '▲' : '▼'} </span>
+        <span className="sr-only">{up ? 'subiu ' : 'caiu '}</span>
+        {size}
+      </span>{' '}
+      {BASELINE}
+    </span>
+  );
 }
 
 /** ISO 8601 → "27/10, 19:30" no horário de Brasília, qualquer que seja o fuso do navegador. */
@@ -42,6 +74,9 @@ export default function SummaryPanel({ summary, previousSummary, comparisonLoadi
   const energyChange = variation(summary.energyKwh, previousSummary?.energyKwh ?? null, previousSummary !== null, comparisonLoading);
   const emissionsChange = variation(summary.co2eGrams, previousSummary?.co2eGrams ?? null, previousSummary !== null, comparisonLoading);
   const missing = <MissingValue label="sem cálculo" title="Sem cálculo no período" />;
+  // Escala única (#271): "841 Wh" em vez de "0,8413 kWh"
+  const energyScale = scaleFor('energy', [summary.energyKwh]);
+  const co2eScale = scaleFor('co2e', [summary.co2eGrams]);
   return (
     <section className="flex flex-col gap-3" aria-labelledby="summary-title">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -56,8 +91,8 @@ export default function SummaryPanel({ summary, previousSummary, comparisonLoadi
       <div className="kpis kpis--wide">
         <MetricTile
           label="Energia no período"
-          value={summary.energyKwh === null ? missing : formatNumber(summary.energyKwh, 4)}
-          unit={summary.energyKwh === null ? undefined : 'kWh'}
+          value={summary.energyKwh === null ? missing : formatInScale(summary.energyKwh, energyScale)}
+          unit={summary.energyKwh === null ? undefined : energyScale.unit}
           note={energyChange}
           stale={stale}
           icon={
@@ -68,8 +103,8 @@ export default function SummaryPanel({ summary, previousSummary, comparisonLoadi
         />
         <MetricTile
           label="Emissões no período"
-          value={summary.co2eGrams === null ? missing : formatNumber(summary.co2eGrams, 2)}
-          unit={summary.co2eGrams === null ? undefined : 'g CO₂e'}
+          value={summary.co2eGrams === null ? missing : formatInScale(summary.co2eGrams, co2eScale)}
+          unit={summary.co2eGrams === null ? undefined : `${co2eScale.unit} CO₂e`}
           note={emissionsChange}
           stale={stale}
           icon={
