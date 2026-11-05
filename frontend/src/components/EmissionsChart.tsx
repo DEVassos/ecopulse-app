@@ -22,9 +22,9 @@ import {
   timeTicks,
   typicalIntervalMs,
 } from '../utils/emissions';
-import { CHAR_WIDTH, labelBox, labelsOverlap } from '../utils/chart-labels';
+import { CHAR_WIDTH, freeBaseline, labelBox, labelsOverlap } from '../utils/chart-labels';
 import { scaleFor } from '../utils/units';
-import type { LabelAnchor } from '../utils/chart-labels';
+import type { LabelAnchor, LabelBox } from '../utils/chart-labels';
 import './EmissionsChart.css';
 
 /** `intervalo`: a emissão de cada ponto (coleta ou intervalo); `acumulado`: a soma ao longo do período. */
@@ -288,6 +288,18 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
       labelBox(meanText, meanLabelX, y(mean) - 6, 'end', CHAR_WIDTH.sans11, 11),
     );
   const meanLabelY = mean === null ? 0 : meanCollides ? y(mean) + 15 : y(mean) - 6;
+  // O que o rótulo de um trecho sem coleta não pode cobrir: a linha e o rótulo da média e o chip do pico (#272)
+  const labelObstacles: LabelBox[] = [];
+  if (mean !== null) {
+    labelObstacles.push({ left: MARGIN.left, right: MARGIN.left + plotW, top: y(mean) - 2, bottom: y(mean) + 2 });
+    labelObstacles.push(labelBox(meanText, meanLabelX, meanLabelY, 'end', CHAR_WIDTH.sans11, 11));
+  }
+  if (peak) {
+    const chip = labelBox(peakText, peak.cx, peak.cy - 14, peakAnchor, CHAR_WIDTH.mono12, 12);
+    labelObstacles.push({ left: chip.left - 6, right: chip.right + 6, top: chip.top - 3, bottom: peak.cy + 10 });
+  }
+  // Embaixo primeiro (no trecho sem coleta não há linha perto do zero), depois no meio e no alto
+  const nodataBaselines = [MARGIN.top + plotH - 10, MARGIN.top + plotH / 2 + 4, MARGIN.top + 18];
   // Fundo do chip do pico na medida do texto já desenhado; sem getBBox (jsdom), o rótulo fica sem fundo
   const peakLabelRef = useRef<SVGTextElement>(null);
   const [peakBox, setPeakBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -411,14 +423,20 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
             const left = Math.max(x(item.start), MARGIN.left);
             const right = Math.min(x(item.end), MARGIN.left + plotW);
             if (right - left < text.length * CHAR_WIDTH.sans11 + 16) return null;
+            const center = (left + right) / 2;
+            const baseline = freeBaseline(
+              nodataBaselines,
+              (candidate) => labelBox(text, center, candidate, 'middle', CHAR_WIDTH.sans11, 11),
+              labelObstacles,
+            );
+            if (baseline === null) return null;
             return (
               <text
                 key={item.start}
                 className="emissions-chart__nodata-label"
-                x={(left + right) / 2}
-                y={MARGIN.top + plotH / 2}
+                x={center}
+                y={baseline}
                 textAnchor="middle"
-                dominantBaseline="middle"
                 pointerEvents="none"
               >
                 {text}
