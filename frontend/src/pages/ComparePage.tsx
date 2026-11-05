@@ -5,6 +5,7 @@ import AppHeader from '../components/AppHeader';
 import CompareChart from '../components/CompareChart';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
+import EstimateTag from '../components/EstimateTag';
 import LoadingState from '../components/LoadingState';
 import MissingValue from '../components/MissingValue';
 import { useComparison } from '../hooks/useComparison';
@@ -238,9 +239,13 @@ export default function ComparePage() {
         {data && (
           <section className="panel" aria-labelledby="compare-title">
             <header className="border-b border-border px-5 py-3">
-              <h2 id="compare-title" className="m-0 font-display text-lg font-semibold">
-                Comparação de {data.services.length} serviços
-              </h2>
+              {/* O método da estimativa fica no tooltip da etiqueta, não numa frase no rodapé (#272) */}
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                <h2 id="compare-title" className="m-0 font-display text-lg font-semibold">
+                  Comparação de {data.services.length} serviços
+                </h2>
+                <EstimateTag note="Energia e CO₂e somam só as coletas calculadas." />
+              </div>
               <p className="mt-1 mb-0 text-sm text-muted">
                 Período: {formatMoment(data.from)} a {formatMoment(data.to)} ({timeZoneLabel(start)})
               </p>
@@ -294,10 +299,6 @@ export default function ComparePage() {
 
             <CompareChart services={data.services} highlightOf={extremeOf} />
 
-            <p className="m-0 border-t border-border px-5 py-3 text-xs text-muted">
-              Estimativa, não medição: potência calculada a partir de CPU, memória, disco e rede × intervalo da coleta ×
-              intensidade de carbono da região (ADR 0006). Energia e CO₂e somam só as coletas calculadas.
-            </p>
           </section>
         )}
       </main>
