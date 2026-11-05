@@ -1,5 +1,6 @@
 // Funções puras da página Emissões: soma em intervalos, totais, datas do filtro, resumo e formatação.
 
+import { formatQuantity } from './units';
 import type { EmissionPoint, EmissionsBucket, EmissionsTotals } from '../services/emissions.types';
 
 /** Soma de números que podem faltar: null só quando todos faltam (sem cálculo não vira zero). */
@@ -195,11 +196,40 @@ export function missingTimeMs(points: EmissionPoint[], bucket: EmissionsBucket, 
   return missing;
 }
 
-/** Quantas vezes o pico ficou acima da média; null sem cálculo. */
-export function peakRatio(summary: EmissionsSummary): number | null {
-  const peak = summary.peak?.co2eMaxGrams;
-  if (peak == null || summary.meanGrams === null || summary.meanGrams <= 0) return null;
-  return peak / summary.meanGrams;
+/**
+ * Média e maior ponto da série (coletas, ou somas por intervalo), sem o último intervalo ainda aberto: o período
+ * termina em "agora" e a soma dele é parcial. Fonte única para o gráfico, os tiles e a Leitura do período (#271), para
+ * os três dizerem o mesmo número.
+ */
+export interface SeriesStats {
+  openIndex: number | null;
+  /** Pontos com cálculo considerados (sem o intervalo aberto). */
+  count: number;
+  meanGrams: number | null;
+  peakIndex: number | null;
+}
+
+export function seriesStats(points: EmissionPoint[], bucket: EmissionsBucket, toMs: number): SeriesStats {
+  const grouped = bucket !== 'coleta';
+  const stepMs = grouped ? BUCKET_MS[bucket] : (typicalIntervalMs(points) ?? BUCKET_MS.coleta);
+  const openIndex = grouped && points.length > 0 && points[points.length - 1].t + stepMs > toMs ? points.length - 1 : null;
+  let sum = 0;
+  let count = 0;
+  let peakIndex: number | null = null;
+  points.forEach((point, index) => {
+    if (point.co2eGrams === null || index === openIndex) return;
+    sum += point.co2eGrams;
+    count += 1;
+    if (peakIndex === null || point.co2eGrams > (points[peakIndex].co2eGrams as number)) peakIndex = index;
+  });
+  return { openIndex, count, meanGrams: count > 0 ? sum / count : null, peakIndex };
+}
+
+/** Quantas vezes o maior ponto ficou acima da média; null sem cálculo. */
+export function peakRatio(points: EmissionPoint[], stats: SeriesStats): number | null {
+  const peak = stats.peakIndex !== null ? points[stats.peakIndex].co2eGrams : null;
+  if (peak === null || stats.meanGrams === null || stats.meanGrams <= 0) return null;
+  return peak / stats.meanGrams;
 }
 
 /** Quando foi o pico: o horário da coleta, ou o intervalo em que ela caiu. */
@@ -210,19 +240,20 @@ export function formatPeakTime(point: EmissionPoint, bucket: EmissionsBucket): s
 }
 
 /**
- * Leitura do período em frases curtas, para quem precisa decidir sem interpretar o gráfico:
- * quando foi o pico e quanto ele se afasta da média, e quanto tempo ficou sem coleta.
+ * Leitura do período em frases curtas, para quem precisa decidir sem interpretar o gráfico: quando foi o maior ponto e
+ * quanto ele se afasta da média (os mesmos números do gráfico e dos tiles, #271), e quanto tempo ficou sem coleta.
  */
-export function describePeriod(summary: EmissionsSummary, bucket: EmissionsBucket, missingMs: number): string[] {
+export function describePeriod(points: EmissionPoint[], stats: SeriesStats, bucket: EmissionsBucket, missingMs: number): string[] {
   const lines: string[] = [];
-  const ratio = peakRatio(summary);
-  const peak = summary.peak?.co2eMaxGrams;
-  if (summary.peak && peak != null && ratio !== null) {
-    const when = formatPeakTime(summary.peak, bucket);
+  const ratio = peakRatio(points, stats);
+  const peak = stats.peakIndex !== null ? points[stats.peakIndex] : null;
+  if (peak && peak.co2eGrams !== null && ratio !== null) {
+    const when = formatPeakTime(peak, bucket);
+    const where = bucket === 'coleta' ? 'numa coleta' : 'num intervalo';
     lines.push(
       ratio >= 1.5
-        ? `Pico de ${formatGrams(peak)} CO₂e numa coleta em ${when}, ${formatRatio(ratio)} a média do período. Vale ver o que rodou nesse horário.`
-        : `Emissão estável: o pico (${formatGrams(peak)} em ${when}) ficou perto da média.`,
+        ? `Pico de ${formatGrams(peak.co2eGrams)} CO₂e ${where} em ${when}, ${formatRatio(ratio)} a média do período. Vale ver o que rodou nesse horário.`
+        : `Emissão estável: o pico (${formatGrams(peak.co2eGrams)} em ${when}) ficou perto da média.`,
     );
   }
   if (missingMs > 0) {
@@ -296,23 +327,15 @@ export function formatTimeTick(t: number, stepMs: number): string {
 
 // ── Formatação ──────────────────────────────────────────────────────────────
 
-function withUnit(value: number, unit: string): string {
-  return `${value.toLocaleString('pt-BR', { maximumSignificantDigits: 3, minimumSignificantDigits: 1 })} ${unit}`;
-}
 
-/** Gramas de CO₂e com unidade adequada: mg abaixo de 1 g, kg a partir de 1 000 g, t a partir de 1 000 kg. */
+/** Gramas de CO₂e com a unidade da escala única (#271): mg abaixo de 1 g, kg a partir de 1 000 g, t a partir de 1 000 kg. */
 export function formatGrams(grams: number): string {
-  if (grams === 0) return '0 g';
-  if (grams < 1) return withUnit(grams * 1000, 'mg');
-  if (grams < 1000) return withUnit(grams, 'g');
-  if (grams < 1_000_000) return withUnit(grams / 1000, 'kg');
-  return withUnit(grams / 1_000_000, 't');
+  return formatQuantity('co2e', grams);
 }
 
-/** kWh com unidade adequada (Wh abaixo de 1 kWh). */
+/** kWh com a unidade da escala única (#271): mWh abaixo de 1 Wh, Wh abaixo de 1 kWh, MWh a partir de 1 000 kWh. */
 export function formatKwh(kwh: number): string {
-  if (kwh === 0) return '0 kWh';
-  return kwh < 1 ? withUnit(kwh * 1000, 'Wh') : withUnit(kwh, 'kWh');
+  return formatQuantity('energy', kwh);
 }
 
 /** Número curto, sem unidade (eixo do gráfico, intensidade). */

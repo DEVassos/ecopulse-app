@@ -12,10 +12,12 @@ import {
   formatShort,
   formatTimeTick,
   niceTicks,
+  seriesStats,
   timeTicks,
   typicalIntervalMs,
 } from '../utils/emissions';
 import { CHAR_WIDTH, labelBox, labelsOverlap } from '../utils/chart-labels';
+import { scaleFor } from '../utils/units';
 import type { LabelAnchor } from '../utils/chart-labels';
 import './EmissionsChart.css';
 
@@ -118,14 +120,14 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
     [points, grouped, mode],
   );
 
-  // Último intervalo ainda aberto (o período termina em "agora"): soma parcial, fica fora da linha
-  const openIndex = grouped && points.length > 0 && points[points.length - 1].t + stepMs > toMs ? points.length - 1 : null;
-
-  const known = raw.filter((v, i): v is number => v !== null && i !== openIndex);
+  // Média, maior ponto e o último intervalo ainda aberto (soma parcial): a mesma conta dos tiles e da Leitura (#271)
+  const stats = useMemo(() => seriesStats(points, bucket, toMs), [points, bucket, toMs]);
+  const openIndex = stats.openIndex;
   // Com um ponto só, a média seria o próprio ponto e o rótulo cairia em cima do "maior intervalo"
-  const mean = mode === 'intervalo' && known.length > 1 ? known.reduce((a, b) => a + b, 0) / known.length : null;
-  const peakIndex =
-    mode === 'intervalo' && known.length > 0 ? raw.reduce<number>((best, v, i) => (v !== null && i !== openIndex && v > (raw[best] ?? -1) ? i : best), 0) : null;
+  const mean = mode === 'intervalo' && stats.count > 1 ? stats.meanGrams : null;
+  const peakIndex = mode === 'intervalo' ? stats.peakIndex : null;
+  // Unidade do eixo pela escala única: mg quando a série inteira fica abaixo de 1 g (#271)
+  const axisScale = useMemo(() => scaleFor('co2e', values), [values]);
 
   const plotW = Math.max(0, width - MARGIN.left - MARGIN.right);
   const plotH = height - MARGIN.top - MARGIN.bottom;
@@ -305,12 +307,12 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
             <g key={tick}>
               <line className="emissions-chart__grid" x1={MARGIN.left} x2={MARGIN.left + plotW} y1={y(tick)} y2={y(tick)} />
               <text className="emissions-chart__tick" x={MARGIN.left - 8} y={y(tick)} textAnchor="end" dominantBaseline="middle">
-                {formatShort(tick)}
+                {formatShort(tick * axisScale.factor)}
               </text>
             </g>
           ))}
           <text className="emissions-chart__axis-title" transform={`translate(16 ${MARGIN.top + plotH / 2}) rotate(-90)`} textAnchor="middle">
-            {mode === 'acumulado' ? 'g CO₂e acumulado' : `g CO₂e ${unit}`}
+            {mode === 'acumulado' ? `${axisScale.unit} CO₂e acumulado` : `${axisScale.unit} CO₂e ${unit}`}
           </text>
 
           {/* Eixo X */}
