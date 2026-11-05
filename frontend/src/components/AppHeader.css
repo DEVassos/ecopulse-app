@@ -69,21 +69,24 @@
   }
 
   /* Visitante: "Entrar" é a ação principal do cabeçalho (botão cheio, alvo de toque de 44 px) */
-  .btn-login,
-  .btn-login:hover {
+  /* "Entrar" vazado, como o "Sair" (#272): o botão cheio fica só para a ação principal da página (Aplicar, Comparar),
+     e o visitante não vê o login como a coisa mais importante da tela */
+  .btn-login {
     display: inline-flex;
     align-items: center;
     min-height: 44px;
     padding: 10px 16px;
+    border: 1px solid var(--accent);
     border-radius: 8px;
-    background: var(--accent);
-    color: var(--on-accent);
-    font-weight: 600;
+    background: transparent;
+    color: var(--accent);
+    font-weight: 500;
     text-decoration: none;
   }
 
   .btn-login:hover {
-    background: var(--accent-hover);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    color: var(--accent-hover);
   }
 
   /* Com sessão: nome de quem entrou e o botão "Sair" (o .btn-outline de styles/controls.css) */
