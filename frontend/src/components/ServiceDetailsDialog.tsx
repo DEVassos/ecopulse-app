@@ -4,6 +4,7 @@ import { useCollections } from '../hooks/useCollections';
 import { useMonitoring } from '../hooks/useMonitoring';
 import type { MonitoredService } from '../services/services.types';
 import { formatDayTime, formatNumber } from '../utils/format';
+import { statusReasonText } from '../utils/status';
 import CollectionsHistoryTable from './CollectionsHistoryTable';
 import CpuHistoryChart from './CpuHistoryChart';
 import EmptyState from './EmptyState';
@@ -14,12 +15,12 @@ import MissingValue from './MissingValue';
 import StatusBadge from './StatusBadge';
 import './ServiceDetailsDialog.css';
 
-/** `mono` só para número, horário e código (região); nome de lugar fica na fonte de texto. */
-function Detail({ label, children, mono = true }: { label: string; children: ReactNode; mono?: boolean }) {
+/** `data` (algarismos tabulares) só para número, horário e código (região); nome de lugar fica no texto corrido. */
+function Detail({ label, children, data = true }: { label: string; children: ReactNode; data?: boolean }) {
   return (
     <div className="rounded-lg border border-border bg-surface-2 px-4 py-3">
       <dt className="text-xs text-muted">{label}</dt>
-      <dd className={`m-0 mt-1 text-sm ${mono ? 'font-mono' : 'font-sans'}`}>{children}</dd>
+      <dd className={`m-0 mt-1 text-sm ${data ? 'font-data' : 'font-sans'}`}>{children}</dd>
     </div>
   );
 }
@@ -82,10 +83,13 @@ export default function ServiceDetailsDialog({ service, onClose }: Props) {
       </header>
 
       <div className="service-dialog__body flex flex-col gap-5 p-5">
+        {/* Motivo do estado em texto, ao lado da cor do badge (#176) */}
+        {statusReasonText(service) && <p className="m-0 text-sm text-muted">{statusReasonText(service)}</p>}
+
         {/* Duas colunas já no celular: os quatro dados curtos cabem lado a lado e a janela fica mais baixa */}
         <dl className="m-0 grid grid-cols-2 gap-3 min-[800px]:grid-cols-4">
           <Detail label="Região">{service.region ?? <MissingValue label="não informada" title="Região não informada pelo agregador" />}</Detail>
-          <Detail label="Cidade / país" mono={false}>
+          <Detail label="Cidade / país" data={false}>
             {location || <MissingValue label="não informada" title="Localização não informada pelo agregador" />}
           </Detail>
           <Detail label="Última leitura">{service.lastReadingAt === null ? 'nunca' : formatDayTime(service.lastReadingAt)}</Detail>

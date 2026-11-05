@@ -115,9 +115,9 @@ export default function CpuHistoryChart({ collections }: Props) {
         <span className="font-display font-semibold">CPU (%)</span>
         <span className="text-muted">
           {latest.id === last.id ? 'última ' : 'última com CPU '}
-          <strong className="font-mono font-medium text-text">{percent(latest.cpuPercent ?? 0)}</strong>
+          <strong className="font-data font-medium text-text">{percent(latest.cpuPercent ?? 0)}</strong>
           {' · faixa '}
-          <span className="font-mono">
+          <span className="font-data">
             {percent(min)}–{percent(max)}
           </span>
         </span>
@@ -187,11 +187,11 @@ export default function CpuHistoryChart({ collections }: Props) {
         <div className="cpu-chart__tooltip" aria-live="polite" hidden={!active} style={{ left: tooltipLeft }}>
           {active && (
             <>
-              <strong className="flex items-center gap-2 font-mono font-medium text-[var(--tooltip-text)]">
+              <strong className="flex items-center gap-2 font-data font-medium text-[var(--tooltip-text)]">
                 {active.cpuPercent !== null && <span className="cpu-chart__key" aria-hidden="true" />}
                 {readout(active)}
               </strong>
-              <span className="font-mono">{formatDayTime(active.collectedAt)}</span>
+              <span className="font-data">{formatDayTime(active.collectedAt)}</span>
               {active.errorMessage && <span>{active.errorMessage}</span>}
             </>
           )}

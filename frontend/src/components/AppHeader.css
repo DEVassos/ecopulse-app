@@ -17,6 +17,27 @@
     gap: 8px 16px;
   }
 
+  /* Link de pular (#262): fora da tela até receber o foco do teclado; aparece como botão cheio no canto */
+  .skip-link,
+  .skip-link:hover {
+    position: absolute;
+    top: -64px;
+    left: 16px;
+    z-index: 20;
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .skip-link:focus-visible {
+    top: 8px;
+    outline: 2px solid var(--text);
+    outline-offset: 2px;
+  }
+
   .topbar-brand,
   .topbar-brand:hover {
     color: var(--text);
@@ -60,6 +81,9 @@
   }
 
   .topbar-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     order: 1;
     margin-left: auto;
   }

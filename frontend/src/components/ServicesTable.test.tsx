@@ -3,37 +3,77 @@ import { describe, expect, it } from 'vitest';
 import type { MonitoredService, ServiceStatus } from '../services/services.types';
 import ServicesTable from './ServicesTable';
 
-function service(id: string, status: ServiceStatus): MonitoredService {
+function service(id: string, status: ServiceStatus, emissionsG: number, lastReadingAt = new Date().toISOString()): MonitoredService {
   return {
     id,
-    name: `Serviço ${id}`,
-    country: 'Brazil',
-    region: 'Sudeste',
-    city: 'Sao Paulo',
-    cpuPercent: status === 'ativo' ? 40 : null,
-    energyKwh: status === 'ativo' ? 0.0009 : null,
-    emissionsG: status === 'ativo' ? 0.3 : null,
+    name: id,
+    country: 'Brasil',
+    region: 'br-sudeste',
+    city: 'São Paulo',
+    cpuPercent: 50,
+    energyKwh: 0.001,
+    emissionsG,
     status,
-    lastReadingAt: '2026-11-04T22:00:00Z',
+    lastReadingAt,
+    statusReason: null,
   };
 }
 
+/** Célula numérica apagada com o valor dado, qualquer que seja a classe da fonte dos números. */
+const dimmed = (value: string) => new RegExp(`font-[a-z]+ text-muted">${value}`);
+
+/** Nomes dos serviços na ordem das linhas da tabela. */
+function rowOrder(html: string): string[] {
+  return [...html.matchAll(/aria-haspopup="dialog"[^>]*>([^<]+)</g)].map((match) => match[1]);
+}
+
 describe('ServicesTable', () => {
+  it('põe o serviço removido no fim mesmo quando ele tem a maior emissão', () => {
+    const html = renderToStaticMarkup(
+      <ServicesTable
+        services={[service('removido-alto', 'removido', 9), service('ativo-baixo', 'ativo', 1), service('ativo-alto', 'ativo', 5)]}
+        onSelect={() => undefined}
+      />,
+    );
+    expect(rowOrder(html)).toEqual(['ativo-alto', 'ativo-baixo', 'removido-alto']);
+  });
+
+  it('apaga os números da linha removida e mantém os das linhas ativas', () => {
+    const html = renderToStaticMarkup(
+      <ServicesTable services={[service('ativo', 'ativo', 1), service('removido', 'removido', 2)]} onSelect={() => undefined} />,
+    );
+    const [activeRow, removedRow] = html.split('<tr').filter((row) => row.includes('aria-haspopup'));
+    expect(activeRow).not.toMatch(dimmed('50%'));
+    expect(removedRow).toMatch(dimmed('50%'));
+  });
+
+  it('apaga os números de todas as linhas quando a última busca falhou', () => {
+    const html = renderToStaticMarkup(<ServicesTable services={[service('ativo', 'ativo', 1)]} onSelect={() => undefined} stale />);
+    expect(html).toMatch(dimmed('50%'));
+  });
+
+  it('mostra a data na última leitura quando ela não é de hoje', () => {
+    const html = renderToStaticMarkup(
+      <ServicesTable services={[service('antigo', 'ativo', 1, '2026-01-15T12:00:00Z')]} onSelect={() => undefined} />,
+    );
+    expect(html).toMatch(/15\/01 \d{2}:00:00/);
+  });
+
   it('põe a ação de ver o histórico ao lado do selo só de quem tem problema (#272)', () => {
     const html = renderToStaticMarkup(
       <ServicesTable
-        services={[service('a', 'ativo'), service('b', 'indisponivel'), service('c', 'sem_metricas'), service('d', 'removido')]}
-        onSelect={() => {}}
+        services={[service('a', 'ativo', 1), service('b', 'indisponivel', 1), service('c', 'sem_metricas', 1), service('d', 'removido', 1)]}
+        onSelect={() => undefined}
       />,
     );
-    expect(html).toContain('aria-label="Ver histórico de Serviço b"');
-    expect(html).toContain('aria-label="Ver histórico de Serviço c"');
-    expect(html).not.toContain('Ver histórico de Serviço a');
-    expect(html).not.toContain('Ver histórico de Serviço d');
+    expect(html).toContain('aria-label="Ver histórico de b"');
+    expect(html).toContain('aria-label="Ver histórico de c"');
+    expect(html).not.toContain('Ver histórico de a"');
+    expect(html).not.toContain('Ver histórico de d"');
   });
 
-  it('deixa o selo Ativo neutro, com o ponto verde como única cor', () => {
-    const html = renderToStaticMarkup(<ServicesTable services={[service('a', 'ativo')]} onSelect={() => {}} />);
+  it('deixa o selo Ativo neutro, com o ponto verde como única cor (#272)', () => {
+    const html = renderToStaticMarkup(<ServicesTable services={[service('a', 'ativo', 1)]} onSelect={() => undefined} />);
     expect(html).toMatch(/border-border text-muted[^"]*"><span class="size-1\.5 rounded-full bg-primary"/);
   });
 });

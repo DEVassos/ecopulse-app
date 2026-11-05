@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import Brand from './Brand';
+import ThemeToggle from './ThemeToggle';
 import './AuthLayout.css';
 
 interface Props {
@@ -13,6 +14,10 @@ interface Props {
 export default function AuthLayout({ title, description, children }: Props) {
   return (
     <div className="auth-page">
+      {/* O login não tem cabeçalho: o botão de tema fica no canto, como no resto do produto (#265) */}
+      <div className="auth-theme">
+        <ThemeToggle />
+      </div>
       <main className="auth-main">
         <Link className="auth-brand" to="/" aria-label="EcoPulse — voltar ao dashboard">
           <Brand />

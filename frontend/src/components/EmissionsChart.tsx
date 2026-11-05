@@ -284,7 +284,7 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
     peak !== null &&
     mean !== null &&
     labelsOverlap(
-      labelBox(peakText, peak.cx, peak.cy - 14, peakAnchor, CHAR_WIDTH.mono12, 12),
+      labelBox(peakText, peak.cx, peak.cy - 14, peakAnchor, CHAR_WIDTH.data12, 12),
       labelBox(meanText, meanLabelX, y(mean) - 6, 'end', CHAR_WIDTH.sans11, 11),
     );
   const meanLabelY = mean === null ? 0 : meanCollides ? y(mean) + 15 : y(mean) - 6;
@@ -295,7 +295,7 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
     labelObstacles.push(labelBox(meanText, meanLabelX, meanLabelY, 'end', CHAR_WIDTH.sans11, 11));
   }
   if (peak) {
-    const chip = labelBox(peakText, peak.cx, peak.cy - 14, peakAnchor, CHAR_WIDTH.mono12, 12);
+    const chip = labelBox(peakText, peak.cx, peak.cy - 14, peakAnchor, CHAR_WIDTH.data12, 12);
     labelObstacles.push({ left: chip.left - 6, right: chip.right + 6, top: chip.top - 3, bottom: peak.cy + 10 });
   }
   // Embaixo primeiro (no trecho sem coleta não há linha perto do zero), depois no meio e no alto

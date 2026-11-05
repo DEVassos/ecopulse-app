@@ -8,7 +8,8 @@ import MissingValue from './MissingValue';
 import './KpiPanel.css';
 
 interface Props {
-  summary: ServicesSummaryResponse;
+  /** null enquanto a primeira resposta não chega: o painel já ocupa o lugar dele, sem a página pular (#259). */
+  summary: ServicesSummaryResponse | null;
   previousSummary: ServicesSummaryResponse | null;
   comparisonLoading: boolean;
   stale: boolean;
@@ -74,34 +75,48 @@ function formatBrasilia(iso: string): string {
  * nos cards da #21 (KpiPanel); sem cálculo no período, o valor é o traço do MissingValue, nunca zero.
  */
 export default function SummaryPanel({ summary, previousSummary, comparisonLoading, stale }: Props) {
-  const energyChange = variation(summary.energyKwh, previousSummary?.energyKwh ?? null, previousSummary !== null, comparisonLoading);
-  const emissionsChange = variation(summary.co2eGrams, previousSummary?.co2eGrams ?? null, previousSummary !== null, comparisonLoading);
+  // Antes da primeira resposta: reticências e "Calculando…", nunca "—" (que quer dizer "sem cálculo") nem zero
+  const pending = (
+    <span className="text-muted">
+      …<span className="sr-only">calculando</span>
+    </span>
+  );
+  const energyChange = summary
+    ? variation(summary.energyKwh, previousSummary?.energyKwh ?? null, previousSummary !== null, comparisonLoading)
+    : 'Calculando o período…';
+  const emissionsChange = summary
+    ? variation(summary.co2eGrams, previousSummary?.co2eGrams ?? null, previousSummary !== null, comparisonLoading)
+    : 'Calculando o período…';
   const missing = <MissingValue label="sem cálculo" title="Sem cálculo no período" />;
   // Escala única (#271): "841 Wh" em vez de "0,8413 kWh"
-  const energyScale = scaleFor('energy', [summary.energyKwh]);
-  const co2eScale = scaleFor('co2e', [summary.co2eGrams]);
+  const energyScale = scaleFor('energy', [summary?.energyKwh ?? null]);
+  const co2eScale = scaleFor('co2e', [summary?.co2eGrams ?? null]);
   return (
-    <section className="flex flex-col gap-3" aria-labelledby="summary-title">
+    <section className="flex flex-col gap-3" aria-labelledby="summary-title" aria-busy={summary === null}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h2 id="summary-title" className="m-0 font-display text-lg font-semibold">
           Energia e emissões nas últimas 24 h
         </h2>
         {/* Período sempre na tela, com o fuso: os números valem para esta janela */}
-        <p className="m-0 text-sm text-muted">
-          {formatBrasilia(summary.period.from)} a {formatBrasilia(summary.period.to)} (horário de Brasília)
-        </p>
+        {summary && (
+          <p className="m-0 text-sm text-muted">
+            {formatBrasilia(summary.period.from)} a {formatBrasilia(summary.period.to)} (horário de Brasília)
+          </p>
+        )}
       </div>
       <div className="kpis kpis--wide">
         <MetricTile
           label="Energia no período"
           value={
-            summary.energyKwh === null ? (
+            !summary ? (
+              pending
+            ) : summary.energyKwh === null ? (
               missing
             ) : (
               <CompactValue quantity="energy" value={summary.energyKwh} scale={energyScale} label="Energia nas últimas 24 h" />
             )
           }
-          unit={summary.energyKwh === null ? undefined : energyScale.unit}
+          unit={!summary || summary.energyKwh === null ? undefined : energyScale.unit}
           note={energyChange}
           stale={stale}
           icon={
@@ -113,13 +128,15 @@ export default function SummaryPanel({ summary, previousSummary, comparisonLoadi
         <MetricTile
           label="Emissões no período"
           value={
-            summary.co2eGrams === null ? (
+            !summary ? (
+              pending
+            ) : summary.co2eGrams === null ? (
               missing
             ) : (
               <CompactValue quantity="co2e" value={summary.co2eGrams} scale={co2eScale} label="CO₂e nas últimas 24 h" />
             )
           }
-          unit={summary.co2eGrams === null ? undefined : `${co2eScale.unit} CO₂e`}
+          unit={!summary || summary.co2eGrams === null ? undefined : `${co2eScale.unit} CO₂e`}
           note={emissionsChange}
           stale={stale}
           icon={

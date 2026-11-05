@@ -25,9 +25,9 @@
 
   .cpu-chart__axis {
     fill: var(--muted);
-    font-family: var(--mono);
-    font-size: 11px;
+    font-family: var(--sans);
     font-variant-numeric: tabular-nums;
+    font-size: 11px;
   }
 
   .cpu-chart__line {

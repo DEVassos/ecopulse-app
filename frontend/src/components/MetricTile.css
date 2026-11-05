@@ -80,6 +80,26 @@
     color: var(--muted);
   }
 
+  /* Compacto (cerca de 64 px): a linha de estado fica abaixo dos indicadores do período, que são o destaque (#259) */
+  .metric--compact {
+    padding: 8px 14px;
+  }
+
+  .metric--compact .metric-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .metric--compact .metric-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .metric--compact .metric-value {
+    margin-top: 2px;
+    font-size: 22px;
+  }
+
   /* Variação com sinal (#271): energia e CO₂e são métricas em que menos é melhor, então subir é alerta e cair é bom */
   .metric-delta {
     font-weight: 500;

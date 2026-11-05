@@ -83,14 +83,25 @@ Depois da reunião, o cliente analisou o repositório e enviou os apontamentos p
 | Produto | Base de lógica de negócio sólida e propósito bem compreendido; gostou do cuidado com disponibilidade, histórico, estados incompletos e atualização sem apagar os dados anteriores | aceito | nenhuma |
 | Produto | Manter visível a distinção entre o que já funciona e o que está planejado, porque o protótipo tem funções ainda não implementadas | aceito | prática mantida: nada é anunciado antes do merge |
 
+### 3.2 Resposta complementar do cliente (02/11/2026)
+
+Registro do PO a partir da resposta por e-mail de Otávio recebida em 02/11/2026. A resposta integral e a resposta de Henrique estão na [#166, comentário de 02/11](https://github.com/DEVassos/greener-app/issues/166#issuecomment-6589732332).
+
+O cliente esclareceu que a menção à água contextualiza o problema real e **não faz parte do desafio atual**. Disse que dados de água poderiam agregar valor e render pontos extras se usados como referência, mas alertou que o escopo ampliado também será cobrado; recomendou entregar primeiro o que foi descrito e só depois considerar funcionalidades adicionais.
+
+Sobre usabilidade, recomendou avaliar o que o operador precisa ver, se cada informação precisa ocupar aquele espaço na interface, quais filtros de dados devem ficar visíveis e como organizar os recursos para atender aos requisitos. Pediu que o time diferencie dado (unidade mensurável) de informação (dado traduzido em conceito aplicável a um contexto e que agrega valor) e, **caso faça essa distinção**, apresente um overview das informações consolidadas e de por que são úteis. Esse pedido complementa o apontamento de § 3.1 sobre visualizações que parecem "vazias de significado".
+
+**Decisão do PO:** água fica fora do escopo atual e não gera tarefa de implementação nesta sprint. As funcionalidades da Sprint 2 serão demonstradas antes de perguntar novamente sobre direção do produto, indicadores, período e usabilidade: algumas dúvidas podem ser respondidas pela própria entrega. As que permanecerem serão levadas ao cliente na Sprint Review 2; o roteiro está em [planning.md § 8](../sprint-2/planning.md#8-perguntas-de-produto-para-a-sprint-review-2). Qualquer ideia de água fica para depois da entrega principal, como extra opcional, sem compromisso de escopo.
+
 ## 4. Decisões e alterações no backlog
 
 | Decisão | Issue criada ou alterada | Label | Milestone |
 |---|---|---|---|
 | Priorizar a comparação entre serviços e a análise dos dados. Na planning da Sprint 2, o PO decide se antecipa a US09, ranking ([#50](https://github.com/DEVassos/greener-app/issues/50)), e a US11, comparação ([#52](https://github.com/DEVassos/greener-app/issues/52)), hoje previstas para a Sprint 3, e reavalia os diferenciais US12 e US13 | [#159](https://github.com/DEVassos/greener-app/issues/159) | `feedback-cliente`, `RF14`, `RF15` | Sprint 2 |
+| Consumo hídrico não faz parte do desafio atual; priorizar a entrega descrita e avaliar água apenas como extra opcional, sem ampliar o escopo contratado. Após a demonstração da Sprint 2, perguntar ao cliente somente as dúvidas de direção do produto, indicadores, período e usabilidade que a entrega não tiver respondido (§ 3.2 e § 5) | [#166](https://github.com/DEVassos/greener-app/issues/166) | `feedback-cliente` | Sprint 2 |
 | Nenhum critério muda de sprint na review: o denominador da Sprint 1 continua 79 e a autenticação JWT (DW06) segue na Sprint 2 | — | — | — |
 
-Registrado no "Histórico de alterações do plano" em 20/10/2026, no fechamento da Sprint 1 ([#153](https://github.com/DEVassos/greener-app/issues/153)).
+A decisão da review de 19/10 e as mudanças de backlog daquele fechamento foram registradas no Histórico do plano em 20/10 ([#153](https://github.com/DEVassos/greener-app/issues/153)). O complemento recebido em 02/11, sem mudança de critério ou de sprint, foi registrado no Histórico em 02/11.
 
 ## 5. Pendências e perguntas em aberto
 
@@ -98,6 +109,7 @@ Registrado no "Histórico de alterações do plano" em 20/10/2026, no fechamento
 |---|---|---|
 | Atender os apontamentos escritos do cliente (seção 3.1), exigidos a partir da Sprint 2: [#160](https://github.com/DEVassos/greener-app/issues/160), [#161](https://github.com/DEVassos/greener-app/issues/161), [#162](https://github.com/DEVassos/greener-app/issues/162), [#163](https://github.com/DEVassos/greener-app/issues/163), [#164](https://github.com/DEVassos/greener-app/issues/164), [#165](https://github.com/DEVassos/greener-app/issues/165) e [#166](https://github.com/DEVassos/greener-app/issues/166) | responsável de cada issue | Sprint 2 |
 | Decidir a priorização de ranking e comparação ([#159](https://github.com/DEVassos/greener-app/issues/159)) | @henriqueptbd-cell | 21/10 |
+| Depois da demonstração da Sprint 2, confirmar com o cliente se ranking, comparação e interface respondem às perguntas de produto que a entrega ainda não tiver resolvido: decisão para o operador, indicadores, período, informações que precisam de espaço na UI, filtros visíveis e organização dos recursos. Fazer as perguntas restantes, registrar o retorno na review da Sprint 2 e abrir acompanhamento para a Sprint 3 se necessário (§ 3.2; roteiro em [planning.md § 8](../sprint-2/planning.md#8-perguntas-de-produto-para-a-sprint-review-2)) | @henriqueptbd-cell | Review da Sprint 2 (09/11, horário a confirmar) |
 
 ## 6. Encaminhamentos pós-review (≤24h)
 
@@ -106,5 +118,6 @@ Registrado no "Histórico de alterações do plano" em 20/10/2026, no fechamento
 - [x] Apontamentos escritos do cliente registrados na seção 3.1 e transformados em issues `feedback-cliente` na milestone Sprint 2 (@travensolli, 20/10)
 - [x] Seção Review de `docs/sprints/sprint-1.md` e "Histórico de alterações do plano" atualizados (@travensolli, 20/10), com a Situação de cada critério verificada pelo PO na revisão do PR de fechamento
 - [x] Participação consolidada em [contribuicao.md](contribuicao.md) e backlog e burndown finais exportados (20/10)
+- [x] Resposta complementar de 02/11 registrada com fidelidade; perguntas de produto ainda abertas encaminhadas para depois da demonstração da Sprint 2 (@henriqueptbd-cell, 02/11)
 
 O merge da `release/sprint-1` em `main`, a tag `sprint-1` e a GitHub Release são feitos logo depois deste registro, pela [#153](https://github.com/DEVassos/greener-app/issues/153).

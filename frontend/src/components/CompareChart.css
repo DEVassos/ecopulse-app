@@ -15,9 +15,9 @@
 
   .compare-chart__value {
     fill: var(--text);
-    font-family: var(--mono);
-    font-size: 12px;
+    font-family: var(--sans);
     font-variant-numeric: tabular-nums;
+    font-size: 12px;
   }
 
   .compare-chart__value--missing {
