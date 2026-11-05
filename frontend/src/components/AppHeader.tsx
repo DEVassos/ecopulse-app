@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, NavLink, useLocation } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
+import { useTheme } from '../hooks/useTheme';
 import Brand from './Brand';
 import ThemeToggle from './ThemeToggle';
 import './AppHeader.css';
@@ -98,6 +99,7 @@ function MobileMenu() {
   const [openAt, setOpenAt] = useState<string | null>(null);
   const open = openAt === pathname;
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!open) return;
@@ -131,14 +133,21 @@ function MobileMenu() {
       {open && (
         <>
           <div className="mobile-menu__scrim" aria-hidden="true" onClick={() => setOpenAt(null)} />
-          <nav id="menu-grade" className="mobile-menu__grid" aria-label="Principal">
-            {PAGES.map((page) => (
-              <NavLink key={page.to} to={page.to} end={page.end} onClick={() => setOpenAt(null)}>
-                {page.icon}
-                {page.label}
-              </NavLink>
-            ))}
-          </nav>
+          <div id="menu-grade" className="mobile-menu__panel">
+            <nav className="mobile-menu__grid" aria-label="Principal">
+              {PAGES.map((page) => (
+                <NavLink key={page.to} to={page.to} end={page.end} onClick={() => setOpenAt(null)}>
+                  {page.icon}
+                  {page.label}
+                </NavLink>
+              ))}
+            </nav>
+            {/* No celular o tema mora aqui (#265 + #274): na linha da marca, Menu e Entrar já ocupam a largura toda */}
+            <div className="mobile-menu__theme">
+              <span>{theme === 'dark' ? 'Tema escuro' : 'Tema claro'}</span>
+              <ThemeToggle />
+            </div>
+          </div>
         </>
       )}
     </div>
@@ -189,7 +198,10 @@ export default function AppHeader({ children, updatedAt }: Props) {
           {children && <div className="topbar-status">{children}</div>}
           {/* Tema junto do Entrar/Sair: as duas ações da pessoa, não da página (#265) */}
           <div className="topbar-user">
-            <ThemeToggle />
+            {/* Abaixo de 600 px, o tema vai para o painel do Menu */}
+            <span className="topbar-theme">
+              <ThemeToggle />
+            </span>
             <UserMenu />
           </div>
         </div>

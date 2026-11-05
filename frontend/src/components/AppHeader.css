@@ -137,6 +137,10 @@
    * Celular (#274): abaixo de 600 px, a faixa do menu some e o botão "Menu" abre uma grade de duas colunas, logo abaixo
    * do cabeçalho, sobre o fundo apagado. A partir de 600 px as quatro páginas cabem na faixa, sem rolar de lado.
    */
+  .topbar-theme {
+    display: flex;
+  }
+
   .mobile-menu {
     display: none;
   }
@@ -159,6 +163,10 @@
 
     .topbar-user {
       margin-left: 0;
+    }
+
+    .topbar-theme {
+      display: none;
     }
   }
 
@@ -208,19 +216,35 @@
     background: color-mix(in srgb, var(--bg) 70%, transparent);
   }
 
-  .mobile-menu__grid {
+  .mobile-menu__panel {
     position: absolute;
     top: 100%;
     right: 0;
     left: 0;
     z-index: 41;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
     padding: 12px 16px 16px;
     border-bottom: 1px solid var(--border);
     background: var(--surface-2);
     box-shadow: 0 18px 30px -20px rgb(0 0 0 / 0.6);
+  }
+
+  .mobile-menu__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  /* Tema no celular: o nome do tema atual e o mesmo botão do cabeçalho largo */
+  .mobile-menu__theme {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    color: var(--text-2);
+    font-size: 14px;
   }
 
   /* Ícone sobre o rótulo, alvo de toque bem maior que 44 px; o item atual com o mesmo verde da faixa */
@@ -249,7 +273,7 @@
   }
 
   @media (prefers-reduced-motion: no-preference) {
-    .mobile-menu__grid {
+    .mobile-menu__panel {
       animation: mobile-menu-in 160ms ease-out;
     }
   }
