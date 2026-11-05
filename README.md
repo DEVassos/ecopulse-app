@@ -52,19 +52,19 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   ![Tabela de serviços monitorados com o backend real](docs/img/sprint-2-dashboard-backend-real.png)
 
-  _Tabela ligada ao backend real (`docker compose`) em 04/11/2026, numa janela de 1366×657: ordem inicial por gravidade, status logo depois do nome, energia e emissão da última leitura com casas fixas (kWh com 5, g com 3) e 6 das 8 linhas visíveis sem rolar, abaixo dos indicadores do período e dos cards de estado (#203, #259)._
+  _Tabela ligada ao backend real (`docker compose`, banco novo) em 05/11/2026, numa janela de 1366×657: ordem inicial por gravidade, status logo depois do nome com o selo Ativo neutro (#272), energia (Wh) e emissão (mg CO₂e) da última leitura numa unidade só por coluna, indicada no cabeçalho (#271), e seis linhas visíveis sem rolar (#259)._
 
 - **RF08, RF09 — Cards de estado dos serviços (#21, PR #202):** entre os indicadores do período e a tabela, cards compactos com o total de serviços monitorados e quantos estão ativos, indisponíveis e sem métricas, contados na mesma resposta de `GET /api/services` e atualizados no mesmo ciclo. Os removidos ficam fora do total, e a cor só aparece quando há serviços naquele estado. Sem dados, os cards não aparecem; numa falha, mantêm o último dado, apagado, com "Desatualizado desde …".
 
   ![Cards de estado entre os indicadores do período e a tabela de serviços](docs/img/sprint-2-kpis.png)
 
-  _Dashboard com o backend real (`docker compose`) em 04/11/2026: os 8 serviços ativos, e Indisponíveis e Sem métricas zerados, sem cor, nos cards compactos abaixo dos indicadores do período (#259)._
+  _Dashboard com o backend real (`docker compose`, banco novo) em 05/11/2026: 7 serviços ativos, sem contar 1 removido, e Indisponíveis e Sem métricas zerados, nos cards compactos abaixo dos indicadores do período (#259). Nenhum card tem cor: Ativos é estado saudável e fica neutro, e os outros dois só ganham cor com contagem acima de zero (#272)._
 
 - **RF08 — Indicadores agregados e comparação por período (#175, PR #215):** no topo do dashboard, logo abaixo do cabeçalho (#259), a tela mostra a energia e o CO₂e das últimas 24 h, na unidade que o valor pede (Wh ou kWh, mg ou g), com o período em horário de Brasília, e a variação contra as 24 h anteriores: ▲ em laranja quando subiu, ▼ em verde quando caiu e ±0% em cinza (#271). Sem cálculo no período, o valor é "—", nunca zero; sem base para a variação, a nota é "—" e o motivo fica no tooltip. A API usa `GET /api/services/summary?from=&to=`, documentada em [docs/api.md](docs/api.md).
 
   ![Indicadores agregados com comparação às 24 h anteriores](docs/img/sprint-2-indicadores-agregados.png)
 
-  _Dashboard com o backend real (`docker compose`) em 04/11/2026, 1h42: 0,2884 kWh e 69,78 g CO₂e nas últimas 24 h, com o banco coletando havia cerca de 4 h. Não há cálculo nas 24 h anteriores, então os cards dizem "Sem cálculo no período anterior" em vez de uma variação. Ícones de linha nos dois cards (#258); impacto no topo (#259)._
+  _Dashboard com o backend real (`docker compose`) em 05/11/2026, 20h36, com o banco coletando havia cerca de 15 min: 85,7 Wh e 21,3 g CO₂e nas últimas 24 h, na unidade que o valor pede (#271). Não há cálculo nas 24 h anteriores, então a variação aparece como "—", com o motivo no tooltip._
 
 - **RNF02 — Indicador de última atualização (#89):** selo no cabeçalho com o horário da última busca bem-sucedida e um ponto verde pulsando enquanto os dados estão em dia; se uma busca falha, ele fica laranja e passa a dizer "Desatualizado desde …", sem apagar os dados da tela.
 
@@ -100,7 +100,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   ![Comparação de quatro serviços com o backend real](docs/img/sprint-2-comparacao.png)
 
-  _Quatro serviços comparados com o backend real (`docker compose`) no dia 22/10/2026: Recommendation AI gastou mais energia (0,7758 kWh), mas Fraud Detector emitiu mais CO₂e (268,97 g), porque a região dele tem intensidade de carbono maior; Inventory Sync teve o menor CO₂e (15,06 g)._
+  _Quatro serviços comparados com o backend real (`docker compose`) no dia 04/11/2026, escolhido no seletor de período (#273): Recommendation AI gastou mais energia (294 Wh), mas Fraud Detector emitiu mais CO₂e (103 g), porque a região dele tem intensidade de carbono maior; Inventory Sync teve o menor CO₂e (6 g). Energia em ciano e CO₂e em verde, com só o maior CO₂e em laranja (#274)._
 
 - **RNF05, DW07 — Execução com Docker (#91, #113, #81):** backend, frontend (nginx) e PostgreSQL sobem juntos por `docker compose up --build`, com volume persistente para o banco e todas as variáveis documentadas em [.env.example](.env.example) (#82). Passo a passo no [README](#8-como-executar).
 
@@ -110,7 +110,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   ![Dashboard no celular com a emissão sob o nome de cada serviço](docs/img/sprint-3-dashboard-celular.png)
 
-  _Dashboard com o backend real (`docker compose`) em 04/11/2026, numa tela de 390 px: cada serviço mostra a emissão da última leitura sob o nome (Fraud Detector, 0,449 g CO₂e), e a borda direita da tabela indica as colunas que faltam._
+  _Dashboard com o backend real (`docker compose`) em 05/11/2026, numa tela de 390 px: o botão **Menu** no lugar da faixa do menu (#274) e, em cada serviço, a emissão da última leitura sob o nome (Recommendation AI, 383 mg CO₂e); a borda direita da tabela indica as colunas que faltam (#263)._
 
 - **RNF01 — Fundo azul, verde nos destaques e logo pulsante (#180, PR #184):** a base da paleta voltou ao azul-escuro e o verde ficou só em ações e destaques (botão vazado nas ações secundárias, item ativo do menu, neon no que pede atenção), em resposta ao feedback da Sprint Review 1. O logo pulsa uma vez a cada atualização bem-sucedida dos dados, como sinal de "ao vivo", e fica parado em falha ou com "reduzir movimento". Regras e contrastes em [docs/identidade-visual.md](docs/identidade-visual.md).
 
