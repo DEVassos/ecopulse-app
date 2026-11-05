@@ -42,7 +42,9 @@ function variation(current: number | null, previous: number | null, hasPreviousP
     );
   }
   const up = percent > 0;
-  const size = up && percent > 999 ? '10×+' : `${formatNumber(Math.abs(percent), 1)}%`;
+  // Uma casa só abaixo de 100%: "▲ 880%" basta para decidir; o valor exato fica no tooltip
+  const magnitude = Math.abs(percent);
+  const size = up && percent > 999 ? '10×+' : `${formatNumber(magnitude, magnitude >= 100 ? 0 : 1)}%`;
   return (
     <span title={exact}>
       <span className={`metric-delta ${up ? 'metric-delta--worse' : 'metric-delta--better'}`}>
