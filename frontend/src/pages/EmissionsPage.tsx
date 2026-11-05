@@ -1,14 +1,13 @@
 import { useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import AppHeader from '../components/AppHeader';
-import DateField from '../components/DateField';
 import EmissionsChart from '../components/EmissionsChart';
 import type { EmissionsChartMode } from '../components/EmissionsChart';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import LastUpdated from '../components/LastUpdated';
 import LoadingState from '../components/LoadingState';
+import PeriodPicker from '../components/PeriodPicker';
 import { useEmissions } from '../hooks/useEmissions';
 import { useMonitoring } from '../hooks/useMonitoring';
 import { useServices } from '../hooks/useServices';
@@ -31,7 +30,6 @@ import {
   peakRatio,
   periodMs,
   readPeriodFilter,
-  shiftInputDate,
   spanDays,
   summarize,
   timeZoneLabel,
@@ -63,21 +61,9 @@ export default function EmissionsPage() {
   const urlService = params.get('servico');
   const service = services.find((item) => item.id === urlService) ?? services[0] ?? null;
 
-  // Datas digitadas: a busca só sai com "Aplicar"
-  const [draftStart, setDraftStart] = useState(start);
-  const [draftEnd, setDraftEnd] = useState(end);
   const [bucket, setBucket] = useState<EmissionsBucket | null>(null);
   const [mode, setMode] = useState<EmissionsChartMode>('intervalo');
   const [formError, setFormError] = useState('');
-
-  // A URL também muda pelo "voltar" do navegador: os campos acompanham (ajuste na renderização, sem efeito)
-  const urlPeriod = `${start}|${end}`;
-  const [formPeriod, setFormPeriod] = useState(urlPeriod);
-  if (formPeriod !== urlPeriod) {
-    setFormPeriod(urlPeriod);
-    setDraftStart(start);
-    setDraftEnd(end);
-  }
 
   const { data, period, loading, error, updatedAt, refresh } = useEmissions({
     serviceId: service?.id ?? null,
@@ -107,8 +93,8 @@ export default function EmissionsPage() {
     setParams(next);
   }
 
+  /** Período escolhido no seletor (#273), que já só deixa escolher períodos válidos; a checagem fica como defesa. */
   function apply(nextStart: string, nextEnd: string) {
-    if (nextStart === '' || nextEnd === '') return setFormError('Preencha as duas datas no formato DD/MM/AAAA.');
     if (nextStart > nextEnd) return setFormError('A data inicial deve ser anterior ou igual à data final.');
     if (nextEnd > today) return setFormError('A data final não pode estar no futuro.');
     if (spanDays(nextStart, nextEnd) > MAX_SPAN_DAYS) return setFormError(`Escolha um período de até ${MAX_SPAN_DAYS} dias.`);
@@ -117,26 +103,12 @@ export default function EmissionsPage() {
     updateUrl({ de: nextStart, ate: nextEnd, tempo: null });
   }
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    // No tempo real o período é sempre hoje: "Aplicar" só busca de novo, sem esperar o intervalo
-    if (live) return refresh();
-    apply(draftStart, draftEnd);
-  }
-
-  /** ◀ ▶: desloca o período inteiro pelo seu próprio tamanho (um dia, por padrão). */
-  function shift(direction: -1 | 1) {
-    const days = spanDays(start, end) * direction;
-    apply(shiftInputDate(start, days), shiftInputDate(end, days));
-  }
-
   function toggleLive() {
     setFormError('');
     if (live) return updateUrl({ tempo: null });
     updateUrl({ de: today, ate: today, tempo: 'real' });
   }
 
-  const canGoForward = !live && shiftInputDate(end, spanDays(start, end)) <= today;
   const periodLabel = start === end ? formatInputDate(start) : `${formatInputDate(start)} a ${formatInputDate(end)}`;
   const noCalculation = totals !== null && totals.collections > 0 && totals.co2eGrams === null;
   // A última busca falhou: o resumo na tela é o da busca anterior e fica apagado, como os cards do dashboard (#202)
@@ -167,8 +139,9 @@ export default function EmissionsPage() {
 
         {service && (
           <section className="emissions" aria-labelledby="emissions-title">
-            {/* Barra em grupos (#267): o quê (serviço) · quando (período, com ◀ ▶ e Aplicar juntos) · como agrupar · tempo real */}
-            <form className="emissions__filters panel" onSubmit={handleSubmit}>
+            {/* Barra em grupos (#267): o quê (serviço) · quando (seletor de período, #273) · como agrupar · tempo real.
+                Cada controle vale na hora, sem botão de enviar */}
+            <div className="emissions__filters panel" role="group" aria-label="Filtros">
               <label className="emissions__field emissions__field--service">
                 <span>Serviço</span>
                 <select value={service.id} onChange={(event) => updateUrl({ servico: event.target.value })}>
@@ -182,35 +155,15 @@ export default function EmissionsPage() {
               </label>
               <fieldset className="emissions__period">
                 <legend>Período</legend>
-                <div className="emissions__period-row">
-                  <button type="button" className="emissions__btn emissions__btn--icon" onClick={() => shift(-1)} aria-label="Período anterior" title="Período anterior">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4"><path d="m15 18-6-6 6-6" /></svg>
-                  </button>
-                  <div className="emissions__dates">
-                    <div className="emissions__field">
-                      <DateField value={draftStart} onChange={setDraftStart} label="Data inicial" max={today} disabled={live} />
-                    </div>
-                    <span className="emissions__until" aria-hidden="true">
-                      até
-                    </span>
-                    <div className="emissions__field">
-                      <DateField value={draftEnd} onChange={setDraftEnd} label="Data final" max={today} disabled={live} />
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="emissions__btn emissions__btn--icon"
-                    onClick={() => shift(1)}
-                    disabled={!canGoForward}
-                    aria-label="Próximo período"
-                    title="Próximo período"
-                  >
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4"><path d="m9 18 6-6-6-6" /></svg>
-                  </button>
-                  <button type="submit" className="emissions__btn emissions__btn--primary" aria-disabled={loading}>
-                    Aplicar
-                  </button>
-                </div>
+                <PeriodPicker
+                  start={start}
+                  end={end}
+                  today={today}
+                  maxDays={MAX_SPAN_DAYS}
+                  onChange={apply}
+                  disabled={live}
+                  disabledReason="O tempo real acompanha o dia de hoje: desligue-o para escolher outro período"
+                />
               </fieldset>
               <label className="emissions__field">
                 <span>Agrupar por</span>
@@ -242,7 +195,7 @@ export default function EmissionsPage() {
                   {formError}
                 </p>
               )}
-            </form>
+            </div>
 
             <div className="emissions__card panel">
               <header className="emissions__header">
