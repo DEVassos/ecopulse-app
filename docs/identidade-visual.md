@@ -63,6 +63,24 @@ O `:root` declara `color-scheme: dark` (#258): caixas de seleção, selects, cal
 
 No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg-surface-3`, `border-border`, `text-text`, `text-muted`, `text-faint`, `text-primary` (`--accent`), `text-primary-hover` (`--accent-hover`), `text-secondary` (`--sky`), `text-brand` (`--yellow`), `text-warning`, `text-error` e `text-danger` (`--danger`), além das variantes `bg-*` e `border-*` de cada uma. Os demais tokens de apoio são usados pelo CSS dos componentes, com `var(--token)`.
 
+### Tema claro (#265)
+
+O botão de sol/lua do cabeçalho (e do canto do login) alterna o tema claro e o escuro. Na primeira visita vale a preferência do sistema (`prefers-color-scheme`); depois do clique, a escolha fica no `localStorage` (`ecopulse-theme`). O `index.html` aplica o atributo `data-theme` no `<html>` antes da primeira pintura, para não piscar o tema errado. O tema claro remapeia os mesmos papéis em `:root[data-theme='light']`, em `global.css`, e não é o escuro invertido. Os componentes não têm cor própria.
+
+| Token CSS | Claro | Uso | Contraste (pior caso entre fundo, superfície e superfície 2) |
+| :--- | :--- | :--- | :--- |
+| `--bg` / `--surface` / `--surface-2` / `--surface-3` | `#F4F6FA` / `#FFFFFF` / `#EEF2F7` / `#E2E8F0` | Fundo, cards e painéis, cabeçalho e campos, selos neutros | — |
+| `--border` | `#D3DBE6` | Bordas e divisórias | — |
+| `--text` / `--text-2` / `--muted` | `#0F172A` / `#334155` / `#526072` | Texto, texto de apoio, rótulos | 15,9:1 / 9,2:1 / 5,7:1 |
+| `--faint` | `#94A3B8` | Só decoração | 2,3:1 |
+| `--accent` / `--accent-hover` / `--on-accent` | `#047857` / `#065F46` / `#FFFFFF` | Ação principal e item ativo; texto branco no botão cheio | 4,9:1 / 6,8:1 / 5,5:1 sobre `--accent` |
+| `--sky` / `--sky-hover` | `#0369A1` / `#075985` | Links, foco, dado secundário | 5,3:1 / 6,7:1 |
+| `--yellow` | `#A87700` | Só o "Pulse" do logo (texto grande) | 3,5:1 |
+| `--warning` / `--error` / `--danger` | `#A8380B` / `#DC2626` / `#B91C1C` | Alerta; erro em borda e ícone; texto de erro | 5,6:1 (também sobre o fundo tingido de alerta) / 4,3:1 / 5,8:1 |
+| `--neon` / `--neon-text` | `#009966` / `#00754E` | Neon de gráfico (ponto, barra, brilho); texto no papel do neon | 3,3:1 / 5,1:1 |
+
+No tema escuro, `--neon-text` é o próprio `--neon`. Os dois só se separam no claro, porque o verde-neon de gráfico não passa no AA como texto. O fundo atrás da janela de detalhes vira o token `--scrim`: no escuro, o fundo a 80%; no claro, um cinza-azulado translúcido.
+
 ---
 
 ## 3. Diretrizes de Interface e Componentes
@@ -72,10 +90,19 @@ No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg
 * Bordas sutis e cantos arredondados para manter uma aparência limpa e profissional.
 * Os ícones dos cards são SVG de linha 24×24, com o mesmo traço (`metricIconProps`, em `MetricTile.tsx`), na cor do tom do card. Caractere ou emoji não serve de ícone (#258).
 * O número isolado de um card (estado, indicadores do período, resumo da página Emissões) usa `--sans` semibold, não a fonte de título.
+* No dashboard, o impacto vem primeiro (#259): os indicadores de energia e CO₂e do período ficam no topo, com o número em 28 px. Os cards de estado vêm logo abaixo, na versão compacta do `MetricTile` (cerca de 64 px, número em 22 px).
 
 ### Botões
+* Alvo de toque: pelo menos 24×24 px em qualquer botão, e 44 px nas ações do cabeçalho e dos formulários (#262).
 * **Botão cheio** (ação principal da tela, ex.: "Entrar"): fundo `--accent`, texto `--on-accent`. O texto fica escuro porque o branco sobre o verde dá 2,5:1 e reprova no AA.
 * **Botão vazado** (ações secundárias, ex.: "Tentar novamente", "Atualizar agora"): classe `.btn-outline` (`frontend/src/styles/controls.css`), fundo transparente, borda e texto `--accent`; no hover, `--accent` a 10% no fundo e texto `--accent-hover`.
+
+### Filtros (#267)
+* Os filtros ficam numa barra em grupos, na ordem da pergunta: **o quê** (serviço), **quando** (período, com ◀ ▶ e **Aplicar** juntos das datas que eles mudam) e **como** (agrupamento). Na página Emissões, o **Tempo real** fica à direita. A partir de 960 px a barra é uma faixa só; abaixo disso, um grupo por linha, na mesma ordem.
+* O que só muda a forma de exibir, como "Por intervalo / Acumulado", fica no card do gráfico em que age, e não na barra de filtros.
+* Escolha múltipla de serviços em chips: botão com `aria-pressed`, nome, região em `--muted` e um lugar fixo para o ✓. Marcado: borda `--accent` e fundo `--accent` a 10%. Acima dos chips, a contagem ("N de 10 selecionados") e **Limpar**.
+* Ícones de navegação (◀ ▶) são SVG, nunca caracteres.
+* Datas sempre em DD/MM/AAAA, com algarismos tabulares e o ícone de calendário dentro do campo, à direita (`DateField`). O campo nativo de data não é usado à vista, porque segue o idioma do navegador.
 
 ### Item ativo (menu do topo)
 * Fundo `--accent` a 15%, borda `--accent` e texto `--accent-hover` em negrito. Os demais itens ficam em `--muted` e passam a `--text` no hover. A borda é uma `border` de 1 px (transparente nos itens inativos), para continuar visível no alto contraste do sistema.
@@ -89,15 +116,15 @@ No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg
 * Na comparação entre serviços (`CompareChart`, #218), as barras não são ranking: ficam em `--sky` sobre trilho em `--border`, e no CO₂e o menor vai em `--accent-hover` e o maior em `--warning`, os mesmos tons do destaque da tabela, sempre com a seta "↓"/"↑" e a legenda.
 
 ### Tipografia
-* Tipografia limpa e sem serifa otimizada para painéis de dados (Dashboards), em três famílias do Google Fonts carregadas em `frontend/index.html`:
+* Tipografia limpa e sem serifa otimizada para painéis de dados (Dashboards), em duas famílias do Google Fonts carregadas em `frontend/index.html` (IBM Plex Sans e Space Grotesk):
 
 | Token CSS | Família | Pesos | Uso |
 | :--- | :--- | :--- | :--- |
 | `--sans` | IBM Plex Sans | 400, 500, 600 | Texto corrido, tabelas, botões e menus; fonte padrão da página, em 15 px |
-| `--mono` | IBM Plex Mono | 400, 500 | Valores numéricos e códigos: CPU, energia, emissão e horário da última leitura (alinhados à direita) e o código da região na tabela de serviços. Nome de lugar (cidade, país) fica em `--sans` |
+| `--sans` + `tabular-nums` | IBM Plex Sans | 400, 500 | Números de dados (#266): CPU, energia, emissão, horários, eixos e rótulos dos gráficos e a matriz da comparação, alinhados à direita, com a classe `font-data` (`global.css`). Os algarismos tabulares têm a mesma largura, então as vírgulas ficam alinhadas sem fonte mono. Nome de lugar (cidade, país) fica sem `tabular-nums`. A IBM Plex Mono saiu do projeto: tinha cara de terminal para a interface |
 | `--display` | Space Grotesk | 500, 600, 700 | Logotipo e títulos de página e de seção |
 
-* Contraste rigoroso entre o texto cinza-claro (`#E2E8F0`) e o fundo azul-noite (`#0B1220`), de 15,2:1, e a superfície (`#131C2E`), de 13,8:1, para garantir conforto visual em monitoramento prolongado. Texto pequeno usa no mínimo `--muted` (`#94A3B8`).
+* Contraste rigoroso entre o texto cinza-claro (`#E2E8F0`) e o fundo azul-noite (`#0B1220`), de 15,2:1, e a superfície (`#131C2E`), de 13,8:1, para garantir conforto visual em monitoramento prolongado. Texto pequeno usa no mínimo `--muted` (`#94A3B8`). Isso vale também para o placeholder dos campos (#262). O menor tamanho de texto é 12 px.
 
 ### Responsividade (Mobile First)
 * Em telas menores (dispositivos móveis), o layout se reorganiza em uma única coluna fluida:
@@ -107,6 +134,8 @@ No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg
   4. Ranking de consumo ao final da página.
 * Cabeçalho abaixo de 961 px (#258): três linhas, sem esconder nada. A primeira tem a marca e **Entrar**/**Sair**, a segunda o menu (que rola na horizontal) e a terceira a "Última atualização" com o botão de atualizar. Na tela larga, tudo fica numa linha só.
 * Os cards de energia e emissões do período ficam em uma coluna no celular, para o valor e a unidade ("g CO₂e") caberem na mesma linha.
+* Tabela de serviços abaixo de 600 px (#263): a emissão da última leitura aparece também sob o nome, em `--mono` 12 px e `--muted`. Toda área com rolagem horizontal (tabela de serviços, matriz da Comparação) mostra uma sombra interna em `--bg` na borda direita enquanto há colunas escondidas (`.scroll-edge`). É um sinal de estado, não elevação, e some quando a rolagem chega ao fim.
+* O menu do topo rola até o item ativo ao abrir cada página, e o selo de atualização não quebra o horário nem o intervalo no meio.
 * Energia e CO₂e aparecem na unidade que o valor pede (Wh, kWh, mg, g…), uma só por coluna, linha ou eixo, com a unidade no cabeçalho (#271); a regra está em [frontend/README.md](../frontend/README.md#unidades-de-energia-e-emissão-271).
 
 ---

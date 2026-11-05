@@ -6,9 +6,24 @@ Decisões e fontes do modelo em [`integracao-modelagem-banco.md`](../docs/arquit
 
 ## Arquivos e ordem
 
-`database/schema.sql` é a fonte única do modelo: services, users, collections e access_entries, constraints, índices e comentários em uma transação. Exige PostgreSQL 14 ou superior (numeric com valores especiais nos CHECKs); o compose usa `postgres:16-alpine`. Depois dele, `zz-seed-admin.sh` cria o administrador inicial usando `ADMIN_EMAIL` e `ADMIN_PASSWORD` do ambiente: a senha de cada instalação não é versionada nem gravada em texto puro; o `.env.example` contém apenas valores de desenvolvimento.
+`database/schema.sql` é a fonte única do modelo: services, users, collections, access_entries e monitoring_settings, constraints, índices e comentários em uma transação. Exige PostgreSQL 14 ou superior (numeric com valores especiais nos CHECKs); o compose usa `postgres:16-alpine`. Depois dele, `zz-seed-admin.sh` cria o administrador inicial usando `ADMIN_EMAIL` e `ADMIN_PASSWORD` do ambiente: a senha de cada instalação não é versionada nem gravada em texto puro; o `.env.example` contém apenas valores de desenvolvimento.
 
-## Execução pelo compose (#27)
+## Configuração de monitoramento (#250)
+
+`monitoring_settings` acrescenta a configuração de atualização da tela: `id smallint` PK com `CHECK(id=1)`, `refresh_interval_seconds integer NOT NULL` limitado a 15/30/60, `updated_at timestamptz NOT NULL DEFAULT now()`. Sem `updated_by`. A tabela começa vazia; o GET não grava o padrão 30 s, e o primeiro PUT cria a única linha. O worker não usa essa configuração.
+
+Banco vazio: `schema.sql` cria também essa quinta tabela. O entrypoint não percorre `migrations/`; em volumes existentes, faça backup e aplique explicitamente a migração aditiva, sem apagar o volume ou reaplicar seeds:
+
+```bash
+docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/migrations/001-monitoring-settings.sql'
+docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "TABLE monitoring_settings;"'
+```
+
+O uso de `sh -c` evita a conversão de caminhos do Git Bash. Esperado antes do primeiro PUT: zero linhas. Após um PUT válido: uma linha, `id=1`, com intervalo salvo. Reaplicar a migração preserva essa linha e os dados das quatro tabelas anteriores. Ela é transacional e verifica tipos, nulabilidade, default, PK e CHECKs da estrutura já existente; estrutura divergente provoca erro, sem conversão ou remoção automática. Não use `down -v` para atualizar banco populado.
+
+Verificação em infraestrutura exclusiva: aplicar em banco vazio e populado, reaplicar, conferir dados anteriores e configuração preservados; rejeitar `id=2` e intervalo 120; reiniciar somente o projeto exclusivo e repetir GET. A aplicação não executa migrações automaticamente: tabela ausente resulta em erro de banco na rota.
+
+## Inicialização pelo compose (#27)
 
 A execução oficial é exclusivamente Docker (RP04, ADR 0003). O serviço `postgres` do [`compose.yaml`](../compose.yaml):
 
@@ -30,7 +45,7 @@ docker compose exec postgres psql -U ecopulse -d ecopulse_db -c '\dt'
 docker compose exec postgres psql -U ecopulse -d ecopulse_db -c 'SELECT count(*) FROM collections;'
 ```
 
-Esperado: as quatro tabelas (`access_entries`, `collections`, `services`, `users`), a contagem do histórico e um único administrador. No log (`docker compose logs postgres`) aparecem `running /docker-entrypoint-initdb.d/schema.sql` e `running /docker-entrypoint-initdb.d/zz-seed-admin.sh` só na primeira subida.
+Esperado: as cinco tabelas (`access_entries`, `collections`, `monitoring_settings`, `services`, `users`), a contagem do histórico e um único administrador. No log (`docker compose logs postgres`) aparecem `running /docker-entrypoint-initdb.d/schema.sql` e `running /docker-entrypoint-initdb.d/zz-seed-admin.sh` só na primeira subida.
 
 ```bash
 docker compose exec postgres psql -U ecopulse -d ecopulse_db \
@@ -78,7 +93,7 @@ wsl --exec docker exec ecopulse-schema-check psql -U postgres -c 'SELECT count(*
 wsl --exec docker stop ecopulse-schema-check
 ```
 
-Sem rede/portas/volume, trust fica limitado a esse container temporário; não é configuração de produção nem muda .env.example. Esperado: quatro tabelas, histórico vazio e DDL sem erros; reaplicar o mesmo schema mantém dados existentes do mesmo modelo.
+Sem rede/portas/volume, trust fica limitado a esse container temporário; não é configuração de produção nem muda .env.example. Esperado: cinco tabelas, histórico vazio e DDL sem erros; reaplicar o mesmo schema mantém dados existentes do mesmo modelo.
 
 ## Modelo de dados
 
@@ -88,10 +103,11 @@ Sem rede/portas/volume, trust fica limitado a esse container temporário; não �
 | collections | Histórico de métricas em GB, intervalo e contexto regional; resultados quando disponíveis. | FK RESTRICT; status de métricas separado do cálculo; métricas completas para ok; NULL para desconhecido. |
 | users | Credenciais administrativas para configuração e consulta futura das entradas. | E-mail único sem diferenciar caixa; hash bcrypt. Sem quatro perfis ou tenants. |
 | access_entries | IP e instante da primeira entrada por sessão da aba. | IP INET e horário TIMESTAMPTZ obrigatórios; índice temporal; sem FK de usuário ou dados HTTP. |
+| monitoring_settings | Intervalo de atualização da tela, independente da coleta. | PK fixa 1; intervalo 15/30/60; updated_at obrigatório. |
 
 Os estados e nulabilidade completos constam na UML e nos CHECKs. Falha de carbono preserva métricas válidas; cálculo indisponível exige mensagem própria e não fabrica emissão zero. JSONB contém objeto bruto de /metrics; campos normalizados são a interface do modelo, e o JSON não substitui a validação feita no backend antes do INSERT.
 
-Energia numeric(20,12) e emissão numeric(24,12) aumentam a resolução para 10⁻¹² sem reduzir a faixa inteira anterior. Exemplos e limites: docs/calculos.md. O schema possui quatro índices explícitos e cinco automáticos (quatro PKs e UNIQUE de services.external_id), totalizando nove. Roteiro reproduzível dos testes: [verificação do schema](../docs/arquitetura/verificacao-schema.md).
+Energia numeric(20,12) e emissão numeric(24,12) aumentam a resolução para 10⁻¹² sem reduzir a faixa inteira anterior. Exemplos e limites: docs/calculos.md. O schema possui quatro índices explícitos e seis automáticos (cinco PKs e UNIQUE de services.external_id), totalizando dez. Roteiro reproduzível dos testes: [verificação do schema](../docs/arquitetura/verificacao-schema.md).
 
 ## Inicialização não é migração
 

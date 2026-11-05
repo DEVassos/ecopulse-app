@@ -31,8 +31,10 @@ export default function LastUpdated({ updatedAt, intervalSeconds, stale = false,
         ) : (
           'Aguardando a primeira atualização'
         )}
-        {intervalSeconds !== undefined &&
-          ` · intervalo: ${formatNumber(intervalSeconds, Number.isInteger(intervalSeconds) ? 0 : 1)} s`}
+        {/* "intervalo: 30 s" numa linha só: no celular ele quebrava entre o número e a unidade (#263) */}
+        {intervalSeconds !== undefined && (
+          <span className="whitespace-nowrap"> · intervalo: {formatNumber(intervalSeconds, Number.isInteger(intervalSeconds) ? 0 : 1)} s</span>
+        )}
       </span>
       {children}
     </div>

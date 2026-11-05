@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import type { MonitoredService, ServiceStatus } from '../services/services.types';
-import { formatNumber, formatTime } from '../utils/format';
+import { formatNumber, formatTimeOrDayTime } from '../utils/format';
+import { statusReasonText } from '../utils/status';
 import { formatInScale, scaleFor } from '../utils/units';
 import type { Quantity } from '../utils/units';
+import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow';
 import MissingValue from './MissingValue';
 import StatusBadge from './StatusBadge';
 
@@ -21,8 +23,9 @@ const COLUMNS: Column[] = [
   { key: 'name', label: 'Serviço' },
   { key: 'status', label: 'Status' },
   { key: 'cpuPercent', label: 'CPU', numeric: true },
-  { key: 'energyKwh', label: 'Energia', numeric: true, quantity: 'energy' },
-  { key: 'emissionsG', label: 'Emissão', numeric: true, quantity: 'co2e' },
+  // "na última leitura": a tabela fica logo abaixo dos totais de 24 h e não pode parecer um total do período (#259)
+  { key: 'energyKwh', label: 'Energia na última leitura', numeric: true, quantity: 'energy' },
+  { key: 'emissionsG', label: 'Emissão na última leitura', numeric: true, quantity: 'co2e' },
   { key: 'lastReadingAt', label: 'Última leitura', numeric: true },
   { key: 'location', label: 'Localização' },
 ];
@@ -40,6 +43,8 @@ interface Props {
   services: MonitoredService[];
   /** Clique na linha (ou Enter no nome): abre os detalhes e o histórico do serviço. */
   onSelect: (service: MonitoredService) => void;
+  /** A última busca falhou: os números são da atualização anterior e ficam apagados, como nos cards (#261). */
+  stale?: boolean;
 }
 
 /** Valor de ordenação da coluna: localização por região, país e cidade; status pela gravidade. */
@@ -67,11 +72,12 @@ function locationText(service: MonitoredService): string {
 }
 
 /** Tabela operacional dos serviços monitorados (RF09, RF12): busca por nome, ordenação por coluna e clique para os detalhes. */
-export default function ServicesTable({ services, onSelect }: Props) {
+export default function ServicesTable({ services, onSelect, stale = false }: Props) {
   const [search, setSearch] = useState('');
   // Ordem inicial por gravidade (Status crescente): indisponíveis e sem métricas no topo, acima da dobra
   const [sortKey, setSortKey] = useState<SortKey>('status');
   const [direction, setDirection] = useState<1 | -1>(1);
+  const [scrollRef, hasMoreColumns] = useHorizontalOverflow<HTMLDivElement>();
   // Uma unidade por coluna, escolhida pelo maior valor de todos os serviços (e não só dos filtrados pela busca, para a
   // unidade não pular enquanto se digita): números comparáveis e alinhados, com a unidade no cabeçalho (#271)
   const scales = useMemo(
@@ -88,6 +94,8 @@ export default function ServicesTable({ services, onSelect }: Props) {
       .filter((service) => service.name.toLocaleLowerCase('pt-BR').includes(term))
       .sort(
         (a, b) =>
+          // Removido sempre no fim, em qualquer ordenação: o último dado dele não pode liderar uma coluna (#261)
+          Number(a.status === 'removido') - Number(b.status === 'removido') ||
           compare(a, b, sortKey, direction) ||
           // Mesmo status: maior emissão primeiro, nos dois sentidos
           (sortKey === 'status' ? compare(a, b, 'emissionsG', -1) : 0),
@@ -124,7 +132,9 @@ export default function ServicesTable({ services, onSelect }: Props) {
 
       {/* Rolagem horizontal em telas estreitas: a tabela nunca quebra o layout (RNF01) */}
       {/* relative: os textos sr-only (position: absolute) das células ficam dentro da rolagem, sem alargar a página */}
-      <div className="relative overflow-x-auto">
+      {/* scroll-edge: sombra na borda direita enquanto há colunas escondidas (#263) */}
+      <div className={hasMoreColumns ? 'scroll-edge scroll-edge--more' : 'scroll-edge'}>
+      <div ref={scrollRef} className="relative overflow-x-auto">
         <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead>
             <tr className="whitespace-nowrap text-left text-xs text-muted">
@@ -132,13 +142,14 @@ export default function ServicesTable({ services, onSelect }: Props) {
                 <th
                   key={column.key}
                   scope="col"
-                  className={`px-5 py-2 font-medium ${column.numeric ? 'text-right' : ''}`}
+                  className={`px-5 py-1 font-medium ${column.numeric ? 'text-right' : ''}`}
                   aria-sort={sortKey === column.key ? (direction === 1 ? 'ascending' : 'descending') : 'none'}
                 >
                   <button
                     type="button"
                     onClick={() => sortBy(column)}
-                    className={`cursor-pointer border-0 bg-transparent p-0 font-sans text-xs font-medium hover:text-text ${sortKey === column.key ? 'text-text' : 'text-muted'}`}
+                    // 24 px de altura (#262): alvo mínimo de toque; o cabeçalho tira 4 px de cada lado para não crescer
+                    className={`min-h-6 cursor-pointer border-0 bg-transparent p-0 font-sans text-xs font-medium hover:text-text ${sortKey === column.key ? 'text-text' : 'text-muted'}`}
                   >
                     {column.quantity ? `${column.label} (${scales[column.quantity].unit}${column.quantity === 'co2e' ? ' CO₂e' : ''})` : column.label}
                     <span aria-hidden="true"> {sortKey === column.key ? (direction === 1 ? '↑' : '↓') : '↕'}</span>
@@ -148,53 +159,64 @@ export default function ServicesTable({ services, onSelect }: Props) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((service) => (
-              // O clique vale para a linha toda; o botão do nome dá o mesmo acesso pelo teclado (o clique dele sobe até aqui).
-              // Focar o botão antes de abrir faz o foco voltar para ele ao fechar, mesmo com clique fora do nome.
-              <tr
-                key={service.id}
-                onClick={(event) => {
-                  event.currentTarget.querySelector('button')?.focus();
-                  onSelect(service);
-                }}
-                className="cursor-pointer border-t border-border hover:bg-surface-2"
-              >
-                <th scope="row" className="px-5 py-2 text-left font-medium">
-                  <button
-                    type="button"
-                    aria-haspopup="dialog"
-                    title="Ver detalhes e histórico de coletas"
-                    className="cursor-pointer border-0 bg-transparent p-0 text-left font-sans text-sm font-medium text-text underline decoration-border underline-offset-4 hover:decoration-primary"
-                  >
-                    {service.name}
-                  </button>
-                </th>
-                {/* O badge é o único elemento colorido da linha */}
-                <td className="px-5 py-2">
-                  <StatusBadge status={service.status} />
-                </td>
-                <td className="px-5 py-2 text-right font-mono">
-                  {service.cpuPercent === null ? <MissingValue /> : `${formatNumber(service.cpuPercent, 0)}%`}
-                </td>
-                {/* Mesma unidade e casas na coluna inteira (escala única, #271): vírgulas alinhadas e nenhum "0,000…" */}
-                <td className="px-5 py-2 text-right font-mono">
-                  {service.energyKwh === null ? <MissingValue /> : formatInScale(service.energyKwh, scales.energy)}
-                </td>
-                <td className="px-5 py-2 text-right font-mono">
-                  {service.emissionsG === null ? <MissingValue /> : formatInScale(service.emissionsG, scales.co2e)}
-                </td>
-                <td className="px-5 py-2 text-right font-mono text-muted">
-                  {service.lastReadingAt === null ? 'nunca' : formatTime(service.lastReadingAt)}
-                </td>
-                <td className="whitespace-nowrap px-5 py-2 text-muted">
-                  {locationText(service) || (
-                    <span title="Localização não informada pelo agregador">
-                      —<span className="sr-only">sem localização</span>
+            {rows.map((service) => {
+              // Número que não é atual fica apagado: a busca falhou ou o serviço saiu do agregador (#261)
+              const dim = stale || service.status === 'removido' ? ' text-muted' : '';
+              return (
+                // O clique vale para a linha toda; o botão do nome dá o mesmo acesso pelo teclado (o clique dele sobe até aqui).
+                // Focar o botão antes de abrir faz o foco voltar para ele ao fechar, mesmo com clique fora do nome.
+                <tr
+                  key={service.id}
+                  onClick={(event) => {
+                    event.currentTarget.querySelector('button')?.focus();
+                    onSelect(service);
+                  }}
+                  className="cursor-pointer border-t border-border hover:bg-surface-2"
+                >
+                  <th scope="row" className="px-5 py-2 text-left font-medium">
+                    <button
+                      type="button"
+                      aria-haspopup="dialog"
+                      title="Ver detalhes e histórico de coletas"
+                      className="cursor-pointer border-0 bg-transparent p-0 text-left font-sans text-sm font-medium text-text underline decoration-border underline-offset-4 hover:decoration-primary"
+                    >
+                      {service.name}
+                    </button>
+                    {/* Celular (#263): a emissão fica a uma rolagem de distância; ela aparece também sob o nome, abaixo de 600 px */}
+                    <span className="mt-0.5 block font-data text-xs font-normal text-muted min-[600px]:hidden">
+                      {service.emissionsG === null ? 'sem emissão calculada' : `${formatInScale(service.emissionsG, scales.co2e)} ${scales.co2e.unit} CO₂e`}
                     </span>
-                  )}
-                </td>
-              </tr>
-            ))}
+                  </th>
+                  {/* O badge é o único elemento colorido da linha; o motivo vem em texto logo abaixo (#176) */}
+                  <td className="px-5 py-2">
+                    <StatusBadge status={service.status} />
+                    {statusReasonText(service) && (
+                      <span className="mt-1 block max-w-56 text-xs leading-snug text-muted">{statusReasonText(service)}</span>
+                    )}
+                  </td>
+                  <td className={`px-5 py-2 text-right font-data${dim}`}>
+                    {service.cpuPercent === null ? <MissingValue /> : `${formatNumber(service.cpuPercent, 0)}%`}
+                  </td>
+                  {/* Mesma unidade e casas na coluna inteira (escala única, #271): vírgulas alinhadas e nenhum "0,000…" */}
+                  <td className={`px-5 py-2 text-right font-data${dim}`}>
+                    {service.energyKwh === null ? <MissingValue /> : formatInScale(service.energyKwh, scales.energy)}
+                  </td>
+                  <td className={`px-5 py-2 text-right font-data${dim}`}>
+                    {service.emissionsG === null ? <MissingValue /> : formatInScale(service.emissionsG, scales.co2e)}
+                  </td>
+                  <td className="px-5 py-2 text-right font-data text-muted">
+                    {service.lastReadingAt === null ? 'nunca' : formatTimeOrDayTime(service.lastReadingAt)}
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-2 text-muted">
+                    {locationText(service) || (
+                      <span title="Localização não informada pelo agregador">
+                        —<span className="sr-only">sem localização</span>
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
             {rows.length === 0 && (
               <tr className="border-t border-border">
                 <td colSpan={COLUMNS.length} className="px-5 py-8 text-center text-muted">
@@ -204,6 +226,7 @@ export default function ServicesTable({ services, onSelect }: Props) {
             )}
           </tbody>
         </table>
+      </div>
       </div>
     </section>
   );

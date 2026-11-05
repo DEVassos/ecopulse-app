@@ -31,7 +31,7 @@ export default function UpdateFailedBanner({ message, updatedAt, onRetry }: Prop
           <span className="flex items-center gap-2" aria-hidden="true">
             <span className="size-2 shrink-0 rounded-full bg-warning" />
             <span>
-              {sentence} Mostrando dados de <strong className="font-mono font-medium text-warning">{dataTime}</strong>.
+              {sentence} Mostrando dados de <strong className="font-data font-medium text-warning">{dataTime}</strong>.
             </span>
           </span>
           <button type="button" onClick={onRetry} className="btn-outline ml-auto h-7 px-3 text-xs">

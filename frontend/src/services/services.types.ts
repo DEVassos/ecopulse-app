@@ -18,6 +18,11 @@ export interface MonitoredService {
   /** Emissão estimada no período, em gramas de CO₂e; null quando não há métrica. */
   emissionsG: number | null;
   status: ServiceStatus;
+  /**
+   * Motivo da falha da coleta mais recente, como o worker gravou (ex.: "Serviço indisponível (HTTP 500).").
+   * Só vem em `indisponivel`; null nos demais estados ou quando a coleta não tem mensagem (#176).
+   */
+  statusReason: string | null;
   /** Horário da última leitura (ISO 8601); null se nunca houve leitura. */
   lastReadingAt: string | null;
 }
