@@ -182,7 +182,7 @@ export default function PeriodPicker({ start, end, today, maxDays, onChange, dis
         onClick={() => shift(-1)}
         disabled={!canGoBack}
         aria-label="Período anterior"
-        title="Período anterior"
+        data-tooltip="Período anterior"
       >
         <svg {...iconProps}>
           <path d="m15 18-6-6 6-6" />
@@ -196,7 +196,7 @@ export default function PeriodPicker({ start, end, today, maxDays, onChange, dis
         aria-expanded={open}
         aria-controls={open ? panelId : undefined}
         disabled={disabled}
-        title={disabled ? disabledReason : formatRange(start, end)}
+        data-tooltip={disabled ? disabledReason : formatRange(start, end)}
         onClick={() => {
           if (open) return close();
           setView('atalhos');
@@ -223,7 +223,7 @@ export default function PeriodPicker({ start, end, today, maxDays, onChange, dis
         onClick={() => shift(1)}
         disabled={!canGoForward}
         aria-label="Próximo período"
-        title="Próximo período"
+        data-tooltip="Próximo período"
       >
         <svg {...iconProps}>
           <path d="m9 18 6-6-6-6" />
@@ -266,7 +266,7 @@ export default function PeriodPicker({ start, end, today, maxDays, onChange, dis
                     className="period-picker__step"
                     onClick={() => setFocusDay(addMonths(focusDay, -1))}
                     aria-label="Mês anterior"
-                    title="Mês anterior"
+                    data-tooltip="Mês anterior"
                   >
                     <svg {...iconProps}>
                       <path d="m15 18-6-6 6-6" />
@@ -282,7 +282,7 @@ export default function PeriodPicker({ start, end, today, maxDays, onChange, dis
                     }}
                     disabled={!canNextMonth}
                     aria-label="Próximo mês"
-                    title="Próximo mês"
+                    data-tooltip="Próximo mês"
                   >
                     <svg {...iconProps}>
                       <path d="m9 18 6-6-6-6" />
