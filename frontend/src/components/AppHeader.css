@@ -1,5 +1,6 @@
 @layer components {
-  /* Mobile-first: em tela estreita o menu ocupa a segunda linha e rola na horizontal, sem sumir */
+  /* Mobile-first: em tela estreita são três linhas, sem nada sumir: marca com o nome e Sair, o menu (que rola na
+     horizontal) e a atualização. Na tela larga, tudo numa linha só */
   .topbar {
     border-bottom: 1px solid var(--border);
     background: var(--surface-2);
@@ -12,7 +13,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 12px 24px;
+    gap: 8px 16px;
   }
 
   .topbar-brand,
@@ -24,7 +25,7 @@
   .nav {
     display: flex;
     gap: 4px;
-    order: 3;
+    order: 2;
     flex-basis: 100%;
     overflow-x: auto;
   }
@@ -52,13 +53,19 @@
     font-weight: 600;
   }
 
+  /* Em tela estreita a caixa das ações não conta na disposição: os filhos viram itens do .topbar-inner */
   .topbar-actions {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    align-items: center;
-    gap: 12px 16px;
+    display: contents;
+  }
+
+  .topbar-user {
+    order: 1;
     margin-left: auto;
+  }
+
+  .topbar-status {
+    order: 3;
+    flex-basis: 100%;
   }
 
   /* Com sessão: nome de quem entrou e o botão "Sair" (o .btn-outline de styles/controls.css) */
@@ -93,6 +100,21 @@
       flex-basis: auto;
       flex-grow: 1;
       overflow-x: visible;
+    }
+
+    .topbar-actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 16px;
+      margin-left: auto;
+    }
+
+    .topbar-user,
+    .topbar-status {
+      order: 0;
+      flex-basis: auto;
+      margin-left: 0;
     }
   }
 }

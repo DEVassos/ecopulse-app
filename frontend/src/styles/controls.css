@@ -20,4 +20,10 @@
     cursor: wait;
     opacity: 0.6;
   }
+
+  /* Anel de foco de campo de texto, o mesmo do formulário de login (FormField.css). A borda em --accent fica com
+     a utility do próprio campo (focus:border-primary), porque as utilities vencem esta camada */
+  .field-focus:focus {
+    box-shadow: var(--focus-ring);
+  }
 }

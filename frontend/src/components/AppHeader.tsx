@@ -51,9 +51,13 @@ export default function AppHeader({ children, updatedAt }: Props) {
           <NavLink to="/configuracao">Configuração</NavLink>
         </nav>
 
+        {/* No celular as duas caixas se separam: o nome e Sair sobem para a linha da marca e a atualização desce para
+            baixo do menu (AppHeader.css) */}
         <div className="topbar-actions">
-          {children}
-          <UserMenu />
+          {children && <div className="topbar-status">{children}</div>}
+          <div className="topbar-user">
+            <UserMenu />
+          </div>
         </div>
       </div>
     </header>
