@@ -93,8 +93,8 @@ export class ServiceRepository {
         COUNT(c.id)::text AS collections,
         COUNT(c.id) FILTER (WHERE c.status <> 'ok')::text AS failed,
         COUNT(c.id) FILTER (WHERE c.calculation_status <> 'disponivel')::text AS not_calculated,
-        (SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel'))::text AS energy_kwh,
-        (SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel'))::text AS co2e_grams
+        SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel') AS energy_kwh,
+        SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel') AS co2e_grams
       FROM services AS s
       LEFT JOIN collections AS c ON c.service_id = s.id AND c.collected_at >= $1 AND c.collected_at < $2
       WHERE s.status <> 'removido' OR c.id IS NOT NULL
