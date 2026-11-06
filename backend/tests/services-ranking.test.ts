@@ -6,6 +6,7 @@ import { createApp } from '../src/app';
 import type { AuthConfig } from '../src/modules/usuarios/usuarios.service';
 import { CollectionRepository } from '../src/modules/collections/collections.repository';
 import { ServiceRepository } from '../src/modules/services/services.repository';
+import { UserRepository } from '../src/modules/usuarios/usuarios.repository';
 import { DatabaseError } from '../src/shared/errors';
 
 const auth: AuthConfig = { jwtSecret: 'ranking-test-secret-123', jwtExpiresIn: '1h' };
@@ -21,7 +22,8 @@ const servers: Server[] = [];
 
 async function serve(query = vi.fn().mockResolvedValue({ rows })) {
   const collections = new CollectionRepository({ query: vi.fn().mockResolvedValue({ rows: [] }) });
-  const app = createApp(async () => {}, collections, new ServiceRepository({ query }), [], undefined, auth);
+  const users = new UserRepository({ query: vi.fn().mockResolvedValue({ rows: [] }) });
+  const app = createApp(async () => {}, collections, new ServiceRepository({ query }), [], users, auth);
   const server = createServer(app);
   servers.push(server);
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
