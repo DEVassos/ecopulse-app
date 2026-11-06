@@ -44,6 +44,7 @@ Contrato completo, com exemplos e erros, em [`docs/api.md`](../docs/api.md).
 | `GET /api/auth/me` | devolve o administrador autenticado pelo JWT | 200 `{ id, email }`; 401 `UNAUTHORIZED`; 500 |
 | `GET /api/monitoring-settings` | consulta pública do intervalo da tela; padrão sem gravação | 200 `{ refreshIntervalSeconds, allowedIntervalsSeconds, updatedAt }`; 500 |
 | `PUT /api/monitoring-settings` | salva intervalo inteiro 15/30/60, exigindo JWT | 200 no mesmo formato do GET; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 |
+| `GET /api/services/ranking` | ordena por energia ou CO₂e num período, com totais, contagens e estado; exige JWT | 200 `{ metric, from, to, services }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 `DATABASE_ERROR` |
 | `GET /api/collections/series` | série temporal de um serviço: agrupa as coletas do período em intervalos, com contagem, energia e CO₂e por intervalo e o total do período; parâmetros obrigatórios `service_id`, `from`, `to` (período de até 31 dias) e `bucket` (`15min`, `1h` ou `1d`) ([#189](https://github.com/DEVassos/greener-app/issues/189)) | 200 `{ serviceId, from, to, bucket, buckets, totals }`; 400 `VALIDATION_ERROR`; 404 `NOT_FOUND`; 500 |
 
 JSON inválido no corpo devolve 400; rota inexistente, 404; erro inesperado, 500 `INTERNAL_ERROR` sem stack. Todo erro sai no formato `{"error":{"code","message"}}`, produzido só pelo `error-handler`.
