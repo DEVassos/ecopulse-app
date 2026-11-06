@@ -186,6 +186,14 @@ let monitoringSettings = {
 
 const UNAUTHORIZED = { error: { code: 'UNAUTHORIZED', message: 'Token ausente, inválido ou expirado.' } };
 
+/** Rotas de dados que, como no backend real (#257), só respondem com token válido. */
+const PROTECTED = new Set(['GET /services', 'GET /services/summary', 'GET /services/compare', 'GET /collections', 'GET /collections/series']);
+
+function hasValidToken(req) {
+  const token = bearerToken(req);
+  return token !== null && validTokens.has(token);
+}
+
 const routes = {
   // US07 / #20 — login do administrador: mesmos códigos e corpos de erro do backend real (docs/api.md)
   'POST /auth/login': async (req, res) => {
@@ -203,8 +211,7 @@ const routes = {
 
   // US07 / #20 — rota mínima protegida: só responde com token válido
   'GET /auth/me': async (req, res) => {
-    const token = bearerToken(req);
-    if (!token || !validTokens.has(token)) return send(res, 401, UNAUTHORIZED);
+    if (!hasValidToken(req)) return send(res, 401, UNAUTHORIZED);
     return send(res, 200, { id: ADMIN.id, email: ADMIN.email });
   },
 
@@ -222,7 +229,7 @@ const routes = {
     return send(res, 200, monitoringSettings);
   },
 
-  // US01 / US04 — serviços monitorados (rota pública do dashboard)
+  // US01 / US04 — serviços monitorados (exige token desde a #257)
   'GET /services': async (_req, res) => {
     if (SERVICES_SCENARIO === 'erro') return send(res, 500, { error: { code: 'INTERNAL_ERROR', message: 'Falha simulada no backend falso.' } });
     const services = SERVICES_SCENARIO === 'vazio' ? [] : SERVICES.map(readService);
@@ -364,10 +371,11 @@ createServer(async (req, res) => {
   console.log(`${new Date().toLocaleTimeString('pt-BR')}  ${req.method} ${path}${bearerToken(req) ? '  (com Bearer)' : ''}`);
 
   if (!route) return send(res, 404, { error: { code: 'NOT_FOUND', message: 'Rota não existe no backend falso.' } });
+  if (PROTECTED.has(`${req.method} ${path}`) && !hasValidToken(req)) return send(res, 401, UNAUTHORIZED);
   return route(req, res);
 }).listen(PORT, () => {
   console.log(`Backend falso em http://localhost:${PORT}`);
   console.log(`GET /services: cenário "${SERVICES_SCENARIO}" (MOCK_SERVICES=normal|vazio|erro|sem-id|cpu-texto)`);
-  console.log(`Login: ${ADMIN.email} / ${ADMIN.password}`);
+  console.log(`Login: ${ADMIN.email} / ${ADMIN.password} (exigido nas rotas de dados, #257; reiniciar o mock invalida os tokens)`);
   console.log(`GET /monitoring-settings: intervalo inicial ${monitoringSettings.refreshIntervalSeconds} s (MOCK_REFRESH_INTERVAL_SECONDS)`);
 });
