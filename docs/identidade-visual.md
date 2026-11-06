@@ -94,7 +94,7 @@ No tema escuro, `--neon-text` é o próprio `--neon`. Os dois só se separam no 
 
 ### Botões
 * Alvo de toque: pelo menos 24×24 px em qualquer botão, e 44 px nas ações do cabeçalho e dos formulários (#262).
-* **Botão cheio** (ação principal da tela, ex.: "Aplicar", "Comparar"): fundo `--accent`, texto `--on-accent`. "Entrar" e "Sair" ficam vazados (#272), porque o login não é a ação da página. O texto fica escuro porque o branco sobre o verde dá 2,5:1 e reprova no AA.
+* **Botão cheio** (ação principal da tela, ex.: "Aplicar", "Comparar"): fundo `--accent`, texto `--on-accent`. "Sair", no cabeçalho, fica vazado (#272), porque sair não é a ação da página; o "Entrar" do formulário de login é a ação principal daquela tela e fica cheio (desde o #257, o cabeçalho só aparece com sessão). O texto fica escuro porque o branco sobre o verde dá 2,5:1 e reprova no AA.
 * **Botão vazado** (ações secundárias, ex.: "Tentar novamente", "Atualizar agora"): classe `.btn-outline` (`frontend/src/styles/controls.css`), fundo transparente, borda e texto `--accent`; no hover, `--accent` a 10% no fundo e texto `--accent-hover`.
 
 ### Filtros (#267)
@@ -137,7 +137,7 @@ No tema escuro, `--neon-text` é o próprio `--neon`. Os dois só se separam no 
   2. Mapa reduzido.
   3. Dashboard da região/serviço selecionado.
   4. Ranking de consumo ao final da página.
-* Cabeçalho abaixo de 961 px (#258): a primeira linha tem a marca e **Entrar**/**Sair**, a segunda o menu e a terceira a "Última atualização" com o botão de atualizar. Na tela larga, tudo fica numa linha só.
+* Cabeçalho abaixo de 961 px (#258): a primeira linha tem a marca, o nome de quem entrou e **Sair** (sem sessão, o cabeçalho não aparece, #257), a segunda o menu e a terceira a "Última atualização" com o botão de atualizar. Na tela larga, tudo fica numa linha só.
 * Abaixo de 600 px (#274), a faixa do menu dá lugar ao botão **Menu**, na linha da marca, que abre uma grade de duas colunas logo abaixo do cabeçalho, sobre o fundo apagado: cada página é um cartão em `--surface` com o ícone sobre o rótulo, e a atual tem o mesmo verde do item ativo da faixa. Nenhum item do menu fica cortado ou escondido numa rolagem lateral. O botão de tema sai da linha da marca e vai para o fim do painel, com o nome do tema atual.
 * Os cards de energia e emissões do período ficam em uma coluna no celular, para o valor e a unidade ("g CO₂e") caberem na mesma linha.
 * Tabela de serviços abaixo de 600 px (#263): a emissão da última leitura aparece também sob o nome, em `--mono` 12 px e `--muted`. Toda área com rolagem horizontal (tabela de serviços, matriz da Comparação) mostra uma sombra interna em `--bg` na borda direita enquanto há colunas escondidas (`.scroll-edge`). É um sinal de estado, não elevação, e some quando a rolagem chega ao fim.
