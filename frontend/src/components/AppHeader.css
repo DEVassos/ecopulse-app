@@ -1,5 +1,5 @@
 @layer components {
-  /* Mobile-first: em tela estreita são três linhas, sem nada sumir: marca e Entrar/Sair, o menu (que rola na
+  /* Mobile-first: em tela estreita são três linhas, sem nada sumir: marca com o nome e Sair, o menu (que rola na
      horizontal) e a atualização. Na tela larga, tudo numa linha só */
   .topbar {
     border-bottom: 1px solid var(--border);
@@ -87,24 +87,6 @@
   .topbar-status {
     order: 3;
     flex-basis: 100%;
-  }
-
-  /* Visitante: "Entrar" é a ação principal do cabeçalho (botão cheio, alvo de toque de 44 px) */
-  .btn-login,
-  .btn-login:hover {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-    padding: 10px 16px;
-    border-radius: 8px;
-    background: var(--accent);
-    color: var(--on-accent);
-    font-weight: 600;
-    text-decoration: none;
-  }
-
-  .btn-login:hover {
-    background: var(--accent-hover);
   }
 
   /* Com sessão: nome de quem entrou e o botão "Sair" (o .btn-outline de styles/controls.css) */
