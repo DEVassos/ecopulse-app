@@ -52,6 +52,7 @@ afterEach(async () => {
 describe('HTTP', () => {
   it.each([
     '/api/services',
+    '/api/services/ranking',
     '/api/services/summary',
     '/api/services/compare',
     '/api/collections',
