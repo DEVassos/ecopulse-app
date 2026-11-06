@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router';
 import ProtectedRoute from './components/ProtectedRoute';
+import TooltipLayer from './components/TooltipLayer';
 import ComparePage from './pages/ComparePage';
 import DashboardPage from './pages/DashboardPage';
 import EmissionsPage from './pages/EmissionsPage';
@@ -13,24 +14,24 @@ export default function App() {
     <AuthProvider>
       <MonitoringProvider>
         <Routes>
-          {/* Área pública: o dashboard abre direto, sem login */}
-          <Route path="/" element={<DashboardPage />} />
-          <Route path="/emissoes" element={<EmissionsPage />} />
-          <Route path="/comparacao" element={<ComparePage />} />
+          {/* Única página aberta sem sessão */}
           <Route path="/login" element={<LoginPage />} />
 
-          {/* Área restrita: sem sessão, o ProtectedRoute manda para /login */}
-          <Route
-            path="/configuracao"
-            element={
-              <ProtectedRoute>
-                <SettingsPage />
-              </ProtectedRoute>
-            }
-          />
+          {/* Aplicação inteira exige sessão (#257): sem ela, o ProtectedRoute manda para /login */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/emissoes" element={<EmissionsPage />} />
+            <Route path="/comparacao" element={<ComparePage />} />
+          </Route>
+          {/* Configuração exige sessão até no modo demonstração, em que não há backend para entrar */}
+          <Route element={<ProtectedRoute allowDemo={false} />}>
+            <Route path="/configuracao" element={<SettingsPage />} />
+          </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        {/* Um tooltip só para a aplicação inteira (#274): qualquer elemento com data-tooltip */}
+        <TooltipLayer />
       </MonitoringProvider>
     </AuthProvider>
   );

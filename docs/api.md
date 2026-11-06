@@ -6,9 +6,11 @@ Contrato do backend. A execução integrada usa os containers backend e PostgreS
 
 O dashboard roda em outra origem (`http://localhost:5173`) e chama a API pelo navegador. O backend envia `Access-Control-Allow-Origin` só para as origens de `CORS_ORIGIN` (padrão `http://localhost:5173`, lista separada por vírgula) e responde o preflight `OPTIONS` com `204`, liberando `Content-Type` e `Authorization`. Outra origem não recebe o cabeçalho, e o navegador bloqueia a resposta. Chamadas sem navegador (`curl`) não são afetadas.
 
+As rotas de dados abaixo exigem `Authorization: Bearer <JWT>` obtido em `POST /api/auth/login`. Token ausente, inválido ou expirado devolve `401 UNAUTHORIZED`. Permanecem públicas `GET /health`, `POST /api/auth/login` e `GET /api/monitoring-settings` (o `PUT` exige JWT).
+
 ## GET /api/services
 
-Sem autenticação, parâmetros ou corpo. O prefixo `/api` corresponde ao padrão de `VITE_API_URL=http://localhost:3000/api` usado pelo frontend; `/health` permanece na raiz.
+Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`. Não recebe parâmetros ou corpo. O prefixo `/api` corresponde ao padrão de `VITE_API_URL=http://localhost:3000/api` usado pelo frontend; `/health` permanece na raiz.
 
 Devolve os serviços persistidos, o estado atual de monitoramento e a coleta mais recente de cada um. A consulta usa `LEFT JOIN LATERAL`, portanto um serviço sem coleta continua aparecendo com `lastReadingAt` e `cpuPercent` como `null`. Localização ausente no cadastro também permanece `null`. `energyKwh` e `emissionsG` são calculados a partir do intervalo da própria coleta e do fator regional; se o cálculo estiver indisponível, permanecem `null` sem invalidar as métricas.
 
@@ -81,7 +83,7 @@ Erros seguem `{"error":{"code":"VALIDATION_ERROR","message":"refreshIntervalSeco
 
 ## GET /api/services/summary
 
-Indicadores agregados do dashboard (RF08, #175), sem autenticação.
+Indicadores agregados do dashboard (RF08, #175). Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`.
 
 `GET /api/services/summary?from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z`
 
@@ -125,7 +127,7 @@ O formato desta rota (`period{}` e `services{}`) é diferente do de `GET /api/co
 
 ## GET /api/collections
 
-Histórico de coletas, sem autenticação nem corpo. Parâmetros opcionais:
+Histórico de coletas. Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`. Não recebe corpo. Parâmetros opcionais:
 
 - `service_id`: inteiro positivo;
 - `from` e `to`: data **com hora** em ISO 8601, como `2026-10-18T00:00:00Z` ou `2026-10-18T00:00:00-03:00`. Só a data (`2026-10-18`) devolve 400, e `from` precisa ser anterior ou igual a `to`;
@@ -155,7 +157,7 @@ Parâmetro inválido devolve 400 `VALIDATION_ERROR`; `service_id` inexistente de
 
 ## GET /api/collections/series
 
-Série temporal de um serviço: agrupa as coletas do período em intervalos e devolve, por intervalo, a contagem e os totais de energia e CO₂e. Sem autenticação nem corpo. Diferente de `GET /api/collections`, aqui **todos os parâmetros são obrigatórios**:
+Série temporal de um serviço: agrupa as coletas do período em intervalos e devolve, por intervalo, a contagem e os totais de energia e CO₂e. Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`. Não recebe corpo. Diferente de `GET /api/collections`, aqui **todos os parâmetros são obrigatórios**:
 
 | Parâmetro | Obrigatório | Regra |
 |---|---|---|
@@ -196,7 +198,7 @@ Parâmetro inválido devolve 400 `VALIDATION_ERROR`; `service_id` inexistente de
 
 ## GET /api/services/compare
 
-Compara de 2 a 10 serviços no mesmo período, sem autenticação.
+Compara de 2 a 10 serviços no mesmo período. Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`.
 
 `GET /api/services/compare?ids=1,2&from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z`
 
@@ -208,6 +210,44 @@ Resposta 200 ecoa `from` e `to` e traz, por serviço, contagens de coletas, falh
 ```json
 {"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z","services":[{"id":"1","name":"Demo","region":"Sul","collections":12,"failed":0,"notCalculated":0,"avgCpuPercent":42.5,"avgMemoryGb":2.1,"avgDiskGb":10,"avgNetworkGb":0.3,"energyKwh":0.01,"co2eGrams":0.85}]}
 ```
+
+## GET /api/services/ranking
+
+Ordena os serviços pelo consumo de energia ou pelas emissões de CO₂e no período. Esta rota exige `Authorization: Bearer <JWT>` emitido por `POST /api/auth/login`; essa proteção não altera a política das outras rotas.
+
+`GET /api/services/ranking?metric=co2e&from=2026-11-02T00:00:00-03:00&to=2026-11-03T00:00:00-03:00`
+
+| Parâmetro | Obrigatório | Regra |
+|---|---|---|
+| `metric` | sim | `energy` ou `co2e`; a seleção da coluna SQL usa whitelist fixa |
+| `from` | não | instante ISO 8601 com hora; deve vir junto com `to` |
+| `to` | não | instante posterior a `from`; o período `[from,to)` tem até 31 dias |
+
+Sem limites, usa as últimas 24 horas até o instante da consulta. A resposta ecoa o período em UTC. Inclui os serviços atuais; um serviço removido só aparece se tiver ao menos uma coleta no período, e seu estado atual é mantido.
+
+As duas somas são sempre devolvidas. Entram apenas coletas com `calculation_status = 'disponivel'`; `null` significa que não houve cálculo disponível, enquanto zero é um total calculado. `collections` conta todas as coletas no período, `failed` conta status diferente de `ok` e `notCalculated` conta cálculo diferente de `disponivel` (essas duas contagens podem se sobrepor, conforme `/api/services/compare`).
+
+A ordenação usa a métrica escolhida em ordem decrescente, com desempate por `name` crescente e depois `id` crescente. Valores `null` ficam ao final com `position: null`; os demais recebem posições sequenciais. IDs são strings para preservar `bigint`.
+
+```json
+{
+  "metric": "co2e",
+  "from": "2026-11-02T03:00:00.000Z",
+  "to": "2026-11-03T03:00:00.000Z",
+  "services": [
+    { "position": 1, "id": "3", "name": "Fraud Detector", "region": "us-east", "status": "ativo", "energyKwh": 1.712, "co2eGrams": 645.4, "collections": 2880, "failed": 0, "notCalculated": 0 },
+    { "position": null, "id": "7", "name": "Inventory Sync", "region": "ca-central", "status": "sem_metricas", "energyKwh": null, "co2eGrams": null, "collections": 2880, "failed": 0, "notCalculated": 2880 }
+  ]
+}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | `metric` ausente/inválida; só `from` ou `to`; data inválida ou sem hora; `from >= to`; período acima de 31 dias |
+| 401 | `UNAUTHORIZED` | JWT ausente, inválido ou expirado |
+| 500 | `DATABASE_ERROR` | falha de conexão ou consulta no PostgreSQL |
+
+Exemplo de erro de validação: `{"error":{"code":"VALIDATION_ERROR","message":"metric deve ser energy ou co2e."}}`.
 
 ## POST /api/auth/login
 
@@ -253,8 +293,8 @@ Health comprova conectividade, não valida existência de tabelas, persistência
 
 | HTTP | Código | Situação |
 |---|---|---|
-| 400 | VALIDATION_ERROR | JSON inválido com Content-Type application/json; parâmetro inválido em `GET /api/collections`, `GET /api/collections/series`, `GET /api/services/summary`, `GET /api/services/compare` ou no login |
-| 401 | UNAUTHORIZED | credenciais inválidas, token ausente, inválido ou expirado |
+| 400 | VALIDATION_ERROR | JSON inválido com Content-Type application/json; parâmetro inválido em `GET /api/collections`, `GET /api/collections/series`, `GET /api/services/summary`, `GET /api/services/compare`, `GET /api/services/ranking` ou no login |
+| 401 | UNAUTHORIZED | credenciais inválidas no login; token ausente, inválido ou expirado nas rotas de dados e em `GET /api/auth/me` |
 | 404 | NOT_FOUND | rota não registrada, incluindo métodos não registrados; `service_id` inexistente em `GET /api/collections` e em `GET /api/collections/series` |
 | 500 | DATABASE_ERROR | falha de conexão ou de consulta no PostgreSQL |
 | 500 | INTERNAL_ERROR | erro inesperado, sem detalhes internos |
@@ -265,4 +305,4 @@ Envelope único, sem stack, credenciais ou consulta SQL:
 {"error":{"code":"VALIDATION_ERROR","message":"JSON inválido no corpo da requisição."}}
 ```
 
-Roteiro de verificação, configuração e scripts: [backend/README.md](../backend/README.md). A autenticação está em `POST /api/auth/login` e `GET /api/auth/me`; as rotas de configuração e de auditoria de entradas continuam previstas para a Sprint 2.
+Roteiro de verificação, configuração e scripts: [backend/README.md](../backend/README.md). A autenticação está em `POST /api/auth/login` e protege as rotas de dados e `GET /api/auth/me`; a autenticação das rotas de configuração e de auditoria de entradas continua prevista para a Sprint 2.

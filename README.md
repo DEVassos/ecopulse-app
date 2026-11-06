@@ -48,23 +48,23 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 **Vídeo da Sprint 1 (cerca de 3 min):** [EcoPulse - ABP FATEC 2DSM](https://youtu.be/3Hx4kzuudSw), com o produto como foi entregue na Sprint 1.
 
-- **RF09, RF12 — Tabela operacional de serviços (#69):** dashboard com cada serviço monitorado, CPU, energia, emissão, última leitura, localização (região, cidade e país) e status (ativo, indisponível, sem métricas ou removido, quando o serviço sai da lista do agregador), com busca por nome e ordenação por coluna. A tela consome `GET /api/services` (#115) pela base definida em `VITE_API_URL`; sem ela (variável vazia), o frontend sobe em modo demonstração com dados ilustrativos (`npm run mock`) — como executar em [frontend/README.md](frontend/README.md).
+- **RF09, RF12 — Tabela operacional de serviços (#69):** dashboard com cada serviço monitorado, CPU, energia, emissão, última leitura, localização (região, cidade e país) e status (ativo, indisponível, sem métricas ou removido, quando o serviço sai da lista do agregador), com busca por nome e ordenação por coluna. Só o problema ganha cor: o selo Ativo e o card Ativos ficam neutros, e a linha indisponível ou sem métricas tem o botão **Ver histórico** ao lado do status (#272). A tela consome `GET /api/services` (#115) pela base definida em `VITE_API_URL`; sem ela (variável vazia), o frontend sobe em modo demonstração com dados ilustrativos (`npm run mock`) — como executar em [frontend/README.md](frontend/README.md).
 
   ![Tabela de serviços monitorados com o backend real](docs/img/sprint-2-dashboard-backend-real.png)
 
-  _Tabela ligada ao backend real (`docker compose`) em 27/10/2026, numa janela de 1366×657: ordem inicial por gravidade, status logo depois do nome, energia e emissão com casas fixas (kWh com 5, g com 3) e as 8 linhas visíveis sem rolar (#203)._
+  _Tabela ligada ao backend real (`docker compose`) em 06/11/2026, numa janela de 1366×657 e com a sessão aberta ("Olá, admin" e **Sair**, #257): ordem inicial por gravidade, status logo depois do nome com o selo Ativo neutro (#272), energia (Wh) e emissão (mg CO₂e) da última leitura numa unidade só por coluna, indicada no cabeçalho (#271), e seis linhas visíveis sem rolar (#259)._
 
-- **RF08, RF09 — Cards de estado dos serviços (#21, PR #202):** acima da tabela, cards com o total de serviços monitorados e quantos estão ativos, indisponíveis e sem métricas, contados na mesma resposta de `GET /api/services` e atualizados no mesmo ciclo. Os removidos ficam fora do total, e a cor só aparece quando há serviços naquele estado. Sem dados, os cards não aparecem; numa falha, mantêm o último dado, apagado, com "Desatualizado desde …".
+- **RF08, RF09 — Cards de estado dos serviços (#21, PR #202):** entre os indicadores do período e a tabela, cards compactos com o total de serviços monitorados e quantos estão ativos, indisponíveis e sem métricas, contados na mesma resposta de `GET /api/services` e atualizados no mesmo ciclo. Os removidos ficam fora do total, e a cor só aparece quando há serviços naquele estado. Sem dados, os cards não aparecem; numa falha, mantêm o último dado, apagado, com "Desatualizado desde …".
 
-  ![Cards de estado acima da tabela de serviços](docs/img/sprint-2-kpis.png)
+  ![Cards de estado entre os indicadores do período e a tabela de serviços](docs/img/sprint-2-kpis.png)
 
-  _Dashboard com o backend real (`docker compose`) em 22/10/2026: os 8 serviços ativos, e Indisponíveis e Sem métricas zerados, sem cor._
+  _Dashboard com o backend real (`docker compose`) em 06/11/2026: 7 serviços ativos, sem contar 1 removido, e Indisponíveis e Sem métricas zerados, nos cards compactos abaixo dos indicadores do período (#259). Nenhum card tem cor: Ativos é estado saudável e fica neutro, e os outros dois só ganham cor com contagem acima de zero (#272)._
 
-- **RF08 — Indicadores agregados e comparação por período (#175, PR #215):** abaixo dos cards de estado, o dashboard mostra a energia (kWh) e o CO₂e (g) das últimas 24 h, com o período em horário de Brasília, e a variação contra as 24 h anteriores. Sem cálculo no período, o valor é "—", nunca zero; com total anterior zero, a tela informa que não há base para a variação. A API usa `GET /api/services/summary?from=&to=`, documentada em [docs/api.md](docs/api.md).
+- **RF08 — Indicadores agregados e comparação por período (#175, PR #215):** no topo do dashboard, logo abaixo do cabeçalho (#259), a tela mostra a energia e o CO₂e das últimas 24 h, na unidade que o valor pede (Wh ou kWh, mg ou g), com o período em horário de Brasília, e a variação contra as 24 h anteriores: ▲ em laranja quando subiu, ▼ em verde quando caiu e ±0% em cinza (#271). Sem cálculo no período, o valor é "—", nunca zero; sem base para a variação, a nota é "—" e o motivo fica no tooltip. A API usa `GET /api/services/summary?from=&to=`, documentada em [docs/api.md](docs/api.md).
 
   ![Indicadores agregados com comparação às 24 h anteriores](docs/img/sprint-2-indicadores-agregados.png)
 
-  _Dashboard com o backend real (`docker compose`) em 28/10/2026, 19h32: 0,2620 kWh e 64,61 g CO₂e nas últimas 24 h. O compose ficou desligado nas 24 h anteriores, então os cards dizem "Sem cálculo no período anterior" em vez de uma variação._
+  _Dashboard com o backend real (`docker compose`) em 06/11/2026, 10h02: 1,05 kWh e 258 g CO₂e nas últimas 24 h, na unidade que o valor pede, com "▼ 21,4%" e "▼ 22,1%" em verde, porque energia e CO₂e caíram em relação às 24 h anteriores (#271)._
 
 - **RNF02 — Indicador de última atualização (#89):** selo no cabeçalho com o horário da última busca bem-sucedida e um ponto verde pulsando enquanto os dados estão em dia; se uma busca falha, ele fica laranja e passa a dizer "Desatualizado desde …", sem apagar os dados da tela.
 
@@ -82,7 +82,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   ![Dashboard depois de uma atualização com falha](docs/img/sprint-2-atualizacao-automatica.png)
 
-  _Backend parado em 27/10/2026 (mesmo efeito de `docker compose stop backend`): depois de um intervalo, a faixa laranja compacta diz "Mostrando dados de 13:46:28" e oferece **Tentar novamente**, as 8 linhas da tabela continuam visíveis e o selo fica laranja ("Desatualizado desde …") (#203). Sem nenhum dado na tela, aparece o aviso de erro grande._
+  _Backend parado em 04/11/2026 (mesmo efeito de `docker compose stop backend`): na atualização seguinte, a faixa laranja compacta diz "Mostrando dados de 01:47:03" e oferece **Tentar novamente**, o selo fica laranja ("Desatualizado desde …") e a tabela continua na tela com os números em cinza, como os cards, para não parecerem atuais (#203, #261). Sem nenhum dado na tela, aparece o aviso de erro grande._
 
 - **RF01, RF02, RF03, RF04 — Descoberta e coleta periódica (#95, #98, #99):** o backend descobre os serviços no agregador de métricas, consulta `/metrics/{id}` e grava o histórico no PostgreSQL; o _worker_ roda em segundo plano e reconcilia serviços que aparecem, ficam indisponíveis ou voltam a exportar métricas.
 
@@ -94,17 +94,23 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Janela do Checkout Worker em 22/10/2026, com o backend real (`docker compose`) e o cursor sobre uma coleta do gráfico._
 
-- **RF07, RF09, RF10 — Página Emissões (#190, PRs #200 e #216):** o item **Emissões** do menu abre `/emissoes`, com a emissão estimada de CO₂e e a energia de uma estação no período escolhido. A estação e as datas ficam na URL, então o link abre no mesmo filtro. O agrupamento é automático pelo tamanho do período: cada coleta até 2 h (`GET /api/collections`), 15 min até 1 dia e 1 hora acima disso (`GET /api/collections/series`). O resumo mostra emissão, energia, média por coleta, pico, intensidade da região e coletas com falha, sem cálculo e tempo sem coleta. **Tempo real** busca de novo no intervalo do dashboard. Sem cálculo aparece "—", nunca zero, e numa falha o resumo fica apagado, com "Desatualizado desde …". O gráfico em SVG mostra a faixa da menor e da maior coleta, a média, o maior ponto e as falhas, e dá para alternar para o modo acumulado. A janela de detalhes do serviço leva direto à página. Como verificar em [frontend/README.md](frontend/README.md#página-emissões-190); print em [docs/img/sprint-2-emissoes.png](docs/img/sprint-2-emissoes.png).
+- **RF07, RF09, RF10 — Página Emissões (#190, PRs #200 e #216):** o item **Emissões** do menu abre `/emissoes`, com a emissão estimada de CO₂e e a energia de um serviço no período escolhido. O período se escolhe numa pílula com ‹ ›, atalhos (Hoje, Ontem, Últimos 7 e 30 dias) e um calendário próprio, com as datas em DD/MM/AAAA (#273). O serviço e as datas ficam na URL, então o link abre no mesmo filtro. O agrupamento é automático pelo tamanho do período: cada coleta até 2 h (`GET /api/collections`), 15 min até 1 dia e 1 hora acima disso (`GET /api/collections/series`). O resumo mostra emissão, energia, média, pico (os mesmos do chip do gráfico, #271), com a etiqueta **estimado** e o método no tooltip (#272), intensidade da região e coletas com falha, sem cálculo e tempo sem coleta. **Tempo real** busca de novo no intervalo do dashboard. Sem cálculo aparece "—", nunca zero, e numa falha o resumo fica apagado, com "Desatualizado desde …". O gráfico em SVG mostra a faixa da menor e da maior coleta, a média, o maior ponto com o chip "pico · N× média", os trechos sem coleta hachurados e as falhas (#272), e dá para alternar para o modo acumulado. A janela de detalhes do serviço leva direto à página. Como verificar em [frontend/README.md](frontend/README.md#página-emissões-190); print em [docs/img/sprint-2-emissoes.png](docs/img/sprint-2-emissoes.png).
 
-- **RF15 — Comparação entre serviços (#193, PR #214; #194, PR #219; #218):** o item **Comparação** do menu abre `/comparacao`, com 2 a 10 serviços lado a lado no mesmo período (até 31 dias): coletas, médias de CPU, memória, disco e rede, e energia e CO₂e somados, por `GET /api/services/compare`. O menor e o maior CO₂e ficam destacados, o período aparece acima da tabela, e serviço sem coletas aparece como "sem coletas", nunca zero. Abaixo da tabela, barras de energia e de CO₂e por serviço, cada grandeza na sua escala, com os mesmos valores e destaques. Serviços e datas ficam na URL. Como verificar em [frontend/README.md](frontend/README.md#comparação-entre-serviços-194).
+- **RF15 — Comparação entre serviços (#193, PR #214; #194, PR #219; #218):** o item **Comparação** do menu abre `/comparacao`, com 2 a 10 serviços lado a lado no mesmo período (até 31 dias): coletas, médias de CPU, memória, disco e rede, e energia e CO₂e somados, por `GET /api/services/compare`. O menor e o maior CO₂e ficam destacados, o período aparece acima da tabela, e serviço sem coletas aparece como "sem coletas", nunca zero. Abaixo da tabela, barras de energia e de CO₂e por serviço, cada grandeza na sua escala, com os mesmos valores e destaques. Serviços e datas ficam na URL, e o período usa o mesmo seletor de Emissões (#273). Como verificar em [frontend/README.md](frontend/README.md#comparação-entre-serviços-194).
 
   ![Comparação de quatro serviços com o backend real](docs/img/sprint-2-comparacao.png)
 
-  _Quatro serviços comparados com o backend real (`docker compose`) no dia 22/10/2026: Recommendation AI gastou mais energia (0,7758 kWh), mas Fraud Detector emitiu mais CO₂e (268,97 g), porque a região dele tem intensidade de carbono maior; Inventory Sync teve o menor CO₂e (15,06 g)._
+  _Quatro serviços comparados com o backend real (`docker compose`) no dia 05/11/2026, escolhido no seletor de período (#273): Recommendation AI gastou mais energia (170 Wh), mas Fraud Detector emitiu mais CO₂e (60,7 g), porque a região dele tem intensidade de carbono maior; Inventory Sync teve o menor CO₂e (3,3 g). Energia em ciano e CO₂e em verde, com só o maior CO₂e em laranja (#274)._
 
 - **RNF05, DW07 — Execução com Docker (#91, #113, #81):** backend, frontend (nginx) e PostgreSQL sobem juntos por `docker compose up --build`, com volume persistente para o banco e todas as variáveis documentadas em [.env.example](.env.example) (#82). Passo a passo no [README](#8-como-executar).
 
-- **RF07 — Cálculo socioambiental por coleta (#133, PR #139):** métricas válidas são convertidas em potência, energia e emissão de CO₂e com o fator regional da API de carbono. Se o fator não estiver disponível, a métrica continua registrada e o cálculo fica indisponível, sem criar valor estimado. As colunas "Energia (kWh)" e "Emissão (g CO₂e)" da tabela mostram o resultado da última coleta, com cerca de 30 s de operação, em resolução fixa (kWh com 5 casas, g com 3): uma emissão de 0,04 g aparece como 0,040, e não como 0,0 (#203) ([detalhes](frontend/README.md#energia-e-emissão-na-tabela)).
+- **RF07 — Cálculo socioambiental por coleta (#133, PR #139):** métricas válidas são convertidas em potência, energia e emissão de CO₂e com o fator regional da API de carbono. Se o fator não estiver disponível, a métrica continua registrada e o cálculo fica indisponível, sem criar valor estimado. As colunas "Energia" e "Emissão" da tabela mostram o resultado da última coleta, com cerca de 30 s de operação, numa unidade só por coluna, a do maior valor, indicada no cabeçalho: uma energia de 0,00091 kWh aparece como 0,91 na coluna "Energia (Wh)", e um valor positivo pequeno demais aparece como "< 0,01", nunca como zero (#203, #271) ([detalhes](frontend/README.md#energia-e-emissão-na-tabela)).
+
+- **RNF01 — Dashboard no celular sem esconder energia e CO₂e (#263):** abaixo de 600 px, a emissão da última leitura aparece também sob o nome de cada serviço, e a tabela de serviços e a matriz da Comparação mostram uma sombra na borda direita enquanto há colunas escondidas. O menu rola até o item da página aberta, e o selo de atualização não quebra o horário nem o intervalo no meio.
+
+  ![Dashboard no celular com a emissão sob o nome de cada serviço](docs/img/sprint-3-dashboard-celular.png)
+
+  _Dashboard com o backend real (`docker compose`) em 06/11/2026, numa tela de 390 px e com a sessão aberta: o botão **Menu** e o **Sair** na linha da marca (#274) e, em cada serviço, a emissão da última leitura sob o nome (Checkout Worker, 525 mg CO₂e) (#263). O Fraud Detector, que saiu da lista do agregador, aparece como Removido, no fim da tabela e com os números apagados (#261)._
 
 - **RNF01 — Fundo azul, verde nos destaques e logo pulsante (#180, PR #184):** a base da paleta voltou ao azul-escuro e o verde ficou só em ações e destaques (botão vazado nas ações secundárias, item ativo do menu, neon no que pede atenção), em resposta ao feedback da Sprint Review 1. O logo pulsa uma vez a cada atualização bem-sucedida dos dados, como sinal de "ao vivo", e fica parado em falha ou com "reduzir movimento". Regras e contrastes em [docs/identidade-visual.md](docs/identidade-visual.md).
 
@@ -112,7 +118,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 - **DW06 / RP06 — Login administrativo JWT (#20, PR #208):** `POST /api/auth/login` confere a senha com bcrypt e emite JWT HS256; `GET /api/auth/me` valida o token no middleware reutilizável do backend.
 
-- **DW06 / RP06 — Tela de login e área restrita (#25, PR #243):** `/login` confere o formulário antes de chamar o backend e mostra "E-mail ou senha incorretos." quando o `POST /api/auth/login` responde 401. Com o login, o token fica no `sessionStorage` da aba e toda chamada leva `Authorization: Bearer`; um 401 com sessão aberta encerra a sessão e volta para `/login`. `/configuracao` só abre com sessão e confirma o login em `GET /api/auth/me`; **Sair** apaga o token. O dashboard, Emissões e Comparação continuam públicos. Os parâmetros de monitoramento e a rota de configuração no backend ainda não existem.
+- **DW06 / RP06 — Tela de login e área restrita (#25, PR #243):** `/login` confere o formulário antes de chamar o backend e mostra "E-mail ou senha incorretos." quando o `POST /api/auth/login` responde 401. Com o login, o token fica no `sessionStorage` da aba e toda chamada leva `Authorization: Bearer`; um 401 com sessão aberta encerra a sessão e volta para `/login`. `/configuracao` só abre com sessão e confirma o login em `GET /api/auth/me`; **Sair** apaga o token. Nesta entrega o dashboard, Emissões e Comparação ainda eram públicos; a #257, abaixo, passou a exigir login em todas as páginas.
 
   ![Tela de login depois de uma senha errada](docs/img/sprint-2-login.png)
 
@@ -121,6 +127,8 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
   ![Área de configuração com a sessão confirmada](docs/img/sprint-2-configuracao.png)
 
   _Depois do login com o administrador do seed, em 01/11/2026: `GET /api/auth/me` devolveu o e-mail lido no token, e o cabeçalho mostra **Sair**._
+
+- **DW06 / RP06 / RNF05 — Aplicação inteira com login (#257):** o backend exige `Authorization: Bearer <JWT>` em `/api/services` e `/api/collections` e responde 401 sem token válido; `/health`, o login e `GET /api/monitoring-settings` continuam públicos. No frontend, `/login` é a única página aberta sem sessão: o dashboard, Emissões, Comparação e Configuração levam ao login e, depois dele, voltam para a mesma tela, com os filtros da URL. Sem sessão não há busca nem polling; um token expirado encerra a sessão e o login avisa "Sua sessão expirou.". O modo demonstração, sem backend, continua abrindo direto com dados ilustrativos ([ADR 0009](docs/adr/0009-aplicacao-inteira-com-login.md)).
 
 ## 4. Escopo planejado
 
@@ -137,7 +145,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 | Frontend | React + TypeScript (Vite, Tailwind CSS) |
 | Backend | Node.js + TypeScript, API REST em módulos (routes, controllers, services, repositories) |
 | Banco de dados | PostgreSQL com DDL e DML explícitos via driver `pg`, sem ORM |
-| Segurança | Login JWT no backend e bcrypt para senhas ([#20](https://github.com/DEVassos/greener-app/issues/20), PR #208); tela de login e área restrita no frontend ([#25](https://github.com/DEVassos/greener-app/issues/25), PR #243); rota de configuração protegida no backend continua pendente |
+| Segurança | Login JWT no backend e bcrypt para senhas ([#20](https://github.com/DEVassos/greener-app/issues/20), PR #208); tela de login no frontend ([#25](https://github.com/DEVassos/greener-app/issues/25), PR #243); `PUT /api/monitoring-settings` protegido ([#250](https://github.com/DEVassos/greener-app/issues/250), PR #253); todas as páginas e as rotas de dados exigem login ([#257](https://github.com/DEVassos/greener-app/issues/257)) |
 | Execução | Docker Compose (frontend, backend e PostgreSQL com volume persistente) |
 
 ## 6. Equipe (DEVassos)
@@ -176,6 +184,8 @@ docker compose up --build
 | Frontend (dashboard) | http://localhost:5173 | no `compose.yaml` |
 | Backend (API e `/health`) | http://localhost:3000/health | no `compose.yaml`; sobe depois que o PostgreSQL fica saudável |
 | PostgreSQL 16 | `localhost:5433` (`POSTGRES_HOST_PORT`) | no `compose.yaml`, volume `pgdata`; acesso com `docker compose exec postgres psql -U ecopulse -d ecopulse_db` |
+
+Abra http://localhost:5173 e entre com `ADMIN_EMAIL` / `ADMIN_PASSWORD` do `.env` (no `.env.example`, `admin@ecopulse.local` / `admin1234`): todas as páginas exigem login (#257). Na API, as rotas de dados também exigem o token; o exemplo com `curl` está em [backend/README.md](backend/README.md).
 
 Na primeira subida o PostgreSQL aplica [`database/schema.sql`](database/schema.sql) sozinho; detalhes em [database/README.md](database/README.md). Com `VITE_API_URL` apontando para `http://localhost:3000/api` (como no `.env.example`), o dashboard mostra os serviços que o backend coletou: a lista começa vazia e é preenchida pelo coletor que o backend inicia junto com a API (descoberta no agregador a cada 30 s; no compose vale esse padrão, porque `POLLING_INTERVAL_MS` ainda não é repassado ao container); sem acesso ao agregador, a lista para de mudar e mostra o que já está no banco; o aviso "Desatualizado desde …" aparece quando o próprio backend não responde. Deixando `VITE_API_URL` vazia, o frontend sobe em modo demonstração com dados ilustrativos e faixa de aviso; `npm run mock` sobe um backend falso para desenvolvimento. Detalhes da imagem do frontend em [frontend/README.md](frontend/README.md#execução-em-container).
 

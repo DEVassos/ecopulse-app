@@ -4,9 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>EcoPulse</title>
+    <script>
+      // Tema antes da primeira pintura (#265), para não piscar o tema errado: vale a escolha guardada pelo botão do
+      // cabeçalho (chave de src/hooks/useTheme.ts); sem ela, ou com o armazenamento bloqueado, segue o sistema.
+      (function () {
+        var escolha = null;
+        try {
+          escolha = window.localStorage.getItem('ecopulse-theme');
+        } catch (erro) {
+          escolha = null;
+        }
+        if (escolha !== 'light' && escolha !== 'dark') {
+          escolha = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = escolha;
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body>
     <div id="root"></div>

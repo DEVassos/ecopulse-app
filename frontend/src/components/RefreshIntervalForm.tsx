@@ -52,7 +52,7 @@ export default function RefreshIntervalForm() {
           {settings.allowedIntervalsSeconds.map((seconds) => (
             <label
               key={seconds}
-              className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-1.5 font-mono text-sm has-checked:border-primary has-checked:bg-primary/15 has-focus-visible:outline-2 has-focus-visible:outline-primary"
+              className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-1.5 font-data text-sm has-checked:border-primary has-checked:bg-primary/15 has-focus-visible:outline-2 has-focus-visible:outline-primary"
             >
               <input
                 type="radio"

@@ -9,12 +9,8 @@
     background: var(--surface);
   }
 
-  /* Mesmas cores do StatusBadge (docs/identidade-visual.md), sempre com o texto do rótulo.
-     Quem decide o tom é o painel: com contagem zero o card fica neutral, sem falso alarme */
-  .metric--success {
-    --tone: var(--accent-hover);
-  }
-
+  /* Mesmas cores do StatusBadge (docs/identidade-visual.md), sempre com o texto do rótulo. Só problema ganha tom
+     (#272): o estado saudável fica neutro, e com contagem zero o painel também deixa o card neutro, sem falso alarme */
   .metric--danger {
     --tone: var(--danger);
   }
@@ -23,7 +19,6 @@
     --tone: var(--warning);
   }
 
-  .metric--success,
   .metric--danger,
   .metric--warning {
     border-left: 3px solid var(--tone);
@@ -71,10 +66,12 @@
     color: var(--text);
   }
 
+  /* "g CO₂e" é uma unidade só: não quebra entre o g e o CO₂e */
   .metric-unit {
     font-size: 15px;
     font-weight: 500;
     color: var(--muted);
+    white-space: nowrap;
   }
 
   .metric-note {
@@ -83,8 +80,45 @@
     color: var(--muted);
   }
 
-  /* Dado da última busca bem-sucedida, exibido durante uma falha: número apagado, mas legível */
-  .metric--stale .metric-value {
+  /* Compacto (cerca de 64 px): a linha de estado fica abaixo dos indicadores do período, que são o destaque (#259) */
+  .metric--compact {
+    padding: 8px 14px;
+  }
+
+  .metric--compact .metric-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .metric--compact .metric-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .metric--compact .metric-value {
+    margin-top: 2px;
+    font-size: 22px;
+  }
+
+  /* Variação com sinal (#271): energia e CO₂e são métricas em que menos é melhor, então subir é alerta e cair é bom */
+  .metric-delta {
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+
+  .metric-delta--worse {
+    color: var(--warning);
+  }
+
+  .metric-delta--better {
+    color: var(--accent-hover);
+  }
+
+  /* Dado da última busca bem-sucedida, exibido durante uma falha: número apagado, mas legível; a seta perde a cor,
+     porque a variação também é da última busca */
+  .metric--stale .metric-value,
+  .metric--stale .metric-delta {
     color: var(--muted);
   }
 }
