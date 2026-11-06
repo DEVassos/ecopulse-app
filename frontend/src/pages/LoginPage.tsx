@@ -5,6 +5,7 @@ import AuthLayout from '../components/AuthLayout';
 import FormField from '../components/FormField';
 import { useAuth } from '../hooks/useAuth';
 import { ApiError } from '../services/api';
+import { loginDestination } from '../utils/login-redirect';
 import { validateEmail, validatePassword } from '../utils/validation';
 
 interface FieldErrors {
@@ -13,7 +14,7 @@ interface FieldErrors {
 }
 
 export default function LoginPage() {
-  const { user, login } = useAuth();
+  const { user, sessionExpired, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [email, setEmail] = useState('');
@@ -22,8 +23,8 @@ export default function LoginPage() {
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Depois do login volta para a página que pediu a sessão (ProtectedRoute), ou para o dashboard
-  const destination = (location.state as { from?: string } | null)?.from ?? '/';
+  // Depois do login volta para a tela que pediu a sessão (ProtectedRoute), ou para o dashboard
+  const destination = loginDestination(location.state);
 
   if (user) return <Navigate to={destination} replace />;
 
@@ -55,8 +56,13 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthLayout title="Entrar" description="Acesse a área de configuração do monitoramento.">
+    <AuthLayout title="Entrar" description="Entre para acompanhar o monitoramento dos serviços.">
       <form onSubmit={handleSubmit} noValidate>
+        {sessionExpired && !submitError && (
+          <div className="auth-alert" role="status">
+            Sua sessão expirou. Entre novamente para continuar de onde parou.
+          </div>
+        )}
         {submitError && (
           <div className="auth-alert" role="alert">
             {submitError}

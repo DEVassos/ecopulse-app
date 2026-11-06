@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { useNavigate } from 'react-router';
 import { setAuthToken, setSessionExpiredHandler } from '../services/api';
 import * as authService from '../services/auth.service';
 import { isRecord } from '../services/contract';
@@ -41,7 +40,6 @@ function writeSession(session: Session | null): void {
 }
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
-  const navigate = useNavigate();
   // O token vai para o cliente HTTP já na primeira renderização: as telas filhas fazem
   // requisições nos seus efeitos, que rodam antes dos efeitos deste provider
   const [session, setSession] = useState<Session | null>(() => {
@@ -49,6 +47,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     setAuthToken(saved?.token ?? null);
     return saved;
   });
+  const [sessionExpired, setSessionExpired] = useState(false);
 
   const logout = useCallback(() => {
     writeSession(null);
@@ -61,19 +60,22 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     const next: Session = { token, user: { email, name: email.split('@')[0] } };
     writeSession(next);
     setAuthToken(token);
+    setSessionExpired(false);
     setSession(next);
   }, []);
 
+  // Token recusado (expirou ou foi trocado o segredo): encerra a sessão. Sem usuário, o ProtectedRoute leva a
+  // pessoa ao login guardando a tela atual, e as páginas desmontam, o que para o polling (#257)
   useEffect(() => {
     setSessionExpiredHandler(() => {
+      setSessionExpired(true);
       logout();
-      navigate('/login', { replace: true });
     });
-  }, [logout, navigate]);
+  }, [logout]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user: session?.user ?? null, login, logout }),
-    [session, login, logout],
+    () => ({ user: session?.user ?? null, sessionExpired, login, logout }),
+    [session, sessionExpired, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
