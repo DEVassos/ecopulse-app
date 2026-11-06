@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { createDatabase } from '../src/db/connection';
 import { withTransaction } from '../src/db/transaction.repository';
 import { ServiceRepository } from '../src/modules/services/services.repository';
@@ -124,6 +125,110 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
     expect(Number(row.removed)).toBeGreaterThanOrEqual(1);
     const empty = await services.findSummary(new Date('2026-08-01T00:00:00Z'), new Date('2026-08-02T00:00:00Z'));
     expect(empty).toMatchObject({ energy_kwh: null, co2e_grams: null });
+  });
+  it('ranqueia no PostgreSQL por métrica, preserva null/zero e inclui removidos com histórico', async () => {
+    const from = new Date('2026-09-10T00:00:00Z');
+    const to = new Date('2026-09-11T00:00:00Z');
+    const prefix = `ranking-${randomUUID()}`;
+    const create = async (name: string, suffix: string, status?: 'removido' | 'sem_metricas') => {
+      const saved = await services.upsert({ ...service(`${prefix}-${suffix}`), name }, first);
+      if (status) await services.updateStatus(saved.id, status);
+      return saved;
+    };
+    const calculated = (service_id: string, collected_at: Date, energy: string, co2e: string): NewCollection => ({
+      ...reading(service_id), collected_at, calculation_status: 'disponivel',
+      carbon_intensity_gco2e_per_kwh: '100', power_watts: '10', energy_kwh: energy,
+      co2e_grams: co2e, calculation_error_message: null });
+    const tie1 = await create('Tie', 'tie-1');
+    const tie2 = await create('Tie', 'tie-2');
+    const removed = await create('Removed', 'removed', 'removido');
+    await create('Removed without history', 'removed-empty', 'removido');
+    const failed = await create('No calculation', 'failed', 'sem_metricas');
+    const notCalculatedService = await create('Not calculated', 'not-calculated');
+    const noHistory = await create('No collection', 'no-history');
+    await collections.insert(calculated(tie1.id, from, '0', '2'));
+    await collections.insert(calculated(tie1.id, to, '99', '99'));
+    await collections.insert(calculated(tie2.id, from, '0', '2'));
+    await collections.insert(calculated(removed.id, from, '3', '1'));
+    await collections.insert({ ...reading(failed.id), collected_at: from, status: 'erro',
+      collection_interval_seconds: null, cpu_percent: null, memory_gb: null, disk_gb: null,
+      network_gb: null, error_message: 'Timeout' });
+    await collections.insert({ ...reading(notCalculatedService.id), collected_at: from });
+
+    const energy = await services.rankByPeriod('energy', from, to);
+    expect(energy.filter(row => row.energy_kwh !== null).map(row => row.id)).toEqual([removed.id, tie1.id, tie2.id]);
+    expect(energy.slice(0, 3).map(row => Number(row.energy_kwh))).toEqual([3, 0, 0]);
+    expect(energy.filter(row => row.energy_kwh === null).length).toBeGreaterThanOrEqual(3);
+    expect(energy.find(row => row.id === tie1.id)).toMatchObject({ collections: '1', failed: '0', not_calculated: '0' });
+    expect(energy.find(row => row.id === failed.id)).toMatchObject({ collections: '1', failed: '1', not_calculated: '1' });
+    expect(energy.find(row => row.id === notCalculatedService.id)).toMatchObject({ collections: '1', failed: '0', not_calculated: '1' });
+    expect(energy.find(row => row.id === noHistory.id)).toMatchObject({ collections: '0', failed: '0', not_calculated: '0' });
+    expect(energy.some(row => row.name === 'Removed without history')).toBe(false);
+
+    const co2e = await services.rankByPeriod('co2e', from, to);
+    expect(co2e.slice(0, 3).map(row => row.id)).toEqual([tie1.id, tie2.id, removed.id]);
+  });
+  it('ordena numericamente as métricas no PostgreSQL, com decimais, empates, zero, null e removidos', async () => {
+    const from = new Date('2026-09-20T00:00:00Z');
+    const to = new Date('2026-09-21T00:00:00Z');
+    const prefix = `ranking-order-${randomUUID()}`;
+    const entries: Array<{
+      suffix: string; name: string; energy: string | null; co2e: string | null;
+      status?: 'removido' | 'sem_metricas';
+    }> = [
+      { suffix: 'energy-100', name: 'Energy 100', energy: '100', co2e: '9' },
+      { suffix: 'energy-20', name: 'Energy 20', energy: '20', co2e: '100' },
+      { suffix: 'energy-10', name: 'Energy 10', energy: '10', co2e: '20' },
+      { suffix: 'energy-9-5', name: 'Energy 9.5', energy: '9.5', co2e: '10' },
+      { suffix: 'energy-9', name: 'Energy 9', energy: '9', co2e: '9.5' },
+      { suffix: 'tie-alpha', name: 'Alpha', energy: '5', co2e: '5' },
+      { suffix: 'tie-first', name: 'Tie', energy: '5', co2e: '5' },
+      { suffix: 'tie-second', name: 'Tie', energy: '5', co2e: '5' },
+      { suffix: 'zero', name: 'Zero', energy: '0', co2e: '0' },
+      { suffix: 'null', name: 'Null', energy: null, co2e: null, status: 'sem_metricas' },
+      { suffix: 'removed', name: 'Removed', energy: '30', co2e: '30', status: 'removido' },
+      { suffix: 'removed-empty', name: 'Removed without history', energy: null, co2e: null, status: 'removido' },
+    ];
+    const saved: Array<{ entry: typeof entries[number]; id: string }> = [];
+    for (const entry of entries) {
+      const current = await services.upsert({ ...service(`${prefix}-${entry.suffix}`), name: entry.name }, first);
+      if (entry.status) await services.updateStatus(current.id, entry.status);
+      saved.push({ entry, id: current.id });
+      if (entry.energy === null || entry.co2e === null) {
+        if (entry.suffix !== 'removed-empty') {
+          await collections.insert({ ...reading(current.id), collected_at: from, status: 'sem_metricas',
+            collection_interval_seconds: null, cpu_percent: null, memory_gb: null, disk_gb: null,
+            network_gb: null, metrics: {}, ...notCalculated });
+        }
+      } else {
+        await collections.insert({ ...reading(current.id), collected_at: from,
+          calculation_status: 'disponivel', carbon_intensity_gco2e_per_kwh: '100', power_watts: '10',
+          energy_kwh: entry.energy, co2e_grams: entry.co2e, calculation_error_message: null });
+      }
+    }
+    const id = (suffix: string) => saved.find(item => item.entry.suffix === suffix)!.id;
+    const energy = await services.rankByPeriod('energy', from, to);
+    const energyValues = energy.filter(row => row.energy_kwh !== null);
+    expect(energyValues.map(row => row.id)).toEqual([
+      id('energy-100'), id('removed'), id('energy-20'), id('energy-10'), id('energy-9-5'),
+      id('energy-9'), id('tie-alpha'), id('tie-first'), id('tie-second'), id('zero'),
+    ]);
+    expect(energyValues.map(row => Number(row.energy_kwh))).toEqual([100, 30, 20, 10, 9.5, 9, 5, 5, 5, 0]);
+    expect(energy.slice(energyValues.length).every(row => row.energy_kwh === null)).toBe(true);
+    expect(energyValues.findIndex(row => row.id === id('tie-alpha')))
+      .toBeLessThan(energyValues.findIndex(row => row.id === id('tie-first')));
+    expect(energyValues.findIndex(row => row.id === id('tie-first')))
+      .toBeLessThan(energyValues.findIndex(row => row.id === id('tie-second')));
+    expect(energy.some(row => row.name === 'Removed without history')).toBe(false);
+
+    const co2e = await services.rankByPeriod('co2e', from, to);
+    const co2eValues = co2e.filter(row => row.co2e_grams !== null);
+    expect(co2eValues.map(row => row.id)).toEqual([
+      id('energy-20'), id('removed'), id('energy-10'), id('energy-9-5'), id('energy-9'),
+      id('energy-100'), id('tie-alpha'), id('tie-first'), id('tie-second'), id('zero'),
+    ]);
+    expect(co2eValues.map(row => Number(row.co2e_grams))).toEqual([100, 30, 20, 10, 9.5, 9, 5, 5, 5, 0]);
+    expect(co2e.slice(co2eValues.length).every(row => row.co2e_grams === null)).toBe(true);
   });
   it('busca email sem distinção de caixa e não interpreta entrada como SQL', async () => {
     const repo = new UserRepository(db);
