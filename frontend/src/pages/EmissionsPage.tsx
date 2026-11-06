@@ -236,7 +236,7 @@ export default function EmissionsPage() {
               {error && <ErrorState message={error} onRetry={refresh} />}
 
               {totals && summary && (
-                <dl className={stale ? 'emissions__stats emissions__stats--stale' : 'emissions__stats'} title={staleTitle}>
+                <dl className={stale ? 'emissions__stats emissions__stats--stale' : 'emissions__stats'} data-tooltip={staleTitle}>
                   <div>
                     <dt>Emissão no período</dt>
                     <dd>{totals.co2eGrams !== null ? `${formatGrams(totals.co2eGrams)} CO₂e` : '—'}</dd>
@@ -252,7 +252,7 @@ export default function EmissionsPage() {
                   </div>
                   <div
                     className={peakPoint ? 'emissions__stat--peak' : undefined}
-                    title={
+                    data-tooltip={
                       grouped && summary.peak?.co2eMaxGrams != null && data
                         ? `Maior coleta: ${formatGrams(summary.peak.co2eMaxGrams)} CO₂e em ${formatPeakTime(summary.peak, data.bucket)}`
                         : undefined

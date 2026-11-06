@@ -31,7 +31,7 @@ Os valores ficam em `frontend/src/styles/global.css`, fonte única das cores no 
 | **Fundo** | Cor de fundo principal da aplicação | Azul-noite | `#0B1220` | `--bg` | — |
 | **Superfície** | Cor de fundo para cards, painéis e contêineres | Azul-ardósia escuro | `#131C2E` | `--surface` | — |
 | **Primária** | Marca, botões de ação principal e elementos ativos | Verde-esmeralda | `#10B981` | `--accent` | 7,4:1 |
-| **Secundária** | Dados secundários, links e destaques auxiliares | Azul-ciano | `#38BDF8` | `--sky` | 8,7:1 |
+| **Secundária** | Dados secundários, links, destaques auxiliares e a cor da **energia** em gráficos e barras (#274) | Azul-ciano | `#38BDF8` | `--sky` | 8,7:1 |
 | **Destaque da marca** | Elementos exclusivos da identidade visual/logotipo | Amarelo | `#FACC15` | `--yellow` | 12,2:1 |
 | **Alerta** | Estados de aviso (ex: serviço sem métricas) e a seta ▲ de energia ou CO₂e que subiu contra o período anterior (#271), porque nessas métricas menos é melhor; a seta ▼ fica em `--accent-hover` e a variação abaixo de 0,5% ("±0%") em `--muted` | Laranja | `#F97316` | `--warning` | 6,7:1 |
 | **Erro** | Estados críticos (ex: serviço indisponível/caído) | Vermelho | `#EF4444` | `--error` | 5,0:1 |
@@ -111,9 +111,14 @@ No tema escuro, `--neon-text` é o próprio `--neon`. Os dois só se separam no 
 ### Selos de estado
 * Texto e cor juntos (o estado nunca é mostrado só pela cor), sempre com tokens: **Ativo** com o texto em `--muted`, borda `--border` e o ponto em `--accent`, sem fundo, porque o estado saudável fica calmo e só o problema ganha cor (#272; o card **Ativos** também não ganha tom nem borda); **Indisponível**/**Erro** em `--danger` sobre `--error` a 10%; **Sem métricas** em `--warning` sobre `--warning` a 10%; **Removido** em `--muted` sobre `--surface-3`. Sobre a superfície, o pior caso é 5,4:1 (Sem métricas), acima do AA para texto pequeno.
 
+### Tooltip
+* Um tooltip só para a aplicação inteira (`TooltipLayer`, #274), no lugar do `title` do navegador: cartão escuro nos dois temas (`--tooltip-bg` `#0F172A`, borda `--tooltip-border` `#334155`, texto `--tooltip-text` `#F8FAFC` a 17,1:1 e `--tooltip-muted` `#CBD5E1` a 12,0:1), com uma seta que aponta o centro do elemento. Fica acima do elemento e dentro da tela; sem espaço em cima, vai para baixo.
+* Quando há um valor exato, ele vem em destaque (15 px, 600, algarismos tabulares) acima do texto: o número compacto "1,44" da tabela mostra "1,438 Wh" no tooltip.
+* Abre com o ponteiro (depois de 250 ms) e com o foco do teclado; fecha ao sair, ao clicar, ao rolar e com Esc. Os tooltips dos gráficos (Emissões e CPU) usam o mesmo cartão; dentro dele, o aviso de falha usa `--tooltip-warning` (`#FB923C`, 7,9:1), porque o `--warning` do tema claro sumiria no fundo escuro.
+
 ### Barras de ranking e de proporção
 * Trilho em `--border`, barra em `--accent-hover` e o 1º lugar em `--neon` (com `--neon-glow` de brilho). É o padrão que o ranking da US09 (#50) e qualquer barra de proporção vão seguir. Como o neon e o `--accent-hover` ficam a 1,5:1 um do outro, o 1º lugar também precisa de rótulo ou posição, não só da cor.
-* Na comparação entre serviços (`CompareChart`, #218), as barras não são ranking: ficam em `--sky` sobre trilho em `--border`, e no CO₂e o menor vai em `--accent-hover` e o maior em `--warning`, os mesmos tons do destaque da tabela, sempre com a seta "↓"/"↑" e a legenda.
+* **Cor por grandeza (#274):** energia é sempre `--sky` e CO₂e é sempre `--accent`, nas barras da Comparação e no gráfico de Emissões; o tom quente (`--warning`) fica só para problema. Na comparação entre serviços (`CompareChart`, #218), as barras não são ranking: ficam sobre trilho em `--border`, e no CO₂e só o maior muda de cor (`--warning`), com a seta "↑"; o menor continua em `--accent`, marcado pela seta "↓". Linhas de referência, como a média do gráfico de Emissões, ficam em cinza (`--muted`, rótulo em `--text-2`).
 
 ### Tipografia
 * Tipografia limpa e sem serifa otimizada para painéis de dados (Dashboards), em duas famílias do Google Fonts carregadas em `frontend/index.html` (IBM Plex Sans e Space Grotesk):
@@ -132,7 +137,8 @@ No tema escuro, `--neon-text` é o próprio `--neon`. Os dois só se separam no 
   2. Mapa reduzido.
   3. Dashboard da região/serviço selecionado.
   4. Ranking de consumo ao final da página.
-* Cabeçalho abaixo de 961 px (#258): três linhas, sem esconder nada. A primeira tem a marca, o nome de quem entrou e **Sair** (sem sessão, o cabeçalho não aparece, #257), a segunda o menu (que rola na horizontal) e a terceira a "Última atualização" com o botão de atualizar. Na tela larga, tudo fica numa linha só.
+* Cabeçalho abaixo de 961 px (#258): a primeira linha tem a marca, o nome de quem entrou e **Sair** (sem sessão, o cabeçalho não aparece, #257), a segunda o menu e a terceira a "Última atualização" com o botão de atualizar. Na tela larga, tudo fica numa linha só.
+* Abaixo de 600 px (#274), a faixa do menu dá lugar ao botão **Menu**, na linha da marca, que abre uma grade de duas colunas logo abaixo do cabeçalho, sobre o fundo apagado: cada página é um cartão em `--surface` com o ícone sobre o rótulo, e a atual tem o mesmo verde do item ativo da faixa. Nenhum item do menu fica cortado ou escondido numa rolagem lateral. A saudação ("Olá, nome", com o e-mail em `--muted`) e o botão de tema saem da linha da marca e vão para o fim do painel; no cabeçalho fica só o **Sair**.
 * Os cards de energia e emissões do período ficam em uma coluna no celular, para o valor e a unidade ("g CO₂e") caberem na mesma linha.
 * Tabela de serviços abaixo de 600 px (#263): a emissão da última leitura aparece também sob o nome, em `--mono` 12 px e `--muted`. Toda área com rolagem horizontal (tabela de serviços, matriz da Comparação) mostra uma sombra interna em `--bg` na borda direita enquanto há colunas escondidas (`.scroll-edge`). É um sinal de estado, não elevação, e some quando a rolagem chega ao fim.
 * O menu do topo rola até o item ativo ao abrir cada página, e o selo de atualização não quebra o horário nem o intervalo no meio.

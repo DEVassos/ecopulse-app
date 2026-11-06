@@ -7,6 +7,7 @@ import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import EstimateTag from '../components/EstimateTag';
 import LoadingState from '../components/LoadingState';
+import CompactValue from '../components/CompactValue';
 import MissingValue from '../components/MissingValue';
 import PeriodPicker from '../components/PeriodPicker';
 import { useComparison } from '../hooks/useComparison';
@@ -16,7 +17,7 @@ import type { ComparedService } from '../services/compare.types';
 import { isDemoMode } from '../services/services.service';
 import { isInputDate, spanDays, timeZoneLabel, todayInput } from '../utils/emissions';
 import { formatNumber } from '../utils/format';
-import { formatInScale, scaleFor } from '../utils/units';
+import { scaleFor } from '../utils/units';
 
 /** Limites de GET /api/services/compare (docs/api.md). */
 const MIN_SERVICES = 2;
@@ -33,7 +34,7 @@ function formatMoment(iso: string): string {
 }
 
 /** Valor formatado, ou "—" quando não há dado no período (nunca um zero inventado). */
-function amount(value: number | null, format: (value: number) => string): ReactNode {
+function amount(value: number | null, format: (value: number) => ReactNode): ReactNode {
   return value === null ? <MissingValue label="sem dado no período" title="Sem dado no período" /> : format(value);
 }
 
@@ -67,8 +68,16 @@ function rowsFor(services: ComparedService[]): Row[] {
     { label: 'Memória média (GB)', cell: (service) => amount(service.avgMemoryGb, (value) => formatNumber(value, 2)) },
     { label: 'Disco médio (GB)', cell: (service) => amount(service.avgDiskGb, (value) => formatNumber(value, 2)) },
     { label: 'Rede média (GB)', cell: (service) => amount(service.avgNetworkGb, (value) => formatNumber(value, 3)) },
-    { label: `Energia (${energy.unit})`, cell: (service) => amount(service.energyKwh, (value) => formatInScale(value, energy)) },
-    { label: `CO₂e (${co2e.unit})`, cell: (service) => amount(service.co2eGrams, (value) => formatInScale(value, co2e)) },
+    {
+      label: `Energia (${energy.unit})`,
+      cell: (service) =>
+        amount(service.energyKwh, (value) => <CompactValue quantity="energy" value={value} scale={energy} label="Energia somada no período" />),
+    },
+    {
+      label: `CO₂e (${co2e.unit})`,
+      cell: (service) =>
+        amount(service.co2eGrams, (value) => <CompactValue quantity="co2e" value={value} scale={co2e} label="CO₂e somado no período" />),
+    },
   ];
 }
 
