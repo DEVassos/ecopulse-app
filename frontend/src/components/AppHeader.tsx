@@ -1,28 +1,25 @@
 import { useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { Link, NavLink, useLocation } from 'react-router';
+import { NavLink, useLocation } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
 import Brand from './Brand';
 import './AppHeader.css';
 
-/** Visitante vê "Entrar"; quem tem sessão vê o nome e o botão de sair. */
+/**
+ * Nome e botão de sair. Sem sessão o cabeçalho não aparece (as páginas exigem login, #257); a exceção é o modo
+ * demonstração, sem backend nem login, em que o menu fica vazio.
+ */
 function UserMenu() {
   const { user, logout } = useAuth();
 
-  if (!user) {
-    return (
-      <Link className="btn-login" to="/login">
-        Entrar
-      </Link>
-    );
-  }
+  if (!user) return null;
 
   return (
     <div className="user-menu">
       <span title={user.email}>
         Olá, <strong>{user.name}</strong>
       </span>
-      {/* No dashboard a pessoa continua onde está; na área restrita o ProtectedRoute leva ao login */}
+      {/* Sem sessão, o ProtectedRoute leva ao login e as páginas desmontam, o que para o polling */}
       <button type="button" className="btn-outline" onClick={logout}>
         Sair
       </button>
@@ -67,7 +64,7 @@ export default function AppHeader({ children, updatedAt }: Props) {
           <NavLink to="/configuracao">Configuração</NavLink>
         </nav>
 
-        {/* No celular as duas caixas se separam: Entrar/Sair sobe para a linha da marca e a atualização desce para
+        {/* No celular as duas caixas se separam: o nome e Sair sobem para a linha da marca e a atualização desce para
             baixo do menu (AppHeader.css) */}
         <div className="topbar-actions">
           {children && <div className="topbar-status">{children}</div>}
