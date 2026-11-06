@@ -30,8 +30,6 @@ export interface ServiceRankingRow {
   energy_kwh: string | null; co2e_grams: string | null;
 }
 
-const RANKING_ORDER_COLUMNS = { energy: 'energy_kwh', co2e: 'co2e_grams' } as const;
-
 export class ServiceRepository {
   constructor(private readonly db: QueryExecutor) {}
   async findAll(): Promise<StoredService[]> {
@@ -87,7 +85,6 @@ export class ServiceRepository {
       ORDER BY s.id ASC`, [ids, from, to])).rows;
   }
   async rankByPeriod(metric: ServiceRankingMetric, from: Date, to: Date): Promise<ServiceRankingRow[]> {
-    const orderColumn = RANKING_ORDER_COLUMNS[metric];
     return (await this.db.query<ServiceRankingRow>(`
       SELECT s.id, s.name, s.region, s.status,
         COUNT(c.id)::text AS collections,
@@ -99,7 +96,16 @@ export class ServiceRepository {
       LEFT JOIN collections AS c ON c.service_id = s.id AND c.collected_at >= $1 AND c.collected_at < $2
       WHERE s.status <> 'removido' OR c.id IS NOT NULL
       GROUP BY s.id, s.name, s.region, s.status
-      ORDER BY ${orderColumn} DESC NULLS LAST, s.name ASC, s.id ASC`, [from, to])).rows; // sql-seguro: coluna vinda da whitelist fixa
+      ORDER BY
+        CASE
+          WHEN $3::text = 'energy'
+            THEN SUM(c.energy_kwh)
+              FILTER (WHERE c.calculation_status = 'disponivel')
+          ELSE SUM(c.co2e_grams)
+              FILTER (WHERE c.calculation_status = 'disponivel')
+        END DESC NULLS LAST,
+        s.name ASC,
+        s.id ASC`, [from, to, metric])).rows;
   }
   async upsert(service: DiscoveredService, observedAt: Date): Promise<StoredService> {
     const result = await this.db.query<StoredService>(`

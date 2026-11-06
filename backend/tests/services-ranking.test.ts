@@ -53,7 +53,7 @@ describe('GET /api/services/ranking', () => {
       ],
     });
     expect(query).toHaveBeenCalledOnce();
-    expect(query.mock.calls[0][1]).toEqual([new Date('2026-11-02T03:00:00.000Z'), new Date('2026-12-03T03:00:00.000Z')]);
+    expect(query.mock.calls[0][1]).toEqual([new Date('2026-11-02T03:00:00.000Z'), new Date('2026-12-03T03:00:00.000Z'), 'energy']);
   });
 
   it('usa CO₂e para atribuir posições sem omitir energia', async () => {
