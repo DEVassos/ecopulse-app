@@ -49,6 +49,11 @@
     opacity: 0.55;
   }
 
+  /* Data com erro (#262): borda em --danger, além da mensagem ligada por aria-describedby */
+  .emissions__field input[aria-invalid='true'] {
+    border-color: var(--danger);
+  }
+
   .emissions__field select:focus-visible,
   .emissions__field input:focus-visible {
     outline: 2px solid var(--sky);
@@ -273,9 +278,10 @@
     color: var(--text);
   }
 
+  /* 12 px: o menor degrau da escala tipográfica (#262) */
   .emissions__stats small {
     font-family: var(--sans);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 400;
     color: var(--muted);
   }
