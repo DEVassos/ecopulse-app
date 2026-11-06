@@ -63,6 +63,24 @@ O `:root` declara `color-scheme: dark` (#258): caixas de seleção, selects, cal
 
 No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg-surface-3`, `border-border`, `text-text`, `text-muted`, `text-faint`, `text-primary` (`--accent`), `text-primary-hover` (`--accent-hover`), `text-secondary` (`--sky`), `text-brand` (`--yellow`), `text-warning`, `text-error` e `text-danger` (`--danger`), além das variantes `bg-*` e `border-*` de cada uma. Os demais tokens de apoio são usados pelo CSS dos componentes, com `var(--token)`.
 
+### Tema claro (#265)
+
+O botão de sol/lua do cabeçalho (e do canto do login) alterna o tema claro e o escuro. Na primeira visita vale a preferência do sistema (`prefers-color-scheme`); depois do clique, a escolha fica no `localStorage` (`ecopulse-theme`). O `index.html` aplica o atributo `data-theme` no `<html>` antes da primeira pintura, para não piscar o tema errado. O tema claro remapeia os mesmos papéis em `:root[data-theme='light']`, em `global.css`, e não é o escuro invertido. Os componentes não têm cor própria.
+
+| Token CSS | Claro | Uso | Contraste (pior caso entre fundo, superfície e superfície 2) |
+| :--- | :--- | :--- | :--- |
+| `--bg` / `--surface` / `--surface-2` / `--surface-3` | `#F4F6FA` / `#FFFFFF` / `#EEF2F7` / `#E2E8F0` | Fundo, cards e painéis, cabeçalho e campos, selos neutros | — |
+| `--border` | `#D3DBE6` | Bordas e divisórias | — |
+| `--text` / `--text-2` / `--muted` | `#0F172A` / `#334155` / `#526072` | Texto, texto de apoio, rótulos | 15,9:1 / 9,2:1 / 5,7:1 |
+| `--faint` | `#94A3B8` | Só decoração | 2,3:1 |
+| `--accent` / `--accent-hover` / `--on-accent` | `#047857` / `#065F46` / `#FFFFFF` | Ação principal e item ativo; texto branco no botão cheio | 4,9:1 / 6,8:1 / 5,5:1 sobre `--accent` |
+| `--sky` / `--sky-hover` | `#0369A1` / `#075985` | Links, foco, dado secundário | 5,3:1 / 6,7:1 |
+| `--yellow` | `#A87700` | Só o "Pulse" do logo (texto grande) | 3,5:1 |
+| `--warning` / `--error` / `--danger` | `#A8380B` / `#DC2626` / `#B91C1C` | Alerta; erro em borda e ícone; texto de erro | 5,6:1 (também sobre o fundo tingido de alerta) / 4,3:1 / 5,8:1 |
+| `--neon` / `--neon-text` | `#009966` / `#00754E` | Neon de gráfico (ponto, barra, brilho); texto no papel do neon | 3,3:1 / 5,1:1 |
+
+No tema escuro, `--neon-text` é o próprio `--neon`. Os dois só se separam no claro, porque o verde-neon de gráfico não passa no AA como texto. O fundo atrás da janela de detalhes vira o token `--scrim`: no escuro, o fundo a 80%; no claro, um cinza-azulado translúcido.
+
 ---
 
 ## 3. Diretrizes de Interface e Componentes

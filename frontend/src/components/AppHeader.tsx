@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
 import Brand from './Brand';
+import ThemeToggle from './ThemeToggle';
 import './AppHeader.css';
 
 /**
@@ -68,7 +69,9 @@ export default function AppHeader({ children, updatedAt }: Props) {
             baixo do menu (AppHeader.css) */}
         <div className="topbar-actions">
           {children && <div className="topbar-status">{children}</div>}
+          {/* Tema junto do Entrar/Sair: as duas ações da pessoa, não da página (#265) */}
           <div className="topbar-user">
+            <ThemeToggle />
             <UserMenu />
           </div>
         </div>

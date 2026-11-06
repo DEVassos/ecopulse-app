@@ -293,7 +293,8 @@
   }
 
   .emissions__stat--peak dd {
-    color: var(--neon);
+    /* --neon-text: no tema claro o neon de gráfico não passa no AA como texto (#265) */
+    color: var(--neon-text);
   }
 
   /* Dado da última busca bem-sucedida, exibido durante uma falha: números apagados, mas legíveis (como o MetricTile) */
