@@ -211,6 +211,44 @@ Resposta 200 ecoa `from` e `to` e traz, por serviço, contagens de coletas, falh
 {"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z","services":[{"id":"1","name":"Demo","region":"Sul","collections":12,"failed":0,"notCalculated":0,"avgCpuPercent":42.5,"avgMemoryGb":2.1,"avgDiskGb":10,"avgNetworkGb":0.3,"energyKwh":0.01,"co2eGrams":0.85}]}
 ```
 
+## GET /api/services/ranking
+
+Ordena os serviços pelo consumo de energia ou pelas emissões de CO₂e no período. Esta rota exige `Authorization: Bearer <JWT>` emitido por `POST /api/auth/login`; essa proteção não altera a política das outras rotas.
+
+`GET /api/services/ranking?metric=co2e&from=2026-11-02T00:00:00-03:00&to=2026-11-03T00:00:00-03:00`
+
+| Parâmetro | Obrigatório | Regra |
+|---|---|---|
+| `metric` | sim | `energy` ou `co2e`; a seleção da coluna SQL usa whitelist fixa |
+| `from` | não | instante ISO 8601 com hora; deve vir junto com `to` |
+| `to` | não | instante posterior a `from`; o período `[from,to)` tem até 31 dias |
+
+Sem limites, usa as últimas 24 horas até o instante da consulta. A resposta ecoa o período em UTC. Inclui os serviços atuais; um serviço removido só aparece se tiver ao menos uma coleta no período, e seu estado atual é mantido.
+
+As duas somas são sempre devolvidas. Entram apenas coletas com `calculation_status = 'disponivel'`; `null` significa que não houve cálculo disponível, enquanto zero é um total calculado. `collections` conta todas as coletas no período, `failed` conta status diferente de `ok` e `notCalculated` conta cálculo diferente de `disponivel` (essas duas contagens podem se sobrepor, conforme `/api/services/compare`).
+
+A ordenação usa a métrica escolhida em ordem decrescente, com desempate por `name` crescente e depois `id` crescente. Valores `null` ficam ao final com `position: null`; os demais recebem posições sequenciais. IDs são strings para preservar `bigint`.
+
+```json
+{
+  "metric": "co2e",
+  "from": "2026-11-02T03:00:00.000Z",
+  "to": "2026-11-03T03:00:00.000Z",
+  "services": [
+    { "position": 1, "id": "3", "name": "Fraud Detector", "region": "us-east", "status": "ativo", "energyKwh": 1.712, "co2eGrams": 645.4, "collections": 2880, "failed": 0, "notCalculated": 0 },
+    { "position": null, "id": "7", "name": "Inventory Sync", "region": "ca-central", "status": "sem_metricas", "energyKwh": null, "co2eGrams": null, "collections": 2880, "failed": 0, "notCalculated": 2880 }
+  ]
+}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | `metric` ausente/inválida; só `from` ou `to`; data inválida ou sem hora; `from >= to`; período acima de 31 dias |
+| 401 | `UNAUTHORIZED` | JWT ausente, inválido ou expirado |
+| 500 | `DATABASE_ERROR` | falha de conexão ou consulta no PostgreSQL |
+
+Exemplo de erro de validação: `{"error":{"code":"VALIDATION_ERROR","message":"metric deve ser energy ou co2e."}}`.
+
 ## POST /api/auth/login
 
 Autentica o administrador sem expor senha ou hash. Use as credenciais `ADMIN_EMAIL` e `ADMIN_PASSWORD` definidas no `.env`; o `.env.example` contém apenas valores de desenvolvimento. Corpo JSON obrigatório:
@@ -255,7 +293,7 @@ Health comprova conectividade, não valida existência de tabelas, persistência
 
 | HTTP | Código | Situação |
 |---|---|---|
-| 400 | VALIDATION_ERROR | JSON inválido com Content-Type application/json; parâmetro inválido em `GET /api/collections`, `GET /api/collections/series`, `GET /api/services/summary`, `GET /api/services/compare` ou no login |
+| 400 | VALIDATION_ERROR | JSON inválido com Content-Type application/json; parâmetro inválido em `GET /api/collections`, `GET /api/collections/series`, `GET /api/services/summary`, `GET /api/services/compare`, `GET /api/services/ranking` ou no login |
 | 401 | UNAUTHORIZED | credenciais inválidas no login; token ausente, inválido ou expirado nas rotas de dados e em `GET /api/auth/me` |
 | 404 | NOT_FOUND | rota não registrada, incluindo métodos não registrados; `service_id` inexistente em `GET /api/collections` e em `GET /api/collections/series` |
 | 500 | DATABASE_ERROR | falha de conexão ou de consulta no PostgreSQL |
