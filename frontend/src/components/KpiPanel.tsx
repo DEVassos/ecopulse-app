@@ -1,6 +1,6 @@
 import type { StatusSummary } from '../utils/summary';
 import { formatDayTime } from '../utils/format';
-import MetricTile, { type MetricTone } from './MetricTile';
+import MetricTile, { metricIconProps as iconProps, type MetricTone } from './MetricTile';
 import './KpiPanel.css';
 
 interface Props {
@@ -8,15 +8,6 @@ interface Props {
   /** Horário dos dados exibidos quando a última busca falhou; null quando estão em dia. */
   staleSince: string | null;
 }
-
-const iconProps = {
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  strokeWidth: 1.8,
-  strokeLinecap: 'round',
-  strokeLinejoin: 'round',
-} as const;
 
 /** Cards de nível 1 com o estado dos serviços (RF08, RF09). Energia e CO₂e do período ficam no painel de indicadores agregados. */
 export default function KpiPanel({ summary, staleSince }: Props) {

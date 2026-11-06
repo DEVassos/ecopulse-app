@@ -19,7 +19,9 @@ const MIN_SERVICES = 2;
 const MAX_SERVICES = 10;
 const MAX_SPAN_DAYS = 31;
 
-const DATE_FIELD = 'h-9 rounded-lg border border-border bg-surface-2 px-3 font-sans text-sm text-text [color-scheme:dark]';
+/* Mesmo foco dos filtros da página Emissões (contorno em --sky); o tema escuro do calendário vem do :root */
+const DATE_FIELD =
+  'h-9 rounded-lg border border-border bg-surface-2 px-3 font-sans text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-secondary';
 
 /** ISO 8601 → "27/10/2026, 14:05", no fuso do navegador. */
 function formatMoment(iso: string): string {
@@ -167,7 +169,7 @@ export default function ComparePage() {
         {services.length > 0 && (
           <form className="panel flex flex-col gap-4 p-4" onSubmit={handleSubmit}>
             <fieldset className="m-0 border-0 p-0">
-              <legend className="mb-2 p-0 text-sm text-muted">Serviços (de 2 a 10)</legend>
+              <legend className="mb-2 p-0 text-xs text-muted">Serviços (de 2 a 10)</legend>
               <div className="flex flex-wrap gap-x-5 gap-y-2">
                 {services.map((service) => {
                   const checked = draftIds.includes(service.id);
@@ -187,11 +189,11 @@ export default function ComparePage() {
               </div>
             </fieldset>
             <div className="flex flex-wrap items-end gap-3">
-              <label className="flex flex-col gap-1 text-sm text-muted">
+              <label className="flex flex-col gap-1 text-xs text-muted">
                 Data inicial
                 <input type="date" value={draftStart} max={today} onChange={(e) => setDraftStart(e.target.value)} className={DATE_FIELD} />
               </label>
-              <label className="flex flex-col gap-1 text-sm text-muted">
+              <label className="flex flex-col gap-1 text-xs text-muted">
                 Data final
                 <input type="date" value={draftEnd} max={today} onChange={(e) => setDraftEnd(e.target.value)} className={DATE_FIELD} />
               </label>

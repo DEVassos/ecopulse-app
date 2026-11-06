@@ -88,23 +88,23 @@
   }
 
   /*
-   * Neon só no pico: é o ponto que pede atenção. A linha continua em --accent, sem brilho
-   * (com brilho, uma série densa fica borrada).
+   * Maior ponto do gráfico, em cor neutra e sem brilho: na página Emissões o neon fica com o tile
+   * "Pico de uma coleta", o pico que a Leitura do período cita (um neon por vez, #258). O maior
+   * intervalo e a maior coleta podem cair em horários diferentes.
    */
   .emissions-chart__peak-halo {
-    fill: var(--neon);
-    opacity: 0.18;
+    fill: var(--text);
+    opacity: 0.12;
   }
 
   .emissions-chart__peak-dot {
-    fill: var(--neon);
+    fill: var(--text);
     stroke: var(--bg);
     stroke-width: 1.5;
-    filter: drop-shadow(0 0 5px var(--neon-glow));
   }
 
   .emissions-chart__peak-label {
-    fill: var(--neon);
+    fill: var(--text-2);
     paint-order: stroke;
     stroke: var(--surface);
     stroke-width: 4px;
