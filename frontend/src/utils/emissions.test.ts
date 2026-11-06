@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describePeriod, peakRatio, readPeriodFilter, seriesStats } from './emissions';
+import { describePeriod, missingSpans, missingTimeMs, peakRatio, readPeriodFilter, seriesStats } from './emissions';
 import type { EmissionPoint } from '../services/emissions.types';
 
 const TODAY = '2026-11-02';
@@ -79,19 +79,43 @@ describe('seriesStats', () => {
 describe('describePeriod', () => {
   const origin = Date.UTC(2026, 10, 2, 12);
 
-  it('usa o mesmo pico dos tiles e diz se foi numa coleta ou num intervalo', () => {
+  it('usa o mesmo pico dos tiles e o nome do chip: pico de uma coleta ou maior intervalo', () => {
     const points = [point(origin, 0.2), point(origin + 30_000, 0.2), point(origin + 60_000, 0.8)];
     const stats = seriesStats(points, 'coleta', origin + 60_000);
     const [line] = describePeriod(points, stats, 'coleta', 0);
     expect(line).toMatch(/^Pico de 800 mg CO₂e numa coleta em .+, 2× a média do período\./);
   });
 
+  it('no agrupado, chama o maior ponto de maior intervalo, como o chip e o tile (#272)', () => {
+    const points = [point(origin, 1), point(origin + 15 * 60_000, 1), point(origin + 30 * 60_000, 4)];
+    const stats = seriesStats(points, '15min', origin + 60 * 60_000);
+    expect(describePeriod(points, stats, '15min', 0)[0]).toMatch(/^Maior intervalo: 4,00 g CO₂e em .+, 2× a média do período\./);
+  });
+
   it('chama de estável um pico perto da média e soma o tempo sem coleta', () => {
     const points = [point(origin, 10), point(origin + 15 * 60_000, 11)];
     const stats = seriesStats(points, '15min', origin + 60 * 60_000);
     expect(describePeriod(points, stats, '15min', 45 * 60_000)).toEqual([
-      expect.stringMatching(/^Emissão estável: o pico \(11,0 g em .+\) ficou perto da média\.$/),
+      expect.stringMatching(/^Emissão estável: o maior intervalo \(11,0 g em .+\) ficou perto da média\.$/),
       '45 min sem coleta no período: esses trechos não entram no total.',
     ]);
+  });
+});
+
+describe('missingSpans', () => {
+  const origin = Date.UTC(2026, 10, 4, 3);
+  const MIN = 60_000;
+
+  it('devolve os trechos sem coleta que somam o tempo do card, alinhados em 15 min (#272)', () => {
+    // Coletas em 00:00, 00:15 e 01:30 (do período de 1 dia): falta 00:30–01:30
+    const points = [point(origin, 1), point(origin + 15 * MIN, 1), point(origin + 90 * MIN, 1)];
+    const spans = missingSpans(points, 'coleta', origin, origin + 24 * 60 * MIN);
+    expect(spans).toEqual([{ start: origin + 30 * MIN, end: origin + 90 * MIN }]);
+    expect(missingTimeMs(points, 'coleta', origin, origin + 24 * 60 * MIN)).toBe(60 * MIN);
+  });
+
+  it('não conta antes da primeira nem depois da última coleta', () => {
+    const points = [point(origin + 60 * MIN, 1)];
+    expect(missingSpans(points, '15min', origin, origin + 24 * 60 * MIN)).toEqual([]);
   });
 });

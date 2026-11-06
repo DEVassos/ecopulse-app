@@ -28,3 +28,11 @@ export function labelBox(text: string, x: number, baseline: number, anchor: Labe
 export function labelsOverlap(a: LabelBox, b: LabelBox, gap = 4): boolean {
   return a.left < b.right + gap && b.left < a.right + gap && a.top < b.bottom + gap && b.top < a.bottom + gap;
 }
+
+/**
+ * Primeira linha de base, na ordem das candidatas, em que o rótulo não encosta em nenhum obstáculo (outros rótulos,
+ * linhas de referência). Null quando nenhuma serve: aí o rótulo fica de fora, e a legenda diz o que a marca é.
+ */
+export function freeBaseline(candidates: number[], boxAt: (baseline: number) => LabelBox, obstacles: LabelBox[]): number | null {
+  return candidates.find((baseline) => obstacles.every((obstacle) => !labelsOverlap(boxAt(baseline), obstacle))) ?? null;
+}

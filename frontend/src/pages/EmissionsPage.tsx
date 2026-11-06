@@ -7,6 +7,7 @@ import EmissionsChart from '../components/EmissionsChart';
 import type { EmissionsChartMode } from '../components/EmissionsChart';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
+import EstimateTag from '../components/EstimateTag';
 import LastUpdated from '../components/LastUpdated';
 import LoadingState from '../components/LoadingState';
 import { useEmissions } from '../hooks/useEmissions';
@@ -19,7 +20,6 @@ import {
   BUCKET_LABEL,
   MAX_SPAN_DAYS,
   autoBucket,
-  describePeriod,
   formatDurationMilliseconds,
   formatGrams,
   formatInputDate,
@@ -27,7 +27,7 @@ import {
   formatPeakTime,
   formatRatio,
   formatShort,
-  missingTimeMs,
+  missingSpans,
   peakRatio,
   seriesStats,
   periodMs,
@@ -94,10 +94,14 @@ export default function EmissionsPage() {
 
   const points = useMemo(() => data?.points ?? [], [data]);
   const summary = useMemo(() => (data ? summarize(data.points, data.totals) : null), [data]);
-  const missingMs = data && period ? missingTimeMs(data.points, data.bucket, period.fromMs, period.toMs) : 0;
+  // Trechos sem coleta: o gráfico desenha cada um e o card Coletas mostra a soma, com a mesma regra (#272)
+  const missing = useMemo(
+    () => (data && period ? missingSpans(data.points, data.bucket, period.fromMs, period.toMs) : []),
+    [data, period],
+  );
+  const missingMs = missing.reduce((sum, span) => sum + span.end - span.start, 0);
   // Média e maior ponto com a mesma conta do gráfico (sem o intervalo ainda aberto): tiles, gráfico e Leitura dizem o mesmo (#271)
   const stats = useMemo(() => (data && period ? seriesStats(data.points, data.bucket, period.toMs) : null), [data, period]);
-  const reading = stats && data ? describePeriod(data.points, stats, data.bucket, missingMs) : [];
   const ratio = stats && data ? peakRatio(data.points, stats) : null;
   const peakPoint = stats && stats.peakIndex !== null && data ? data.points[stats.peakIndex] : null;
   const grouped = data ? data.bucket !== 'coleta' : false;
@@ -255,9 +259,13 @@ export default function EmissionsPage() {
             <div className="emissions__card panel">
               <header className="emissions__header">
                 <div>
-                  <h2 id="emissions-title" className="emissions__title">
-                    {service.name}
-                  </h2>
+                  {/* O método da estimativa fica no tooltip da etiqueta, não numa frase sob o gráfico (#272) */}
+                  <div className="emissions__heading">
+                    <h2 id="emissions-title" className="emissions__title">
+                      {service.name}
+                    </h2>
+                    <EstimateTag />
+                  </div>
                   <p className="emissions__subtitle">
                     Emissão estimada de CO₂e {mode === 'acumulado' ? 'acumulada ' : ''}— {periodLabel} ({timeZoneLabel(start)})
                     {locationOf(service) && ` · ${locationOf(service)}`}
@@ -274,22 +282,6 @@ export default function EmissionsPage() {
               </header>
 
               {error && <ErrorState message={error} onRetry={refresh} />}
-
-              {reading.length > 0 && (
-                <div
-                  className={stale ? 'emissions__reading emissions__reading--stale' : 'emissions__reading'}
-                  title={staleTitle}
-                  // Sem aria-live (#262): no Tempo real a frase muda a cada ciclo e seria anunciada a cada 30 s;
-                  // a falha já é anunciada uma vez pelo ErrorState
-                >
-                  <h3>Leitura do período</h3>
-                  <ul>
-                    {reading.map((line) => (
-                      <li key={line}>{line}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
 
               {totals && summary && (
                 <dl className={stale ? 'emissions__stats emissions__stats--stale' : 'emissions__stats'} title={staleTitle}>
@@ -376,6 +368,7 @@ export default function EmissionsPage() {
                     mode={mode}
                     fromMs={period.fromMs}
                     toMs={period.toMs}
+                    missing={missing}
                     stale={stale}
                   />
                 )}
@@ -398,11 +391,6 @@ export default function EmissionsPage() {
                   1 hora para ver o período inteiro.
                 </p>
               )}
-
-              <p className="emissions__footnote">
-                Estimativa, não medição: potência calculada a partir de CPU, memória, disco e rede × intervalo da coleta ×
-                intensidade de carbono da região (ADR 0006).
-              </p>
             </div>
           </section>
         )}

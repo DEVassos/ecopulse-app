@@ -58,4 +58,22 @@ describe('ServicesTable', () => {
     );
     expect(html).toMatch(/15\/01 \d{2}:00:00/);
   });
+
+  it('põe a ação de ver o histórico ao lado do selo só de quem tem problema (#272)', () => {
+    const html = renderToStaticMarkup(
+      <ServicesTable
+        services={[service('a', 'ativo', 1), service('b', 'indisponivel', 1), service('c', 'sem_metricas', 1), service('d', 'removido', 1)]}
+        onSelect={() => undefined}
+      />,
+    );
+    expect(html).toContain('aria-label="Ver histórico de b"');
+    expect(html).toContain('aria-label="Ver histórico de c"');
+    expect(html).not.toContain('Ver histórico de a"');
+    expect(html).not.toContain('Ver histórico de d"');
+  });
+
+  it('deixa o selo Ativo neutro, com o ponto verde como única cor (#272)', () => {
+    const html = renderToStaticMarkup(<ServicesTable services={[service('a', 'ativo', 1)]} onSelect={() => undefined} />);
+    expect(html).toMatch(/border-border text-muted[^"]*"><span class="size-1\.5 rounded-full bg-primary"/);
+  });
 });

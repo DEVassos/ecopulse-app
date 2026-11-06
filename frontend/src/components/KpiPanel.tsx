@@ -14,7 +14,8 @@ interface Props {
 /** Cards de nível 1 com o estado dos serviços (RF08, RF09). Energia e CO₂e do período ficam no painel de indicadores agregados. */
 export default function KpiPanel({ summary, staleSince, compact = false }: Props) {
   const stale = staleSince !== null;
-  // Cor só quando há algo a ver: com contagem zero o card fica neutro e sem nota
+  // Cor só quando há algo a ver: Ativos é estado saudável e fica sempre neutro (#272); Indisponíveis e Sem métricas
+  // ganham tom só com contagem acima de zero
   const tone = (count: number, active: MetricTone): MetricTone => (count > 0 ? active : 'neutral');
   const share = (count: number) =>
     count > 0 && summary.monitored > 0 ? `${Math.round((count / summary.monitored) * 100)}% do total` : undefined;
@@ -45,7 +46,6 @@ export default function KpiPanel({ summary, staleSince, compact = false }: Props
         label="Ativos"
         value={String(summary.active)}
         note={share(summary.active)}
-        tone={tone(summary.active, 'success')}
         stale={stale}
         compact={compact}
         icon={

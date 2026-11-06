@@ -9,12 +9,8 @@
     background: var(--surface);
   }
 
-  /* Mesmas cores do StatusBadge (docs/identidade-visual.md), sempre com o texto do rótulo.
-     Quem decide o tom é o painel: com contagem zero o card fica neutral, sem falso alarme */
-  .metric--success {
-    --tone: var(--accent-hover);
-  }
-
+  /* Mesmas cores do StatusBadge (docs/identidade-visual.md), sempre com o texto do rótulo. Só problema ganha tom
+     (#272): o estado saudável fica neutro, e com contagem zero o painel também deixa o card neutro, sem falso alarme */
   .metric--danger {
     --tone: var(--danger);
   }
@@ -23,7 +19,6 @@
     --tone: var(--warning);
   }
 
-  .metric--success,
   .metric--danger,
   .metric--warning {
     border-left: 3px solid var(--tone);

@@ -138,6 +138,8 @@ interface Props {
  * Energia e CO₂e por serviço em barras (RF15, #218), cada grandeza na sua escala, na mesma ordem da tabela. Barras em
  * SVG, sem biblioteca; a tabela continua sendo a fonte completa dos dados.
  */
+const SCALE_NOTE = 'Cada gráfico tem a sua escala: a barra mais longa é o maior valor daquela grandeza no período.';
+
 export default function CompareChart({ services, highlightOf }: Props) {
   const found = new Map(
     services.flatMap((service) => {
@@ -154,8 +156,10 @@ export default function CompareChart({ services, highlightOf }: Props) {
           <MetricBars key={metric.title} metric={metric} services={services} highlightOf={highlightOf} />
         ))}
       </div>
-      <figcaption className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-        <span>Cada gráfico tem a sua escala: a barra mais longa é o maior valor daquela grandeza no período.</span>
+      {/* A regra da escala vai no tooltip da legenda (#272); o leitor de tela ouve a frase inteira */}
+      <figcaption className="flex cursor-help flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted" title={SCALE_NOTE}>
+        <span className="sr-only">{SCALE_NOTE}</span>
+        <span aria-hidden="true">Escala própria por grandeza</span>
         {legend.map((highlight) => (
           <span key={highlight.kind} className="inline-flex items-center gap-1.5">
             <span className={`compare-chart__key compare-chart__key--${highlight.kind}`} aria-hidden="true" />

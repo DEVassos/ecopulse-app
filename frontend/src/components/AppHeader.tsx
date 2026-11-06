@@ -69,7 +69,7 @@ export default function AppHeader({ children, updatedAt }: Props) {
             baixo do menu (AppHeader.css) */}
         <div className="topbar-actions">
           {children && <div className="topbar-status">{children}</div>}
-          {/* Tema junto do Entrar/Sair: as duas ações da pessoa, não da página (#265) */}
+          {/* Tema junto do Sair: as duas ações da pessoa, não da página (#265) */}
           <div className="topbar-user">
             <ThemeToggle />
             <UserMenu />
