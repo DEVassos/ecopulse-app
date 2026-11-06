@@ -147,6 +147,11 @@
     .topbar-theme {
       display: none;
     }
+
+    /* A saudação vai para o painel do Menu; no cabeçalho fica só o Sair (#257 + #274) */
+    .user-menu > span {
+      display: none;
+    }
   }
 
   .mobile-menu__button {
@@ -211,6 +216,29 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+  }
+
+  /* Quem entrou, no painel do celular: o nome em destaque e o e-mail embaixo, em --muted */
+  .mobile-menu__user {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 12px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    color: var(--text-2);
+    font-size: 14px;
+  }
+
+  .mobile-menu__user strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .mobile-menu__email {
+    color: var(--muted);
+    font-size: 13px;
+    overflow-wrap: anywhere;
   }
 
   /* Tema no celular: o nome do tema atual e o mesmo botão do cabeçalho largo */

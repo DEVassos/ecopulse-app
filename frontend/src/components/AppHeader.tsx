@@ -97,6 +97,7 @@ function MobileMenu() {
   const open = openAt === pathname;
   const buttonRef = useRef<HTMLButtonElement>(null);
   const { theme } = useTheme();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!open) return;
@@ -139,7 +140,15 @@ function MobileMenu() {
                 </NavLink>
               ))}
             </nav>
-            {/* No celular o tema mora aqui (#265 + #274): na linha da marca, Menu e Entrar já ocupam a largura toda */}
+            {/* No celular, quem entrou e o tema moram aqui (#257, #265 + #274): na linha da marca só cabem Menu e Sair */}
+            {user && (
+              <p className="mobile-menu__user">
+                <span>
+                  Olá, <strong>{user.name}</strong>
+                </span>
+                <span className="mobile-menu__email">{user.email}</span>
+              </p>
+            )}
             <div className="mobile-menu__theme">
               <span>{theme === 'dark' ? 'Tema escuro' : 'Tema claro'}</span>
               <ThemeToggle />
