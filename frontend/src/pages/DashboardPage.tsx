@@ -113,11 +113,17 @@ export default function DashboardPage() {
           />
         )}
 
-        {/* Sem dado ainda, os cards não aparecem (nunca zeros inventados); depois de uma falha, mostram o último dado */}
-        {data && data.services.length > 0 && (
-          <KpiPanel summary={summarizeStatus(data.services)} staleSince={error ? updatedAt : null} />
+        {/* Impacto primeiro (#259): energia e CO₂e do período no topo. Com os serviços na tela e o resumo a caminho, o painel
+            já ocupa o lugar dele em "Calculando…", para a página não pular quando a resposta chega */}
+        {(summary || (data && data.services.length > 0 && !isDemoMode && !summaryError)) && (
+          <SummaryPanel summary={summary} previousSummary={previousSummary} comparisonLoading={comparisonLoading} stale={error !== '' || summaryError !== ''} />
         )}
-        {summary && <SummaryPanel summary={summary} previousSummary={previousSummary} comparisonLoading={comparisonLoading} stale={error !== '' || summaryError !== ''} />}
+
+        {/* Estado dos serviços logo abaixo, em cards compactos. Sem dado ainda, os cards não aparecem (nunca zeros inventados);
+            depois de uma falha, mostram o último dado */}
+        {data && data.services.length > 0 && (
+          <KpiPanel summary={summarizeStatus(data.services)} staleSince={error ? updatedAt : null} compact />
+        )}
 
         {data && data.services.length > 0 && (
           <ServicesTable services={data.services} onSelect={(service) => setSelectedId(service.id)} />
