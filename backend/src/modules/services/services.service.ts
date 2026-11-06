@@ -1,7 +1,7 @@
 import type { ServiceStatus } from '../../shared/persistence.types';
 import { MonitoringStatus } from '../../domain/monitoring-status';
 import { NotFoundError } from '../../shared/errors';
-import { ServiceRepository, type ServiceComparisonRow, type ServiceWithLastReading } from './services.repository';
+import { ServiceRepository, type ServiceComparisonRow, type ServiceRankingMetric, type ServiceRankingRow, type ServiceWithLastReading } from './services.repository';
 
 export interface MonitoredService {
   id: string;
@@ -80,4 +80,46 @@ export async function getServiceComparison(repository: ServiceRepository, input:
   if (rows.length !== input.ids.length) throw new NotFoundError('Um ou mais serviços não foram encontrados.');
   const byId = new Map(rows.map(row => [row.id, comparison(row)]));
   return { from: input.from.toISOString(), to: input.to.toISOString(), services: input.ids.map(id => byId.get(id)!).filter(Boolean) };
+}
+
+export interface ServiceRankingResponse {
+  metric: ServiceRankingMetric;
+  from: string;
+  to: string;
+  services: Array<{
+    position: number | null; id: string; name: string; region: string | null; status: ServiceStatus;
+    energyKwh: number | null; co2eGrams: number | null;
+    collections: number; failed: number; notCalculated: number;
+  }>;
+}
+
+function rankedService(row: ServiceRankingRow, metric: ServiceRankingMetric, position: number): ServiceRankingResponse['services'][number] {
+  const selectedValue = metric === 'energy' ? row.energy_kwh : row.co2e_grams;
+  return {
+    position: selectedValue === null ? null : position,
+    id: String(row.id),
+    name: row.name,
+    region: row.region,
+    status: row.status,
+    energyKwh: numberOrNull(row.energy_kwh),
+    co2eGrams: numberOrNull(row.co2e_grams),
+    collections: Number(row.collections),
+    failed: Number(row.failed),
+    notCalculated: Number(row.not_calculated),
+  };
+}
+
+export async function getServiceRanking(
+  repository: ServiceRepository,
+  metric: ServiceRankingMetric,
+  period: { from: Date; to: Date },
+): Promise<ServiceRankingResponse> {
+  const rows = await repository.rankByPeriod(metric, period.from, period.to);
+  let position = 0;
+  const services = rows.map(row => {
+    const ranked = rankedService(row, metric, position + 1);
+    if (ranked.position !== null) position++;
+    return ranked;
+  });
+  return { metric, from: period.from.toISOString(), to: period.to.toISOString(), services };
 }
