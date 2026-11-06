@@ -297,7 +297,7 @@ export default function ComparePage() {
                         {row.label}
                       </th>
                       {data.services.map((service) => (
-                        <td key={service.id} className={`px-5 py-2 text-right font-mono ${extremeOf(service.id)?.tint ?? ''}`}>
+                        <td key={service.id} className={`px-5 py-2 text-right font-data ${extremeOf(service.id)?.tint ?? ''}`}>
                           {row.cell(service)}
                         </td>
                       ))}

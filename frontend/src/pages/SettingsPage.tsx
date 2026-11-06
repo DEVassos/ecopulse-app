@@ -24,7 +24,7 @@ export default function SettingsPage() {
               <dl className="m-0 grid gap-4 sm:grid-cols-2">
                 <div className="rounded-lg border border-border bg-surface-2 p-4">
                   <dt className="text-sm text-muted">Sessão confirmada pelo backend</dt>
-                  <dd className="m-0 mt-1 break-all font-mono text-lg">{user.email}</dd>
+                  <dd className="m-0 mt-1 break-all font-data text-lg">{user.email}</dd>
                 </div>
                 <div className="rounded-lg border border-border bg-surface-2 p-4">
                   <dt className="text-sm text-muted">Parâmetros do monitoramento</dt>

@@ -41,7 +41,8 @@
 
   .emissions-chart__tick {
     fill: var(--muted);
-    font-family: var(--mono);
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
     font-size: 11px;
   }
 
@@ -109,7 +110,8 @@
     stroke: var(--surface);
     stroke-width: 4px;
     stroke-linejoin: round;
-    font-family: var(--mono);
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
     font-size: 12px;
     font-weight: 500;
   }
@@ -188,7 +190,8 @@
 
   .emissions-chart__tooltip strong {
     color: var(--text);
-    font-family: var(--mono);
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
     font-weight: 500;
   }
 

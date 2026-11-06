@@ -10,7 +10,8 @@
   /* Data e hora juntas: no celular "04/11" e "01:55:03" quebravam em linhas diferentes (#263) */
   .last-updated strong {
     color: var(--text);
-    font-family: var(--mono);
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
     font-weight: 500;
     white-space: nowrap;
   }

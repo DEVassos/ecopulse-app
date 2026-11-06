@@ -170,7 +170,7 @@ export default function ServicesTable({ services, onSelect, stale = false }: Pro
                       {service.name}
                     </button>
                     {/* Celular (#263): a emissão fica a uma rolagem de distância; ela aparece também sob o nome, abaixo de 600 px */}
-                    <span className="mt-0.5 block font-mono text-xs font-normal text-muted min-[600px]:hidden">
+                    <span className="mt-0.5 block font-data text-xs font-normal text-muted min-[600px]:hidden">
                       {service.emissionsG === null ? 'sem emissão calculada' : `${formatFixed(service.emissionsG, 3)} g CO₂e`}
                     </span>
                   </th>
@@ -181,17 +181,17 @@ export default function ServicesTable({ services, onSelect, stale = false }: Pro
                       <span className="mt-1 block max-w-56 text-xs leading-snug text-muted">{statusReasonText(service)}</span>
                     )}
                   </td>
-                  <td className={`px-5 py-2 text-right font-mono${dim}`}>
+                  <td className={`px-5 py-2 text-right font-data${dim}`}>
                     {service.cpuPercent === null ? <MissingValue /> : `${formatNumber(service.cpuPercent, 0)}%`}
                   </td>
                   {/* Resolução fixa por coluna (kWh com 5 casas, g com 3): vírgulas alinhadas e 0,040 g em vez de "0,0" */}
-                  <td className={`px-5 py-2 text-right font-mono${dim}`}>
+                  <td className={`px-5 py-2 text-right font-data${dim}`}>
                     {service.energyKwh === null ? <MissingValue /> : formatFixed(service.energyKwh, 5)}
                   </td>
-                  <td className={`px-5 py-2 text-right font-mono${dim}`}>
+                  <td className={`px-5 py-2 text-right font-data${dim}`}>
                     {service.emissionsG === null ? <MissingValue /> : formatFixed(service.emissionsG, 3)}
                   </td>
-                  <td className="px-5 py-2 text-right font-mono text-muted">
+                  <td className="px-5 py-2 text-right font-data text-muted">
                     {service.lastReadingAt === null ? 'nunca' : formatTimeOrDayTime(service.lastReadingAt)}
                   </td>
                   <td className="whitespace-nowrap px-5 py-2 text-muted">

@@ -45,7 +45,6 @@
   /* Anel de foco dos campos de texto, junto da borda em --accent */
   --focus-ring: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
   --sans: 'IBM Plex Sans', system-ui, sans-serif;
-  --mono: 'IBM Plex Mono', monospace;
   --display: 'Space Grotesk', sans-serif;
 }
 
@@ -103,8 +102,16 @@
   --color-error: var(--error);
   --color-danger: var(--danger);
   --font-sans: var(--sans);
-  --font-mono: var(--mono);
   --font-display: var(--display);
+}
+
+/*
+ * Números de dados (#266): a fonte de texto com algarismos tabulares, no lugar da IBM Plex Mono. Os dígitos têm a mesma
+ * largura, então as vírgulas continuam alinhadas nas colunas, sem a cara de terminal. Classe font-data nos componentes.
+ */
+@utility font-data {
+  font-family: var(--sans);
+  font-variant-numeric: tabular-nums;
 }
 
 @layer base {
