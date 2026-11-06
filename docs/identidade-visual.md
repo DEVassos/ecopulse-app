@@ -97,6 +97,13 @@ No tema escuro, `--neon-text` é o próprio `--neon`. Os dois só se separam no 
 * **Botão cheio** (ação principal da tela, ex.: "Entrar"): fundo `--accent`, texto `--on-accent`. O texto fica escuro porque o branco sobre o verde dá 2,5:1 e reprova no AA.
 * **Botão vazado** (ações secundárias, ex.: "Tentar novamente", "Atualizar agora"): classe `.btn-outline` (`frontend/src/styles/controls.css`), fundo transparente, borda e texto `--accent`; no hover, `--accent` a 10% no fundo e texto `--accent-hover`.
 
+### Filtros (#267)
+* Os filtros ficam numa barra em grupos, na ordem da pergunta: **o quê** (serviço), **quando** (período, com ◀ ▶ e **Aplicar** juntos das datas que eles mudam) e **como** (agrupamento). Na página Emissões, o **Tempo real** fica à direita. A partir de 960 px a barra é uma faixa só; abaixo disso, um grupo por linha, na mesma ordem.
+* O que só muda a forma de exibir, como "Por intervalo / Acumulado", fica no card do gráfico em que age, e não na barra de filtros.
+* Escolha múltipla de serviços em chips: botão com `aria-pressed`, nome, região em `--muted` e um lugar fixo para o ✓. Marcado: borda `--accent` e fundo `--accent` a 10%. Acima dos chips, a contagem ("N de 10 selecionados") e **Limpar**.
+* Ícones de navegação (◀ ▶) são SVG, nunca caracteres.
+* Datas sempre em DD/MM/AAAA, com algarismos tabulares e o ícone de calendário dentro do campo, à direita (`DateField`). O campo nativo de data não é usado à vista, porque segue o idioma do navegador.
+
 ### Item ativo (menu do topo)
 * Fundo `--accent` a 15%, borda `--accent` e texto `--accent-hover` em negrito. Os demais itens ficam em `--muted` e passam a `--text` no hover. A borda é uma `border` de 1 px (transparente nos itens inativos), para continuar visível no alto contraste do sistema.
 * Ainda não há abas na interface; quando houver, o item selecionado segue este mesmo padrão.
