@@ -126,7 +126,7 @@ export default function DashboardPage() {
         )}
 
         {data && data.services.length > 0 && (
-          <ServicesTable services={data.services} onSelect={(service) => setSelectedId(service.id)} />
+          <ServicesTable services={data.services} onSelect={(service) => setSelectedId(service.id)} stale={error !== ''} />
         )}
 
         {/* Montada só enquanto aberta: fechar desmonta e cancela o polling do histórico */}
