@@ -85,7 +85,8 @@
 .auth-footer {
   margin-top: 24px;
   text-align: center;
-  color: var(--faint);
+  /* --muted, como o rodapé do dashboard: --faint (3,9:1) não serve para texto de 13 px */
+  color: var(--muted);
   font-size: 13px;
 }
 

@@ -141,7 +141,7 @@ export default function ServicesTable({ services, onSelect, shares = null, share
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Buscar por nome…"
-            className="h-9 w-60 max-w-full rounded-lg border border-border bg-surface-2 px-3 font-sans text-sm text-text outline-none placeholder:text-muted focus:border-primary"
+            className="field-focus h-9 w-60 max-w-full rounded-lg border border-border bg-surface-2 px-3 font-sans text-sm text-text outline-none placeholder:text-muted focus:border-primary"
           />
         </label>
       </div>

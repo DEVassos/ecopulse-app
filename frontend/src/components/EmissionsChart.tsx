@@ -15,6 +15,8 @@ import {
   timeTicks,
   typicalIntervalMs,
 } from '../utils/emissions';
+import { CHAR_WIDTH, labelBox, labelsOverlap } from '../utils/chart-labels';
+import type { LabelAnchor } from '../utils/chart-labels';
 import './EmissionsChart.css';
 
 /** `intervalo`: a emissão de cada ponto (coleta ou intervalo); `acumulado`: a soma ao longo do período. */
@@ -251,6 +253,19 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
   const presentGaps = new Set(gaps.map((g) => g.kind));
   const unit = grouped ? `a cada ${BUCKET_LABEL[bucket]}` : 'por coleta';
   const peak = peakIndex !== null ? { cx: x(times[peakIndex]), cy: y(raw[peakIndex] as number), point: points[peakIndex] } : null;
+  const peakText = peak ? `${grouped ? 'maior intervalo' : 'pico'} ${formatGrams(raw[peakIndex as number] as number)} · ${formatTimeTick(peak.point.t, 0)}` : '';
+  const peakAnchor: LabelAnchor = !peak ? 'middle' : peak.cx > MARGIN.left + plotW * 0.85 ? 'end' : peak.cx < MARGIN.left + plotW * 0.15 ? 'start' : 'middle';
+  const meanText = mean !== null ? `${grouped ? 'média por intervalo' : 'média'} ${formatGrams(mean)}` : '';
+  // Rótulo da média acima da linha; desce para baixo dela quando encostaria no rótulo do maior ponto (tela estreita, #258)
+  const meanLabelX = MARGIN.left + plotW - 4;
+  const meanCollides =
+    peak !== null &&
+    mean !== null &&
+    labelsOverlap(
+      labelBox(peakText, peak.cx, peak.cy - 14, peakAnchor, CHAR_WIDTH.mono12, 12),
+      labelBox(meanText, meanLabelX, y(mean) - 6, 'end', CHAR_WIDTH.sans11, 11),
+    );
+  const meanLabelY = mean === null ? 0 : meanCollides ? y(mean) + 15 : y(mean) - 6;
 
   return (
     <div
@@ -323,8 +338,8 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
             {mean !== null && (
               <g>
                 <line className="emissions-chart__mean" x1={MARGIN.left} x2={MARGIN.left + plotW} y1={y(mean)} y2={y(mean)} />
-                <text className="emissions-chart__mean-label" x={MARGIN.left + plotW - 4} y={y(mean) - 6} textAnchor="end">
-                  {grouped ? 'média por intervalo' : 'média'} {formatGrams(mean)}
+                <text className="emissions-chart__mean-label" x={meanLabelX} y={meanLabelY} textAnchor="end">
+                  {meanText}
                 </text>
               </g>
             )}
@@ -332,18 +347,13 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, sta
 
           {open && <circle className="emissions-chart__open" cx={open.cx} cy={open.cy} r={4} pointerEvents="none" />}
 
-          {/* Pico: o único ponto em neon do gráfico, fora do clip para o halo e o rótulo não serem cortados */}
+          {/* Maior ponto, em cor neutra (o neon fica com o tile do pico); fora do clip para o halo e o rótulo não serem cortados */}
           {peak && (
             <g className="emissions-chart__peak" pointerEvents="none">
               <circle className="emissions-chart__peak-halo" cx={peak.cx} cy={peak.cy} r={10} />
               <circle className="emissions-chart__peak-dot" cx={peak.cx} cy={peak.cy} r={4.5} />
-              <text
-                className="emissions-chart__peak-label"
-                x={peak.cx}
-                y={peak.cy - 14}
-                textAnchor={peak.cx > MARGIN.left + plotW * 0.85 ? 'end' : peak.cx < MARGIN.left + plotW * 0.15 ? 'start' : 'middle'}
-              >
-                {grouped ? 'maior intervalo' : 'pico'} {formatGrams(raw[peakIndex as number] as number)} · {formatTimeTick(peak.point.t, 0)}
+              <text className="emissions-chart__peak-label" x={peak.cx} y={peak.cy - 14} textAnchor={peakAnchor}>
+                {peakText}
               </text>
             </g>
           )}

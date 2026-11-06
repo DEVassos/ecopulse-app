@@ -38,7 +38,6 @@
     color: var(--text);
     font: inherit;
     font-size: 14px;
-    color-scheme: dark;
   }
 
   .emissions__field select {
@@ -263,11 +262,12 @@
     color: var(--muted);
   }
 
+  /* Número isolado: sans semibold, como os cards de estado do dashboard (MetricTile.css) */
   .emissions__stats dd {
     display: flex;
     flex-direction: column;
     margin: 4px 0 0;
-    font-family: var(--display);
+    font-family: var(--sans);
     font-size: 18px;
     font-weight: 600;
     color: var(--text);

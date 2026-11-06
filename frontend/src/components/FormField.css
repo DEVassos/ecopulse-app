@@ -32,7 +32,7 @@
 
 .field input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.22);
+  box-shadow: var(--focus-ring);
 }
 
 .field input[aria-invalid='true'] {
