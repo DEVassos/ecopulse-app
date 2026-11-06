@@ -21,7 +21,7 @@ export function createApp(verify: () => Promise<void>, collections: CollectionRe
   app.use(express.json());
   app.use(healthRoutes(verify));
   app.use(collectionsRoutes(collections, services));
-  app.use(servicesRoutes(services));
+  app.use(servicesRoutes(services, auth));
   if (users !== undefined && auth !== undefined) app.use(authRoutes(users, auth));
   if (settings !== undefined && auth !== undefined) app.use(monitoringSettingsRoutes(settings, auth));
   app.use((_req, _res, next) => next(new NotFoundError()));
