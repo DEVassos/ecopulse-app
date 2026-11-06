@@ -23,6 +23,13 @@ export interface ServiceComparisonRow {
   energy_kwh: string | null; co2e_grams: string | null;
 }
 
+export type ServiceRankingMetric = 'energy' | 'co2e';
+export interface ServiceRankingRow {
+  id: DatabaseId; name: string; region: string | null; status: ServiceStatus;
+  collections: string; failed: string; not_calculated: string;
+  energy_kwh: string | null; co2e_grams: string | null;
+}
+
 export class ServiceRepository {
   constructor(private readonly db: QueryExecutor) {}
   async findAll(): Promise<StoredService[]> {
@@ -76,6 +83,29 @@ export class ServiceRepository {
       WHERE s.id = ANY($1::bigint[])
       GROUP BY s.id, s.name, s.region
       ORDER BY s.id ASC`, [ids, from, to])).rows;
+  }
+  async rankByPeriod(metric: ServiceRankingMetric, from: Date, to: Date): Promise<ServiceRankingRow[]> {
+    return (await this.db.query<ServiceRankingRow>(`
+      SELECT s.id, s.name, s.region, s.status,
+        COUNT(c.id)::text AS collections,
+        COUNT(c.id) FILTER (WHERE c.status <> 'ok')::text AS failed,
+        COUNT(c.id) FILTER (WHERE c.calculation_status <> 'disponivel')::text AS not_calculated,
+        SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel') AS energy_kwh,
+        SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel') AS co2e_grams
+      FROM services AS s
+      LEFT JOIN collections AS c ON c.service_id = s.id AND c.collected_at >= $1 AND c.collected_at < $2
+      WHERE s.status <> 'removido' OR c.id IS NOT NULL
+      GROUP BY s.id, s.name, s.region, s.status
+      ORDER BY
+        CASE
+          WHEN $3::text = 'energy'
+            THEN SUM(c.energy_kwh)
+              FILTER (WHERE c.calculation_status = 'disponivel')
+          ELSE SUM(c.co2e_grams)
+              FILTER (WHERE c.calculation_status = 'disponivel')
+        END DESC NULLS LAST,
+        s.name ASC,
+        s.id ASC`, [from, to, metric])).rows;
   }
   async upsert(service: DiscoveredService, observedAt: Date): Promise<StoredService> {
     const result = await this.db.query<StoredService>(`
