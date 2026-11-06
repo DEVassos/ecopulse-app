@@ -187,7 +187,7 @@ let monitoringSettings = {
 const UNAUTHORIZED = { error: { code: 'UNAUTHORIZED', message: 'Token ausente, inválido ou expirado.' } };
 
 /** Rotas de dados que, como no backend real (#257), só respondem com token válido. */
-const PROTECTED = new Set(['GET /services', 'GET /services/summary', 'GET /services/compare', 'GET /collections', 'GET /collections/series']);
+const PROTECTED = new Set(['GET /services', 'GET /services/summary', 'GET /services/compare', 'GET /services/ranking', 'GET /collections', 'GET /collections/series']);
 
 function hasValidToken(req) {
   const token = bearerToken(req);
