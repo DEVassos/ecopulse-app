@@ -1,5 +1,5 @@
 import type { RequestHandler } from 'express';
-import { getServiceComparison, getServices, getServicesSummary } from './services.service';
+import { getServiceComparison, getServiceRanking, getServices, getServicesSummary } from './services.service';
 import { ServiceRepository } from './services.repository';
 import { ValidationError } from '../../shared/errors';
 
@@ -18,6 +18,14 @@ function summaryPeriod(query: Record<string, unknown>) {
   if (start >= end) throw new ValidationError('from deve ser anterior a to.');
   if (end.getTime() - start.getTime() > 31 * 24 * 60 * 60 * 1000) throw new ValidationError('O período máximo é de 31 dias.');
   return { from: start, to: end };
+}
+
+export function rankingController(repository: ServiceRepository): RequestHandler {
+  return async (req, res) => {
+    const metric = req.query.metric;
+    if (metric !== 'energy' && metric !== 'co2e') throw new ValidationError('metric deve ser energy ou co2e.');
+    res.status(200).json(await getServiceRanking(repository, metric, summaryPeriod(req.query)));
+  };
 }
 
 function parseIsoTimestamp(value: unknown): Date | null {
