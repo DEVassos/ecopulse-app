@@ -16,6 +16,7 @@ Decisões técnicas e de processo que afetam o repositório inteiro são registr
 | [0006](0006-modelo-potencia-fatores-emissao.md) | Modelo de potência e fatores de emissão do cálculo de energia e CO₂e | aceito (PRs #136 e #139) | 2026-10-16 | #133 · RF07, RF08 · TP01, DW02, BD04 |
 | [0007](0007-typescript-6-eslint-frontend.md) | TypeScript 6.0 no frontend para o lint com ESLint | aceito (PR #230) | 2026-10-28 | #160 · RP01 · DW01, TP02 |
 | [0008](0008-conferencia-respostas-fronteiras-api.md) | Conferência das respostas nas fronteiras de API | proposto | 2026-10-30 | #236 · RNF04 · TP02, TP03, DW02 |
+| [0009](0009-aplicacao-inteira-com-login.md) | Aplicação inteira com login | proposto | 2026-11-04 | #257 · RP06, RNF05 · DW06 |
 
 ## Como criar um ADR
 
