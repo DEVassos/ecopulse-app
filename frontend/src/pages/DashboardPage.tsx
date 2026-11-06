@@ -54,6 +54,9 @@ export default function DashboardPage() {
     })();
     return () => controller.abort();
   }, [updatedAt]);
+  // Um aviso por página (#271): com a lista falhando e dados na tela, basta a faixa de falha; sem dados, o aviso grande;
+  // com a lista em dia, o primeiro erro entre resumo e comparação. Nunca três avisos iguais empilhados.
+  const pageError = error ? (data ? '' : error) : summaryError || comparisonError;
   // A janela usa a linha atual da lista: status, CPU e última leitura acompanham cada atualização
   const selected = data?.services.find((service) => service.id === selectedId) ?? null;
 
@@ -100,9 +103,7 @@ export default function DashboardPage() {
 
         {/* Falha não apaga o que já estava na tela: com dados, faixa compacta junto do último dado; sem dados, o aviso grande */}
         {data && <UpdateFailedBanner message={error} updatedAt={updatedAt} onRetry={refresh} />}
-        {error && !data && <ErrorState message={error} onRetry={refresh} />}
-        {summaryError && <ErrorState message={summaryError} onRetry={refresh} />}
-        {comparisonError && <ErrorState message={comparisonError} onRetry={refresh} />}
+        {pageError && <ErrorState message={pageError} onRetry={refresh} />}
 
         {loading && !data && <LoadingState message="Carregando serviços…" />}
 

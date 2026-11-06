@@ -19,8 +19,8 @@ interface Props {
   /** Número já formatado, ou o MissingValue quando não há valor. */
   value: ReactNode;
   unit?: string;
-  /** Texto curto ao lado do valor (proporção, base da contagem); omitido quando não acrescenta nada. */
-  note?: string;
+  /** Texto curto ao lado do valor (proporção, base da contagem, variação); omitido quando não acrescenta nada. */
+  note?: ReactNode;
   icon: ReactNode;
   tone?: MetricTone;
   /** Última busca falhou: o valor continua, em cor apagada, para não parecer atual. */

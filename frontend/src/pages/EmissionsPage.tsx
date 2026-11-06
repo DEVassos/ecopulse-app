@@ -29,6 +29,7 @@ import {
   formatShort,
   missingTimeMs,
   peakRatio,
+  seriesStats,
   periodMs,
   readPeriodFilter,
   shiftInputDate,
@@ -94,8 +95,12 @@ export default function EmissionsPage() {
   const points = useMemo(() => data?.points ?? [], [data]);
   const summary = useMemo(() => (data ? summarize(data.points, data.totals) : null), [data]);
   const missingMs = data && period ? missingTimeMs(data.points, data.bucket, period.fromMs, period.toMs) : 0;
-  const reading = summary && data ? describePeriod(summary, data.bucket, missingMs) : [];
-  const ratio = summary ? peakRatio(summary) : null;
+  // Média e maior ponto com a mesma conta do gráfico (sem o intervalo ainda aberto): tiles, gráfico e Leitura dizem o mesmo (#271)
+  const stats = useMemo(() => (data && period ? seriesStats(data.points, data.bucket, period.toMs) : null), [data, period]);
+  const reading = stats && data ? describePeriod(data.points, stats, data.bucket, missingMs) : [];
+  const ratio = stats && data ? peakRatio(data.points, stats) : null;
+  const peakPoint = stats && stats.peakIndex !== null && data ? data.points[stats.peakIndex] : null;
+  const grouped = data ? data.bucket !== 'coleta' : false;
   const totals = data?.totals ?? null;
   const range = periodMs(start, end);
   const autoLabel = BUCKET_LABEL[autoBucket(range.fromMs, range.toMs)];
@@ -296,18 +301,26 @@ export default function EmissionsPage() {
                     <dt>Energia no período</dt>
                     <dd>{totals.energyKwh !== null ? formatKwh(totals.energyKwh) : '—'}</dd>
                   </div>
+                  {/* Média e pico seguem o agrupamento do gráfico; a maior coleta dentro do intervalo fica no tooltip (#271) */}
                   <div>
-                    <dt>Média por coleta</dt>
-                    <dd>{summary.meanGrams !== null ? formatGrams(summary.meanGrams) : '—'}</dd>
+                    <dt>{grouped && data ? `Média a cada ${BUCKET_LABEL[data.bucket]}` : 'Média por coleta'}</dt>
+                    <dd>{stats?.meanGrams != null ? formatGrams(stats.meanGrams) : '—'}</dd>
                   </div>
-                  <div className={summary.peak ? 'emissions__stat--peak' : undefined}>
-                    <dt>Pico de uma coleta</dt>
+                  <div
+                    className={peakPoint ? 'emissions__stat--peak' : undefined}
+                    title={
+                      grouped && summary.peak?.co2eMaxGrams != null && data
+                        ? `Maior coleta: ${formatGrams(summary.peak.co2eMaxGrams)} CO₂e em ${formatPeakTime(summary.peak, data.bucket)}`
+                        : undefined
+                    }
+                  >
+                    <dt>{grouped ? 'Maior intervalo' : 'Pico de uma coleta'}</dt>
                     <dd>
-                      {summary.peak?.co2eMaxGrams != null && data ? (
+                      {peakPoint?.co2eGrams != null && data ? (
                         <>
-                          {formatGrams(summary.peak.co2eMaxGrams)}
+                          {formatGrams(peakPoint.co2eGrams)}
                           <small>
-                            {formatPeakTime(summary.peak, data.bucket)}
+                            {formatPeakTime(peakPoint, data.bucket)}
                             {ratio !== null && ` · ${formatRatio(ratio)} a média`}
                           </small>
                         </>
