@@ -101,7 +101,7 @@ Sem rede/portas/volume, trust fica limitado a esse container temporário; não �
 |---|---|---|
 | services | Cadastro descoberto e estado atual, incluindo region_code. | ID externo único; coordenadas válidas; timestamps. |
 | collections | Histórico de métricas em GB, intervalo e contexto regional; resultados quando disponíveis. | FK RESTRICT; status de métricas separado do cálculo; métricas completas para ok; NULL para desconhecido. |
-| users | Credenciais administrativas para configuração e consulta futura das entradas. | E-mail único sem diferenciar caixa; hash bcrypt. Sem quatro perfis ou tenants. |
+| users | Credenciais administrativas para a área de configuração. | E-mail único sem diferenciar caixa; hash bcrypt. Sem quatro perfis ou tenants. |
 | access_entries | IP e instante da primeira entrada por sessão da aba. | IP INET e horário TIMESTAMPTZ obrigatórios; índice temporal; sem FK de usuário ou dados HTTP. |
 | monitoring_settings | Intervalo de atualização da tela, independente da coleta. | PK fixa 1; intervalo 15/30/60; updated_at obrigatório. |
 
@@ -136,4 +136,4 @@ Para consultar o histórico pelo compose:
 docker compose exec postgres psql -U ecopulse -d ecopulse_db -c "SELECT calculation_status, count(*) FROM collections GROUP BY 1;"
 ```
 
-A tabela `access_entries` (IP e horário da primeira entrada por sessão) já existe no schema, mas ainda não é gravada nem consultada. A consulta autenticada por JWT, com filtros por período, entra junto com a área de configuração na Sprint 2.
+A tabela `access_entries` (IP e horário da primeira entrada por sessão) existe no schema, mas não há fluxo implementado de gravação nem de consulta, e esses fluxos não estão previstos no planejamento vigente. Após a review, a equipe decidirá se mantém ou remove a tabela.

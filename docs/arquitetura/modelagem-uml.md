@@ -1,6 +1,6 @@
 # Modelagem UML — integração do banco
 
-Modelo integrado pelo PR #77 (08/10/2026), a partir da modelagem versionada (#28), da v2 da UML e do SQL de Lucas (#5/#44). O backend, o worker de coleta e o cálculo que usam este modelo estão em `develop` (#94, #99, #139; ver [arquitetura](../arquitetura.md)); JWT e a consulta de entradas (`access_entries`) estão previstos para a Sprint 2. EcoPulse é o nome do produto, aplicado aos documentos na #68.
+Modelo integrado pelo PR #77 (08/10/2026), a partir da modelagem versionada (#28), da v2 da UML e do SQL de Lucas (#5/#44). O backend, o worker de coleta e o cálculo que usam este modelo estão em `develop` (#94, #99, #139; ver [arquitetura](../arquitetura.md)). A tabela `access_entries` existe no schema, mas os fluxos de gravação e consulta não estão implementados nem previstos no planejamento vigente. Após a review, a equipe decidirá se mantém ou remove a tabela. EcoPulse é o nome do produto, aplicado aos documentos na #68.
 
 ## Fontes e sprints
 
@@ -193,13 +193,15 @@ classDiagram
     CarbonCalculator ..> Collection : estima
 ```
 
-Contratos conceituais: Service controla estado; Collection expressa validade; CarbonCalculator aplica fórmulas; AuthService concentra bcrypt/JWT; AccessEntryService grava/consulta entradas. SQL exclusivamente em repositories parametrizados via pg. Não há quatro perfis ou tenants. TP01 requer classes usadas na aplicação, não somente o diagrama.
+Contratos conceituais (não equivalem a fluxos implementados): Service controla estado; Collection expressa validade; CarbonCalculator aplica fórmulas; AuthService concentra bcrypt/JWT. O desenho de AccessEntryService para gravação e consulta não está implementado nem comprometido com uma sprint. SQL exclusivamente em repositories parametrizados via pg. Não há quatro perfis ou tenants. TP01 requer classes usadas na aplicação, não somente o diagrama.
 
 ## Acesso e entrada simples
 
-Dashboard público; configuração e consulta de entradas exigem JWT no backend com as credenciais administrativas de users. Login projetado POST /auth/login (#20/#48), sem cadastro público. Não há rotas implementadas nesta tarefa.
+Esta seção e o diagrama abaixo descrevem um modelo conceitual, não uma funcionalidade implementada ou planejada como entrega. A equipe decidirá após a review se mantém ou remove `access_entries`. A tabela existe no schema, mas não há fluxo de gravação ou consulta implementado.
 
-Entrada: primeira abertura por sessão de navegação em uma aba. Recarregar/navegar na mesma sessão não gera nova entrada; nova sessão gera. Polling e worker não geram eventos. Implementação futura preservará marcador da sessão da aba; não promete eliminar duplicidades entre abas/navegadores.
+No modelo conceitual, o dashboard é público; a área de configuração e uma eventual consulta de entradas seriam protegidas por JWT no backend, com as credenciais administrativas de `users`. Login projetado `POST /auth/login` (#20/#48), sem cadastro público. Não há rotas implementadas para entradas.
+
+Comportamento conceitual proposto: primeira abertura por sessão de navegação em uma aba; recarregar ou navegar na mesma sessão não gera nova entrada, e uma nova sessão gera. Polling e worker não geram eventos. Isso não representa implementação nem compromisso de entrega.
 
 IP obtido no backend pela conexão e somente por proxies confiáveis configurados; nunca pelo corpo enviado pelo cliente. Horário definido pelo servidor. IP não identifica inequivocamente pessoa. A tabela não registra usuário, rota, ação, método, status HTTP, tentativas de login, senha, hash ou JWT. Consulta por período/página somente após autorização; consultar não gera entrada. Retenção permanece pendente de decisão do cliente/equipe.
 

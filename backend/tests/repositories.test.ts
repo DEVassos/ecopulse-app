@@ -82,6 +82,28 @@ it('agrega indicadores por intervalo com parâmetros de data', async () => {
   expect(fake.poolQuery.mock.calls[0][1]).toEqual([from, to]);
   expect(result).toEqual(row);
 });
+it.each([
+  'energy',
+  'co2e',
+] as const)('ordena o ranking por CASE parametrizado para %s', async metric => {
+  const from = new Date('2026-10-20T00:00:00Z');
+  const to = new Date('2026-10-21T00:00:00Z');
+  fake.poolQuery.mockResolvedValueOnce({ rows: [] });
+  await new ServiceRepository(createDatabase('postgresql://localhost/test')).rankByPeriod(metric, from, to);
+  const [sql, params] = fake.poolQuery.mock.calls[0] as [string, unknown[]];
+  expect(sql).toContain("WHEN $3::text = 'energy'");
+  expect(sql).toContain("THEN SUM(c.energy_kwh)\n              FILTER (WHERE c.calculation_status = 'disponivel')");
+  expect(sql).toContain("ELSE SUM(c.co2e_grams)\n              FILTER (WHERE c.calculation_status = 'disponivel')");
+  expect(sql).toContain('END DESC NULLS LAST,\n        s.name ASC,\n        s.id ASC');
+  expect(sql).not.toContain('${');
+  expect(sql).toContain("WHERE s.status <> 'removido' OR c.id IS NOT NULL");
+  expect(sql).toContain("c.collected_at >= $1 AND c.collected_at < $2");
+  expect(sql).toContain("COUNT(c.id) FILTER (WHERE c.status <> 'ok')");
+  expect(sql).toContain("COUNT(c.id) FILTER (WHERE c.calculation_status <> 'disponivel')");
+  expect(sql).toContain("SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel')");
+  expect(sql).toContain("SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel')");
+  expect(params).toEqual([from, to, metric]);
+});
 it('traz os campos de cálculo na listagem de coletas', async () => {
   fake.poolQuery.mockResolvedValueOnce({ rows: [] });
   await new CollectionRepository(createDatabase('postgresql://localhost/test'))
