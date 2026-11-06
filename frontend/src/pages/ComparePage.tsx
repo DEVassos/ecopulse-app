@@ -3,12 +3,12 @@ import type { FormEvent, ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import AppHeader from '../components/AppHeader';
 import CompareChart from '../components/CompareChart';
-import DateField from '../components/DateField';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import EstimateTag from '../components/EstimateTag';
 import LoadingState from '../components/LoadingState';
 import MissingValue from '../components/MissingValue';
+import PeriodPicker from '../components/PeriodPicker';
 import { useComparison } from '../hooks/useComparison';
 import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow';
 import { useServices } from '../hooks/useServices';
@@ -22,10 +22,6 @@ import { formatInScale, scaleFor } from '../utils/units';
 const MIN_SERVICES = 2;
 const MAX_SERVICES = 10;
 const MAX_SPAN_DAYS = 31;
-
-/* Campo de texto do DateField (DD/MM/AAAA): mesmo foco dos filtros da página Emissões (contorno em --sky) */
-const DATE_FIELD =
-  'h-9 rounded-lg border border-border bg-surface-2 px-3 pr-9 font-sans text-sm text-text focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-secondary aria-[invalid=true]:border-danger';
 
 /** Mensagem de erro do formulário, ligada ao grupo de serviços ou aos campos de data por aria-describedby (#262). */
 const FORM_ERROR_ID = 'comparacao-erro';
@@ -129,8 +125,6 @@ export default function ComparePage() {
   const [draftStart, setDraftStart] = useState(start);
   const [draftEnd, setDraftEnd] = useState(end);
   const [formError, setFormError] = useState('');
-  // Erro de período: marca as duas datas; o de quantidade de serviços marca o grupo de caixas
-  const dateError = formError !== '' && formError !== SERVICES_ERROR;
   const [matrixScrollRef, matrixHasMore] = useHorizontalOverflow<HTMLDivElement>();
 
   // A URL também muda pelo "voltar" do navegador: o formulário acompanha (ajuste na renderização, sem efeito)
@@ -152,11 +146,24 @@ export default function ComparePage() {
     setDraftIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   }
 
+  /** Serviços marcados, na ordem da lista. */
+  const chosenIds = () => services.filter((service) => draftIds.includes(service.id)).map((service) => service.id);
+
+  /** Período do seletor (#273): com dois ou mais serviços marcados, a comparação já sai com ele, como em "Comparar". */
+  function choosePeriod(nextStart: string, nextEnd: string) {
+    setDraftStart(nextStart);
+    setDraftEnd(nextEnd);
+    const chosen = chosenIds();
+    if (chosen.length < MIN_SERVICES) return;
+    setFormError('');
+    if (chosen.join(',') === idsKey && nextStart === start && nextEnd === end) return refresh();
+    setParams({ servicos: chosen.join(','), de: nextStart, ate: nextEnd });
+  }
+
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    const chosen = services.filter((service) => draftIds.includes(service.id)).map((service) => service.id);
+    const chosen = chosenIds();
     if (chosen.length < MIN_SERVICES) return setFormError(SERVICES_ERROR);
-    if (draftStart === '' || draftEnd === '') return setFormError('Preencha as duas datas no formato DD/MM/AAAA.');
     if (draftStart > draftEnd) return setFormError('A data inicial deve ser anterior ou igual à data final.');
     if (draftEnd > today) return setFormError('A data final não pode estar no futuro.');
     if (spanDays(draftStart, draftEnd) > MAX_SPAN_DAYS) return setFormError(`Escolha um período de até ${MAX_SPAN_DAYS} dias.`);
@@ -232,15 +239,9 @@ export default function ComparePage() {
               </div>
             </fieldset>
             <div className="flex flex-wrap items-end justify-between gap-3 border-t border-border pt-4">
-              <fieldset className="m-0 min-w-0 border-0 p-0">
+              <fieldset className="m-0 w-full min-w-0 border-0 p-0 min-[600px]:w-auto [&_.period-picker]:w-full min-[600px]:[&_.period-picker]:w-auto">
                 <legend className="mb-1 p-0 text-xs text-muted">Período</legend>
-                <div className="flex flex-wrap items-center gap-2">
-                  <DateField value={draftStart} onChange={setDraftStart} label="Data inicial" max={today} inputClassName={DATE_FIELD} invalid={dateError} describedBy={dateError ? FORM_ERROR_ID : undefined} />
-                  <span className="text-sm text-muted" aria-hidden="true">
-                    até
-                  </span>
-                  <DateField value={draftEnd} onChange={setDraftEnd} label="Data final" max={today} inputClassName={DATE_FIELD} invalid={dateError} describedBy={dateError ? FORM_ERROR_ID : undefined} />
-                </div>
+                <PeriodPicker start={draftStart} end={draftEnd} today={today} maxDays={MAX_SPAN_DAYS} onChange={choosePeriod} />
               </fieldset>
               <button
                 type="submit"
