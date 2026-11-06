@@ -106,7 +106,7 @@ No Tailwind, os tokens viram classes: `bg-bg`, `bg-surface`, `bg-surface-2`, `bg
   2. Mapa reduzido.
   3. Dashboard da região/serviço selecionado.
   4. Ranking de consumo ao final da página.
-* Cabeçalho abaixo de 961 px (#258): três linhas, sem esconder nada. A primeira tem a marca e **Entrar**/**Sair**, a segunda o menu (que rola na horizontal) e a terceira a "Última atualização" com o botão de atualizar. Na tela larga, tudo fica numa linha só.
+* Cabeçalho abaixo de 961 px (#258): três linhas, sem esconder nada. A primeira tem a marca, o nome de quem entrou e **Sair** (sem sessão, o cabeçalho não aparece, #257), a segunda o menu (que rola na horizontal) e a terceira a "Última atualização" com o botão de atualizar. Na tela larga, tudo fica numa linha só.
 * Os cards de energia e emissões do período ficam em uma coluna no celular, para o valor e a unidade ("g CO₂e") caberem na mesma linha.
 
 ---
