@@ -66,11 +66,11 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Dashboard com o backend real (`docker compose`) em 06/11/2026, 10h02: 1,05 kWh e 258 g CO₂e nas últimas 24 h, na unidade que o valor pede, com "▼ 21,4%" e "▼ 22,1%" em verde, porque energia e CO₂e caíram em relação às 24 h anteriores (#271)._
 
-- **RF14 — Quem pesa mais no CO₂e (#260):** a tabela de serviços mostra a parte de cada serviço no CO₂e das últimas 24 h, com barra (o 1º lugar em neon e com o rótulo "1º"), e a frase acima dela diz quem respondeu por mais. Dentro de cada estado, a ordem segue o período e não muda a cada leitura. A API é `GET /api/services/ranking?metric=co2e&from=&to=`, com o contrato aprovado na #50; até o backend dela entrar, a tela funciona com o backend falso (`npm run mock`).
+- **RF14 — Quem pesa mais no CO₂e (#260):** a tabela de serviços mostra a parte de cada serviço no CO₂e das últimas 24 h, com barra (o 1º lugar em neon e com o rótulo "1º"), e a frase acima dela diz quem respondeu por mais. Dentro de cada estado, a ordem segue o período e não muda a cada leitura. As partes exibidas somam 100,0%, e a coluna e a frase ficam em cinza quando a última busca falha. A API é `GET /api/services/ranking?metric=co2e&from=&to=`, com o contrato aprovado na #50 e implementada na #287 (PR #291).
 
   ![Coluna Parte do CO₂e e frase "Quem pesa mais" no dashboard](docs/img/sprint-2-ranking-co2e.png)
 
-  _Dashboard com o backend falso (`npm run mock`) em 05/11/2026: o Fraud Detector respondeu por 29,0% do CO₂e das últimas 24 h._
+  _Dashboard com o backend real (`docker compose`) em 07/11/2026, 14h25, num banco novo com poucos minutos de coletas do agregador: o Fraud Detector respondeu por 27,6% do CO₂e das últimas 24 h, e a coluna soma 100,0%._
 
 - **RNF02 — Indicador de última atualização (#89):** selo no cabeçalho com o horário da última busca bem-sucedida e um ponto verde pulsando enquanto os dados estão em dia; se uma busca falha, ele fica laranja e passa a dizer "Desatualizado desde …", sem apagar os dados da tela.
 
