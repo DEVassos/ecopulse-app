@@ -80,5 +80,8 @@ function demoRanking(metric: RankingMetric, from: string, to: string): ServicesR
 export async function fetchServicesRanking(metric: RankingMetric, from: string, to: string, signal?: AbortSignal): Promise<ServicesRankingResponse> {
   if (isDemoMode) return demoRanking(metric, from, to);
   const query = `metric=${metric}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
-  return parseRankingResponse(await apiRequest<unknown>(`/services/ranking?${query}`, { signal }));
+  const response = parseRankingResponse(await apiRequest<unknown>(`/services/ranking?${query}`, { signal }));
+  // O contrato devolve a métrica pedida: outra significa resposta de outro pedido, e as partes do CO₂e sairiam erradas
+  if (response.metric !== metric) throw unexpectedFormat('metric');
+  return response;
 }

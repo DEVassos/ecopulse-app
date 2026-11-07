@@ -37,8 +37,15 @@ async function readJson(req) {
  *   (padrão) lista normal · MOCK_SERVICES=vazio lista vazia · MOCK_SERVICES=erro responde 500
  *   MOCK_SERVICES=sem-id: Checkout Worker sem `id` · MOCK_SERVICES=cpu-texto: CPU do Fraud Detector em texto
  *   (os dois últimos respondem 200 fora do contrato, e a tela deve tratá-los como falha: #161)
+ *   MOCK_SERVICES=ranking-texto: o 1º lugar do ranking vem com o CO₂e em texto
+ *   MOCK_SERVICES=ranking-instavel: a 1ª chamada de GET /services/ranking responde e as seguintes dão 500, para ver a
+ *   parte já calculada em cinza no ciclo seguinte sem reiniciar o mock, o que invalidaria o token (#257, #260)
+ *   MOCK_SERVICES=ranking-falha: toda chamada de GET /services/ranking responde 500, para ver a coluna sem ranking (#260)
  */
 const SERVICES_SCENARIO = process.env.MOCK_SERVICES ?? 'normal';
+
+/** Chamadas de GET /services/ranking desde que o mock subiu (cenário MOCK_SERVICES=ranking-instavel). */
+let rankingCalls = 0;
 
 const SERVICES = [
   { id: 'fraud-detector', name: 'Fraud Detector', country: 'Estados Unidos', region: 'us-east', city: 'Virgínia', cpu: 68, kwh: 0.0713, gramsPerKwh: 377, status: 'ativo' },
@@ -324,6 +331,10 @@ const routes = {
   // Ranking de impacto (RF14, #50 e #260): contrato aprovado na #50, com o mesmo período do resumo
   'GET /services/ranking': async (req, res) => {
     if (SERVICES_SCENARIO === 'erro') return simulatedFailure(res);
+    // MOCK_SERVICES=ranking-instavel: a 1ª responde, as seguintes falham — reiniciar o mock invalidaria o token (#257) e
+    // apagaria a parte já calculada, então a falha no meio do ciclo é o único caminho para ver o estado em cinza (#260)
+    if (SERVICES_SCENARIO === 'ranking-falha') return simulatedFailure(res);
+    if (SERVICES_SCENARIO === 'ranking-instavel' && ++rankingCalls > 1) return simulatedFailure(res);
     const query = new URL(req.url ?? '/', `http://localhost:${PORT}`).searchParams;
     const metric = query.get('metric');
     if (metric !== 'energy' && metric !== 'co2e') return validationError(res, 'metric deve ser energy ou co2e.');
@@ -427,7 +438,7 @@ createServer(async (req, res) => {
   return route(req, res);
 }).listen(PORT, () => {
   console.log(`Backend falso em http://localhost:${PORT}`);
-  console.log(`GET /services: cenário "${SERVICES_SCENARIO}" (MOCK_SERVICES=normal|vazio|erro|sem-id|cpu-texto|ranking-texto)`);
+  console.log(`GET /services: cenário "${SERVICES_SCENARIO}" (MOCK_SERVICES=normal|vazio|erro|sem-id|cpu-texto|ranking-texto|ranking-instavel|ranking-falha)`);
   console.log(`Login: ${ADMIN.email} / ${ADMIN.password} (exigido nas rotas de dados, #257; reiniciar o mock invalida os tokens)`);
   console.log(`GET /monitoring-settings: intervalo inicial ${monitoringSettings.refreshIntervalSeconds} s (MOCK_REFRESH_INTERVAL_SECONDS)`);
 });

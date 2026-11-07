@@ -37,9 +37,9 @@ describe('rankingShares', () => {
     expect(shares.get('inventory-sync')?.share).toBeNull();
   });
 
-  it('com total zero, ninguém tem parte (não divide por zero)', () => {
-    const shares = rankingShares(ranking([['Audit Stream', 0], ['Fraud Detector', 0]]));
-    expect([...shares.values()].map((item) => item.share)).toEqual([null, null]);
+  it('com total zero, quem tem cálculo fica com 0% e ninguém cai em "sem cálculo"', () => {
+    const shares = rankingShares(ranking([['Audit Stream', 0], ['Fraud Detector', 0], ['Inventory Sync', null]]));
+    expect([...shares.values()].map((item) => item.share)).toEqual([0, 0, null]);
   });
 });
 

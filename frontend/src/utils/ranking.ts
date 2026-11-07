@@ -13,7 +13,8 @@ export interface RankingShare {
 
 /**
  * Parte de cada serviço no CO₂e do período, pelo id. O total é a soma dos serviços com cálculo, então as partes
- * somam 100%. Total zero (nada emitido ou nada calculado) não divide: todos ficam sem parte.
+ * somam 100%. Total zero (período sem emissão calculada) não divide: quem tem cálculo fica com 0%, e não sem parte —
+ * "sem cálculo" é só para co2eGrams null, senão um período sem emissão pareceria dado faltando.
  */
 export function rankingShares(ranking: ServicesRankingResponse): Map<string, RankingShare> {
   const total = ranking.services.reduce((sum, service) => sum + (service.co2eGrams ?? 0), 0);
@@ -23,7 +24,7 @@ export function rankingShares(ranking: ServicesRankingResponse): Map<string, Ran
       {
         position: service.position,
         co2eGrams: service.co2eGrams,
-        share: service.co2eGrams === null || total === 0 ? null : service.co2eGrams / total,
+        share: service.co2eGrams === null ? null : total === 0 ? 0 : service.co2eGrams / total,
       },
     ]),
   );
@@ -36,12 +37,13 @@ export function formatShare(share: number): string {
 
 /**
  * Frase de leitura acima da tabela, com o período explícito:
- * "Checkout Worker respondeu por 27,3% do CO₂e das últimas 24 h." Sem 1º lugar calculado, devolve null.
+ * "Checkout Worker respondeu por 27,3% do CO₂e das últimas 24 h." Sem 1º lugar calculado, devolve null — e também com
+ * parte zero: "respondeu por 0,0%" não informa quem pesa mais, mesmo quando zero é um total calculado.
  */
 export function rankingSentence(ranking: ServicesRankingResponse, periodLabel: string): string | null {
   const shares = rankingShares(ranking);
   const leader = ranking.services.find((service) => service.position === 1);
   const share = leader ? shares.get(leader.id)?.share : null;
-  if (!leader || share === null || share === undefined) return null;
+  if (!leader || share === null || share === undefined || share === 0) return null;
   return `${leader.name} respondeu por ${formatShare(share)} do CO₂e ${periodLabel}.`;
 }

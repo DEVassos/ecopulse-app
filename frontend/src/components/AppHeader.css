@@ -2,6 +2,7 @@
   /* Mobile-first: em tela estreita são três linhas, sem nada sumir: marca com o nome e Sair, o menu (que rola na
      horizontal) e a atualização. Na tela larga, tudo numa linha só */
   .topbar {
+    position: relative;
     border-bottom: 1px solid var(--border);
     background: var(--surface-2);
   }
@@ -14,6 +15,27 @@
     flex-wrap: wrap;
     align-items: center;
     gap: 8px 16px;
+  }
+
+  /* Link de pular (#262): fora da tela até receber o foco do teclado; aparece como botão cheio no canto */
+  .skip-link,
+  .skip-link:hover {
+    position: absolute;
+    top: -64px;
+    left: 16px;
+    z-index: 20;
+    padding: 10px 16px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .skip-link:focus-visible {
+    top: 8px;
+    outline: 2px solid var(--text);
+    outline-offset: 2px;
   }
 
   .topbar-brand,
@@ -59,6 +81,9 @@
   }
 
   .topbar-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     order: 1;
     margin-left: auto;
   }
@@ -85,6 +110,186 @@
   .user-menu .btn-outline {
     min-height: 44px;
     padding: 10px 16px;
+  }
+
+  /*
+   * Celular (#274): abaixo de 600 px, a faixa do menu some e o botão "Menu" abre uma grade de duas colunas, logo abaixo
+   * do cabeçalho, sobre o fundo apagado. A partir de 600 px as quatro páginas cabem na faixa, sem rolar de lado.
+   */
+  .topbar-theme {
+    display: flex;
+  }
+
+  .mobile-menu {
+    display: none;
+  }
+
+  @media (max-width: 599px) {
+    /* Marca, Menu e Entrar na mesma linha até 360 px */
+    .topbar-inner {
+      column-gap: 8px;
+    }
+
+    .nav {
+      display: none;
+    }
+
+    .mobile-menu {
+      display: block;
+      order: 1;
+      margin-left: auto;
+    }
+
+    .topbar-user {
+      margin-left: 0;
+    }
+
+    .topbar-theme {
+      display: none;
+    }
+
+    /* A saudação vai para o painel do Menu; no cabeçalho fica só o Sair (#257 + #274) */
+    .user-menu > span {
+      display: none;
+    }
+  }
+
+  .mobile-menu__button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  /* Abaixo de 360 px, só o ícone: o nome "Menu" continua para o leitor de tela */
+  @media (max-width: 359px) {
+    .mobile-menu__button {
+      justify-content: center;
+      width: 44px;
+      padding: 0;
+    }
+
+    .mobile-menu__label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+  }
+
+  .mobile-menu__button[aria-expanded='true'] {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+
+  .mobile-menu__scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: color-mix(in srgb, var(--bg) 70%, transparent);
+  }
+
+  .mobile-menu__panel {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 0;
+    z-index: 41;
+    padding: 12px 16px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-2);
+    box-shadow: 0 18px 30px -20px rgb(0 0 0 / 0.6);
+  }
+
+  .mobile-menu__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  /* Quem entrou, no painel do celular: o nome em destaque e o e-mail embaixo, em --muted */
+  .mobile-menu__user {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin: 12px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    color: var(--text-2);
+    font-size: 14px;
+  }
+
+  .mobile-menu__user strong {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .mobile-menu__email {
+    color: var(--muted);
+    font-size: 13px;
+    overflow-wrap: anywhere;
+  }
+
+  /* Tema no celular: o nome do tema atual e o mesmo botão do cabeçalho largo */
+  .mobile-menu__theme {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    color: var(--text-2);
+    font-size: 14px;
+  }
+
+  /* Ícone sobre o rótulo, alvo de toque bem maior que 44 px; o item atual com o mesmo verde da faixa */
+  .mobile-menu__grid a {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 76px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text-2);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+
+  .mobile-menu__grid a.active {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--accent-hover);
+    font-weight: 600;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .mobile-menu__panel {
+      animation: mobile-menu-in 160ms ease-out;
+    }
+  }
+
+  @keyframes mobile-menu-in {
+    from {
+      opacity: 0;
+      transform: translateY(-6px);
+    }
   }
 
   /* Tela larga: marca, menu e ações na mesma linha; 10 px na vertical deixa o cabeçalho com cerca de 56 px */

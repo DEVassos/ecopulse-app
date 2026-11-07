@@ -7,12 +7,15 @@ interface Props {
   summary: StatusSummary;
   /** Horário dos dados exibidos quando a última busca falhou; null quando estão em dia. */
   staleSince: string | null;
+  /** Cards mais baixos: no dashboard, o estado fica abaixo dos indicadores do período (#259). */
+  compact?: boolean;
 }
 
 /** Cards de nível 1 com o estado dos serviços (RF08, RF09). Energia e CO₂e do período ficam no painel de indicadores agregados. */
-export default function KpiPanel({ summary, staleSince }: Props) {
+export default function KpiPanel({ summary, staleSince, compact = false }: Props) {
   const stale = staleSince !== null;
-  // Cor só quando há algo a ver: com contagem zero o card fica neutro e sem nota
+  // Cor só quando há algo a ver: Ativos é estado saudável e fica sempre neutro (#272); Indisponíveis e Sem métricas
+  // ganham tom só com contagem acima de zero
   const tone = (count: number, active: MetricTone): MetricTone => (count > 0 ? active : 'neutral');
   const share = (count: number) =>
     count > 0 && summary.monitored > 0 ? `${Math.round((count / summary.monitored) * 100)}% do total` : undefined;
@@ -23,13 +26,14 @@ export default function KpiPanel({ summary, staleSince }: Props) {
     <section
       className="kpis"
       aria-label="Estado dos serviços monitorados"
-      title={staleSince ? `Dados de ${formatDayTime(staleSince)}: a última atualização falhou` : undefined}
+      data-tooltip={staleSince ? `Dados de ${formatDayTime(staleSince)}: a última atualização falhou` : undefined}
     >
       <MetricTile
         label="Total"
         value={String(summary.monitored)}
         note={removedNote}
         stale={stale}
+        compact={compact}
         icon={
           <svg {...iconProps}>
             <rect x="3" y="4" width="18" height="7" rx="2" />
@@ -42,8 +46,8 @@ export default function KpiPanel({ summary, staleSince }: Props) {
         label="Ativos"
         value={String(summary.active)}
         note={share(summary.active)}
-        tone={tone(summary.active, 'success')}
         stale={stale}
+        compact={compact}
         icon={
           <svg {...iconProps}>
             <circle cx="12" cy="12" r="10" />
@@ -57,6 +61,7 @@ export default function KpiPanel({ summary, staleSince }: Props) {
         note={share(summary.unavailable)}
         tone={tone(summary.unavailable, 'danger')}
         stale={stale}
+        compact={compact}
         icon={
           <svg {...iconProps}>
             <circle cx="12" cy="12" r="10" />
@@ -70,6 +75,7 @@ export default function KpiPanel({ summary, staleSince }: Props) {
         note={share(summary.withoutMetrics)}
         tone={tone(summary.withoutMetrics, 'warning')}
         stale={stale}
+        compact={compact}
         icon={
           <svg {...iconProps}>
             <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />

@@ -31,27 +31,10 @@ export default function DashboardPage() {
   const [comparisonLoading, setComparisonLoading] = useState(false);
   const [ranking, setRanking] = useState<ServicesRankingResponse | null>(null);
   const [rankingError, setRankingError] = useState('');
-  // Ranking de CO₂e das mesmas 24 h do painel (#260): busca a cada ciclo, inclusive no modo demonstração.
-  // Numa falha, a última parte continua na tela, em cinza, e a tabela mantém a ordem.
-  useEffect(() => {
-    const controller = new AbortController();
-    const to = new Date();
-    const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
-    void (async () => {
-      try {
-        const current = await fetchServicesRanking('co2e', from.toISOString(), to.toISOString(), controller.signal);
-        if (controller.signal.aborted) return;
-        setRanking(current);
-        setRankingError('');
-      } catch (reason: unknown) {
-        if (!controller.signal.aborted) setRankingError(reason instanceof Error ? reason.message : 'Não foi possível carregar o ranking.');
-      }
-    })();
-    return () => controller.abort();
-  }, [updatedAt]);
   const shares = useMemo(() => (ranking ? rankingShares(ranking) : null), [ranking]);
   const sentence = ranking ? rankingSentence(ranking, 'das últimas 24 h') : null;
-  const rankingStale = rankingError !== '' || error !== '';
+  // Parte de cada serviço no CO₂e das 24 h (#260): em cinza quando a última busca do ranking falhou
+  const rankingStale = rankingError !== '';
   useEffect(() => {
     if (isDemoMode) return;
     const controller = new AbortController(); const to = new Date(); const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
@@ -80,6 +63,31 @@ export default function DashboardPage() {
     })();
     return () => controller.abort();
   }, [updatedAt]);
+  // Ranking de CO₂e das mesmas 24 h do painel (#260): busca a cada ciclo, inclusive no modo demonstração. Esperar a
+  // primeira lista evita duas buscas no mesmo instante; numa falha, a última parte continua na tela, em cinza.
+  useEffect(() => {
+    if (updatedAt === null) return;
+    const controller = new AbortController();
+    const to = new Date();
+    const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
+    void (async () => {
+      try {
+        const current = await fetchServicesRanking('co2e', from.toISOString(), to.toISOString(), controller.signal);
+        if (controller.signal.aborted) return;
+        setRanking(current);
+        setRankingError('');
+      } catch (reason: unknown) {
+        if (!controller.signal.aborted) {
+          const detail = reason instanceof Error ? reason.message : 'não foi possível carregar o ranking.';
+          setRankingError(`Ranking de CO₂e do período: ${detail}`);
+        }
+      }
+    })();
+    return () => controller.abort();
+  }, [updatedAt]);
+  // Um aviso por página (#271): com a lista falhando e dados na tela, basta a faixa de falha; sem dados, o aviso grande;
+  // com a lista em dia, o primeiro erro entre resumo, comparação e ranking. Nunca avisos iguais empilhados.
+  const pageError = error ? (data ? '' : error) : summaryError || comparisonError || rankingError;
   // A janela usa a linha atual da lista: status, CPU e última leitura acompanham cada atualização
   const selected = data?.services.find((service) => service.id === selectedId) ?? null;
 
@@ -101,8 +109,8 @@ export default function DashboardPage() {
             }}
             aria-disabled={loading}
             aria-label="Atualizar agora"
-            title="Atualizar agora"
-            className="btn-outline grid size-9 place-items-center"
+            data-tooltip="Atualizar agora"
+            className="btn-outline grid size-11 place-items-center"
           >
             <svg
               viewBox="0 0 24 24"
@@ -121,15 +129,12 @@ export default function DashboardPage() {
         </LastUpdated>
       </AppHeader>
 
-      <main className="content">
+      <main id="conteudo" tabIndex={-1} className="content">
         <h1 className="sr-only">Dashboard de energia e emissões</h1>
 
         {/* Falha não apaga o que já estava na tela: com dados, faixa compacta junto do último dado; sem dados, o aviso grande */}
         {data && <UpdateFailedBanner message={error} updatedAt={updatedAt} onRetry={refresh} />}
-        {error && !data && <ErrorState message={error} onRetry={refresh} />}
-        {summaryError && <ErrorState message={summaryError} onRetry={refresh} />}
-        {comparisonError && <ErrorState message={comparisonError} onRetry={refresh} />}
-        {rankingError && <ErrorState message={rankingError} onRetry={refresh} />}
+        {pageError && <ErrorState message={pageError} onRetry={refresh} />}
 
         {loading && !data && <LoadingState message="Carregando serviços…" />}
 
@@ -140,12 +145,20 @@ export default function DashboardPage() {
           />
         )}
 
-        {/* Sem dado ainda, os cards não aparecem (nunca zeros inventados); depois de uma falha, mostram o último dado */}
-        {data && data.services.length > 0 && (
-          <KpiPanel summary={summarizeStatus(data.services)} staleSince={error ? updatedAt : null} />
+        {/* Impacto primeiro (#259): energia e CO₂e do período no topo. Com os serviços na tela e o resumo a caminho, o painel
+            já ocupa o lugar dele em "Calculando…", para a página não pular quando a resposta chega */}
+        {(summary || (data && data.services.length > 0 && !isDemoMode && !summaryError)) && (
+          <SummaryPanel summary={summary} previousSummary={previousSummary} comparisonLoading={comparisonLoading} stale={error !== '' || summaryError !== ''} />
         )}
-        {summary && <SummaryPanel summary={summary} previousSummary={previousSummary} comparisonLoading={comparisonLoading} stale={error !== '' || summaryError !== ''} />}
 
+        {/* Estado dos serviços logo abaixo, em cards compactos. Sem dado ainda, os cards não aparecem (nunca zeros inventados);
+            depois de uma falha, mostram o último dado */}
+        {data && data.services.length > 0 && (
+          <KpiPanel summary={summarizeStatus(data.services)} staleSince={error ? updatedAt : null} compact />
+        )}
+
+        {/* Leitura do período em uma frase (#260): quem respondeu pela maior parte do CO₂e das 24 h. Some enquanto o
+            ranking não chegou; depois de uma falha, fica em cinza com a última resposta */}
         {data && data.services.length > 0 && sentence && (
           <p className={rankingStale ? 'dashboard-reading dashboard-reading--stale' : 'dashboard-reading'} aria-live="polite">
             <span className="dashboard-reading__title">Quem pesa mais</span>
@@ -157,6 +170,7 @@ export default function DashboardPage() {
           <ServicesTable
             services={data.services}
             onSelect={(service) => setSelectedId(service.id)}
+            stale={error !== ''}
             shares={shares}
             sharesStale={rankingStale}
           />
