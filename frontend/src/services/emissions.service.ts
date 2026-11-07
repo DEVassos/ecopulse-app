@@ -20,7 +20,7 @@ const MAX_PAGES = 30;
  * Item de GET /api/collections → ponto de uma coleta só; null quando não serve para o gráfico.
  * `intensity` só vem nas coletas calculadas (`calculationStatus: disponivel`), as que entram na média do período.
  */
-function parseCollection(item: unknown): { point: EmissionPoint; intensity: number | null } | null {
+function parseCollection(item: unknown): ParsedCollection | null {
   if (!isRecord(item)) return null;
   const t = instant(item.collectedAt);
   const status = item.status as CollectionStatus;
@@ -79,6 +79,45 @@ function parseSeriesTotals(item: unknown): EmissionsTotals | null {
   return Object.values(totals).some((value) => value === undefined) ? null : (totals as EmissionsTotals);
 }
 
+/** Uma coleta conferida: o ponto do gráfico e a intensidade, quando a coleta entra na média do período. */
+export interface ParsedCollection {
+  point: EmissionPoint;
+  intensity: number | null;
+}
+
+/**
+ * Confere uma página de GET /api/collections. Envelope fora do formato recusa a página inteira (ApiError);
+ * coleta fora do formato fica de fora e é contada em `discarded`. `received` é quantas o servidor mandou,
+ * que decide a paginação.
+ */
+export function parseCollectionsPage(body: unknown): { collections: ParsedCollection[]; discarded: number; received: number } {
+  if (!isRecord(body) || !Array.isArray(body.collections)) throw unexpectedFormat();
+  const collections: ParsedCollection[] = [];
+  for (const raw of body.collections) {
+    const parsed = parseCollection(raw);
+    if (parsed) collections.push(parsed);
+  }
+  return { collections, discarded: body.collections.length - collections.length, received: body.collections.length };
+}
+
+/**
+ * Confere GET /api/collections/series (#189). Envelope ou `totals` fora do formato recusa a resposta (ApiError);
+ * intervalo fora do formato fica de fora e é contado em `discarded`. Os pontos saem em ordem cronológica.
+ */
+export function parseSeriesResponse(body: unknown, bucket: EmissionsSeries['bucket']): EmissionsSeries {
+  if (!isRecord(body) || !Array.isArray(body.buckets)) throw unexpectedFormat();
+  const totals = parseSeriesTotals(body.totals);
+  if (!totals) throw unexpectedFormat();
+
+  const points: EmissionPoint[] = [];
+  for (const raw of body.buckets) {
+    const point = parseSeriesBucket(raw);
+    if (point) points.push(point);
+  }
+  points.sort((a, b) => a.t - b.t);
+  return { bucket, points, totals, truncated: false, discarded: body.buckets.length - points.length };
+}
+
 // ── Buscas ──────────────────────────────────────────────────────────────────
 
 /**
@@ -98,16 +137,11 @@ async function fetchEachCollection(query: EmissionsQuery, signal?: AbortSignal):
 
   for (let page = 0; page < MAX_PAGES; page += 1) {
     const params = new URLSearchParams({ service_id: query.serviceId, from: query.from, to, limit: String(PAGE_SIZE) });
-    const body = await apiRequest<unknown>(`/collections?${params}`, { signal });
-    if (!isRecord(body) || !Array.isArray(body.collections)) throw unexpectedFormat();
+    const batch = parseCollectionsPage(await apiRequest<unknown>(`/collections?${params}`, { signal }));
+    discarded += batch.discarded;
 
     let oldest: number | null = null;
-    for (const raw of body.collections) {
-      const parsed = parseCollection(raw);
-      if (!parsed) {
-        discarded += 1;
-        continue;
-      }
+    for (const parsed of batch.collections) {
       points.push(parsed.point);
       if (parsed.intensity !== null) {
         intensitySum += parsed.intensity;
@@ -117,7 +151,7 @@ async function fetchEachCollection(query: EmissionsQuery, signal?: AbortSignal):
     }
 
     // A paginação olha o que o servidor mandou, não só o que passou na conferência
-    if (body.collections.length < PAGE_SIZE || oldest === null) {
+    if (batch.received < PAGE_SIZE || oldest === null) {
       truncated = false;
       break;
     }
@@ -136,18 +170,7 @@ async function fetchEachCollection(query: EmissionsQuery, signal?: AbortSignal):
 /** Série somada no banco (GET /api/collections/series, #189). */
 async function fetchSeries(query: EmissionsQuery, signal?: AbortSignal): Promise<EmissionsSeries> {
   const params = new URLSearchParams({ service_id: query.serviceId, from: query.from, to: query.to, bucket: query.bucket });
-  const body = await apiRequest<unknown>(`/collections/series?${params}`, { signal });
-  if (!isRecord(body) || !Array.isArray(body.buckets)) throw unexpectedFormat();
-  const totals = parseSeriesTotals(body.totals);
-  if (!totals) throw unexpectedFormat();
-
-  const points: EmissionPoint[] = [];
-  for (const raw of body.buckets) {
-    const point = parseSeriesBucket(raw);
-    if (point) points.push(point);
-  }
-  points.sort((a, b) => a.t - b.t);
-  return { bucket: query.bucket, points, totals, truncated: false, discarded: body.buckets.length - points.length };
+  return parseSeriesResponse(await apiRequest<unknown>(`/collections/series?${params}`, { signal }), query.bucket);
 }
 
 /** Emissão de um serviço no período, no agrupamento pedido. */
