@@ -15,7 +15,7 @@ import { fetchServicesSummary } from '../services/services.service';
 import type { ServicesSummaryResponse } from '../services/services.types';
 import { fetchServicesRanking } from '../services/ranking.service';
 import type { ServicesRankingResponse } from '../services/ranking.types';
-import { rankingShares, rankingSentence } from '../utils/ranking';
+import { rankingIsStale, rankingShares, rankingSentence } from '../utils/ranking';
 import SummaryPanel from '../components/SummaryPanel';
 import { summarizeStatus } from '../utils/summary';
 import './DashboardPage.css';
@@ -33,8 +33,8 @@ export default function DashboardPage() {
   const [rankingError, setRankingError] = useState('');
   const shares = useMemo(() => (ranking ? rankingShares(ranking) : null), [ranking]);
   const sentence = ranking ? rankingSentence(ranking, 'das últimas 24 h') : null;
-  // Parte de cada serviço no CO₂e das 24 h (#260): em cinza quando a última busca do ranking falhou
-  const rankingStale = rankingError !== '';
+  // Parte de cada serviço no CO₂e das 24 h (#260): em cinza quando a última busca do ranking ou da lista falhou
+  const rankingStale = rankingIsStale(rankingError, error);
   useEffect(() => {
     if (isDemoMode) return;
     const controller = new AbortController(); const to = new Date(); const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
@@ -158,9 +158,10 @@ export default function DashboardPage() {
         )}
 
         {/* Leitura do período em uma frase (#260): quem respondeu pela maior parte do CO₂e das 24 h. Some enquanto o
-            ranking não chegou; depois de uma falha, fica em cinza com a última resposta */}
+            ranking não chegou; depois de uma falha, fica em cinza com a última resposta. Sem aria-live: a parte muda a cada
+            ciclo com a janela de 24 h deslizando, e anunciar a frase a cada 30 s atrapalharia o leitor de tela (como no LastUpdated) */}
         {data && data.services.length > 0 && sentence && (
-          <p className={rankingStale ? 'dashboard-reading dashboard-reading--stale' : 'dashboard-reading'} aria-live="polite">
+          <p className={rankingStale ? 'dashboard-reading dashboard-reading--stale' : 'dashboard-reading'}>
             <span className="dashboard-reading__title">Quem pesa mais</span>
             {sentence}
           </p>

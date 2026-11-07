@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ServicesRankingResponse } from '../services/ranking.types';
-import { formatShare, rankingSentence, rankingShares } from './ranking';
+import { formatShare, rankingIsStale, rankingSentence, rankingShares } from './ranking';
 
 function ranking(values: Array<[string, number | null]>): ServicesRankingResponse {
   let position = 0;
@@ -40,6 +40,28 @@ describe('rankingShares', () => {
   it('com total zero, quem tem cálculo fica com 0% e ninguém cai em "sem cálculo"', () => {
     const shares = rankingShares(ranking([['Audit Stream', 0], ['Fraud Detector', 0], ['Inventory Sync', null]]));
     expect([...shares.values()].map((item) => item.share)).toEqual([0, 0, null]);
+  });
+
+  it('arredonda pelo maior resto: três partes iguais exibem 33,4 + 33,3 + 33,3 = 100,0%', () => {
+    const shares = rankingShares(ranking([['Audit Stream', 1], ['Checkout Worker', 1], ['Fraud Detector', 1]]));
+    expect([...shares.values()].map((item) => formatShare(item.share ?? 0))).toEqual(['33,4%', '33,3%', '33,3%']);
+  });
+
+  it('seis partes iguais exibem 100,0%, onde arredondar linha a linha daria 16,7% × 6 = 100,2%', () => {
+    const shares = rankingShares(ranking(['A', 'B', 'C', 'D', 'E', 'F'].map((name) => [name, 2])));
+    const shown = [...shares.values()].map((item) => formatShare(item.share ?? 0));
+    expect(formatShare(1 / 6)).toBe('16,7%');
+    expect(shown).toEqual(['16,7%', '16,7%', '16,7%', '16,7%', '16,6%', '16,6%']);
+    const total = [...shares.values()].reduce((sum, item) => sum + (item.share ?? 0), 0);
+    expect(Math.round(total * 1000)).toBe(1000);
+  });
+});
+
+describe('rankingIsStale', () => {
+  it('apaga a parte quando o ranking falhou ou quando a lista de serviços falhou', () => {
+    expect(rankingIsStale('', '')).toBe(false);
+    expect(rankingIsStale('Ranking de CO₂e do período: falha', '')).toBe(true);
+    expect(rankingIsStale('', 'Não foi possível conectar ao servidor.')).toBe(true);
   });
 });
 
