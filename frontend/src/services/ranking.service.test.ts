@@ -22,9 +22,9 @@ function withFirst(changes: Record<string, unknown>) {
   return { ...body, services: [{ ...body.services[0], ...changes }, ...body.services.slice(1)] };
 }
 
-function rejection(body: unknown): string {
+function rejection(body: unknown, requested?: 'energy' | 'co2e'): string {
   try {
-    parseRankingResponse(body);
+    parseRankingResponse(body, requested);
   } catch (error) {
     expect(error).toBeInstanceOf(ApiError);
     return (error as ApiError).message;
@@ -58,5 +58,26 @@ describe('parseRankingResponse', () => {
   it('recusa métrica fora de energy/co2e e período sem data', () => {
     expect(rejection({ ...validBody(), metric: 'cpu' })).toContain('metric');
     expect(rejection({ ...validBody(), from: 'ontem' })).toContain('from');
+  });
+
+  it('recusa métrica diferente da pedida, mesmo sendo válida', () => {
+    expect(rejection({ ...validBody(), metric: 'energy' }, 'co2e')).toContain('metric');
+    expect(parseRankingResponse(validBody(), 'co2e').metric).toBe('co2e');
+  });
+
+  it('recusa posições fora do contrato: trocadas, fora de sequência ou com a métrica null', () => {
+    const body = validBody();
+    const swapped = { ...body, services: [{ ...body.services[0], position: 2 }, { ...body.services[1], position: 1 }, body.services[2]] };
+    expect(rejection(swapped)).toContain('services[0].position');
+    expect(rejection(withFirst({ position: 3 }))).toContain('services[0].position');
+    const nullRanked = { ...body, services: [...body.services.slice(0, 2), { ...body.services[2], position: 3 }] };
+    expect(rejection(nullRanked)).toContain('services[2].position');
+  });
+
+  it('recusa valor maior abaixo de um menor e serviço sem métrica antes dos calculados', () => {
+    expect(rejection(withFirst({ co2eGrams: 100 }))).toContain('services[1].position');
+    const body = validBody();
+    const nullFirst = { ...body, services: [body.services[2], { ...body.services[0], position: 1 }, { ...body.services[1], position: 2 }] };
+    expect(rejection(nullFirst)).toContain('services[1].position');
   });
 });

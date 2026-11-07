@@ -37,17 +37,37 @@ function parseRankedService(value: unknown, at: string): RankedService {
 }
 
 /**
+ * Posições como o contrato promete (docs/api.md § GET /api/services/ranking): quem tem a métrica vem primeiro, com
+ * posições 1, 2, 3… na ordem da lista e valores que não crescem; quem não tem fica no fim com position null. Fora disso
+ * o "1º" iria para uma linha cuja barra não é a cheia, e a frase citaria quem não pesa mais.
+ */
+function checkPositions(metric: RankingMetric, services: RankedService[]): void {
+  let previous = Number.POSITIVE_INFINITY;
+  let ranked = 0;
+  services.forEach((service, index) => {
+    const value = metric === 'co2e' ? service.co2eGrams : service.energyKwh;
+    const expected = value === null || ranked < index ? null : index + 1;
+    if (service.position !== expected || (value !== null && value > previous)) throw unexpectedFormat(`services[${index}].position`);
+    if (value !== null) {
+      ranked += 1;
+      previous = value;
+    }
+  });
+}
+
+/**
  * Confere o corpo de GET /api/services/ranking contra o contrato da #50. Um campo fora do contrato recusa a resposta
  * inteira com ApiError (#161): a tabela não mostra parte nenhuma, em vez de uma parte calculada sobre dado errado.
+ * Com `requested`, a métrica da resposta precisa ser a pedida: outra seria resposta de outro pedido, e as partes do CO₂e
+ * sairiam erradas.
  */
-export function parseRankingResponse(body: unknown): ServicesRankingResponse {
+export function parseRankingResponse(body: unknown, requested?: RankingMetric): ServicesRankingResponse {
   const response = readRecord(body, 'resposta');
-  return {
-    metric: readOneOf(response.metric, RANKING_METRICS, 'metric'),
-    from: readInstant(response.from, 'from'),
-    to: readInstant(response.to, 'to'),
-    services: readList(response.services, 'services').map((item, index) => parseRankedService(item, `services[${index}]`)),
-  };
+  const metric = readOneOf(response.metric, RANKING_METRICS, 'metric');
+  if (requested !== undefined && metric !== requested) throw unexpectedFormat('metric');
+  const services = readList(response.services, 'services').map((item, index) => parseRankedService(item, `services[${index}]`));
+  checkPositions(metric, services);
+  return { metric, from: readInstant(response.from, 'from'), to: readInstant(response.to, 'to'), services };
 }
 
 /** Modo demonstração: o ranking das 24 h sai da leitura ilustrativa, como se ela se repetisse a cada 30 s. */
@@ -80,8 +100,5 @@ function demoRanking(metric: RankingMetric, from: string, to: string): ServicesR
 export async function fetchServicesRanking(metric: RankingMetric, from: string, to: string, signal?: AbortSignal): Promise<ServicesRankingResponse> {
   if (isDemoMode) return demoRanking(metric, from, to);
   const query = `metric=${metric}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
-  const response = parseRankingResponse(await apiRequest<unknown>(`/services/ranking?${query}`, { signal }));
-  // O contrato devolve a métrica pedida: outra significa resposta de outro pedido, e as partes do CO₂e sairiam erradas
-  if (response.metric !== metric) throw unexpectedFormat('metric');
-  return response;
+  return parseRankingResponse(await apiRequest<unknown>(`/services/ranking?${query}`, { signal }), metric);
 }
