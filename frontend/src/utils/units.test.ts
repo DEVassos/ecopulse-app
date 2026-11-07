@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatInScale, formatQuantity, scaleFor } from './units';
+import { formatInScale, formatPrecise, formatQuantity, scaleFor } from './units';
 
 describe('scaleFor', () => {
   it('escolhe a maior unidade em que o maior valor do conjunto fica em pelo menos 1', () => {
@@ -37,5 +37,15 @@ describe('formatQuantity', () => {
     expect(formatQuantity('co2e', 0.601)).toBe('601 mg');
     expect(formatQuantity('co2e', 44.6)).toBe('44,6 g');
     expect(formatQuantity('co2e', 0)).toBe('0 g');
+  });
+});
+
+describe('formatPrecise', () => {
+  it('dá o valor exato do tooltip com 4 algarismos significativos, na unidade do próprio valor (#274)', () => {
+    expect(formatPrecise('energy', 0.0014381)).toBe('1,438 Wh');
+    expect(formatPrecise('co2e', 301.46)).toBe('301,5 g');
+    // Abaixo de 1 mg, a menor unidade continua sendo mg
+    expect(formatPrecise('co2e', 0.000016)).toBe('0,016 mg');
+    expect(formatPrecise('energy', 0)).toBe('0 kWh');
   });
 });

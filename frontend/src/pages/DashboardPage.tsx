@@ -78,7 +78,7 @@ export default function DashboardPage() {
             }}
             aria-disabled={loading}
             aria-label="Atualizar agora"
-            title="Atualizar agora"
+            data-tooltip="Atualizar agora"
             className="btn-outline grid size-11 place-items-center"
           >
             <svg

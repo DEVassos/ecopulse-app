@@ -1,7 +1,8 @@
 @layer components {
   /*
-   * Barras da comparação (#218). Barra em --sky (dado secundário, docs/identidade-visual.md) sobre trilho em --border;
-   * no CO₂e, o menor em --accent-hover e o maior em --warning, as mesmas cores do destaque da tabela, sempre com a seta.
+   * Barras da comparação (#218) sobre trilho em --border. Cor por grandeza, a mesma em todas as telas (#274): energia
+   * em --sky e CO₂e em --accent. No CO₂e, só o maior muda de cor (--warning, o tom de problema); o menor fica na cor
+   * da grandeza, marcado pela seta.
    */
   .compare-chart svg {
     display: block;
@@ -28,11 +29,14 @@
     fill: var(--border);
   }
 
-  .compare-chart__bar {
+  .compare-chart__bar--energy {
     fill: var(--sky);
   }
 
-  .compare-chart__bar--lowest,
+  .compare-chart__bar--co2e {
+    fill: var(--accent);
+  }
+
   .compare-chart__flag--lowest {
     fill: var(--accent-hover);
   }
@@ -51,10 +55,6 @@
     width: 12px;
     height: 8px;
     border-radius: 2px;
-  }
-
-  .compare-chart__key--lowest {
-    background: var(--accent-hover);
   }
 
   .compare-chart__key--highest {

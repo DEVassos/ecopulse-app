@@ -13,7 +13,7 @@ export default function EstimateTag({ note }: Props) {
   return (
     <span
       className="inline-flex cursor-help items-center gap-1 whitespace-nowrap rounded-full border border-border px-2 py-0.5 font-sans text-xs font-medium text-muted"
-      title={text}
+      data-tooltip={text}
     >
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
         <circle cx="12" cy="12" r="10" />

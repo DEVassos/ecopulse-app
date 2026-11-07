@@ -26,7 +26,7 @@ export default function KpiPanel({ summary, staleSince, compact = false }: Props
     <section
       className="kpis"
       aria-label="Estado dos serviços monitorados"
-      title={staleSince ? `Dados de ${formatDayTime(staleSince)}: a última atualização falhou` : undefined}
+      data-tooltip={staleSince ? `Dados de ${formatDayTime(staleSince)}: a última atualização falhou` : undefined}
     >
       <MetricTile
         label="Total"

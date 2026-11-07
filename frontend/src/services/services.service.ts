@@ -1,5 +1,16 @@
 import { apiRequest } from './api';
-import { readAmountOrNull, readId, readInstantOrNull, readList, readOneOf, readRecord, readText, readTextOrNull } from './contract';
+import {
+  readAmountOrNull,
+  readCount,
+  readId,
+  readInstant,
+  readInstantOrNull,
+  readList,
+  readOneOf,
+  readRecord,
+  readText,
+  readTextOrNull,
+} from './contract';
 import { demoServices } from './demo-data';
 import { SERVICE_STATUSES } from './services.types';
 import type { MonitoredService, ServicesResponse, ServicesSummaryResponse } from './services.types';
@@ -41,6 +52,29 @@ export async function fetchServices(signal?: AbortSignal): Promise<ServicesRespo
   if (isDemoMode) return demoServices();
   return parseServicesResponse(await apiRequest<unknown>('/services', { signal }));
 }
+
+/**
+ * Confere o corpo de GET /api/services/summary contra docs/api.md (#237). Campo fora do contrato recusa a resposta
+ * inteira: o painel de indicadores mostra o erro com Tentar novamente e não exibe o valor recebido.
+ */
+export function parseServicesSummaryResponse(body: unknown): ServicesSummaryResponse {
+  const response = readRecord(body, 'resposta');
+  const period = readRecord(response.period, 'period');
+  const services = readRecord(response.services, 'services');
+  return {
+    period: { from: readInstant(period.from, 'period.from'), to: readInstant(period.to, 'period.to') },
+    energyKwh: readAmountOrNull(response.energyKwh, 'energyKwh'),
+    co2eGrams: readAmountOrNull(response.co2eGrams, 'co2eGrams'),
+    services: {
+      active: readCount(services.active, 'services.active'),
+      unavailable: readCount(services.unavailable, 'services.unavailable'),
+      withoutMetrics: readCount(services.withoutMetrics, 'services.withoutMetrics'),
+      removed: readCount(services.removed, 'services.removed'),
+    },
+  };
+}
+
 export async function fetchServicesSummary(from: string, to: string, signal?: AbortSignal): Promise<ServicesSummaryResponse> {
-  return apiRequest<ServicesSummaryResponse>(`/services/summary?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`, { signal });
+  const query = new URLSearchParams({ from, to });
+  return parseServicesSummaryResponse(await apiRequest<unknown>(`/services/summary?${query}`, { signal }));
 }

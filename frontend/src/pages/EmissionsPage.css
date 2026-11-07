@@ -8,7 +8,7 @@
 
   /* ── Filtros ── */
   /*
-   * Barra em grupos (#267): Serviço · Período (◀ datas ▶ Aplicar) · Agrupar por · Tempo real. No celular, um grupo por
+   * Barra em grupos (#267): Serviço · Período (seletor da #273) · Agrupar por · Tempo real. No celular, um grupo por
    * linha, na mesma ordem de leitura; a partir de 960 px, tudo numa faixa.
    */
   .emissions__filters {
@@ -52,62 +52,14 @@
     color: var(--muted);
   }
 
-  .emissions__period-row {
-    display: grid;
-    grid-template-columns: 36px 36px minmax(0, 1fr);
-    grid-template-areas:
-      'dates dates dates'
-      'prev next apply';
-    gap: 8px 6px;
-    align-items: center;
-  }
-
-  .emissions__period-row > :nth-child(1) {
-    grid-area: prev;
-  }
-
-  .emissions__dates {
-    grid-area: dates;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .emissions__dates .emissions__field {
-    flex: 1 1 0;
-    min-width: 0;
-  }
-
-  /* Celular: cada data ocupa metade da linha; a partir de 600 px, a largura fixa do DateField */
-  .emissions__dates .date-field {
+  /* Seletor de período (#273): a linha inteira no celular; na faixa larga, a largura do conteúdo */
+  .emissions__period .period-picker {
     width: 100%;
   }
 
-  .emissions__period-row > :nth-child(3) {
-    grid-area: next;
-  }
-
-  .emissions__period-row > :nth-child(4) {
-    grid-area: apply;
-    justify-content: center;
-  }
-
-  .emissions__until {
-    font-size: 13px;
-    color: var(--muted);
-  }
-
   @media (min-width: 600px) {
-    .emissions__period-row {
-      display: flex;
-    }
-
-    .emissions__dates .emissions__field {
-      flex: 0 0 auto;
-    }
-
-    .emissions__dates .date-field {
-      width: 9rem;
+    .emissions__period .period-picker {
+      width: auto;
     }
   }
 
@@ -122,8 +74,7 @@
     }
   }
 
-  .emissions__field select,
-  .emissions__field input {
+  .emissions__field select {
     min-height: 38px;
     padding: 0 10px;
     border: 1px solid var(--border);
@@ -139,17 +90,7 @@
     text-overflow: ellipsis;
   }
 
-  .emissions__field input:disabled {
-    opacity: 0.55;
-  }
-
-  /* Data com erro (#262): borda em --danger, além da mensagem ligada por aria-describedby */
-  .emissions__field input[aria-invalid='true'] {
-    border-color: var(--danger);
-  }
-
-  .emissions__field select:focus-visible,
-  .emissions__field input:focus-visible {
+  .emissions__field select:focus-visible {
     outline: 2px solid var(--sky);
     outline-offset: 1px;
   }
@@ -177,31 +118,6 @@
   .emissions__btn:disabled {
     opacity: 0.4;
     cursor: not-allowed;
-  }
-
-  .emissions__btn--icon {
-    width: 36px;
-    padding: 0;
-    justify-content: center;
-    font-size: 12px;
-  }
-
-  .emissions__btn--primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--on-accent);
-    font-weight: 600;
-  }
-
-  .emissions__btn--primary:hover:not(:disabled) {
-    background: var(--accent-hover);
-    border-color: var(--accent-hover);
-    color: var(--on-accent);
-  }
-
-  .emissions__btn[aria-disabled='true'] {
-    cursor: wait;
-    opacity: 0.7;
   }
 
   .emissions__btn--live.is-on {

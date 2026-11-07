@@ -19,7 +19,7 @@ export default function ThemeToggle() {
   const { theme, toggle } = useTheme();
   const label = theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro';
   return (
-    <button type="button" onClick={toggle} aria-label={label} title={label} className="btn-outline grid size-11 shrink-0 place-items-center">
+    <button type="button" onClick={toggle} aria-label={label} data-tooltip={label} className="btn-outline grid size-11 shrink-0 place-items-center">
       {theme === 'dark' ? (
         <svg {...iconProps}>
           <circle cx="12" cy="12" r="4" />

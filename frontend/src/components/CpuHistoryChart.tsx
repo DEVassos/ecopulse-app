@@ -187,12 +187,12 @@ export default function CpuHistoryChart({ collections }: Props) {
         <div className="cpu-chart__tooltip" aria-live="polite" hidden={!active} style={{ left: tooltipLeft }}>
           {active && (
             <>
-              <strong className="flex items-center gap-2 font-data font-medium text-text">
+              <strong className="flex items-center gap-2 font-data font-medium text-[var(--tooltip-text)]">
                 {active.cpuPercent !== null && <span className="cpu-chart__key" aria-hidden="true" />}
                 {readout(active)}
               </strong>
-              <span className="font-data text-muted">{formatDayTime(active.collectedAt)}</span>
-              {active.errorMessage && <span className="text-muted">{active.errorMessage}</span>}
+              <span className="font-data">{formatDayTime(active.collectedAt)}</span>
+              {active.errorMessage && <span>{active.errorMessage}</span>}
             </>
           )}
         </div>
