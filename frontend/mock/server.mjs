@@ -37,6 +37,9 @@ async function readJson(req) {
  *   (padrão) lista normal · MOCK_SERVICES=vazio lista vazia · MOCK_SERVICES=erro responde 500
  *   MOCK_SERVICES=sem-id: Checkout Worker sem `id` · MOCK_SERVICES=cpu-texto: CPU do Fraud Detector em texto
  *   (os dois últimos respondem 200 fora do contrato, e a tela deve tratá-los como falha: #161)
+ *   MOCK_SERVICES=resumo-texto: GET /services/summary com energyKwh em texto
+ *   MOCK_SERVICES=comparacao-sem-id: GET /services/compare com o 1º serviço sem `id`
+ *   (também fora do contrato: o painel de indicadores e a comparação devem mostrar o erro, #237)
  *   MOCK_SERVICES=ranking-texto: o 1º lugar do ranking vem com o CO₂e em texto
  *   MOCK_SERVICES=ranking-instavel: a 1ª chamada de GET /services/ranking responde e as seguintes dão 500, para ver a
  *   parte já calculada em cinza no ciclo seguinte sem reiniciar o mock, o que invalidaria o token (#257, #260)
@@ -319,13 +322,15 @@ const routes = {
     const services = listedServices();
     const collections = services.flatMap((service) => collectionsBetween(service, from, to));
     const count = (status) => services.filter((service) => service.status === status).length;
-    return send(res, 200, {
+    const summary = {
       period: { from: new Date(from).toISOString(), to: new Date(to).toISOString() },
       // Só as coletas calculadas têm energia e CO₂e; as outras vêm null e ficam fora da soma
       energyKwh: sumOrNull(collections, 'energyKwh'),
       co2eGrams: sumOrNull(collections, 'co2eGrams'),
       services: { active: count('ativo'), unavailable: count('indisponivel'), withoutMetrics: count('sem_metricas'), removed: count('removido') },
-    });
+    };
+    if (SERVICES_SCENARIO === 'resumo-texto') summary.energyKwh = String(summary.energyKwh);
+    return send(res, 200, summary);
   },
 
   // Ranking de impacto (RF14, #50 e #260): contrato aprovado na #50, com o mesmo período do resumo
@@ -396,7 +401,7 @@ const routes = {
     }
     const services = ids.map((id) => listedServices().find((service) => service.id === id));
     if (services.includes(undefined)) return send(res, 404, { error: { code: 'NOT_FOUND', message: 'Um ou mais serviços não foram encontrados.' } });
-    return send(res, 200, {
+    const comparison = {
       from: new Date(from).toISOString(),
       to: new Date(to).toISOString(),
       // Na ordem dos ids pedidos; serviço sem coletas no período vem com 0 e métricas null
@@ -417,7 +422,9 @@ const routes = {
           co2eGrams: sumOrNull(items, 'co2eGrams'),
         };
       }),
-    });
+    };
+    if (SERVICES_SCENARIO === 'comparacao-sem-id') delete comparison.services[0].id;
+    return send(res, 200, comparison);
   },
 };
 
@@ -438,7 +445,7 @@ createServer(async (req, res) => {
   return route(req, res);
 }).listen(PORT, () => {
   console.log(`Backend falso em http://localhost:${PORT}`);
-  console.log(`GET /services: cenário "${SERVICES_SCENARIO}" (MOCK_SERVICES=normal|vazio|erro|sem-id|cpu-texto|ranking-texto|ranking-instavel|ranking-falha)`);
+  console.log(`GET /services: cenário "${SERVICES_SCENARIO}" (MOCK_SERVICES=normal|vazio|erro|sem-id|cpu-texto|resumo-texto|comparacao-sem-id|ranking-texto|ranking-instavel|ranking-falha)`);
   console.log(`Login: ${ADMIN.email} / ${ADMIN.password} (exigido nas rotas de dados, #257; reiniciar o mock invalida os tokens)`);
   console.log(`GET /monitoring-settings: intervalo inicial ${monitoringSettings.refreshIntervalSeconds} s (MOCK_REFRESH_INTERVAL_SECONDS)`);
 });
