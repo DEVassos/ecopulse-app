@@ -51,21 +51,27 @@ const SERVICES_SCENARIO = process.env.MOCK_SERVICES ?? 'normal';
 let rankingCalls = 0;
 
 const SERVICES = [
-  { id: 'fraud-detector', name: 'Fraud Detector', country: 'Estados Unidos', region: 'us-east', city: 'Virgínia', cpu: 68, kwh: 0.0713, gramsPerKwh: 377, status: 'ativo' },
-  { id: 'recommendation-ai', name: 'Recommendation AI', country: 'Irlanda', region: 'eu-west', city: 'Dublin', cpu: 74, kwh: 0.0868, gramsPerKwh: 295, status: 'ativo' },
-  { id: 'audit-stream', name: 'Audit Stream', country: 'Japão', region: 'jp-east', city: 'Tóquio', cpu: 41, kwh: 0.0533, gramsPerKwh: 465, status: 'ativo' },
-  { id: 'checkout-worker', name: 'Checkout Worker', country: 'Estados Unidos', region: 'us-east', city: 'Virgínia', cpu: 45, kwh: 0.0467, gramsPerKwh: 377, status: 'ativo' },
-  { id: 'reporting-batch', name: 'Reporting Batch', country: 'Canadá', region: 'ca-central', city: 'Montreal', cpu: 52, kwh: 0.0726, gramsPerKwh: 40, status: 'ativo' },
-  { id: 'email-dispatcher', name: 'Email Dispatcher', country: 'Brasil', region: 'br-sudeste', city: 'São Paulo', status: 'indisponivel', reason: 'Serviço indisponível (HTTP 500).' },
-  { id: 'inventory-sync', name: 'Inventory Sync', country: 'Canadá', region: 'ca-central', city: null, status: 'sem_metricas' },
+// region é o nome e regionCode o código, como no backend (#297); o Inventory Sync não tem região e por isso não tem cálculo
+  { id: 'fraud-detector', name: 'Fraud Detector', country: 'Estados Unidos', regionCode: 'us-east', region: 'Virgínia', city: 'Ashburn', cpu: 68, kwh: 0.0713, gramsPerKwh: 377, memoryGb: 6.04, diskGb: 67.11, networkGb: 0.53, status: 'ativo' },
+  { id: 'recommendation-ai', name: 'Recommendation AI', country: 'Irlanda', regionCode: 'eu-west', region: 'Leinster', city: 'Dublin', cpu: 74, kwh: 0.0868, gramsPerKwh: 295, memoryGb: 7.83, diskGb: 21.83, networkGb: 1.97, status: 'ativo' },
+  { id: 'audit-stream', name: 'Audit Stream', country: 'Japão', regionCode: 'jp-east', region: 'Kanto', city: 'Tóquio', cpu: 41, kwh: 0.0533, gramsPerKwh: 465, memoryGb: 1.33, diskGb: 8.51, networkGb: 0.29, status: 'ativo' },
+  { id: 'checkout-worker', name: 'Checkout Worker', country: 'Estados Unidos', regionCode: 'us-east', region: 'Virgínia', city: 'Ashburn', cpu: 45, kwh: 0.0467, gramsPerKwh: 377, memoryGb: 3.17, diskGb: 19.26, networkGb: 0.45, status: 'ativo' },
+  { id: 'reporting-batch', name: 'Reporting Batch', country: 'Canadá', regionCode: 'ca-central', region: 'Quebec', city: 'Montreal', cpu: 52, kwh: 0.0726, gramsPerKwh: 40, memoryGb: 4.5, diskGb: 120.4, networkGb: 2.1, status: 'ativo' },
+  { id: 'email-dispatcher', name: 'Email Dispatcher', country: 'Brasil', regionCode: 'br-sudeste', region: 'Sudeste', city: 'São Paulo', status: 'indisponivel', reason: 'Serviço indisponível (HTTP 500).' },
+  { id: 'inventory-sync', name: 'Inventory Sync', country: 'Canadá', regionCode: null, region: 'Ontario', city: null, status: 'sem_metricas' },
 ];
+
+/** Intervalo da leitura do backend falso: a energia de cada serviço é de uma hora, então a potência sai em dezenas de W. */
+const READING_INTERVAL_SECONDS = 3600;
 
 /** Leitura "ao vivo": a CPU varia um pouco a cada chamada, para a atualização mostrar mudança na tela. */
 function readService(service) {
   // statusReason (#176): motivo da coleta mais recente, só em `indisponivel`
-  const base = { id: service.id, name: service.name, country: service.country, region: service.region, city: service.city, status: service.status, statusReason: service.reason ?? null };
+  const base = { id: service.id, name: service.name, country: service.country, regionCode: service.regionCode, region: service.region, city: service.city, status: service.status, statusReason: service.reason ?? null };
+  // Campos da última coleta (#297): sem leitura, os seis vêm null; regionCode é do cadastro e fica
   if (service.status !== 'ativo') {
-    return { ...base, cpuPercent: null, energyKwh: null, emissionsG: null, lastReadingAt: null };
+    return { ...base, cpuPercent: null, energyKwh: null, emissionsG: null, lastReadingAt: null,
+      collectionIntervalSeconds: null, memoryGb: null, diskGb: null, networkGb: null, powerWatts: null, carbonIntensityGco2ePerKwh: null };
   }
   const factor = 1 + (Math.random() - 0.5) * 0.1;
   const energyKwh = Number((service.kwh * factor).toFixed(4));
@@ -75,6 +81,13 @@ function readService(service) {
     energyKwh,
     emissionsG: Number((energyKwh * service.gramsPerKwh).toFixed(1)),
     lastReadingAt: new Date().toISOString(),
+    collectionIntervalSeconds: READING_INTERVAL_SECONDS,
+    memoryGb: service.memoryGb,
+    diskGb: service.diskGb,
+    networkGb: service.networkGb,
+    // Coerente com docs/calculos.md: potência = energia ÷ tempo; fator = o mesmo das coletas de /collections
+    powerWatts: Number((energyKwh * 3_600_000 / READING_INTERVAL_SECONDS).toFixed(3)),
+    carbonIntensityGco2ePerKwh: service.gramsPerKwh,
   };
 }
 
