@@ -157,7 +157,7 @@ Visão preservada da ARQ-01 (#28), que exige diagrama de classes ou ERD; casos d
 
 ## Modelo OO separado
 
-As classes de objeto do monitoramento são as de `backend/src/domain/` (#173), usadas pelo coletor. O diagrama abaixo descreve o código ([fonte](https://github.com/DEVassos/greener-app/tree/42f169d5edd91a0f5bf7e00fcf4c17817d1bd747/backend/src/domain)), não um desenho conceitual anterior.
+As classes de objeto do monitoramento são as de `backend/src/domain/` (#173), usadas pelo coletor. O diagrama abaixo segue as classes do código ([fonte](https://github.com/DEVassos/greener-app/tree/42f169d5edd91a0f5bf7e00fcf4c17817d1bd747/backend/src/domain)): as linhas tracejadas indicam uso entre objetos, e a relação serviço → coletas existe na coluna `collections.service_id`, não como atributo ou associação da entidade.
 
 ```mermaid
 classDiagram
@@ -175,7 +175,9 @@ classDiagram
     class Collection {
         -number intervalSeconds
         -number cpuPercent
-        -object metrics
+        -number memoryGb
+        -number diskGb
+        -number networkGb
         -object raw
         +fromMetrics(metrics, raw) Collection
         +intervalSeconds() number
@@ -199,10 +201,9 @@ classDiagram
         +value() string
         +isAvailable() boolean
     }
-    MonitoredService "1" --> "0..*" Collection : coletas do serviço
     CarbonCalculator ..> EnergyEstimate : cria
     CarbonCalculator ..> Collection : recebe métricas validadas
-    MonitoringStatus ..> Collection : resume a coleta
+    MonitoringStatus ..> Collection : converte o status da coleta
 ```
 
 | Classe | Responsabilidade | Onde é usada |
@@ -213,7 +214,7 @@ classDiagram
 | `EnergyEstimate` | objeto de valor imutável com a precisão decimal das colunas | `jobs/collector.ts`, criado por `CarbonCalculator` |
 | `MonitoringStatus` | converte `ok`, `erro` e `sem_metricas` em `ativo`, `indisponivel` e `sem_metricas`; `isAvailable()` responde a mesma pergunta | `jobs/collector.ts` e `modules/services/services.service.ts` |
 
-As cinco têm construtor privado e campos `#privados`: a criação passa por factory (`fromStored`, `fromMetrics`, `fromCollection`, `fromValue`) e as validações lançam `ValidationError`. Testes: `backend/tests/domain-models.test.ts` e `backend/tests/carbon-calculator.test.ts`.
+As três entidades — `MonitoredService`, `Collection` e `MonitoringStatus` — têm construtor privado e campos `#privados`: a criação passa por factory (`fromStored`, `fromMetrics`, `fromValue` e `fromCollection`) e as validações lançam `ValidationError`. `EnergyEstimate` é um objeto de valor imutável, com campos `readonly` e construtor público, criado por `CarbonCalculator.calculate()`. `CarbonCalculator` não guarda estado: não declara campo nem construtor, apenas o método `calculate()`. Testes: `backend/tests/domain-models.test.ts` e `backend/tests/carbon-calculator.test.ts`.
 
 O que **não** existe no backend e por isso não aparece no diagrama: `AuthService` e `AccessEntryService`. A autenticação é feita por funções (`login` e `readToken` em `modules/usuarios/usuarios.service.ts`) e pelo middleware `middlewares/auth.ts`, com JWT e bcrypt (#20, #48); a tabela `access_entries` não tem fluxo de gravação nem de consulta. A interface `MonitoredService` de `modules/services/services.service.ts` é o contrato de resposta de `GET /api/services`, distinto da entidade de domínio do mesmo nome. SQL continua exclusivamente nos repositories parametrizados via `pg`. TP01 exige classes usadas na aplicação, não somente o diagrama.
 
