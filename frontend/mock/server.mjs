@@ -40,8 +40,15 @@ async function readJson(req) {
  *   MOCK_SERVICES=resumo-texto: GET /services/summary com energyKwh em texto
  *   MOCK_SERVICES=comparacao-sem-id: GET /services/compare com o 1º serviço sem `id`
  *   (também fora do contrato: o painel de indicadores e a comparação devem mostrar o erro, #237)
+ *   MOCK_SERVICES=ranking-texto: o 1º lugar do ranking vem com o CO₂e em texto
+ *   MOCK_SERVICES=ranking-instavel: a 1ª chamada de GET /services/ranking responde e as seguintes dão 500, para ver a
+ *   parte já calculada em cinza no ciclo seguinte sem reiniciar o mock, o que invalidaria o token (#257, #260)
+ *   MOCK_SERVICES=ranking-falha: toda chamada de GET /services/ranking responde 500, para ver a coluna sem ranking (#260)
  */
 const SERVICES_SCENARIO = process.env.MOCK_SERVICES ?? 'normal';
+
+/** Chamadas de GET /services/ranking desde que o mock subiu (cenário MOCK_SERVICES=ranking-instavel). */
+let rankingCalls = 0;
 
 const SERVICES = [
   { id: 'fraud-detector', name: 'Fraud Detector', country: 'Estados Unidos', region: 'us-east', city: 'Virgínia', cpu: 68, kwh: 0.0713, gramsPerKwh: 377, status: 'ativo' },
@@ -190,7 +197,7 @@ let monitoringSettings = {
 const UNAUTHORIZED = { error: { code: 'UNAUTHORIZED', message: 'Token ausente, inválido ou expirado.' } };
 
 /** Rotas de dados que, como no backend real (#257), só respondem com token válido. */
-const PROTECTED = new Set(['GET /services', 'GET /services/summary', 'GET /services/compare', 'GET /collections', 'GET /collections/series']);
+const PROTECTED = new Set(['GET /services', 'GET /services/summary', 'GET /services/compare', 'GET /services/ranking', 'GET /collections', 'GET /collections/series']);
 
 function hasValidToken(req) {
   const token = bearerToken(req);
@@ -326,6 +333,62 @@ const routes = {
     return send(res, 200, summary);
   },
 
+  // Ranking de impacto (RF14, #50 e #260): contrato aprovado na #50, com o mesmo período do resumo
+  'GET /services/ranking': async (req, res) => {
+    if (SERVICES_SCENARIO === 'erro') return simulatedFailure(res);
+    // MOCK_SERVICES=ranking-instavel: a 1ª responde, as seguintes falham — reiniciar o mock invalidaria o token (#257) e
+    // apagaria a parte já calculada, então a falha no meio do ciclo é o único caminho para ver o estado em cinza (#260)
+    if (SERVICES_SCENARIO === 'ranking-falha') return simulatedFailure(res);
+    if (SERVICES_SCENARIO === 'ranking-instavel' && ++rankingCalls > 1) return simulatedFailure(res);
+    const query = new URL(req.url ?? '/', `http://localhost:${PORT}`).searchParams;
+    const metric = query.get('metric');
+    if (metric !== 'energy' && metric !== 'co2e') return validationError(res, 'metric deve ser energy ou co2e.');
+    if (query.has('from') !== query.has('to')) return validationError(res, 'Informe from e to juntos, ou nenhum dos dois.');
+    const to = query.has('to') ? parseInstant(query.get('to')) : Date.now();
+    const from = query.has('from') ? parseInstant(query.get('from')) : to - DAY_MS;
+    if (from === null || to === null || from >= to || to - from > MAX_SPAN_MS) {
+      return validationError(res, 'Informe from e to com data e hora (ISO 8601), from antes de to e até 31 dias.');
+    }
+    const field = metric === 'co2e' ? 'co2eGrams' : 'energyKwh';
+    const services = listedServices()
+      .map((service) => {
+        const items = collectionsBetween(service, from, to);
+        return {
+          service,
+          items,
+          energyKwh: sumOrNull(items, 'energyKwh'),
+          co2eGrams: sumOrNull(items, 'co2eGrams'),
+        };
+      })
+      // Removido só entra com histórico no período (contrato revisado na #50)
+      .filter(({ service, items }) => service.status !== 'removido' || items.length > 0)
+      // Maior primeiro; empate pelo nome e pelo id; sem valor no fim
+      .sort((a, b) => (b[field] ?? -1) - (a[field] ?? -1) || a.service.name.localeCompare(b.service.name) || a.service.id.localeCompare(b.service.id));
+    let position = 0;
+    return send(res, 200, {
+      metric,
+      from: new Date(from).toISOString(),
+      to: new Date(to).toISOString(),
+      services: services.map(({ service, items, energyKwh, co2eGrams }) => {
+        const entry = {
+          position: (metric === 'co2e' ? co2eGrams : energyKwh) === null ? null : ++position,
+          id: service.id,
+          name: service.name,
+          region: service.region,
+          status: service.status,
+          energyKwh,
+          co2eGrams,
+          collections: items.length,
+          failed: items.filter((item) => item.status !== 'ok').length,
+          notCalculated: items.filter((item) => item.status === 'ok' && item.co2eGrams === null).length,
+        };
+        // MOCK_SERVICES=ranking-texto: o 1º lugar vem com o CO₂e em texto, para ver a tela recusar a resposta
+        if (SERVICES_SCENARIO === 'ranking-texto' && entry.position === 1) entry.co2eGrams = String(entry.co2eGrams);
+        return entry;
+      }),
+    });
+  },
+
   // Página Comparação (RF15, #193): contrato de docs/api.md § GET /api/services/compare, com os ids do mock
   'GET /services/compare': async (req, res) => {
     if (SERVICES_SCENARIO === 'erro') return simulatedFailure(res);
@@ -382,7 +445,7 @@ createServer(async (req, res) => {
   return route(req, res);
 }).listen(PORT, () => {
   console.log(`Backend falso em http://localhost:${PORT}`);
-  console.log(`GET /services: cenário "${SERVICES_SCENARIO}" (MOCK_SERVICES=normal|vazio|erro|sem-id|cpu-texto|resumo-texto|comparacao-sem-id)`);
+  console.log(`GET /services: cenário "${SERVICES_SCENARIO}" (MOCK_SERVICES=normal|vazio|erro|sem-id|cpu-texto|resumo-texto|comparacao-sem-id|ranking-texto|ranking-instavel|ranking-falha)`);
   console.log(`Login: ${ADMIN.email} / ${ADMIN.password} (exigido nas rotas de dados, #257; reiniciar o mock invalida os tokens)`);
   console.log(`GET /monitoring-settings: intervalo inicial ${monitoringSettings.refreshIntervalSeconds} s (MOCK_REFRESH_INTERVAL_SECONDS)`);
 });

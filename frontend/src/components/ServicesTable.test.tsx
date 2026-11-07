@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { MonitoredService, ServiceStatus } from '../services/services.types';
 import ServicesTable from './ServicesTable';
+import type { RankingShare } from '../utils/ranking';
 
 function service(id: string, status: ServiceStatus, emissionsG: number, lastReadingAt = new Date().toISOString()): MonitoredService {
   return {
@@ -75,5 +76,72 @@ describe('ServicesTable', () => {
   it('deixa o selo Ativo neutro, com o ponto verde como única cor (#272)', () => {
     const html = renderToStaticMarkup(<ServicesTable services={[service('a', 'ativo', 1)]} onSelect={() => undefined} />);
     expect(html).toMatch(/border-border text-muted[^"]*"><span class="size-1\.5 rounded-full bg-primary"/);
+  });
+
+  it('ordena os ativos pela parte no período, e não pela emissão instantânea (#260)', () => {
+    const shares = new Map<string, RankingShare>([
+      ['ativo-baixo', { position: 1, co2eGrams: 700, share: 0.7 }],
+      ['ativo-alto', { position: 2, co2eGrams: 300, share: 0.3 }],
+    ]);
+    const html = renderToStaticMarkup(
+      <ServicesTable
+        services={[service('ativo-alto', 'ativo', 5), service('ativo-baixo', 'ativo', 1)]}
+        onSelect={() => undefined}
+        shares={shares}
+      />,
+    );
+    expect(rowOrder(html)).toEqual(['ativo-baixo', 'ativo-alto']);
+  });
+
+  it('marca o 1º do período com a parte, e não só com a cor', () => {
+    const shares = new Map<string, RankingShare>([['ativo', { position: 1, co2eGrams: 700, share: 0.7 }]]);
+    const html = renderToStaticMarkup(<ServicesTable services={[service('ativo', 'ativo', 1)]} onSelect={() => undefined} shares={shares} />);
+    expect(html).toMatch(/>1º</);
+    expect(html).toMatch(/70,0%/);
+  });
+
+  it('com total zero no período, não marca 1º nem acende o neon numa barra vazia (#260)', () => {
+    const shares = new Map<string, RankingShare>([
+      ['a', { position: 1, co2eGrams: 0, share: 0 }],
+      ['b', { position: 2, co2eGrams: 0, share: 0 }],
+    ]);
+    const html = renderToStaticMarkup(
+      <ServicesTable services={[service('a', 'ativo', 1), service('b', 'ativo', 1)]} onSelect={() => undefined} shares={shares} />,
+    );
+    expect(html).not.toMatch(/>1º</);
+    expect(html).not.toContain('var(--neon)');
+    expect(html).toMatch(/0,0%/);
+  });
+
+  it('apaga o 1º e a barra quando a parte está desatualizada', () => {
+    const shares = new Map<string, RankingShare>([['ativo', { position: 1, co2eGrams: 700, share: 1 }]]);
+    const html = renderToStaticMarkup(
+      <ServicesTable services={[service('ativo', 'ativo', 1)]} onSelect={() => undefined} shares={shares} sharesStale />,
+    );
+    expect(html).toMatch(/>1º</);
+    expect(html).not.toContain('var(--neon)');
+    expect(html).toContain('bg-muted');
+  });
+
+  it('separa as três ausências de parte: ranking indisponível, fora do ranking e sem cálculo (#260)', () => {
+    const noRanking = renderToStaticMarkup(
+      <ServicesTable services={[service('ativo', 'ativo', 1)]} onSelect={() => undefined} />,
+    );
+    expect(noRanking).toMatch(/ranking do período indisponível/);
+
+    const outOfRanking = renderToStaticMarkup(
+      <ServicesTable services={[service('ativo', 'ativo', 1)]} onSelect={() => undefined} shares={new Map()} />,
+    );
+    expect(outOfRanking).toMatch(/serviço fora do ranking/);
+    expect(outOfRanking).not.toMatch(/sem cálculo no período/);
+
+    const withoutCalculation = renderToStaticMarkup(
+      <ServicesTable
+        services={[service('ativo', 'ativo', 1)]}
+        onSelect={() => undefined}
+        shares={new Map([['ativo', { position: null, co2eGrams: null, share: null }]])}
+      />,
+    );
+    expect(withoutCalculation).toMatch(/sem cálculo no período/);
   });
 });
