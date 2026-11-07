@@ -4,6 +4,7 @@ import { formatNumber, formatTimeOrDayTime } from '../utils/format';
 import { formatShare } from '../utils/ranking';
 import type { RankingShare } from '../utils/ranking';
 import { statusReasonText } from '../utils/status';
+import { factorMissing, factorTooltip, intervalText, powerText, resourcesText } from '../utils/service-reading';
 import { formatInScale, scaleFor } from '../utils/units';
 import type { Quantity } from '../utils/units';
 import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow';
@@ -11,7 +12,7 @@ import CompactValue from './CompactValue';
 import MissingValue from './MissingValue';
 import StatusBadge from './StatusBadge';
 
-type SortKey = 'name' | 'cpuPercent' | 'energyKwh' | 'emissionsG' | 'share' | 'lastReadingAt' | 'location' | 'status';
+type SortKey = 'name' | 'cpuPercent' | 'energyKwh' | 'emissionsG' | 'carbonIntensityGco2ePerKwh' | 'share' | 'lastReadingAt' | 'location' | 'status';
 
 interface Column {
   key: SortKey;
@@ -32,6 +33,8 @@ const COLUMNS: Column[] = [
   // "na última leitura": a tabela fica logo abaixo dos totais de 24 h e não pode parecer um total do período (#259)
   { key: 'energyKwh', label: 'Energia na última leitura', numeric: true, quantity: 'energy' },
   { key: 'emissionsG', label: 'Emissão na última leitura', numeric: true, quantity: 'co2e' },
+  // O fator que liga energia a emissão (#298): logo depois da emissão que ele explica, antes da parte no período
+  { key: 'carbonIntensityGco2ePerKwh', label: 'Fator da região (gCO₂e/kWh)', numeric: true },
   { key: 'share', label: 'Parte do CO₂e (24 h)', numeric: true },
   { key: 'lastReadingAt', label: 'Última leitura', numeric: true },
   { key: 'location', label: 'Localização' },
@@ -66,7 +69,7 @@ type Shares = Map<string, RankingShare> | null | undefined;
 /** Valor de ordenação da coluna: localização por região, país e cidade; status pela gravidade; parte pelo CO₂e do período. */
 function sortValue(service: MonitoredService, key: SortKey, shares: Shares): string | number | null {
   if (key === 'share') return shares?.get(service.id)?.co2eGrams ?? null;
-  if (key === 'location') return [service.region, service.country, service.city].filter(Boolean).join(' ') || null;
+  if (key === 'location') return [service.regionCode, service.region, service.country, service.city].filter(Boolean).join(' ') || null;
   if (key === 'status') return STATUS_ORDER[service.status];
   return service[key];
 }
@@ -202,7 +205,8 @@ export default function ServicesTable({ services, onSelect, stale = false, share
       <div ref={scrollRef} className="relative overflow-x-auto">
         <table className="w-full min-w-[880px] border-collapse text-sm">
           <thead>
-            <tr className="whitespace-nowrap text-left text-xs text-muted">
+            {/* Cabeçalhos quebram em duas linhas (#298): com nove colunas, títulos numa linha só não cabem em 1366 px */}
+            <tr className="align-bottom text-left text-xs leading-tight text-muted">
               {COLUMNS.map((column) => (
                 <th
                   key={column.key}
@@ -217,7 +221,7 @@ export default function ServicesTable({ services, onSelect, stale = false, share
                     className={`min-h-6 cursor-pointer border-0 bg-transparent p-0 font-sans text-xs font-medium hover:text-text ${sortKey === column.key ? 'text-text' : 'text-muted'}`}
                   >
                     {column.quantity ? `${column.label} (${scales[column.quantity].unit}${column.quantity === 'co2e' ? ' CO₂e' : ''})` : column.label}
-                    <span aria-hidden="true"> {sortKey === column.key ? (direction === 1 ? '↑' : '↓') : '↕'}</span>
+                    <span aria-hidden="true">{'\u00a0'}{sortKey === column.key ? (direction === 1 ? '↑' : '↓') : '↕'}</span>
                   </button>
                 </th>
               ))}
@@ -279,7 +283,9 @@ export default function ServicesTable({ services, onSelect, stale = false, share
                       <span className="mt-1 block max-w-56 text-xs leading-snug text-muted">{statusReasonText(service)}</span>
                     )}
                   </td>
-                  <td className={`px-5 py-2 text-right font-data${dim}`}>
+                  {/* Potência em destaque e recursos no tooltip (#298); o atributo fica antes de className porque os testes
+                      casam a classe colada ao valor. Quem usa teclado vê os mesmos dados na janela de detalhes */}
+                  <td data-tooltip={resourcesText(service) ?? undefined} data-tooltip-value={powerText(service) ?? undefined} className={`px-5 py-2 text-right font-data${dim}`}>
                     {service.cpuPercent === null ? <MissingValue /> : `${formatNumber(service.cpuPercent, 0)}%`}
                   </td>
                   {/* Mesma unidade e casas na coluna inteira (escala única, #271): vírgulas alinhadas e nenhum "0,000…" */}
@@ -297,17 +303,32 @@ export default function ServicesTable({ services, onSelect, stale = false, share
                       <CompactValue quantity="co2e" value={service.emissionsG} scale={scales.co2e} label="CO₂e na última leitura" />
                     )}
                   </td>
+                  <td className={`px-5 py-2 text-right font-data${dim}`}>
+                    {service.carbonIntensityGco2ePerKwh === null ? (
+                      <MissingValue {...factorMissing(service)} />
+                    ) : (
+                      <span data-tooltip={factorTooltip(service)}>{formatNumber(service.carbonIntensityGco2ePerKwh, 0)}</span>
+                    )}
+                  </td>
                   <td className="px-5 py-2 text-right font-data">
                     <ShareCell share={shares?.get(service.id)} ranked={shares !== null} leaderShare={leaderShare} stale={sharesStale} />
                   </td>
-                  <td className="px-5 py-2 text-right font-data text-muted">
+                  <td data-tooltip={intervalText(service) ?? undefined} className="px-5 py-2 text-right font-data text-muted">
                     {service.lastReadingAt === null ? 'nunca' : formatTimeOrDayTime(service.lastReadingAt)}
                   </td>
+                  {/* Código da região na célula e cidade, país e nome no tooltip (#298): a coluna fica estreita para caber o fator */}
                   <td className="whitespace-nowrap px-5 py-2 text-muted">
-                    {locationText(service) || (
-                      <span data-tooltip="Localização não informada pelo agregador">
-                        —<span className="sr-only">sem localização</span>
+                    {service.regionCode !== null ? (
+                      <span data-tooltip={locationText(service) || 'Cidade e país não informados pelo agregador'} className="font-data">
+                        {service.regionCode}
+                        {locationText(service) && <span className="sr-only"> ({locationText(service)})</span>}
                       </span>
+                    ) : (
+                      locationText(service) || (
+                        <span data-tooltip="Localização não informada pelo agregador">
+                          —<span className="sr-only">sem localização</span>
+                        </span>
+                      )
                     )}
                   </td>
                 </tr>

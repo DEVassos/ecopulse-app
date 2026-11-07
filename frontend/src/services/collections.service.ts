@@ -1,7 +1,7 @@
-import { apiRequest, unexpectedFormat } from './api';
+import { apiRequest } from './api';
 import { CALCULATION_STATUSES, COLLECTION_STATUSES } from './collections.types';
 import type { CollectionsResponse, ServiceCollection } from './collections.types';
-import { readAmountOrNull, readId, readInstant, readInstantOrNull, readList, readOneOf, readRecord, readTextOrNull } from './contract';
+import { readAmountOrNull, readId, readInstant, readInstantOrNull, readIntervalOrNull, readList, readOneOf, readRecord, readTextOrNull } from './contract';
 import { demoCollections } from './demo-data';
 import { isDemoMode } from './services.service';
 
@@ -13,12 +13,6 @@ function optionalAmount(value: unknown, field: string): number | null | undefine
   return value === undefined ? undefined : readAmountOrNull(value, field);
 }
 
-function readCollectionInterval(value: unknown, field: string): number | null {
-  const interval = readAmountOrNull(value, field);
-  if (interval !== null && (!Number.isInteger(interval) || interval < 1)) throw unexpectedFormat(field);
-  return interval;
-}
-
 function parseCollection(value: unknown, at: string): ServiceCollection {
   const item = readRecord(value, at);
   return {
@@ -26,7 +20,7 @@ function parseCollection(value: unknown, at: string): ServiceCollection {
     serviceId: readId(item.serviceId, `${at}.serviceId`),
     collectedAt: readInstant(item.collectedAt, `${at}.collectedAt`),
     status: readOneOf(item.status, COLLECTION_STATUSES, `${at}.status`),
-    collectionIntervalSeconds: readCollectionInterval(item.collectionIntervalSeconds, `${at}.collectionIntervalSeconds`),
+    collectionIntervalSeconds: readIntervalOrNull(item.collectionIntervalSeconds, `${at}.collectionIntervalSeconds`),
     cpuPercent: readAmountOrNull(item.cpuPercent, `${at}.cpuPercent`),
     memoryGb: readAmountOrNull(item.memoryGb, `${at}.memoryGb`),
     diskGb: readAmountOrNull(item.diskGb, `${at}.diskGb`),
