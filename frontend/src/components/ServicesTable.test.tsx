@@ -100,6 +100,29 @@ describe('ServicesTable', () => {
     expect(html).toMatch(/70,0%/);
   });
 
+  it('com total zero no período, não marca 1º nem acende o neon numa barra vazia (#260)', () => {
+    const shares = new Map<string, RankingShare>([
+      ['a', { position: 1, co2eGrams: 0, share: 0 }],
+      ['b', { position: 2, co2eGrams: 0, share: 0 }],
+    ]);
+    const html = renderToStaticMarkup(
+      <ServicesTable services={[service('a', 'ativo', 1), service('b', 'ativo', 1)]} onSelect={() => undefined} shares={shares} />,
+    );
+    expect(html).not.toMatch(/>1º</);
+    expect(html).not.toContain('var(--neon)');
+    expect(html).toMatch(/0,0%/);
+  });
+
+  it('apaga o 1º e a barra quando a parte está desatualizada', () => {
+    const shares = new Map<string, RankingShare>([['ativo', { position: 1, co2eGrams: 700, share: 1 }]]);
+    const html = renderToStaticMarkup(
+      <ServicesTable services={[service('ativo', 'ativo', 1)]} onSelect={() => undefined} shares={shares} sharesStale />,
+    );
+    expect(html).toMatch(/>1º</);
+    expect(html).not.toContain('var(--neon)');
+    expect(html).toContain('bg-muted');
+  });
+
   it('separa as três ausências de parte: ranking indisponível, fora do ranking e sem cálculo (#260)', () => {
     const noRanking = renderToStaticMarkup(
       <ServicesTable services={[service('ativo', 'ativo', 1)]} onSelect={() => undefined} />,

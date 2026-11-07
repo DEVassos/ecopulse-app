@@ -115,13 +115,15 @@ function ShareCell({
   if (share.share === null) {
     return <MissingValue label="sem cálculo no período" title="No ranking, mas sem CO₂e calculado nas últimas 24 h" />;
   }
-  const first = share.position === 1 && !stale;
+  // Com total zero não há quem pese mais: sem "1º" nem neon numa barra vazia, como a frase acima da tabela, que some
+  const leader = share.position === 1 && leaderShare > 0;
+  const first = leader && !stale;
   const bar = stale ? 'bg-muted' : first ? 'bg-[var(--neon)] shadow-[0_0_6px_var(--neon-glow)]' : 'bg-primary-hover';
   // Total do período zero: todas as partes são 0, e dividir por zero deixaria a barra sem largura calculável
   const width = leaderShare > 0 ? Math.max((share.share / leaderShare) * 100, 1) : 0;
   return (
     <span className={`inline-flex items-center justify-end gap-2 ${stale ? 'text-muted' : ''}`}>
-      {share.position === 1 && <span className={`font-sans text-xs font-semibold ${stale ? '' : 'text-[var(--neon)]'}`}>1º</span>}
+      {leader && <span className={`font-sans text-xs font-semibold ${stale ? '' : 'text-[var(--neon)]'}`}>1º</span>}
       <span className="block h-1.5 w-16 overflow-hidden rounded-full bg-border" aria-hidden="true">
         <span className={`block h-full rounded-full ${bar}`} style={{ width: `${width}%` }} />
       </span>
