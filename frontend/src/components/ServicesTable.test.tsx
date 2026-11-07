@@ -17,6 +17,14 @@ function service(id: string, status: ServiceStatus, emissionsG: number, lastRead
     status,
     lastReadingAt,
     statusReason: null,
+    // Última coleta (#298): valores fixos para os tooltips e o fator terem texto previsível nos testes
+    regionCode: 'br-sudeste',
+    collectionIntervalSeconds: 46,
+    memoryGb: 6.04,
+    diskGb: 67.11,
+    networkGb: 0.53,
+    powerWatts: 41.79,
+    carbonIntensityGco2ePerKwh: 377,
   };
 }
 
@@ -121,6 +129,36 @@ describe('ServicesTable', () => {
     expect(html).toMatch(/>1º</);
     expect(html).not.toContain('var(--neon)');
     expect(html).toContain('bg-muted');
+  });
+
+  it('mostra o fator da região numa coluna própria, com a região na célula de localização (#298)', () => {
+    const html = renderToStaticMarkup(<ServicesTable services={[service('ativo', 'ativo', 1)]} onSelect={() => undefined} />);
+    expect(html).toContain('Fator da região (gCO₂e/kWh)');
+    expect(html).toMatch(/data-tooltip="Intensidade de carbono de br-sudeste na última leitura">377</);
+    expect(html).toMatch(/data-tooltip="São Paulo, Brasil · br-sudeste" class="font-data">br-sudeste</);
+  });
+
+  it('põe potência e recursos no tooltip da CPU e o intervalo no da última leitura (#298)', () => {
+    const html = renderToStaticMarkup(<ServicesTable services={[service('ativo', 'ativo', 1)]} onSelect={() => undefined} />);
+    expect(html).toContain('data-tooltip="RAM 6,0 GB · disco 67,1 GB · rede 0,53 GB" data-tooltip-value="41,8 W"');
+    expect(html).toContain('data-tooltip="coleta de 46 s"');
+  });
+
+  it('explica cada ausência do fator: sem região, sem leitura e sem fator nesta leitura (#298)', () => {
+    const noRegion = { ...service('a', 'sem_metricas', 0, null as unknown as string), regionCode: null, carbonIntensityGco2ePerKwh: null, cpuPercent: null };
+    const noReading = { ...service('b', 'indisponivel', 0), lastReadingAt: null, cpuPercent: null, carbonIntensityGco2ePerKwh: null };
+    const noFactor = { ...service('c', 'ativo', 1), carbonIntensityGco2ePerKwh: null, powerWatts: null };
+    const html = renderToStaticMarkup(<ServicesTable services={[noRegion, noReading, noFactor]} onSelect={() => undefined} />);
+    expect(html).toContain('sem região');
+    expect(html).toContain('sem leitura');
+    expect(html).toContain('sem fator nesta leitura');
+    // Sem potência, o tooltip da CPU traz só os recursos; sem recursos nem potência, não há tooltip
+    expect(html).toContain('data-tooltip="RAM 6,0 GB · disco 67,1 GB · rede 0,53 GB" class=');
+  });
+
+  it('apaga o fator junto com os outros números quando a última busca falhou', () => {
+    const html = renderToStaticMarkup(<ServicesTable services={[service('ativo', 'ativo', 1)]} onSelect={() => undefined} stale />);
+    expect(html).toMatch(/font-data text-muted"><span data-tooltip="Intensidade de carbono de br-sudeste na última leitura">377</);
   });
 
   it('separa as três ausências de parte: ranking indisponível, fora do ranking e sem cálculo (#260)', () => {
