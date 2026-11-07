@@ -15,6 +15,15 @@ export interface MonitoredService {
   status: ServiceStatus;
   statusReason: string | null;
   lastReadingAt: string | null;
+  /** Código da região do cadastro (ex.: "us-east"); `region` continua sendo o nome (#297). */
+  regionCode: string | null;
+  /** Da mesma última coleta: intervalo em s, recursos em GB, potência em W e o fator usado em gCO₂e/kWh; null sem coleta ou sem cálculo. */
+  collectionIntervalSeconds: number | null;
+  memoryGb: number | null;
+  diskGb: number | null;
+  networkGb: number | null;
+  powerWatts: number | null;
+  carbonIntensityGco2ePerKwh: number | null;
 }
 
 export interface ServicesResponse {
@@ -23,6 +32,7 @@ export interface ServicesResponse {
 }
 
 const PERIOD = 'última leitura (intervalo de coleta)';
+const numberOrNull = (value: string | null): number | null => value === null ? null : Number(value);
 
 /** Expõe somente diagnósticos conhecidos; detalhes arbitrários continuam restritos ao banco/log. */
 function statusReason(service: ServiceWithLastReading): string | null {
@@ -44,12 +54,19 @@ function toMonitoredService(service: ServiceWithLastReading): MonitoredService {
     country: service.country,
     region: service.region,
     city: service.city,
-    cpuPercent: service.cpu_percent === null ? null : Number(service.cpu_percent),
-    energyKwh: service.energy_kwh === null ? null : Number(service.energy_kwh),
-    emissionsG: service.co2e_grams === null ? null : Number(service.co2e_grams),
+    cpuPercent: numberOrNull(service.cpu_percent),
+    energyKwh: numberOrNull(service.energy_kwh),
+    emissionsG: numberOrNull(service.co2e_grams),
     status: MonitoringStatus.fromValue(service.status).value(),
     statusReason: statusReason(service),
     lastReadingAt: service.last_reading_at?.toISOString() ?? null,
+    regionCode: service.region_code,
+    collectionIntervalSeconds: service.collection_interval_seconds,
+    memoryGb: numberOrNull(service.memory_gb),
+    diskGb: numberOrNull(service.disk_gb),
+    networkGb: numberOrNull(service.network_gb),
+    powerWatts: numberOrNull(service.power_watts),
+    carbonIntensityGco2ePerKwh: numberOrNull(service.carbon_intensity_gco2e_per_kwh),
   };
 }
 
@@ -58,7 +75,6 @@ export async function getServices(repository: ServiceRepository): Promise<Servic
 }
 
 export interface ServicesSummaryResponse { period: { from: string; to: string }; energyKwh: number | null; co2eGrams: number | null; services: { active: number; unavailable: number; withoutMetrics: number; removed: number } }
-const numberOrNull = (value: string | null): number | null => value === null ? null : Number(value);
 
 export async function getServicesSummary(repository: ServiceRepository, period: { from: Date; to: Date }): Promise<ServicesSummaryResponse> {
   const row = await repository.findSummary(period.from, period.to);
