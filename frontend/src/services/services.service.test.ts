@@ -18,6 +18,13 @@ function validBody() {
         status: 'ativo',
         statusReason: null,
         lastReadingAt: '2026-10-14T20:00:00.000Z',
+        regionCode: 'br-sul',
+        collectionIntervalSeconds: 27,
+        memoryGb: 3.17,
+        diskGb: 19.26,
+        networkGb: 0.45,
+        powerWatts: 64.06035,
+        carbonIntensityGco2ePerKwh: 85,
       },
       {
         id: '2',
@@ -31,6 +38,13 @@ function validBody() {
         status: 'sem_metricas',
         statusReason: null,
         lastReadingAt: null,
+        regionCode: null,
+        collectionIntervalSeconds: null,
+        memoryGb: null,
+        diskGb: null,
+        networkGb: null,
+        powerWatts: null,
+        carbonIntensityGco2ePerKwh: null,
       },
     ],
     period: 'última leitura (intervalo de coleta)',
@@ -76,6 +90,28 @@ describe('parseServicesResponse', () => {
 
   it('trata statusReason ausente como null (backend anterior à #176)', () => {
     expect(parseServicesResponse(withSecondService({ statusReason: undefined })).services[1].statusReason).toBeNull();
+  });
+
+  it('trata os campos da última coleta ausentes como null (backend anterior à #297)', () => {
+    const body = validBody();
+    const { regionCode, collectionIntervalSeconds, memoryGb, diskGb, networkGb, powerWatts, carbonIntensityGco2ePerKwh, ...older } = body.services[0];
+    void [regionCode, collectionIntervalSeconds, memoryGb, diskGb, networkGb, powerWatts, carbonIntensityGco2ePerKwh];
+    const [service] = parseServicesResponse({ ...body, services: [older] }).services;
+    expect(service).toMatchObject({ regionCode: null, collectionIntervalSeconds: null, memoryGb: null, diskGb: null, networkGb: null, powerWatts: null, carbonIntensityGco2ePerKwh: null });
+    expect(service.cpuPercent).toBe(62.67);
+  });
+
+  it.each([
+    ['fator em texto', { carbonIntensityGco2ePerKwh: '85' }, 'services[0].carbonIntensityGco2ePerKwh'],
+    ['potência negativa', { powerWatts: -1 }, 'services[0].powerWatts'],
+    ['memória infinita', { memoryGb: Number.POSITIVE_INFINITY }, 'services[0].memoryGb'],
+    ['intervalo fracionado', { collectionIntervalSeconds: 1.5 }, 'services[0].collectionIntervalSeconds'],
+    ['intervalo zero', { collectionIntervalSeconds: 0 }, 'services[0].collectionIntervalSeconds'],
+    ['código da região numérico', { regionCode: 7 }, 'services[0].regionCode'],
+  ])('recusa %s citando o campo (#297)', (_name, changes, field) => {
+    const body = validBody();
+    body.services[0] = { ...body.services[0], ...changes } as typeof body.services[0];
+    expect(() => parseServicesResponse(body)).toThrow(field);
   });
 
   it('recusa cpuPercent em texto', () => {
