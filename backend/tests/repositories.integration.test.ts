@@ -258,4 +258,20 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
     await services.updateStatus(empty.id, 'indisponivel');
     expect((await getServices(services)).services.find(item => item.id === empty.id)?.statusReason).toBeNull();
   });
+  it('expõe região, intervalo, recursos, potência e fator da última coleta (#297)', async () => {
+    const a = await services.upsert(service('reading-fields'), first);
+    const current = async () => (await getServices(services)).services.find(item => item.id === a.id)!;
+    const none = { collectionIntervalSeconds: null, memoryGb: null, diskGb: null, networkGb: null, powerWatts: null, carbonIntensityGco2ePerKwh: null };
+    expect(await current()).toEqual(expect.objectContaining({ regionCode: 'br-sudeste', lastReadingAt: null, ...none }));
+    await collections.insert({ ...reading(a.id), calculation_status: 'disponivel', carbon_intensity_gco2e_per_kwh: '85',
+      power_watts: '64.06035', energy_kwh: '0.000480452625', co2e_grams: '0.040838473125' });
+    expect(await current()).toEqual(expect.objectContaining({ regionCode: 'br-sudeste', collectionIntervalSeconds: 27, memoryGb: 3.17, diskGb: 19.26,
+      networkGb: 0.45, powerWatts: 64.06035, carbonIntensityGco2ePerKwh: 85, energyKwh: 0.000480452625 }));
+    // Uma coleta com erro mais recente: os campos da leitura caem para null e a região do cadastro continua
+    await collections.insert({ ...reading(a.id), collected_at: second, status: 'erro', collection_interval_seconds: null, cpu_percent: null,
+      memory_gb: null, disk_gb: null, network_gb: null, error_message: 'Timeout' });
+    expect(await current()).toEqual(expect.objectContaining({ regionCode: 'br-sudeste', cpuPercent: null, ...none }));
+    const noRegion = await services.upsert({ ...service('reading-no-region'), region_code: null }, first);
+    expect((await getServices(services)).services.find(item => item.id === noRegion.id)?.regionCode).toBeNull();
+  });
 });
