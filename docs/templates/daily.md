@@ -9,7 +9,7 @@
 | Forma | presencial em sala / assíncrona por texto (`<motivo: sem aula, feriado>`) |
 | Presentes | @henriqueptbd-cell, @travensolli, @DeaTuribio, @LUCASAMR23, @viniciusaugusto1997 |
 | Ausentes | `<@login — motivo>` ou nenhum |
-| Registro assíncrono | [issue "Daily — Sprint N"](https://github.com/DEVassos/greener-app/issues/<n>) |
+| Registro assíncrono | [issue "Daily — Sprint N"](https://github.com/DEVassos/ecopulse-app/issues/<n>) |
 
 ## Por integrante
 

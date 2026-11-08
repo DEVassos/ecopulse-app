@@ -2,7 +2,7 @@
   "_comentario": "Equipe EcoPulse (ABP 2DSM 2026-2). Arquivo gerenciado pelo time: edite via PR. 'emails' sao os enderecos aceitos no trailer Co-authored-by e na checagem de autoria (noreply do GitHub + e-mails verificados na conta). 'backup' cobre as responsabilidades do papel em ausencia.",
   "projeto": "EcoPulse",
   "org": "DEVassos",
-  "repo": "DEVassos/greener-app",
+  "repo": "DEVassos/ecopulse-app",
   "kit": "DEVassos/agilekit",
   "integrantes": [
     {

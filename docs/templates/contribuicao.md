@@ -2,15 +2,15 @@
 
 <!-- Template do agilekit (repo/docs/templates/contribuicao.md). Destino: docs/sprints/sprint-N/contribuicao.md. Gerado por `bash .github/scripts/evidencias.sh N --out docs/sprints/sprint-N/contribuicao.md` no checkpoint (rascunho) e no congelamento (definitivo); o SM revisa e completa a seção "Observações" à mão. Esta é a evidência consolidada de ES09 (8 pontos coletivos). -->
 
-_Gerado por `.github/scripts/evidencias.sh N` em `<AAAA-MM-DD>`. Fonte: GitHub (DEVassos/greener-app), branch `develop`. A quantidade de commits isoladamente não mede participação (regra ES09)._
+_Gerado por `.github/scripts/evidencias.sh N` em `<AAAA-MM-DD>`. Fonte: GitHub (DEVassos/ecopulse-app), branch `develop`. A quantidade de commits isoladamente não mede participação (regra ES09)._
 
 | Integrante | Papel | Issues atribuídas (abertas/fechadas) | PRs mergeados | Reviews feitas | Commits em `develop` | Áreas tocadas | Lacunas |
 |---|---|---|---|---|---|---|---|
-| @henriqueptbd-cell (Henrique Camargo) | po | `<a>`/`<f>` | `<n>` [#`<pr>`](https://github.com/DEVassos/greener-app/pull/1) | `<n>` | `<n>` | docs (`<n>`), database (`<n>`) | — |
-| @travensolli (Gabriel Travensolli) | sm | `<a>`/`<f>` | `<n>` [#`<pr>`](https://github.com/DEVassos/greener-app/pull/2) | `<n>` | `<n>` | docs (`<n>`), .github (`<n>`) | — |
-| @DeaTuribio (Andrea Turibio) | dev | `<a>`/`<f>` | `<n>` [#`<pr>`](https://github.com/DEVassos/greener-app/pull/3) | `<n>` | `<n>` | frontend (`<n>`) | — |
-| @LUCASAMR23 (Lucas Amorim) | dev | `<a>`/`<f>` | `<n>` [#`<pr>`](https://github.com/DEVassos/greener-app/pull/4) | `<n>` | `<n>` | backend (`<n>`), docs (`<n>`) | — |
-| @viniciusaugusto1997 (Vinicius Augusto) | dev | `<a>`/`<f>` | `<n>` [#`<pr>`](https://github.com/DEVassos/greener-app/pull/5) | `<n>` | `<n>` | database (`<n>`), backend (`<n>`) | ⚠ sem review; |
+| @henriqueptbd-cell (Henrique Camargo) | po | `<a>`/`<f>` | `<n>` [#`<pr>`](https://github.com/DEVassos/ecopulse-app/pull/1) | `<n>` | `<n>` | docs (`<n>`), database (`<n>`) | — |
+| @travensolli (Gabriel Travensolli) | sm | `<a>`/`<f>` | `<n>` [#`<pr>`](https://github.com/DEVassos/ecopulse-app/pull/2) | `<n>` | `<n>` | docs (`<n>`), .github (`<n>`) | — |
+| @DeaTuribio (Andrea Turibio) | dev | `<a>`/`<f>` | `<n>` [#`<pr>`](https://github.com/DEVassos/ecopulse-app/pull/3) | `<n>` | `<n>` | frontend (`<n>`) | — |
+| @LUCASAMR23 (Lucas Amorim) | dev | `<a>`/`<f>` | `<n>` [#`<pr>`](https://github.com/DEVassos/ecopulse-app/pull/4) | `<n>` | `<n>` | backend (`<n>`), docs (`<n>`) | — |
+| @viniciusaugusto1997 (Vinicius Augusto) | dev | `<a>`/`<f>` | `<n>` [#`<pr>`](https://github.com/DEVassos/ecopulse-app/pull/5) | `<n>` | `<n>` | database (`<n>`), backend (`<n>`) | ⚠ sem review; |
 
 Legenda das lacunas: `sem PR mergeado`, `sem review`, `sem commit`, `sem issue atribuída`. Qualquer lacuna precisa ser resolvida antes do congelamento ou justificada na seção "Observações".
 
@@ -24,7 +24,7 @@ Seção emitida apenas quando existe commit cujo e-mail não está vinculado a u
 
 | PR | Título | Autor | Base | Aprovadores | Linhas |
 |---|---|---|---|---|---|
-| [#`<pr>`](https://github.com/DEVassos/greener-app/pull/1) | `<feat(backend): lista serviços descobertos (#12) [RF01]>` | @LUCASAMR23 | develop | @viniciusaugusto1997 | +`<a>`/-`<d>` |
+| [#`<pr>`](https://github.com/DEVassos/ecopulse-app/pull/1) | `<feat(backend): lista serviços descobertos (#12) [RF01]>` | @LUCASAMR23 | develop | @viniciusaugusto1997 | +`<a>`/-`<d>` |
 
 ## Issues da milestone sem responsável
 

@@ -4,7 +4,7 @@
 
 ## Contexto do desafio
 
-**Tema:** Plataforma para Estimativa do Impacto Ambiental de Aplicações de Software. **Produto:** EcoPulse (no edital do desafio: GreenER; repositório `DEVassos/greener-app`).
+**Tema:** Plataforma para Estimativa do Impacto Ambiental de Aplicações de Software. **Produto:** EcoPulse (no edital do desafio: GreenER; repositório `DEVassos/ecopulse-app`).
 
 **Parceiro:** UniLaunch (contato: Otávio Abreu dos Santos Silva; ponto focal acadêmico: Prof. Rodrigo Silva Peres). O cliente disponibiliza duas APIs auxiliares que simulam um ambiente de serviços monitorados:
 
