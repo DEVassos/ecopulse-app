@@ -2,7 +2,7 @@
 
 <!-- Arquivo gerenciado pelo time (o agilekit não sobrescreve). Dono: PO (@henriqueptbd-cell); revisão: SM (@travensolli). Alterações via PR; cada mudança de critério/sprint entra no "Histórico de alterações do plano". -->
 
-Este é o plano exigido pela rubrica para as três sprints do projeto **EcoPulse** (Plataforma para Estimativa do Impacto Ambiental de Aplicações de Software, parceiro UniLaunch; no edital do desafio o produto aparece como GreenER). Equipe: Henrique Camargo (PO, `@henriqueptbd-cell`), Gabriel Travensolli (SM, `@travensolli`), Andrea Turibio (dev frontend, `@DeaTuribio`), Lucas Amorim (dev backend, `@LUCASAMR23`), Vinicius Augusto (dev banco de dados, `@viniciusaugusto1997`). Repositório: `DEVassos/greener-app`. Requisitos: [docs/requisitos.md](requisitos.md). Processo: [docs/processo/README.md](processo/README.md).
+Este é o plano exigido pela rubrica para as três sprints do projeto **EcoPulse** (Plataforma para Estimativa do Impacto Ambiental de Aplicações de Software, parceiro UniLaunch; no edital do desafio o produto aparece como GreenER). Equipe: Henrique Camargo (PO, `@henriqueptbd-cell`), Gabriel Travensolli (SM, `@travensolli`), Andrea Turibio (dev frontend, `@DeaTuribio`), Lucas Amorim (dev backend, `@LUCASAMR23`), Vinicius Augusto (dev banco de dados, `@viniciusaugusto1997`). Repositório: `DEVassos/ecopulse-app`. Requisitos: [docs/requisitos.md](requisitos.md). Processo: [docs/processo/README.md](processo/README.md).
 
 ## Como este plano é lido e pontuado
 

@@ -157,7 +157,7 @@ Visão preservada da ARQ-01 (#28), que exige diagrama de classes ou ERD; casos d
 
 ## Modelo OO separado
 
-As classes de objeto do monitoramento são as de `backend/src/domain/` (#173), usadas pelo coletor. O diagrama abaixo segue as classes do código ([fonte](https://github.com/DEVassos/greener-app/tree/42f169d5edd91a0f5bf7e00fcf4c17817d1bd747/backend/src/domain)): as linhas tracejadas indicam uso entre objetos, e a relação serviço → coletas existe na coluna `collections.service_id`, não como atributo ou associação da entidade.
+As classes de objeto do monitoramento são as de `backend/src/domain/` (#173), usadas pelo coletor. O diagrama abaixo segue as classes do código ([fonte](https://github.com/DEVassos/ecopulse-app/tree/42f169d5edd91a0f5bf7e00fcf4c17817d1bd747/backend/src/domain)): as linhas tracejadas indicam uso entre objetos, e a relação serviço → coletas existe na coluna `collections.service_id`, não como atributo ou associação da entidade.
 
 ```mermaid
 classDiagram

@@ -17,7 +17,7 @@ Checklist para cada integrante sair do zero até o primeiro PR mergeado. Tempo e
 
 ## 2. Conta GitHub
 
-- [ ] Aceitar o convite para a organização **DEVassos** e para os repositórios `greener-app` e `agilekit`.
+- [ ] Aceitar o convite para a organização **DEVassos** e para os repositórios `ecopulse-app` e `agilekit`.
 - [ ] **E-mail verificado**: em `https://github.com/settings/emails`, adicione o e-mail que você usará no git e clique no link de verificação recebido. Sem isso o commit aparece sem login e **não conta para ES09**.
 - [ ] Alternativa sem expor e-mail: usar o endereço noreply `ID+login@users.noreply.github.com` (mostrado na mesma página; é o primeiro e-mail da sua entrada em `.github/equipe.json`).
 - [ ] Autenticar o CLI com os escopos que o kit usa:
@@ -30,13 +30,13 @@ gh auth status
 
 ## 3. Clonar o projeto e instalar o kit
 
-Clone em uma pasta local **fora de pastas sincronizadas** (OneDrive, Google Drive): a sincronização corrompe `.git` e quebra os hooks. Exemplos: `C:\dev\greener-app` ou `G:\FATEC\ABPs\ABP - 2DSM\greener-app` (caminhos com espaço funcionam, mas sempre entre aspas).
+Clone em uma pasta local **fora de pastas sincronizadas** (OneDrive, Google Drive): a sincronização corrompe `.git` e quebra os hooks. Exemplos: `C:\dev\ecopulse-app` ou `G:\FATEC\ABPs\ABP - 2DSM\ecopulse-app` (caminhos com espaço funcionam, mas sempre entre aspas).
 
 ```bash
 cd /c/dev                                    # ou: cd "/g/FATEC/ABPs/ABP - 2DSM"
-git clone https://github.com/DEVassos/greener-app.git
-git clone https://github.com/DEVassos/agilekit.git   # ao lado do greener-app: a raiz do projeto fica só com o projeto
-cd greener-app
+git clone https://github.com/DEVassos/ecopulse-app.git
+git clone https://github.com/DEVassos/agilekit.git   # ao lado do ecopulse-app: a raiz do projeto fica só com o projeto
+cd ecopulse-app
 bash ../agilekit/install.sh .                # instala .agilekit/ (scripts, hooks, template de commit), o jq e pergunta o assistente de IA (seção 6)
 bash .agilekit/scripts/setup-dev.sh          # git config local + verificação do ambiente
 ```
@@ -59,11 +59,11 @@ bash .agilekit/scripts/setup-dev.sh --check
 |---|---|
 | Terminal | Use **Git Bash** para os scripts do kit e os hooks. PowerShell serve para `docker`, `gh` e `npm`. Os assistentes de IA chamam o kit por `git agilekit-*`, que funciona em qualquer um dos dois. |
 | Fim de linha | Não mude `core.autocrlf`: o `.gitattributes` do repositório força LF em `*.sh`, hooks e código, e CRLF só em `*.bat`, `*.cmd` e `*.ps1`. Se um hook falhar com `\r: command not found`, rode `git add --renormalize .` na sua branch e commite. |
-| Caminhos com espaço | `ABP - 2DSM` tem espaços: sempre `cd "/g/FATEC/ABPs/ABP - 2DSM/greener-app"` entre aspas. Prefira `C:\dev\greener-app` se puder. |
+| Caminhos com espaço | `ABP - 2DSM` tem espaços: sempre `cd "/g/FATEC/ABPs/ABP - 2DSM/ecopulse-app"` entre aspas. Prefira `C:\dev\ecopulse-app` se puder. |
 | Caminhos longos | `core.longpaths=true` (feito pelo `setup-dev.sh`) evita erro em `node_modules`. |
 | Conversão de caminho do MSYS | Os scripts **não** desativam a conversão de caminhos (ela é necessária para `git`, `gh` e `docker`); a única regra é nunca chamar `gh api` com barra inicial no Git Bash (`gh api repos/...`, não `gh api /repos/...`). O `jq.exe` do Windows emite CRLF; a biblioteca do kit normaliza isso. |
 | Docker Desktop | Backend WSL 2 ativo; compartilhe a unidade (`G:`) em Settings → Resources → File sharing se o compose não enxergar os arquivos. |
-| Docker só no WSL (sem Docker Desktop) | Git, `gh`, Node, VS Code e os scripts do kit continuam no Windows (Git Bash); Docker Engine e Compose ficam numa distribuição WSL 2, como a Ubuntu. Rode `bash .agilekit/scripts/setup-dev.sh --docker-wsl Ubuntu` (troque pelo nome que aparece em `wsl -l -v`). Se o docker não estiver no Windows, o `setup-dev.sh` detecta a distribuição padrão sozinho. Ele grava a escolha em `.agilekit/docker.conf` e cria `.agilekit/bin/docker`, que leva os comandos do kit ao WSL a partir da mesma pasta. O `--check` confere cliente, daemon e Compose dentro da distribuição. Para subir a aplicação: no terminal da Ubuntu, `cd "/mnt/g/FATEC/ABPs/ABP - 2DSM/greener-app" && docker compose up --build`; no Git Bash, `.agilekit/bin/docker compose up --build`; no PowerShell, `wsl -d Ubuntu docker compose up --build`. Para voltar ao Docker Desktop: `setup-dev.sh --docker-nativo`. |
+| Docker só no WSL (sem Docker Desktop) | Git, `gh`, Node, VS Code e os scripts do kit continuam no Windows (Git Bash); Docker Engine e Compose ficam numa distribuição WSL 2, como a Ubuntu. Rode `bash .agilekit/scripts/setup-dev.sh --docker-wsl Ubuntu` (troque pelo nome que aparece em `wsl -l -v`). Se o docker não estiver no Windows, o `setup-dev.sh` detecta a distribuição padrão sozinho. Ele grava a escolha em `.agilekit/docker.conf` e cria `.agilekit/bin/docker`, que leva os comandos do kit ao WSL a partir da mesma pasta. O `--check` confere cliente, daemon e Compose dentro da distribuição. Para subir a aplicação: no terminal da Ubuntu, `cd "/mnt/g/FATEC/ABPs/ABP - 2DSM/ecopulse-app" && docker compose up --build`; no Git Bash, `.agilekit/bin/docker compose up --build`; no PowerShell, `wsl -d Ubuntu docker compose up --build`. Para voltar ao Docker Desktop: `setup-dev.sh --docker-nativo`. |
 | `jq` ausente | `install.sh` tenta `winget`; sem winget, baixa o binário para `.agilekit/bin/`, que os scripts já incluem no `PATH`. |
 | Pasta sincronizada | Nunca clone dentro de OneDrive/Google Drive: hooks e `.git` quebram. |
 

@@ -1,8 +1,8 @@
 # EcoPulse — Plataforma para Estimativa do Impacto Ambiental de Aplicações de Software
 
-<!-- Template do agilekit (repo/docs/templates/README-raiz.md). Destino: README.md da raiz de DEVassos/greener-app. O README fica em `main` e descreve a versão entregue (tag sprint-N); desenvolvimento acontece em `develop`. A seção "Funcionalidades implementadas" começa explícita ("nenhuma ainda") e só ganha linhas depois do merge do PR correspondente. Substitua os campos `<...>`. -->
+<!-- Template do agilekit (repo/docs/templates/README-raiz.md). Destino: README.md da raiz de DEVassos/ecopulse-app. O README fica em `main` e descreve a versão entregue (tag sprint-N); desenvolvimento acontece em `develop`. A seção "Funcionalidades implementadas" começa explícita ("nenhuma ainda") e só ganha linhas depois do merge do PR correspondente. Substitua os campos `<...>`. -->
 
-[![checks](https://github.com/DEVassos/greener-app/actions/workflows/checks.yml/badge.svg)](https://github.com/DEVassos/greener-app/actions) · Projeto ABP 2DSM 2026-2 (FATEC) · Parceiro: UniLaunch · Status: **Sprint `<N>`** (`<dd/mm>` a `<dd/mm/aaaa>`) · Última release: `<nenhuma / sprint-N>`
+[![checks](https://github.com/DEVassos/ecopulse-app/actions/workflows/checks.yml/badge.svg)](https://github.com/DEVassos/ecopulse-app/actions) · Projeto ABP 2DSM 2026-2 (FATEC) · Parceiro: UniLaunch · Status: **Sprint `<N>`** (`<dd/mm>` a `<dd/mm/aaaa>`) · Última release: `<nenhuma / sprint-N>`
 
 ## Problema e solução
 
@@ -41,8 +41,8 @@ Nenhuma funcionalidade foi integrada ainda: o repositório está na fase de prep
 Pré-requisitos: Docker Desktop (ou Docker Engine + Compose v2) e Git.
 
 ```bash
-git clone https://github.com/DEVassos/greener-app.git
-cd greener-app
+git clone https://github.com/DEVassos/ecopulse-app.git
+cd ecopulse-app
 cp .env.example .env            # ajuste URLs das APIs auxiliares se necessário
 docker compose up --build
 ```

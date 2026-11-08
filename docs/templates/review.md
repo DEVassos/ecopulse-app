@@ -8,7 +8,7 @@
 | Local | `<sala / chamada online>` |
 | Participantes do time | @henriqueptbd-cell (PO), @travensolli (SM, escriba), @DeaTuribio, @LUCASAMR23, @viniciusaugusto1997 |
 | Cliente / avaliadores | `<nome — UniLaunch>`, `<professor(a)>` |
-| Versão demonstrada | branch `release/sprint-N`, commit `<sha curto>` → tag [`sprint-N`](https://github.com/DEVassos/greener-app/releases/tag/sprint-N) após o fechamento |
+| Versão demonstrada | branch `release/sprint-N`, commit `<sha curto>` → tag [`sprint-N`](https://github.com/DEVassos/ecopulse-app/releases/tag/sprint-N) após o fechamento |
 | Ambiente | `docker compose up --build` em `<máquina / clone limpo>` |
 
 ## 1. Objetivo da sprint e resultado

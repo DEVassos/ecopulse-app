@@ -38,14 +38,14 @@ Contrato completo, com exemplos e erros, em [`docs/api.md`](../docs/api.md).
 | Método e caminho | O que faz | Respostas |
 |---|---|---|
 | `GET /health` | consulta o PostgreSQL a cada chamada | 200 `{"status":"ok","db":"ok"}`; 500 `DATABASE_ERROR` |
-| `GET /api/services` | lista os serviços com estado, região e a última coleta (métricas, energia e CO₂e) ([#111](https://github.com/DEVassos/greener-app/issues/111), [#133](https://github.com/DEVassos/greener-app/issues/133)) | 200 `{ services, period }`; 401 `UNAUTHORIZED`; 500 `DATABASE_ERROR` |
-| `GET /api/collections` | histórico de coletas, com filtros `service_id`, `from`, `to` e `limit` (1–500, padrão 50) ([#112](https://github.com/DEVassos/greener-app/issues/112)) | 200 `{ collections, period }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 404 `NOT_FOUND`; 500 |
+| `GET /api/services` | lista os serviços com estado, região e a última coleta (métricas, energia e CO₂e) ([#111](https://github.com/DEVassos/ecopulse-app/issues/111), [#133](https://github.com/DEVassos/ecopulse-app/issues/133)) | 200 `{ services, period }`; 401 `UNAUTHORIZED`; 500 `DATABASE_ERROR` |
+| `GET /api/collections` | histórico de coletas, com filtros `service_id`, `from`, `to` e `limit` (1–500, padrão 50) ([#112](https://github.com/DEVassos/ecopulse-app/issues/112)) | 200 `{ collections, period }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 404 `NOT_FOUND`; 500 |
 | `POST /api/auth/login` | valida e-mail e senha com bcrypt e emite JWT HS256 | 200 `{ token }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 |
 | `GET /api/auth/me` | devolve o administrador autenticado pelo JWT | 200 `{ id, email }`; 401 `UNAUTHORIZED`; 500 |
 | `GET /api/monitoring-settings` | consulta pública do intervalo da tela; padrão sem gravação | 200 `{ refreshIntervalSeconds, allowedIntervalsSeconds, updatedAt }`; 500 |
 | `PUT /api/monitoring-settings` | salva intervalo inteiro 15/30/60, exigindo JWT | 200 no mesmo formato do GET; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 |
 | `GET /api/services/ranking` | ordena por energia ou CO₂e num período, com totais, contagens e estado; exige JWT | 200 `{ metric, from, to, services }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 `DATABASE_ERROR` |
-| `GET /api/collections/series` | série temporal de um serviço: agrupa as coletas do período em intervalos, com contagem, energia e CO₂e por intervalo e o total do período; parâmetros obrigatórios `service_id`, `from`, `to` (período de até 31 dias) e `bucket` (`15min`, `1h` ou `1d`) ([#189](https://github.com/DEVassos/greener-app/issues/189)) | 200 `{ serviceId, from, to, bucket, buckets, totals }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 404 `NOT_FOUND`; 500 |
+| `GET /api/collections/series` | série temporal de um serviço: agrupa as coletas do período em intervalos, com contagem, energia e CO₂e por intervalo e o total do período; parâmetros obrigatórios `service_id`, `from`, `to` (período de até 31 dias) e `bucket` (`15min`, `1h` ou `1d`) ([#189](https://github.com/DEVassos/ecopulse-app/issues/189)) | 200 `{ serviceId, from, to, bucket, buckets, totals }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 404 `NOT_FOUND`; 500 |
 
 JSON inválido no corpo devolve 400; rota inexistente, 404; erro inesperado, 500 `INTERNAL_ERROR` sem stack. Todo erro sai no formato `{"error":{"code","message"}}`, produzido só pelo `error-handler`.
 
@@ -130,7 +130,7 @@ Antes do INSERT, as medidas são validadas contra as faixas das colunas e arredo
 
 **Intensidade de carbono (#17)** — `integrations/carbon-api.ts`, `getIntensity(regionCode)` para `GET /regions/{code}/carbon-intensity`, chamado pelo coletor a cada coleta válida:
 
-- **Decisão do PO na [#17](https://github.com/DEVassos/greener-app/issues/17#issuecomment-6157652891):** cache em memória por região e instância por 1 hora; uma tentativa; timeout de 10 s cobrindo requisição e corpo. Ler o cache não renova o prazo, e falha nunca devolve fator antigo nem zero substituto.
+- **Decisão do PO na [#17](https://github.com/DEVassos/ecopulse-app/issues/17#issuecomment-6157652891):** cache em memória por região e instância por 1 hora; uma tentativa; timeout de 10 s cobrindo requisição e corpo. Ler o cache não renova o prazo, e falha nunca devolve fator antigo nem zero substituto.
 - **Resposta válida:** `status: 'ok'`, `factor` (região, intensidade em gCO₂e/kWh, renováveis), `source: 'api' | 'cache'`, `fetchedAt` e `expiresAt`. 404 devolve `{ status: 'region_not_found', regionCode }`.
 - **Falhas:** rede, timeout, HTTP inesperado ou resposta inválida lançam erro tipado com causa e não entram no cache; o coletor transforma isso em cálculo `indisponivel`.
 
