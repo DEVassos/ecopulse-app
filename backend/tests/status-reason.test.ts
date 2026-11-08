@@ -4,8 +4,9 @@ import { getServices } from '../src/modules/services/services.service';
 
 async function reason(status: string, message: string | null) {
   const repository = new ServiceRepository({ query: vi.fn().mockResolvedValue({ rows: [{ id: '1', name: 'Serviço', status,
-    country: null, region: null, city: null, last_reading_at: null, cpu_percent: null, energy_kwh: null,
-    co2e_grams: null, error_message: message }] }) });
+    country: null, region: null, city: null, region_code: null, last_reading_at: null, cpu_percent: null, energy_kwh: null,
+    co2e_grams: null, error_message: message, collection_interval_seconds: null, memory_gb: null, disk_gb: null, network_gb: null,
+    power_watts: null, carbon_intensity_gco2e_per_kwh: null }] }) });
   return (await getServices(repository)).services[0];
 }
 describe('statusReason público', () => {

@@ -13,6 +13,14 @@ export interface ServiceWithLastReading {
   cpu_percent: string | null;
   energy_kwh: string | null;
   co2e_grams: string | null;
+  /** Campos da mesma última coleta expostos ao dashboard (#297); `integer` chega como number, `numeric` como string. */
+  region_code: string | null;
+  collection_interval_seconds: number | null;
+  memory_gb: string | null;
+  disk_gb: string | null;
+  network_gb: string | null;
+  power_watts: string | null;
+  carbon_intensity_gco2e_per_kwh: string | null;
 }
 export interface ServicesSummaryRow { energy_kwh: string | null; co2e_grams: string | null; active: string; unavailable: string; without_metrics: string; removed: string }
 
@@ -40,11 +48,14 @@ export class ServiceRepository {
   }
   async findAllWithLastReading(): Promise<ServiceWithLastReading[]> {
     return (await this.db.query<ServiceWithLastReading>(`
-      SELECT s.id, s.name, s.status, s.country, s.region, s.city,
-        latest.collected_at AS last_reading_at, latest.cpu_percent, latest.energy_kwh, latest.co2e_grams, latest.error_message
+      SELECT s.id, s.name, s.status, s.country, s.region, s.city, s.region_code,
+        latest.collected_at AS last_reading_at, latest.cpu_percent, latest.energy_kwh, latest.co2e_grams, latest.error_message,
+        latest.collection_interval_seconds, latest.memory_gb, latest.disk_gb, latest.network_gb,
+        latest.power_watts, latest.carbon_intensity_gco2e_per_kwh
       FROM services AS s
       LEFT JOIN LATERAL (
-        SELECT collected_at, cpu_percent, energy_kwh, co2e_grams, error_message
+        SELECT collected_at, cpu_percent, energy_kwh, co2e_grams, error_message,
+          collection_interval_seconds, memory_gb, disk_gb, network_gb, power_watts, carbon_intensity_gco2e_per_kwh
         FROM collections
         WHERE service_id = s.id
         ORDER BY collected_at DESC, id DESC

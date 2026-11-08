@@ -48,7 +48,11 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 **Vídeo da Sprint 1 (cerca de 3 min):** [EcoPulse - ABP FATEC 2DSM](https://youtu.be/3Hx4kzuudSw), com o produto como foi entregue na Sprint 1.
 
-- **RF09, RF12 — Tabela operacional de serviços (#69):** dashboard com cada serviço monitorado, CPU, energia, emissão, última leitura, localização (região, cidade e país) e status (ativo, indisponível, sem métricas ou removido, quando o serviço sai da lista do agregador), com busca por nome e ordenação por coluna. Só o problema ganha cor: o selo Ativo e o card Ativos ficam neutros, e a linha indisponível ou sem métricas tem o botão **Ver histórico** ao lado do status (#272). A tela consome `GET /api/services` (#115) pela base definida em `VITE_API_URL`; sem ela (variável vazia), o frontend sobe em modo demonstração com dados ilustrativos (`npm run mock`) — como executar em [frontend/README.md](frontend/README.md).
+- **RF09, RF12 — Tabela operacional de serviços (#69):** dashboard com cada serviço monitorado, CPU, energia, emissão, última leitura, localização (código da região na célula; cidade, país e nome da região ao passar o mouse) e status (ativo, indisponível, sem métricas ou removido, quando o serviço sai da lista do agregador), com busca por nome e ordenação por coluna. A coluna **Fator da região (gCO₂e/kWh)** mostra a intensidade de carbono usada na última coleta, que explica por que CPU alta em região limpa emite menos que CPU baixa em região suja; potência estimada, RAM, disco e rede ficam no tooltip da CPU, o intervalo no da última leitura, e a janela de detalhes repete tudo (#298). Só o problema ganha cor: o selo Ativo e o card Ativos ficam neutros, e a linha indisponível ou sem métricas tem o botão **Ver histórico** ao lado do status (#272). A tela consome `GET /api/services` (#115) pela base definida em `VITE_API_URL`; sem ela (variável vazia), o frontend sobe em modo demonstração com dados ilustrativos (`npm run mock`) — como executar em [frontend/README.md](frontend/README.md).
+
+  ![Tabela de serviços com a coluna Fator da região e a localização pelo código](docs/img/sprint-2-tabela-fator.png)
+
+  _Tabela ligada ao backend real (`docker compose`) em 07/11/2026, 17h08, num banco novo com poucos minutos de coletas, em 1366 px: a coluna **Fator da região (gCO₂e/kWh)** vai de 40 (ca-central) a 465 (jp-east), e é ela que explica a emissão: o Audit Stream, com 64% de CPU, emite mais que o Recommendation AI, com 86%, porque a região dele tem fator maior. Os cabeçalhos quebram em duas linhas para as nove colunas caberem sem rolagem (#298)._
 
   ![Tabela de serviços monitorados com o backend real](docs/img/sprint-2-dashboard-backend-real.png)
 
@@ -65,6 +69,12 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
   ![Indicadores agregados com comparação às 24 h anteriores](docs/img/sprint-2-indicadores-agregados.png)
 
   _Dashboard com o backend real (`docker compose`) em 06/11/2026, 10h02: 1,05 kWh e 258 g CO₂e nas últimas 24 h, na unidade que o valor pede, com "▼ 21,4%" e "▼ 22,1%" em verde, porque energia e CO₂e caíram em relação às 24 h anteriores (#271)._
+
+- **RF14 — Quem pesa mais no CO₂e (#260):** a tabela de serviços mostra a parte de cada serviço no CO₂e das últimas 24 h, com barra (o 1º lugar em neon e com o rótulo "1º"), e a frase acima dela diz quem respondeu por mais. Dentro de cada estado, a ordem segue o período e não muda a cada leitura. As partes exibidas somam 100,0%, e a coluna e a frase ficam em cinza quando a última busca falha. A API é `GET /api/services/ranking?metric=co2e&from=&to=`, com o contrato aprovado na #50 e implementada na #287 (PR #291).
+
+  ![Coluna Parte do CO₂e e frase "Quem pesa mais" no dashboard](docs/img/sprint-2-ranking-co2e.png)
+
+  _Dashboard com o backend real (`docker compose`) em 07/11/2026, 14h25, num banco novo com poucos minutos de coletas do agregador: o Fraud Detector respondeu por 27,6% do CO₂e das últimas 24 h, e a coluna soma 100,0%._
 
 - **RNF02 — Indicador de última atualização (#89):** selo no cabeçalho com o horário da última busca bem-sucedida e um ponto verde pulsando enquanto os dados estão em dia; se uma busca falha, ele fica laranja e passa a dizer "Desatualizado desde …", sem apagar os dados da tela.
 

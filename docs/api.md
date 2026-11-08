@@ -29,13 +29,32 @@ Resposta 200:
     "emissionsG": 0.040838473125,
     "status": "ativo",
     "statusReason": null,
-    "lastReadingAt": "2026-10-14T20:00:00.000Z"
+    "lastReadingAt": "2026-10-14T20:00:00.000Z",
+    "regionCode": "br-sul",
+    "collectionIntervalSeconds": 27,
+    "memoryGb": 3.17,
+    "diskGb": 19.26,
+    "networkGb": 0.45,
+    "powerWatts": 64.06035,
+    "carbonIntensityGco2ePerKwh": 85
   }],
   "period": "última leitura (intervalo de coleta)"
 }
 ```
 
-Os números do exemplo são o exemplo OpenAPI de [`docs/calculos.md`](calculos.md): CPU 62,67%, RAM 3,17 GB, disco 19,26 GB, rede 0,45 GB, 27 s e fator 85 gCO₂e/kWh. `energyKwh` e `emissionsG` são da última coleta, que cobre um intervalo de cerca de 30 s, e não acumulados.
+Os números do exemplo são o exemplo OpenAPI de [`docs/calculos.md`](calculos.md): CPU 62,67%, RAM 3,17 GB, disco 19,26 GB, rede 0,45 GB, 27 s e fator 85 gCO₂e/kWh.
+
+Campos da última coleta (#297), todos da mesma linha de `collections` que dá `lastReadingAt`, `cpuPercent`, `energyKwh` e `emissionsG`:
+
+| Campo | Origem | Tipo | `null` quando |
+|---|---|---|---|
+| `regionCode` | `services.region_code` (cadastro); `region` continua sendo o nome | texto ou `null` | cadastro sem região |
+| `collectionIntervalSeconds` | `collection_interval_seconds`, em s | inteiro ≥ 1 ou `null` | sem coleta, ou última coleta com erro ou sem métricas |
+| `memoryGb`, `diskGb`, `networkGb` | `memory_gb`, `disk_gb`, `network_gb`, em GB | número ≥ 0 ou `null` | idem |
+| `powerWatts` | `power_watts`, em W | número ≥ 0 ou `null` | cálculo não disponível |
+| `carbonIntensityGco2ePerKwh` | `carbon_intensity_gco2e_per_kwh`, o fator efetivamente usado, em gCO₂e/kWh | número ≥ 0 ou `null` | cálculo não disponível (sem região, região sem fator, API de carbono fora) |
+
+Invariantes úteis na verificação: `emissionsG ≈ energyKwh × carbonIntensityGco2ePerKwh` e `powerWatts ≈ energyKwh × 3 600 000 ÷ collectionIntervalSeconds` ([`docs/calculos.md`](calculos.md)). O fator é o mesmo de `GET /api/collections?service_id=<id>&limit=1` → `collections[0].carbonIntensityGco2ePerKwh`. `energyKwh` e `emissionsG` são da última coleta, que cobre um intervalo de cerca de 30 s, e não acumulados.
 
 `status` do serviço: `ativo` (última métrica válida), `indisponivel` (falha do agregador ou métrica inválida), `sem_metricas` (404 do agregador para um serviço ainda listado) ou `removido` (saiu da lista do agregador; volta a `ativo` quando reaparece).
 

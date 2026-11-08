@@ -25,6 +25,18 @@ export interface MonitoredService {
   statusReason: string | null;
   /** Horário da última leitura (ISO 8601); null se nunca houve leitura. */
   lastReadingAt: string | null;
+  /** Código da região do cadastro (ex.: "us-east"); `region` é o nome. null sem região, e aí não há cálculo (#298). */
+  regionCode: string | null;
+  /** Intervalo da última coleta, em s; null sem coleta ou com a coleta falhada. Ausente no backend anterior à #297. */
+  collectionIntervalSeconds: number | null;
+  /** Memória, disco e rede da última coleta, em GB; null como o intervalo. */
+  memoryGb: number | null;
+  diskGb: number | null;
+  networkGb: number | null;
+  /** Potência estimada da última coleta, em W; null sem cálculo disponível. */
+  powerWatts: number | null;
+  /** Intensidade de carbono usada na última coleta, em gCO₂e/kWh; null sem cálculo disponível. */
+  carbonIntensityGco2ePerKwh: number | null;
 }
 
 export interface ServicesResponse {
