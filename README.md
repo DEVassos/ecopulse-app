@@ -34,6 +34,14 @@ Setup do backend: [organização e validação](backend/README.md) e [contrato d
 
 ## 3. Funcionalidades implementadas
 
+- **RNF01 — Tema claro alternável com o escuro (#265, PR #280):** o botão de tema no cabeçalho e na tela de login troca o atributo `data-theme` da página e guarda a escolha no navegador; os tokens de cor são redefinidos para o tema claro com o mesmo contraste mínimo, e as duas aparências valem para todas as páginas e gráficos.
+
+- **RNF01 — Acessibilidade: leitura do período, placeholder, alvos e teclado (#262, PR #278):** link **Pular para o conteúdo** no primeiro Tab, alvos de toque de pelo menos 24 px nos botões de ordenação e de atualizar, placeholder dos campos com contraste de texto pequeno, período do painel lido pelo leitor de tela e resumo do gráfico de Emissões sem anúncio a cada ciclo; **Atualizar agora** com 44 px.
+
+- **RNF01 — Números em algarismos tabulares (#266, PR #281):** CPU, energia, emissão, horários, eixos e a matriz da comparação usam a fonte de texto com `tabular-nums` no lugar da fonte mono, então vírgulas e casas ficam alinhadas sem mudar a família tipográfica.
+
+- **RNF04 / TP03 — Erros tipados e tratamento de falhas no backend (#174, PR #233):** `shared/errors.ts` define `AppError` e as subclasses (400, 401, 404, 500 e 502) e `middlewares/error-handler.ts` converte qualquer falha no envelope `{"error":{"code","message"}}`, sem stack nem SQL; falhas da API de métricas, da API de carbono e do banco viram estado visível para o frontend em vez de resultado inválido.
+
 - **RF05/RF06 — Motivo seguro da indisponibilidade ([#251](https://github.com/DEVassos/greener-app/issues/251)):** `GET /api/services` inclui `statusReason` da última coleta somente para `indisponivel`, normalizado para não expor detalhes internos; demais estados recebem `null`. [Contrato](docs/api.md#get-apiservices). Na tela, o motivo aparece com a #176, abaixo.
 
 - **RF11 — Contrato backend da configuração ([#250](https://github.com/DEVassos/greener-app/issues/250)):** GET público e PUT com JWT para intervalo de atualização da tela (15/30/60 s, padrão 30). A interface é a da #176, abaixo. [Contrato e verificação HTTP](docs/api.md#get-apimonitoring-settings); [migração sem apagar volumes](database/README.md#configuração-de-monitoramento-250).
@@ -173,7 +181,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 | Sprint | Período | Review | Objetivo | Situação |
 |---|---|---|---|---|
 | 1 | 29/09 → 19/10/2026 | 19/10 às 19h30 (realizada) | Pipeline de coleta persistido em Docker e primeira tela do dashboard (serviços com estado e localização, atualizando sem recarregar) | Concluída: tag [`sprint-1`](https://github.com/DEVassos/greener-app/releases/tag/sprint-1) |
-| 2 | 20/10 → 09/11/2026 | 09/11 às 19h30 (a confirmar) | Dashboard completo com energia, CO₂e, tolerância a falhas e área de configuração protegida por JWT | Começa em 20/10 |
+| 2 | 20/10 → 09/11/2026 | 09/11 às 19h30 (a confirmar) | Dashboard completo com energia, CO₂e, tolerância a falhas e área de configuração protegida por JWT | Em fechamento: congelamento em 08/11 às 20h; 67 PRs mergeados em `develop` de 20/10 a 08/11; situação por critério no [plano](docs/plano-de-entregas.md) após a verificação do PO |
 | 3 | 10/11 → 23/11/2026 | 23/11 às 19h30 (a confirmar) | Ranking de impacto, comparação entre serviços, mapa e repositório pronto como portfólio | Planejada |
 
 Critérios previstos, responsáveis e evidências de cada sprint: [docs/plano-de-entregas.md](docs/plano-de-entregas.md).
@@ -265,7 +273,12 @@ Documentação técnica: [arquitetura](docs/arquitetura.md), [API](docs/api.md),
 
 Situação por critério, verificações, feedback e participação estão em [docs/sprints/sprint-1.md](docs/sprints/sprint-1.md).
 
-**Sprint 2** (20/10 → 09/11/2026): começa em 20/10.
+**Sprint 2** (20/10 → 09/11/2026): em fechamento. Congelamento em 08/11/2026 às 20h, review em 09/11 às 19h30 (a confirmar).
+
+- **Entrega:** 67 Pull Requests mergeados em `develop` de 20/10 a 08/11 e 71 issues fechadas na milestone, cobrindo RF02, RF04 a RF15, RNF01, RNF02, RNF04 e RNF05: energia e CO₂e por coleta e por período, página Emissões, comparação entre serviços, ranking de CO₂e das 24 h, fator da região na tabela, login JWT na aplicação inteira, intervalo de atualização configurável, erros tipados no backend e o pacote visual (tema claro, acessibilidade, celular).
+- **Critérios** (DW05, DW06, TP01, TP03 e os ES01–ES09 e DW01 de toda sprint): a situação de cada um é verificada pelo PO no fechamento e fica só no [plano de entregas](docs/plano-de-entregas.md); até 08/11, TP01 está **concluído** e os demais aguardam a verificação.
+
+Situação por critério, verificações, feedback e participação ficam em [docs/sprints/sprint-2.md](docs/sprints/sprint-2.md) ao fim da sprint.
 
 ---
 
