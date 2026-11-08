@@ -37,25 +37,41 @@ async function readJson(req) {
  *   (padrão) lista normal · MOCK_SERVICES=vazio lista vazia · MOCK_SERVICES=erro responde 500
  *   MOCK_SERVICES=sem-id: Checkout Worker sem `id` · MOCK_SERVICES=cpu-texto: CPU do Fraud Detector em texto
  *   (os dois últimos respondem 200 fora do contrato, e a tela deve tratá-los como falha: #161)
+ *   MOCK_SERVICES=resumo-texto: GET /services/summary com energyKwh em texto
+ *   MOCK_SERVICES=comparacao-sem-id: GET /services/compare com o 1º serviço sem `id`
+ *   (também fora do contrato: o painel de indicadores e a comparação devem mostrar o erro, #237)
+ *   MOCK_SERVICES=ranking-texto: o 1º lugar do ranking vem com o CO₂e em texto
+ *   MOCK_SERVICES=ranking-instavel: a 1ª chamada de GET /services/ranking responde e as seguintes dão 500, para ver a
+ *   parte já calculada em cinza no ciclo seguinte sem reiniciar o mock, o que invalidaria o token (#257, #260)
+ *   MOCK_SERVICES=ranking-falha: toda chamada de GET /services/ranking responde 500, para ver a coluna sem ranking (#260)
  */
 const SERVICES_SCENARIO = process.env.MOCK_SERVICES ?? 'normal';
 
+/** Chamadas de GET /services/ranking desde que o mock subiu (cenário MOCK_SERVICES=ranking-instavel). */
+let rankingCalls = 0;
+
 const SERVICES = [
-  { id: 'fraud-detector', name: 'Fraud Detector', country: 'Estados Unidos', region: 'us-east', city: 'Virgínia', cpu: 68, kwh: 0.0713, gramsPerKwh: 377, status: 'ativo' },
-  { id: 'recommendation-ai', name: 'Recommendation AI', country: 'Irlanda', region: 'eu-west', city: 'Dublin', cpu: 74, kwh: 0.0868, gramsPerKwh: 295, status: 'ativo' },
-  { id: 'audit-stream', name: 'Audit Stream', country: 'Japão', region: 'jp-east', city: 'Tóquio', cpu: 41, kwh: 0.0533, gramsPerKwh: 465, status: 'ativo' },
-  { id: 'checkout-worker', name: 'Checkout Worker', country: 'Estados Unidos', region: 'us-east', city: 'Virgínia', cpu: 45, kwh: 0.0467, gramsPerKwh: 377, status: 'ativo' },
-  { id: 'reporting-batch', name: 'Reporting Batch', country: 'Canadá', region: 'ca-central', city: 'Montreal', cpu: 52, kwh: 0.0726, gramsPerKwh: 40, status: 'ativo' },
-  { id: 'email-dispatcher', name: 'Email Dispatcher', country: 'Brasil', region: 'br-sudeste', city: 'São Paulo', status: 'indisponivel', reason: 'Serviço indisponível (HTTP 500).' },
-  { id: 'inventory-sync', name: 'Inventory Sync', country: 'Canadá', region: 'ca-central', city: null, status: 'sem_metricas' },
+// region é o nome e regionCode o código, como no backend (#297); o Inventory Sync não tem região e por isso não tem cálculo
+  { id: 'fraud-detector', name: 'Fraud Detector', country: 'Estados Unidos', regionCode: 'us-east', region: 'Virgínia', city: 'Ashburn', cpu: 68, kwh: 0.0713, gramsPerKwh: 377, memoryGb: 6.04, diskGb: 67.11, networkGb: 0.53, status: 'ativo' },
+  { id: 'recommendation-ai', name: 'Recommendation AI', country: 'Irlanda', regionCode: 'eu-west', region: 'Leinster', city: 'Dublin', cpu: 74, kwh: 0.0868, gramsPerKwh: 295, memoryGb: 7.83, diskGb: 21.83, networkGb: 1.97, status: 'ativo' },
+  { id: 'audit-stream', name: 'Audit Stream', country: 'Japão', regionCode: 'jp-east', region: 'Kanto', city: 'Tóquio', cpu: 41, kwh: 0.0533, gramsPerKwh: 465, memoryGb: 1.33, diskGb: 8.51, networkGb: 0.29, status: 'ativo' },
+  { id: 'checkout-worker', name: 'Checkout Worker', country: 'Estados Unidos', regionCode: 'us-east', region: 'Virgínia', city: 'Ashburn', cpu: 45, kwh: 0.0467, gramsPerKwh: 377, memoryGb: 3.17, diskGb: 19.26, networkGb: 0.45, status: 'ativo' },
+  { id: 'reporting-batch', name: 'Reporting Batch', country: 'Canadá', regionCode: 'ca-central', region: 'Quebec', city: 'Montreal', cpu: 52, kwh: 0.0726, gramsPerKwh: 40, memoryGb: 4.5, diskGb: 120.4, networkGb: 2.1, status: 'ativo' },
+  { id: 'email-dispatcher', name: 'Email Dispatcher', country: 'Brasil', regionCode: 'br-sudeste', region: 'Sudeste', city: 'São Paulo', status: 'indisponivel', reason: 'Serviço indisponível (HTTP 500).' },
+  { id: 'inventory-sync', name: 'Inventory Sync', country: 'Canadá', regionCode: null, region: 'Ontario', city: null, status: 'sem_metricas' },
 ];
+
+/** Intervalo da leitura do backend falso: a energia de cada serviço é de uma hora, então a potência sai em dezenas de W. */
+const READING_INTERVAL_SECONDS = 3600;
 
 /** Leitura "ao vivo": a CPU varia um pouco a cada chamada, para a atualização mostrar mudança na tela. */
 function readService(service) {
   // statusReason (#176): motivo da coleta mais recente, só em `indisponivel`
-  const base = { id: service.id, name: service.name, country: service.country, region: service.region, city: service.city, status: service.status, statusReason: service.reason ?? null };
+  const base = { id: service.id, name: service.name, country: service.country, regionCode: service.regionCode, region: service.region, city: service.city, status: service.status, statusReason: service.reason ?? null };
+  // Campos da última coleta (#297): sem leitura, os seis vêm null; regionCode é do cadastro e fica
   if (service.status !== 'ativo') {
-    return { ...base, cpuPercent: null, energyKwh: null, emissionsG: null, lastReadingAt: null };
+    return { ...base, cpuPercent: null, energyKwh: null, emissionsG: null, lastReadingAt: null,
+      collectionIntervalSeconds: null, memoryGb: null, diskGb: null, networkGb: null, powerWatts: null, carbonIntensityGco2ePerKwh: null };
   }
   const factor = 1 + (Math.random() - 0.5) * 0.1;
   const energyKwh = Number((service.kwh * factor).toFixed(4));
@@ -65,6 +81,13 @@ function readService(service) {
     energyKwh,
     emissionsG: Number((energyKwh * service.gramsPerKwh).toFixed(1)),
     lastReadingAt: new Date().toISOString(),
+    collectionIntervalSeconds: READING_INTERVAL_SECONDS,
+    memoryGb: service.memoryGb,
+    diskGb: service.diskGb,
+    networkGb: service.networkGb,
+    // Coerente com docs/calculos.md: potência = energia ÷ tempo; fator = o mesmo das coletas de /collections
+    powerWatts: Number((energyKwh * 3_600_000 / READING_INTERVAL_SECONDS).toFixed(3)),
+    carbonIntensityGco2ePerKwh: service.gramsPerKwh,
   };
 }
 
@@ -187,7 +210,7 @@ let monitoringSettings = {
 const UNAUTHORIZED = { error: { code: 'UNAUTHORIZED', message: 'Token ausente, inválido ou expirado.' } };
 
 /** Rotas de dados que, como no backend real (#257), só respondem com token válido. */
-const PROTECTED = new Set(['GET /services', 'GET /services/summary', 'GET /services/compare', 'GET /collections', 'GET /collections/series']);
+const PROTECTED = new Set(['GET /services', 'GET /services/summary', 'GET /services/compare', 'GET /services/ranking', 'GET /collections', 'GET /collections/series']);
 
 function hasValidToken(req) {
   const token = bearerToken(req);
@@ -312,12 +335,70 @@ const routes = {
     const services = listedServices();
     const collections = services.flatMap((service) => collectionsBetween(service, from, to));
     const count = (status) => services.filter((service) => service.status === status).length;
-    return send(res, 200, {
+    const summary = {
       period: { from: new Date(from).toISOString(), to: new Date(to).toISOString() },
       // Só as coletas calculadas têm energia e CO₂e; as outras vêm null e ficam fora da soma
       energyKwh: sumOrNull(collections, 'energyKwh'),
       co2eGrams: sumOrNull(collections, 'co2eGrams'),
       services: { active: count('ativo'), unavailable: count('indisponivel'), withoutMetrics: count('sem_metricas'), removed: count('removido') },
+    };
+    if (SERVICES_SCENARIO === 'resumo-texto') summary.energyKwh = String(summary.energyKwh);
+    return send(res, 200, summary);
+  },
+
+  // Ranking de impacto (RF14, #50 e #260): contrato aprovado na #50, com o mesmo período do resumo
+  'GET /services/ranking': async (req, res) => {
+    if (SERVICES_SCENARIO === 'erro') return simulatedFailure(res);
+    // MOCK_SERVICES=ranking-instavel: a 1ª responde, as seguintes falham — reiniciar o mock invalidaria o token (#257) e
+    // apagaria a parte já calculada, então a falha no meio do ciclo é o único caminho para ver o estado em cinza (#260)
+    if (SERVICES_SCENARIO === 'ranking-falha') return simulatedFailure(res);
+    if (SERVICES_SCENARIO === 'ranking-instavel' && ++rankingCalls > 1) return simulatedFailure(res);
+    const query = new URL(req.url ?? '/', `http://localhost:${PORT}`).searchParams;
+    const metric = query.get('metric');
+    if (metric !== 'energy' && metric !== 'co2e') return validationError(res, 'metric deve ser energy ou co2e.');
+    if (query.has('from') !== query.has('to')) return validationError(res, 'Informe from e to juntos, ou nenhum dos dois.');
+    const to = query.has('to') ? parseInstant(query.get('to')) : Date.now();
+    const from = query.has('from') ? parseInstant(query.get('from')) : to - DAY_MS;
+    if (from === null || to === null || from >= to || to - from > MAX_SPAN_MS) {
+      return validationError(res, 'Informe from e to com data e hora (ISO 8601), from antes de to e até 31 dias.');
+    }
+    const field = metric === 'co2e' ? 'co2eGrams' : 'energyKwh';
+    const services = listedServices()
+      .map((service) => {
+        const items = collectionsBetween(service, from, to);
+        return {
+          service,
+          items,
+          energyKwh: sumOrNull(items, 'energyKwh'),
+          co2eGrams: sumOrNull(items, 'co2eGrams'),
+        };
+      })
+      // Removido só entra com histórico no período (contrato revisado na #50)
+      .filter(({ service, items }) => service.status !== 'removido' || items.length > 0)
+      // Maior primeiro; empate pelo nome e pelo id; sem valor no fim
+      .sort((a, b) => (b[field] ?? -1) - (a[field] ?? -1) || a.service.name.localeCompare(b.service.name) || a.service.id.localeCompare(b.service.id));
+    let position = 0;
+    return send(res, 200, {
+      metric,
+      from: new Date(from).toISOString(),
+      to: new Date(to).toISOString(),
+      services: services.map(({ service, items, energyKwh, co2eGrams }) => {
+        const entry = {
+          position: (metric === 'co2e' ? co2eGrams : energyKwh) === null ? null : ++position,
+          id: service.id,
+          name: service.name,
+          region: service.region,
+          status: service.status,
+          energyKwh,
+          co2eGrams,
+          collections: items.length,
+          failed: items.filter((item) => item.status !== 'ok').length,
+          notCalculated: items.filter((item) => item.status === 'ok' && item.co2eGrams === null).length,
+        };
+        // MOCK_SERVICES=ranking-texto: o 1º lugar vem com o CO₂e em texto, para ver a tela recusar a resposta
+        if (SERVICES_SCENARIO === 'ranking-texto' && entry.position === 1) entry.co2eGrams = String(entry.co2eGrams);
+        return entry;
+      }),
     });
   },
 
@@ -333,7 +414,7 @@ const routes = {
     }
     const services = ids.map((id) => listedServices().find((service) => service.id === id));
     if (services.includes(undefined)) return send(res, 404, { error: { code: 'NOT_FOUND', message: 'Um ou mais serviços não foram encontrados.' } });
-    return send(res, 200, {
+    const comparison = {
       from: new Date(from).toISOString(),
       to: new Date(to).toISOString(),
       // Na ordem dos ids pedidos; serviço sem coletas no período vem com 0 e métricas null
@@ -354,7 +435,9 @@ const routes = {
           co2eGrams: sumOrNull(items, 'co2eGrams'),
         };
       }),
-    });
+    };
+    if (SERVICES_SCENARIO === 'comparacao-sem-id') delete comparison.services[0].id;
+    return send(res, 200, comparison);
   },
 };
 
@@ -375,7 +458,7 @@ createServer(async (req, res) => {
   return route(req, res);
 }).listen(PORT, () => {
   console.log(`Backend falso em http://localhost:${PORT}`);
-  console.log(`GET /services: cenário "${SERVICES_SCENARIO}" (MOCK_SERVICES=normal|vazio|erro|sem-id|cpu-texto)`);
+  console.log(`GET /services: cenário "${SERVICES_SCENARIO}" (MOCK_SERVICES=normal|vazio|erro|sem-id|cpu-texto|resumo-texto|comparacao-sem-id|ranking-texto|ranking-instavel|ranking-falha)`);
   console.log(`Login: ${ADMIN.email} / ${ADMIN.password} (exigido nas rotas de dados, #257; reiniciar o mock invalida os tokens)`);
   console.log(`GET /monitoring-settings: intervalo inicial ${monitoringSettings.refreshIntervalSeconds} s (MOCK_REFRESH_INTERVAL_SECONDS)`);
 });

@@ -14,6 +14,11 @@
     gap: 16px;
   }
 
+  /* Alvo do "Pular para o conteúdo" (#262): recebe o foco por tabindex="-1", sem contorno no bloco inteiro */
+  .content:focus {
+    outline: none;
+  }
+
   /* Caixa padrão de conteúdo: superfície sobre o fundo, borda sutil e cantos arredondados */
   .panel {
     background: var(--surface);

@@ -26,8 +26,9 @@
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+/* --muted (7,3:1): --faint dava 3,8:1 no placeholder, abaixo do AA (#262) */
 .field input::placeholder {
-  color: var(--faint);
+  color: var(--muted);
 }
 
 .field input:focus {

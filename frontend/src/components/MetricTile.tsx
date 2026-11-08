@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import './MetricTile.css';
 
 /** Cor do card: ativo, indisponível e sem métricas seguem o StatusBadge; neutral não destaca nada. */
-export type MetricTone = 'neutral' | 'success' | 'danger' | 'warning';
+export type MetricTone = 'neutral' | 'danger' | 'warning';
 
 /** Traço comum dos ícones dos cards (SVG de linha 24×24, na cor do tom): uma família só em todos os painéis. */
 export const metricIconProps = {
@@ -19,8 +19,8 @@ interface Props {
   /** Número já formatado, ou o MissingValue quando não há valor. */
   value: ReactNode;
   unit?: string;
-  /** Texto curto ao lado do valor (proporção, base da contagem); omitido quando não acrescenta nada. */
-  note?: string;
+  /** Texto curto ao lado do valor (proporção, base da contagem, variação); omitido quando não acrescenta nada. */
+  note?: ReactNode;
   icon: ReactNode;
   tone?: MetricTone;
   /** Última busca falhou: o valor continua, em cor apagada, para não parecer atual. */

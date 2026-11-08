@@ -66,7 +66,21 @@ export function readAmountOrNull(value: unknown, field: string): number | null {
   return parsed;
 }
 
+/** Contagem: inteiro ≥ 0 (coletas, falhas, serviços por estado). */
+export function readCount(value: unknown, field: string): number {
+  const parsed = count(value);
+  if (parsed === undefined) throw unexpectedFormat(field);
+  return parsed;
+}
+
 /** Data e hora em ISO 8601; devolve o texto como veio. */
+/** Intervalo de coleta: inteiro ≥ 1 segundo, ou null quando a coleta não tem intervalo (falhou). */
+export function readIntervalOrNull(value: unknown, field: string): number | null {
+  const interval = readAmountOrNull(value, field);
+  if (interval !== null && (!Number.isInteger(interval) || interval < 1)) throw unexpectedFormat(field);
+  return interval;
+}
+
 export function readInstant(value: unknown, field: string): string {
   if (typeof value !== 'string' || instant(value) === undefined) throw unexpectedFormat(field);
   return value;
