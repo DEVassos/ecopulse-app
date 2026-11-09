@@ -86,6 +86,8 @@ Itens de processo e qualidade (12): #159, #160, #161, #162, #163, #164, #165, #1
 
 A milestone `Sprint 2` tem 75 issues: 73 fechadas por PR mergeado em `develop` ou por aceite registrado, a [#177](https://github.com/DEVassos/ecopulse-app/issues/177), fechada como duplicada da [#172](https://github.com/DEVassos/ecopulse-app/issues/172), e a própria #172, aberta até o fechamento. A coluna Evidência traz o PR que entregou cada item e, nas histórias, o aceite. A situação de cada critério fica só no [plano de entregas](../plano-de-entregas.md#sprint-2).
 
+O PR [#214](https://github.com/DEVassos/ecopulse-app/pull/214) (backend da comparação, #193, RF15) é o único PR com cartão próprio no quadro, que só adiciona issues automaticamente. O cartão ficou em "Backlog" depois do merge de 25/10. Em 09/11 ele recebeu a milestone `Sprint 2` e passou para "Concluído", por decisão do SM.
+
 ### 5.1 Histórias
 
 | Issue | Título | Requisito | Evidência | Responsável |
