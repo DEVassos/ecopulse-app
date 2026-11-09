@@ -6,6 +6,9 @@ import { CollectionRepository } from '../modules/collections/collections.reposit
 import type { DiscoveredService, NewCollection, StoredService } from '../shared/persistence.types';
 import { AppError, ValidationError } from '../shared/errors';
 import { CarbonCalculator } from '../domain/carbon-calculator';
+import { Collection } from '../domain/collection';
+import { MonitoringStatus } from '../domain/monitoring-status';
+import { MonitoredService } from '../domain/service';
 import type { CarbonApi } from '../integrations/carbon-api';
 
 /** A extensão #97 fornece raw e cancelamento; métodos antigos continuam tipáveis. */
@@ -23,15 +26,18 @@ function unavailableCalculation(message: string) {
   return { calculation_status: 'indisponivel' as const, carbon_intensity_gco2e_per_kwh: null,
     power_watts: null, energy_kwh: null, co2e_grams: null, calculation_error_message: message };
 }
+function failureMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Erro desconhecido.';
+}
 
 /** Arredonda à escala da coluna: a API manda resíduo de float (51.248000000000005); o JSON bruto guarda o original. */
-function decimal(value: number, precision: number, scale: number): string {
-  const fixed = Number.isFinite(value) ? value.toFixed(scale) : '';
-  if (!fixed || Math.abs(Number(fixed)) >= 10 ** (precision - scale)) {
-    throw new ValidationError('Observação fora da faixa SQL.');
+function coordinate(value: number, precision: number): string {
+  if (!Number.isFinite(value) || Math.abs(value) >= 10 ** (precision - 6)) {
+    throw new ValidationError('Descoberta incompleta, duplicada ou inválida.');
   }
-  return fixed;
+  return value.toFixed(6);
 }
+
 function discovery(items: ServiceSummary[]): DiscoveredService[] {
   const ids = new Set<string>();
   return items.map(item => {
@@ -44,8 +50,8 @@ function discovery(items: ServiceSummary[]): DiscoveredService[] {
     ids.add(item.id);
     return { external_id: item.id, name: item.name, region_code: location.regionCode,
       country: location.country, region: location.region, city: location.city,
-      latitude: location.latitude === null ? null : decimal(location.latitude, 8, 6),
-      longitude: location.longitude === null ? null : decimal(location.longitude, 9, 6) };
+      latitude: location.latitude === null ? null : coordinate(location.latitude, 8),
+      longitude: location.longitude === null ? null : coordinate(location.longitude, 9) };
   });
 }
 export function observation(service: StoredService, result: Awaited<ReturnType<CollectorApi['getServiceMetrics']>>,
@@ -55,17 +61,8 @@ export function observation(service: StoredService, result: Awaited<ReturnType<C
     collection_interval_seconds: null, cpu_percent: null, memory_gb: null, disk_gb: null, network_gb: null,
     metrics: {}, error_message: result.status === 'indisponivel' ? 'Serviço indisponível (HTTP 500).' : null,
     ...notCalculated() };
-  const m = result.metrics;
-  if (!Number.isInteger(m.collectionIntervalSeconds) || m.collectionIntervalSeconds < 1
-    || m.collectionIntervalSeconds > 2147483647 || m.cpuPercent < 0 || m.cpuPercent > 100
-    || [m.memoryGb, m.diskGb, m.networkGb].some(value => value < 0)
-    || !result.raw || typeof result.raw !== 'object' || Array.isArray(result.raw)) {
-    throw new ValidationError('Métricas não representáveis ou JSON bruto ausente.');
-  }
-  return { ...base, status: 'ok', collection_interval_seconds: m.collectionIntervalSeconds,
-    cpu_percent: decimal(m.cpuPercent, 5, 2), memory_gb: decimal(m.memoryGb, 20, 9),
-    disk_gb: decimal(m.diskGb, 20, 9), network_gb: decimal(m.networkGb, 20, 9),
-    metrics: result.raw, error_message: null, ...notCalculated() };
+  const collection = Collection.fromMetrics(result.metrics, result.raw);
+  return { ...base, status: 'ok', ...collection.persistenceMetrics(), error_message: null, ...notCalculated() };
 }
 
 /** HTTP fora das transações; memória guarda somente prazos desta execução. */
@@ -95,8 +92,8 @@ export class Collector implements CollectorLifecycle {
   }
   run(): Promise<void> {
     if (this.stopping) return Promise.resolve();
-    return this.active ??= this.collect().catch(() => {
-      if (!this.stopping) this.report('Falha no ciclo de descoberta/reconciliação; cadastro preservado.');
+    return this.active ??= this.collect().catch((error: unknown) => {
+      if (!this.stopping) this.report(`Falha no ciclo de descoberta/reconciliação; cadastro preservado. ${failureMessage(error)}`);
     }).finally(() => { this.active = undefined; });
   }
   async stop(): Promise<void> {
@@ -105,17 +102,18 @@ export class Collector implements CollectorLifecycle {
     this.abort.abort();
     await this.active;
   }
-  private async calculate(reading: NewCollection): Promise<NewCollection> {
+  private async calculate(stored: StoredService, reading: NewCollection): Promise<NewCollection> {
     if (reading.status !== 'ok' || !this.carbonApi) return reading;
-    if (!reading.region_code) return { ...reading,
+    const service = MonitoredService.fromStored(stored);
+    if (!service.canCalculateEmissions()) return { ...reading,
       ...unavailableCalculation('Não foi possível calcular: região não informada.') };
     try {
-      const intensity = await this.carbonApi.getIntensity(reading.region_code);
+      const intensity = await this.carbonApi.getIntensity(service.regionCode()!);
       if (intensity.status === 'region_not_found') return { ...reading,
         ...unavailableCalculation('Não há fator de carbono para esta região.') };
       const calculation = this.calculator.calculate({ collectionIntervalSeconds: reading.collection_interval_seconds,
         cpuPercent: Number(reading.cpu_percent), memoryGb: Number(reading.memory_gb),
-        diskGb: Number(reading.disk_gb), networkGb: Number(reading.network_gb) }, intensity.factor.intensityGco2ePerKwh);
+        diskGb: Number(reading.disk_gb), networkGb: Number(reading.network_gb) }, intensity.factor.intensityGco2ePerKwh).toPersistence();
       return { ...reading, calculation_status: 'disponivel',
         carbon_intensity_gco2e_per_kwh: calculation.carbonIntensityGco2ePerKwh,
         power_watts: calculation.powerWatts, energy_kwh: calculation.energyKwh,
@@ -126,7 +124,29 @@ export class Collector implements CollectorLifecycle {
     }
   }
   private async collect(): Promise<void> {
-    const found = discovery(await this.api.listServices(this.abort.signal));
+    let listed: ServiceSummary[];
+    try {
+      listed = await this.api.listServices(this.abort.signal);
+    } catch (error) {
+      if (this.stopping) return;
+      const message = `Descoberta indisponível; não foi possível consultar as métricas dos serviços. ${failureMessage(error)}`;
+      this.report(message);
+      const known = await new ServiceRepository(this.db).findAll();
+      for (const service of known) {
+        if (this.stopping) return;
+        if (service.status === 'removido') continue;
+        const previous = this.deadlines.get(service.external_id);
+        if (service.status === 'indisponivel' && previous && previous.due > this.now()) continue;
+        await this.persist(service, { service_id: service.id, collected_at: new Date(this.now()),
+          region_code: service.region_code, status: 'erro', collection_interval_seconds: null,
+          cpu_percent: null, memory_gb: null, disk_gb: null, network_gb: null, metrics: {},
+          error_message: message, ...notCalculated() });
+        const interval = previous?.interval ?? this.pollingMs;
+        this.deadlines.set(service.external_id, { interval, due: this.now() + interval });
+      }
+      return;
+    }
+    const found = discovery(listed);
     if (this.stopping) return;
     const services = await withTransaction(this.db, async tx => {
       const repo = new ServiceRepository(tx);
@@ -146,7 +166,7 @@ export class Collector implements CollectorLifecycle {
       try {
         const result = await this.api.getServiceMetrics(service.external_id, this.abort.signal);
         if (this.stopping) return;
-        reading = await this.calculate(observation(service, result, new Date(this.now())));
+        reading = await this.calculate(service, observation(service, result, new Date(this.now())));
         if (reading.status === 'ok') interval = reading.collection_interval_seconds * 1000;
       } catch (error) {
         if (this.stopping) return;
@@ -156,17 +176,20 @@ export class Collector implements CollectorLifecycle {
           error_message: error instanceof AppError ? error.message : 'Falha externa ao coletar métricas.',
           ...notCalculated() };
       }
-      try {
-        await withTransaction(this.db, async tx => {
-          await new CollectionRepository(tx).insert(reading);
-          const status = reading.status === 'ok' ? 'ativo' : reading.status === 'sem_metricas' ? 'sem_metricas' : 'indisponivel';
-          if (!await new ServiceRepository(tx).updateStatus(service.id, status))
-            throw new ValidationError('Serviço da coleta não encontrado.');
-        });
-      } catch {
-        this.report('Falha na persistência da coleta; transação desfeita, próximos serviços continuam.');
-      }
+      await this.persist(service, reading);
       this.deadlines.set(service.external_id, { interval, due: this.now() + interval });
+    }
+  }
+  private async persist(service: StoredService, reading: NewCollection): Promise<void> {
+    try {
+      await withTransaction(this.db, async tx => {
+        await new CollectionRepository(tx).insert(reading);
+        const status = MonitoringStatus.fromCollection(reading.status).value();
+        if (!await new ServiceRepository(tx).updateStatus(service.id, status))
+          throw new ValidationError('Serviço da coleta não encontrado.');
+      });
+    } catch (error) {
+      this.report(`Falha na persistência da coleta; transação desfeita, próximos serviços continuam. ${failureMessage(error)}`);
     }
   }
 }

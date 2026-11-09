@@ -7,6 +7,14 @@
 
   .brand svg {
     color: var(--accent);
+    /* A linha de batimento passa um pouco das bordas do viewBox */
+    overflow: visible;
+  }
+
+  /* Pulso a cada atualização (Brand.tsx): só o brilho usa o neon */
+  .brand-pulse {
+    stroke: var(--neon);
+    filter: drop-shadow(0 0 2px var(--neon-glow));
   }
 
   .brand-name {

@@ -1,0 +1,124 @@
+@layer components {
+  /* Compacto (cerca de 84 px de altura): em notebook a altura é o recurso escasso */
+  .metric {
+    --tone: var(--muted);
+    min-width: 0;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+
+  /* Mesmas cores do StatusBadge (docs/identidade-visual.md), sempre com o texto do rótulo. Só problema ganha tom
+     (#272): o estado saudável fica neutro, e com contagem zero o painel também deixa o card neutro, sem falso alarme */
+  .metric--danger {
+    --tone: var(--danger);
+  }
+
+  .metric--warning {
+    --tone: var(--warning);
+  }
+
+  .metric--danger,
+  .metric--warning {
+    border-left: 3px solid var(--tone);
+  }
+
+  .metric-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .metric-label {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .metric-icon {
+    display: grid;
+    flex-shrink: 0;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--tone) 12%, transparent);
+    color: var(--tone);
+  }
+
+  .metric-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  /* Número grande isolado: sans semibold com algarismos proporcionais (sem fonte de título nem tabular-nums) */
+  .metric-value {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 2px 10px;
+    margin-top: 4px;
+    font-family: var(--sans);
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.1;
+    color: var(--text);
+  }
+
+  /* "g CO₂e" é uma unidade só: não quebra entre o g e o CO₂e */
+  .metric-unit {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .metric-note {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+
+  /* Compacto (cerca de 64 px): a linha de estado fica abaixo dos indicadores do período, que são o destaque (#259) */
+  .metric--compact {
+    padding: 8px 14px;
+  }
+
+  .metric--compact .metric-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .metric--compact .metric-icon svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .metric--compact .metric-value {
+    margin-top: 2px;
+    font-size: 22px;
+  }
+
+  /* Variação com sinal (#271): energia e CO₂e são métricas em que menos é melhor, então subir é alerta e cair é bom */
+  .metric-delta {
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    color: var(--muted);
+  }
+
+  .metric-delta--worse {
+    color: var(--warning);
+  }
+
+  .metric-delta--better {
+    color: var(--accent-hover);
+  }
+
+  /* Dado da última busca bem-sucedida, exibido durante uma falha: número apagado, mas legível; a seta perde a cor,
+     porque a variação também é da última busca */
+  .metric--stale .metric-value,
+  .metric--stale .metric-delta {
+    color: var(--muted);
+  }
+}

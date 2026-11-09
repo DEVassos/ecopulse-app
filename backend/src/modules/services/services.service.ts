@@ -1,5 +1,7 @@
 import type { ServiceStatus } from '../../shared/persistence.types';
-import { ServiceRepository, type ServiceWithLastReading } from './services.repository';
+import { MonitoringStatus } from '../../domain/monitoring-status';
+import { NotFoundError } from '../../shared/errors';
+import { ServiceRepository, type ServiceComparisonRow, type ServiceRankingMetric, type ServiceRankingRow, type ServiceWithLastReading } from './services.repository';
 
 export interface MonitoredService {
   id: string;
@@ -11,7 +13,17 @@ export interface MonitoredService {
   energyKwh: number | null;
   emissionsG: number | null;
   status: ServiceStatus;
+  statusReason: string | null;
   lastReadingAt: string | null;
+  /** Código da região do cadastro (ex.: "us-east"); `region` continua sendo o nome (#297). */
+  regionCode: string | null;
+  /** Da mesma última coleta: intervalo em s, recursos em GB, potência em W e o fator usado em gCO₂e/kWh; null sem coleta ou sem cálculo. */
+  collectionIntervalSeconds: number | null;
+  memoryGb: number | null;
+  diskGb: number | null;
+  networkGb: number | null;
+  powerWatts: number | null;
+  carbonIntensityGco2ePerKwh: number | null;
 }
 
 export interface ServicesResponse {
@@ -20,6 +32,20 @@ export interface ServicesResponse {
 }
 
 const PERIOD = 'última leitura (intervalo de coleta)';
+const numberOrNull = (value: string | null): number | null => value === null ? null : Number(value);
+
+/** Expõe somente diagnósticos conhecidos; detalhes arbitrários continuam restritos ao banco/log. */
+function statusReason(service: ServiceWithLastReading): string | null {
+  const message = service.error_message;
+  if (service.status !== 'indisponivel' || !message?.trim()) return null;
+  if (message === 'Serviço indisponível (HTTP 500).' || message === 'Timeout'
+    || message === 'Falha externa ao coletar métricas.') return message;
+  if (message.startsWith('Descoberta indisponível;')) return 'Descoberta indisponível; não foi possível consultar as métricas dos serviços.';
+  if (message.startsWith('A API de métricas não respondeu em ')) return 'A API de métricas não respondeu no prazo esperado.';
+  if (message.startsWith('Não foi possível conectar à API de métricas')) return 'Não foi possível conectar à API de métricas.';
+  const http = /^A API de métricas respondeu HTTP ([1-5]\d{2}) em /.exec(message);
+  return http ? `A API de métricas respondeu HTTP ${http[1]}.` : 'Não foi possível obter as métricas deste serviço.';
+}
 
 function toMonitoredService(service: ServiceWithLastReading): MonitoredService {
   return {
@@ -28,14 +54,88 @@ function toMonitoredService(service: ServiceWithLastReading): MonitoredService {
     country: service.country,
     region: service.region,
     city: service.city,
-    cpuPercent: service.cpu_percent === null ? null : Number(service.cpu_percent),
-    energyKwh: service.energy_kwh === null ? null : Number(service.energy_kwh),
-    emissionsG: service.co2e_grams === null ? null : Number(service.co2e_grams),
-    status: service.status,
+    cpuPercent: numberOrNull(service.cpu_percent),
+    energyKwh: numberOrNull(service.energy_kwh),
+    emissionsG: numberOrNull(service.co2e_grams),
+    status: MonitoringStatus.fromValue(service.status).value(),
+    statusReason: statusReason(service),
     lastReadingAt: service.last_reading_at?.toISOString() ?? null,
+    regionCode: service.region_code,
+    collectionIntervalSeconds: service.collection_interval_seconds,
+    memoryGb: numberOrNull(service.memory_gb),
+    diskGb: numberOrNull(service.disk_gb),
+    networkGb: numberOrNull(service.network_gb),
+    powerWatts: numberOrNull(service.power_watts),
+    carbonIntensityGco2ePerKwh: numberOrNull(service.carbon_intensity_gco2e_per_kwh),
   };
 }
 
 export async function getServices(repository: ServiceRepository): Promise<ServicesResponse> {
   return { services: (await repository.findAllWithLastReading()).map(toMonitoredService), period: PERIOD };
+}
+
+export interface ServicesSummaryResponse { period: { from: string; to: string }; energyKwh: number | null; co2eGrams: number | null; services: { active: number; unavailable: number; withoutMetrics: number; removed: number } }
+
+export async function getServicesSummary(repository: ServiceRepository, period: { from: Date; to: Date }): Promise<ServicesSummaryResponse> {
+  const row = await repository.findSummary(period.from, period.to);
+  return { period: { from: period.from.toISOString(), to: period.to.toISOString() }, energyKwh: numberOrNull(row.energy_kwh), co2eGrams: numberOrNull(row.co2e_grams), services: { active: Number(row.active), unavailable: Number(row.unavailable), withoutMetrics: Number(row.without_metrics), removed: Number(row.removed) } };
+}
+
+export interface ServiceComparisonInput { ids: string[]; from: Date; to: Date }
+export interface ServiceComparisonResponse {
+  from: string; to: string;
+  services: Array<{ id: string; name: string; region: string | null; collections: number; failed: number; notCalculated: number;
+    avgCpuPercent: number | null; avgMemoryGb: number | null; avgDiskGb: number | null; avgNetworkGb: number | null; energyKwh: number | null; co2eGrams: number | null }>;
+}
+function comparison(row: ServiceComparisonRow): ServiceComparisonResponse['services'][number] {
+  return { id: row.id, name: row.name, region: row.region, collections: Number(row.collections), failed: Number(row.failed), notCalculated: Number(row.not_calculated),
+    avgCpuPercent: numberOrNull(row.avg_cpu_percent), avgMemoryGb: numberOrNull(row.avg_memory_gb), avgDiskGb: numberOrNull(row.avg_disk_gb), avgNetworkGb: numberOrNull(row.avg_network_gb), energyKwh: numberOrNull(row.energy_kwh), co2eGrams: numberOrNull(row.co2e_grams) };
+}
+export async function getServiceComparison(repository: ServiceRepository, input: ServiceComparisonInput): Promise<ServiceComparisonResponse> {
+  const rows = await repository.compareByIds(input.ids, input.from, input.to);
+  if (rows.length !== input.ids.length) throw new NotFoundError('Um ou mais serviços não foram encontrados.');
+  const byId = new Map(rows.map(row => [row.id, comparison(row)]));
+  return { from: input.from.toISOString(), to: input.to.toISOString(), services: input.ids.map(id => byId.get(id)!).filter(Boolean) };
+}
+
+export interface ServiceRankingResponse {
+  metric: ServiceRankingMetric;
+  from: string;
+  to: string;
+  services: Array<{
+    position: number | null; id: string; name: string; region: string | null; status: ServiceStatus;
+    energyKwh: number | null; co2eGrams: number | null;
+    collections: number; failed: number; notCalculated: number;
+  }>;
+}
+
+function rankedService(row: ServiceRankingRow, metric: ServiceRankingMetric, position: number): ServiceRankingResponse['services'][number] {
+  const selectedValue = metric === 'energy' ? row.energy_kwh : row.co2e_grams;
+  return {
+    position: selectedValue === null ? null : position,
+    id: String(row.id),
+    name: row.name,
+    region: row.region,
+    status: row.status,
+    energyKwh: numberOrNull(row.energy_kwh),
+    co2eGrams: numberOrNull(row.co2e_grams),
+    collections: Number(row.collections),
+    failed: Number(row.failed),
+    notCalculated: Number(row.not_calculated),
+  };
+}
+
+export async function getServiceRanking(
+  repository: ServiceRepository,
+  metric: ServiceRankingMetric,
+  period: { from: Date; to: Date },
+): Promise<ServiceRankingResponse> {
+  const rows = await repository.rankByPeriod(metric, period.from, period.to);
+  let position = 0;
+  const services = rows.map(row => {
+    const ranked = rankedService(row, metric, position + 1);
+    if (ranked.position !== null) position++;
+    return ranked;
+  });
+  return { metric, from: period.from.toISOString(), to: period.to.toISOString(), services };
 }

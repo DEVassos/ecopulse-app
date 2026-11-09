@@ -9,3 +9,5 @@ c8f807c90a725532091a3f734cd2cf7c2a8aed55 DEVassos/Projeto-GreenER Henrique.Camar
 30944e1ff10ae500a0bb5964eb2a769e22442d49 DEVassos/Projeto-GreenER Henrique.Camargo 2026-10-04
 e87209a596f78e3bac75c11bffcc96bef700bbde DEVassos/Projeto-GreenER Henrique.Camargo 2026-10-04
 1a6527eaef39b45291729c55dbb034e3e76b2a1a DEVassos/Projeto-GreenER Vinicius Ferreira 2026-10-05
+# Commit de bot que entrou direto em main (PR #96 do Dependabot, sem #n) e volta para develop na sincronização pós-release da Sprint 1 (#153).
+dc78093382a4ac81208e2aeb6bd9ed9ce25a1fc8 DEVassos/greener-app main (PR #96) dependabot[bot] 2026-10-13

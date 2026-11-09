@@ -1,6 +1,6 @@
 # Product Backlog — EcoPulse
 
-_Exportado das issues de [DEVassos/greener-app](https://github.com/DEVassos/greener-app/issues) em 20/10/2026 17:27 por `.github/scripts/backlog-export.sh`. A fonte da verdade é o GitHub Issues; este arquivo é um retrato versionado para a avaliação (ES01)._
+_Exportado das issues de [DEVassos/greener-app](https://github.com/DEVassos/greener-app/issues) em 20/10/2026 22:14 por `.github/scripts/backlog-export.sh`. A fonte da verdade é o GitHub Issues; este arquivo é um retrato versionado para a avaliação (ES01)._
 
 Legenda — Prioridade: **must** (obrigatório), **should** (importante), **could** (desejável, ex.: RF13). Estado: aberta/fechada.
 
@@ -21,9 +21,9 @@ Legenda — Prioridade: **must** (obrigatório), **should** (importante), **coul
 | [#15](https://github.com/DEVassos/greener-app/issues/15) | [BE-02] Cliente HTTP para Consumo da API Agregadora de Métricas | RF01, RF03 | tarefa | Sprint 1 | fechada | @DeaTuribio, @LUCASAMR23 |
 | [#16](https://github.com/DEVassos/greener-app/issues/16) | [BE-03] Tratamento Resiliente de Erros e Mapeamento de Status HTTP | RF05, RF06, RNF04 | tarefa | Sprint 1 | fechada | @LUCASAMR23 |
 | [#17](https://github.com/DEVassos/greener-app/issues/17) | [BE-04] Cliente HTTP para Consumo da API de Intensidade de Carbono | RF07 | tarefa | Sprint 1 | fechada | @viniciusaugusto1997 |
-| [#18](https://github.com/DEVassos/greener-app/issues/18) | [BE-05] Domain Service do Cálculo Socioambiental (Green Software) | RF07 | tarefa | Sprint 2 | aberta | @viniciusaugusto1997 |
+| [#18](https://github.com/DEVassos/greener-app/issues/18) | [BE-05] Domain Service do Cálculo Socioambiental (Green Software) | RF07 | tarefa | Sprint 2 | aberta | @LUCASAMR23 |
 | [#19](https://github.com/DEVassos/greener-app/issues/19) | [BE-06] Worker de Polling e Reconciliação Dinâmica em Background | RF02, RF03, RF04, RF10, RNF04 | tarefa | Sprint 1 | fechada | @viniciusaugusto1997 |
-| [#20](https://github.com/DEVassos/greener-app/issues/20) | [BE-07] Autenticação JWT: Login com bcrypt e Middleware de Proteção |  | tarefa | Sprint 2 | aberta | @viniciusaugusto1997 |
+| [#20](https://github.com/DEVassos/greener-app/issues/20) | [BE-07] Autenticação JWT: Login com bcrypt e Middleware de Proteção |  | tarefa | Sprint 2 | aberta | @LUCASAMR23 |
 | [#21](https://github.com/DEVassos/greener-app/issues/21) | [FE-02] Componentização dos Cards de KPIs Executivos (Nível 1) | RF08, RF09 | tarefa | Sprint 2 | aberta | @travensolli |
 | [#22](https://github.com/DEVassos/greener-app/issues/22) | [FE-03] Tabela Operacional de Serviços com Status e Localização | RF09, RF12 | tarefa | Sprint 1 | fechada | @DeaTuribio |
 | [#23](https://github.com/DEVassos/greener-app/issues/23) | [FE-04] Hook Customizado de Polling e Atualização em Tempo Real Sem Reload | RF11, RNF02 | tarefa | Sprint 1 | fechada | @DeaTuribio |
@@ -32,15 +32,15 @@ Legenda — Prioridade: **must** (obrigatório), **should** (importante), **coul
 | [#27](https://github.com/DEVassos/greener-app/issues/27) | [DEVOPS-02] Configuração do compose.yaml com Volume Persistente PostgreSQL | RNF05 | tarefa | Sprint 1 | fechada | @travensolli, @henriqueptbd-cell |
 | [#28](https://github.com/DEVassos/greener-app/issues/28) | [ARQ-01] Modelagem UML (Diagrama de Classes / ERD) com Mermaid |  | processo | Sprint 1 | fechada | @LUCASAMR23, @viniciusaugusto1997 |
 | [#42](https://github.com/DEVassos/greener-app/issues/42) | US01 — Descoberta e ingestão dinâmica de serviços | RF01, RF02, RF03, RF04, RF05, RF06, RNF04 | historia | Sprint 1 | fechada | @LUCASAMR23 |
-| [#43](https://github.com/DEVassos/greener-app/issues/43) | US02 — Motor de cálculo ambiental (potência, energia e CO₂e) | RF07, RF12 | historia | Sprint 2 | aberta |  |
+| [#43](https://github.com/DEVassos/greener-app/issues/43) | US02 — Motor de cálculo ambiental (potência, energia e CO₂e) | RF07, RF12 | historia | Sprint 2 | aberta | @LUCASAMR23 |
 | [#44](https://github.com/DEVassos/greener-app/issues/44) | US03 — Modelagem e persistência em PostgreSQL (SQL puro) | RF10 | historia | Sprint 1 | fechada | @viniciusaugusto1997 |
 | [#45](https://github.com/DEVassos/greener-app/issues/45) | US04 — Dashboard executivo e operacional em tempo real | RF08, RF09, RF11, RNF01, RNF02 | historia | Sprint 2 | aberta | @DeaTuribio |
 | [#46](https://github.com/DEVassos/greener-app/issues/46) | US05 — Infraestrutura e dockerização total | RNF05 | historia | Sprint 1 | fechada | @travensolli |
 | [#47](https://github.com/DEVassos/greener-app/issues/47) | US06 — Gestão e documentação da sprint (Product Owner) | RNF05 | historia | Sprint 1 | fechada | @henriqueptbd-cell |
-| [#48](https://github.com/DEVassos/greener-app/issues/48) | US07 — Autenticação segura JWT (backend e frontend) | RNF05 | historia | Sprint 2 | aberta |  |
-| [#49](https://github.com/DEVassos/greener-app/issues/49) | US08 — Histórico de coletas e consultas SQL de análise | RF04, RF10 | historia | Sprint 2 | aberta |  |
-| [#50](https://github.com/DEVassos/greener-app/issues/50) | US09 — Ranking de impacto e eficiência energética | RF14 | historia | Sprint 2 | aberta |  |
-| [#52](https://github.com/DEVassos/greener-app/issues/52) | US11 — Módulo de comparação entre serviços | RF15 | historia | Sprint 3 | aberta |  |
+| [#48](https://github.com/DEVassos/greener-app/issues/48) | US07 — Autenticação segura JWT (backend e frontend) | RNF05 | historia | Sprint 2 | aberta | @LUCASAMR23 |
+| [#49](https://github.com/DEVassos/greener-app/issues/49) | US08 — Histórico de coletas e consultas SQL de análise | RF04, RF10 | historia | Sprint 2 | aberta | @LUCASAMR23 |
+| [#50](https://github.com/DEVassos/greener-app/issues/50) | US09 — Ranking de impacto e eficiência energética | RF14 | historia | Sprint 2 | aberta | @DeaTuribio |
+| [#52](https://github.com/DEVassos/greener-app/issues/52) | US11 — Módulo de comparação entre serviços | RF15 | historia | Sprint 2 | aberta | @DeaTuribio |
 | [#55](https://github.com/DEVassos/greener-app/issues/55) | US14 — Polimento, validação de carga e documentação de portfólio | RNF03, RNF05 | historia | Sprint 3 | aberta |  |
 | [#56](https://github.com/DEVassos/greener-app/issues/56) | [PO-03] Importar o histórico do repositório Projeto-GreenER (autoria preservada) | RNF05 | processo | Sprint 1 | fechada | @travensolli |
 | [#58](https://github.com/DEVassos/greener-app/issues/58) | [PO-04] Checklist de início: configuração do ambiente e Sprint 1 (por integrante) |  | processo | Sprint 1 | fechada | @travensolli, @DeaTuribio, @LUCASAMR23, @henriqueptbd-cell, @viniciusaugusto1997 |
@@ -64,9 +64,15 @@ Legenda — Prioridade: **must** (obrigatório), **should** (importante), **coul
 | [#146](https://github.com/DEVassos/greener-app/issues/146) | [tarefa] Alinhar a documentação ao código entregue na Sprint 1 (ES08) | RNF05 | tarefa | Sprint 1 | fechada | @travensolli |
 | [#148](https://github.com/DEVassos/greener-app/issues/148) | [processo] Exportar o backlog e alinhar as histórias no fechamento da Sprint 1 |  | processo | Sprint 1 | fechada | @travensolli |
 | [#150](https://github.com/DEVassos/greener-app/issues/150) | [processo] Atualizar o registro da Sprint 1 e o plano no congelamento |  | processo | Sprint 1 | fechada | @travensolli |
-| [#153](https://github.com/DEVassos/greener-app/issues/153) | [processo] Entrega da Sprint 1 |  | processo | Sprint 1 | aberta | @travensolli |
-| [#158](https://github.com/DEVassos/greener-app/issues/158) | [processo] Retrospectiva da Sprint 1 — respostas individuais |  | processo | Sprint 1 | aberta | @travensolli |
+| [#153](https://github.com/DEVassos/greener-app/issues/153) | [processo] Entrega da Sprint 1 |  | processo | Sprint 1 | fechada | @travensolli |
+| [#158](https://github.com/DEVassos/greener-app/issues/158) | [processo] Retrospectiva da Sprint 1 — respostas individuais |  | processo | Sprint 1 | fechada | @travensolli |
 | [#159](https://github.com/DEVassos/greener-app/issues/159) | [processo] Priorizar a comparação entre serviços e a análise dos dados (feedback da Review 1) | RF14, RF15 | processo | Sprint 2 | aberta | @henriqueptbd-cell |
+| [#166](https://github.com/DEVassos/greener-app/issues/166) | [processo] Enviar ao cliente as dúvidas estruturadas sobre o objetivo do produto |  | processo | Sprint 2 | aberta | @henriqueptbd-cell |
+| [#172](https://github.com/DEVassos/greener-app/issues/172) | Daily — Sprint 2 |  | processo | Sprint 2 | aberta | @travensolli |
+| [#173](https://github.com/DEVassos/greener-app/issues/173) | [tarefa] Classes de domínio com encapsulamento e testes (TP01) | RF02, RF07 | tarefa | Sprint 2 | aberta | @LUCASAMR23 |
+| [#174](https://github.com/DEVassos/greener-app/issues/174) | [tarefa] Erros tipados e middleware de tratamento (TP03) | RF02, RF05, RF06, RNF04 | tarefa | Sprint 2 | aberta | @viniciusaugusto1997 |
+| [#175](https://github.com/DEVassos/greener-app/issues/175) | [tarefa] Painel de indicadores agregados no dashboard (RF08) | RF08 | tarefa | Sprint 2 | aberta | @DeaTuribio, @LUCASAMR23 |
+| [#176](https://github.com/DEVassos/greener-app/issues/176) | [tarefa] Intervalo de atualização configurável e estados destacados | RF05, RF06, RF11, RNF02 | tarefa | Sprint 2 | aberta | @DeaTuribio |
 
 ## Prioridade should
 
@@ -83,6 +89,16 @@ Legenda — Prioridade: **must** (obrigatório), **should** (importante), **coul
 | [#106](https://github.com/DEVassos/greener-app/issues/106) | [FE-04] Ajustes da revisão do polling (#23): limites, acessibilidade e docs | RF11, RNF02 | tarefa | Sprint 1 | fechada | @DeaTuribio |
 | [#127](https://github.com/DEVassos/greener-app/issues/127) | [processo] Descontinuar e arquivar o Projeto-GreenER e o Project 'GreenER - Desenvolvimento' |  | processo | Sprint 1 | fechada | @travensolli |
 | [#129](https://github.com/DEVassos/greener-app/issues/129) | [tarefa] Documenta o status Removido da tabela de serviços | RF02 | tarefa | Sprint 1 | fechada | @DeaTuribio |
+| [#160](https://github.com/DEVassos/greener-app/issues/160) | [tarefa] Verificação de lint com ESLint no frontend e no CI |  | tarefa | Sprint 2 | aberta | @travensolli |
+| [#161](https://github.com/DEVassos/greener-app/issues/161) | [tarefa] Validar o formato das respostas da API nas fronteiras do frontend | RNF04 | tarefa | Sprint 2 | aberta | @travensolli |
+| [#162](https://github.com/DEVassos/greener-app/issues/162) | [tarefa] Rodar os testes de integração com PostgreSQL no CI | RNF04 | tarefa | Sprint 2 | aberta | @travensolli |
+| [#163](https://github.com/DEVassos/greener-app/issues/163) | [tarefa] Atualizar o Vitest do backend e eliminar os alertas do npm audit |  | tarefa | Sprint 2 | aberta | @viniciusaugusto1997 |
+| [#164](https://github.com/DEVassos/greener-app/issues/164) | [processo] Rulesets: checks do CI obrigatórios e validação cruzada sem bypass |  | processo | Sprint 2 | aberta | @travensolli |
+| [#165](https://github.com/DEVassos/greener-app/issues/165) | [processo] Permalinks com SHA no plano e uma fonte principal por assunto |  | processo | Sprint 2 | aberta | @henriqueptbd-cell |
+| [#167](https://github.com/DEVassos/greener-app/issues/167) | [processo] Contrato de integração na issue antes do primeiro commit |  | processo | Sprint 2 | aberta | @DeaTuribio |
+| [#168](https://github.com/DEVassos/greener-app/issues/168) | [processo] Revisão cruzada em todo PR |  | processo | Sprint 2 | aberta | @travensolli |
+| [#169](https://github.com/DEVassos/greener-app/issues/169) | [processo] Daily por texto respondida no mesmo dia |  | processo | Sprint 2 | aberta | @travensolli |
+| [#180](https://github.com/DEVassos/greener-app/issues/180) | [tarefa] Fundo azul com verde nos destaques e logo que pulsa a cada atualização | RNF01 | tarefa | Sprint 2 | aberta | @DeaTuribio |
 
 ## Prioridade could
 
@@ -113,28 +129,30 @@ Legenda — Prioridade: **must** (obrigatório), **should** (importante), **coul
 | [#132](https://github.com/DEVassos/greener-app/issues/132) | [tarefa] Gráfico de CPU no histórico do serviço | RF10 | tarefa | Sprint 2 | aberta | @travensolli |
 | [#134](https://github.com/DEVassos/greener-app/issues/134) | [tarefa] Registra o adiantamento do cálculo de CO₂e: plano, ADR 0006 e roteiro da review | RF07 | tarefa | Sprint 1 | fechada | @henriqueptbd-cell |
 | [#140](https://github.com/DEVassos/greener-app/issues/140) | [tarefa] Histórico de coletas marca buracos de coleta (Sem coleta por …) | RF04, RF10 | tarefa | Sprint 2 | aberta | @henriqueptbd-cell |
+| [#177](https://github.com/DEVassos/greener-app/issues/177) | Daily — Sprint 2 |  | processo | Sprint 2 | fechada | @travensolli |
+| [#178](https://github.com/DEVassos/greener-app/issues/178) | [processo] Planejamento da Sprint 2 |  | processo | Sprint 2 | aberta | @travensolli |
 
 ## Cobertura do escopo obrigatório
 
 | Requisito | Issues |
 |---|---|
 | RF01 | #111, #42, #35, #15 |
-| RF02 | #129, #42, #35, #19 |
+| RF02 | #174, #173, #129, #42, #35, #19 |
 | RF03 | #112, #97, #42, #36, #19, #15 |
 | RF04 | #140, #97, #49, #42, #36, #19 |
-| RF05 | #42, #35, #16 |
-| RF06 | #42, #35, #16 |
-| RF07 | #134, #133, #103, #43, #37, #18, #17 |
-| RF08 | #45, #37, #21 |
+| RF05 | #176, #174, #42, #35, #16 |
+| RF06 | #176, #174, #42, #35, #16 |
+| RF07 | #173, #134, #133, #103, #43, #37, #18, #17 |
+| RF08 | #175, #45, #37, #21 |
 | RF09 | #131, #120, #118, #111, #45, #38, #22, #21 |
 | RF10 | #140, #132, #131, #112, #97, #49, #44, #36, #19, #14, #5 |
-| RF11 | #106, #45, #38, #23 |
+| RF11 | #176, #106, #45, #38, #23 |
 | RF12 | #51, #43, #38, #22 |
 | RF13 | #51, #38 |
 | RF14 | #159, #50, #39 |
 | RF15 | #159, #53, #52, #39 |
-| RNF01 | #120, #87, #66, #45, #38, #11, #10, #9 |
-| RNF02 | #106, #104, #45, #38, #23, #12, #7 |
+| RNF01 | #180, #120, #87, #66, #45, #38, #11, #10, #9 |
+| RNF02 | #176, #106, #104, #45, #38, #23, #12, #7 |
 | RNF03 | #55, #41 |
-| RNF04 | #97, #42, #41, #19, #16 |
+| RNF04 | #174, #162, #161, #97, #42, #41, #19, #16 |
 | RNF05 | #146, #80, #67, #65, #64, #56, #55, #54, #48, #47, #46, #41, #27, #26, #8, #4 |

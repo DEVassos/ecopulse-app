@@ -1,0 +1,354 @@
+/* Página Emissões (#190) — cores só pelos tokens de global.css */
+@layer components {
+  .emissions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ── Filtros ── */
+  /*
+   * Barra em grupos (#267): Serviço · Período (seletor da #273) · Agrupar por · Tempo real. No celular, um grupo por
+   * linha, na mesma ordem de leitura; a partir de 960 px, tudo numa faixa.
+   */
+  .emissions__filters {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: end;
+    gap: 12px 20px;
+    padding: 14px 16px;
+  }
+
+  @media (min-width: 960px) {
+    .emissions__filters {
+      grid-template-columns: minmax(200px, 1fr) auto minmax(150px, 220px) auto;
+    }
+  }
+
+  .emissions__field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .emissions__field--service {
+    min-width: 0;
+  }
+
+  /* Período: legenda como os rótulos dos campos; ◀ e ▶ ficam junto das datas que eles andam */
+  .emissions__period {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+
+  .emissions__period legend {
+    margin-bottom: 4px;
+    padding: 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* Seletor de período (#273): a linha inteira no celular; na faixa larga, a largura do conteúdo */
+  .emissions__period .period-picker {
+    width: 100%;
+  }
+
+  @media (min-width: 600px) {
+    .emissions__period .period-picker {
+      width: auto;
+    }
+  }
+
+  /* Tempo real: interruptor à direita da faixa */
+  .emissions__live {
+    justify-self: start;
+  }
+
+  @media (min-width: 960px) {
+    .emissions__live {
+      justify-self: end;
+    }
+  }
+
+  .emissions__field select {
+    min-height: 38px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+  }
+
+  .emissions__field select {
+    width: 100%;
+    text-overflow: ellipsis;
+  }
+
+  .emissions__field select:focus-visible {
+    outline: 2px solid var(--sky);
+    outline-offset: 1px;
+  }
+
+  .emissions__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .emissions__btn:hover:not(:disabled) {
+    border-color: var(--muted);
+    color: var(--text);
+  }
+
+  .emissions__btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .emissions__btn--live.is-on {
+    border-color: var(--accent);
+    color: var(--accent-hover);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+
+  /* "Tempo real" ligado: ponto neon com um anel que pulsa (o anel fica parado com movimento reduzido) */
+  .emissions__live-dot {
+    position: relative;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--neon);
+    box-shadow: 0 0 8px var(--neon-glow);
+  }
+
+  .emissions__live-dot::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border: 1px solid var(--neon);
+    border-radius: 50%;
+    opacity: 0.5;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .emissions__live-dot::after {
+      animation: emissions-pulse 2s ease-out infinite;
+    }
+  }
+
+  @keyframes emissions-pulse {
+    from {
+      transform: scale(0.6);
+      opacity: 0.9;
+    }
+    to {
+      transform: scale(1.8);
+      opacity: 0;
+    }
+  }
+
+
+
+
+  /* Por coleta (ou intervalo) / Acumulado: botões colados, o escolhido em destaque */
+  /* Forma de exibir o gráfico, no card e à direita, logo acima dele (#267) */
+  .emissions__chart-bar {
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .emissions__segmented {
+    display: inline-flex;
+    gap: 0;
+  }
+
+  .emissions__segmented .emissions__btn {
+    border-radius: 0;
+  }
+
+  .emissions__segmented .emissions__btn:first-child {
+    border-radius: 8px 0 0 8px;
+  }
+
+  .emissions__segmented .emissions__btn:last-child {
+    border-radius: 0 8px 8px 0;
+    border-left: none;
+  }
+
+  .emissions__segmented .emissions__btn[aria-pressed='true'] {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+
+  .emissions__form-error {
+    flex-basis: 100%;
+    margin: 0;
+    font-size: 13px;
+    color: var(--danger);
+  }
+
+  /* ── Cartão do resumo (e do gráfico) ── */
+  .emissions__card {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 18px 16px 14px;
+  }
+
+  .emissions__header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px 16px;
+  }
+
+  /* Nome do serviço e a etiqueta "estimado" na mesma linha; a etiqueta desce para baixo do nome se faltar espaço */
+  .emissions__heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 10px;
+  }
+
+  .emissions__title {
+    margin: 0;
+    font-family: var(--display);
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .emissions__subtitle {
+    margin: 2px 0 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .emissions__spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .emissions__spinner {
+      animation: emissions-spin 0.8s linear infinite;
+    }
+  }
+
+  @keyframes emissions-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .emissions__stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin: 0;
+  }
+
+  .emissions__stats > div {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+
+  .emissions__stats dt {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* Número isolado: sans semibold, como os cards de estado do dashboard (MetricTile.css) */
+  .emissions__stats dd {
+    display: flex;
+    flex-direction: column;
+    margin: 4px 0 0;
+    font-family: var(--sans);
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* 12 px: o menor degrau da escala tipográfica (#262) */
+  .emissions__stats small {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+
+  /* Pico: o card que pede atenção ganha o neon; os outros seguem neutros */
+  .emissions__stats > .emissions__stat--peak {
+    border-color: color-mix(in srgb, var(--neon) 45%, transparent);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--neon) 12%, transparent);
+  }
+
+  .emissions__stat--peak dd {
+    /* --neon-text: no tema claro o neon de gráfico não passa no AA como texto (#265) */
+    color: var(--neon-text);
+  }
+
+  /* Dado da última busca bem-sucedida, exibido durante uma falha: números apagados, mas legíveis (como o MetricTile) */
+  .emissions__stats--stale dd,
+  .emissions__stats--stale .emissions__stat--peak dd {
+    color: var(--muted);
+  }
+
+  .emissions__stats--stale > .emissions__stat--peak {
+    border-color: var(--border);
+    box-shadow: none;
+  }
+
+  .emissions__chart {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .emissions__empty {
+    margin: 0;
+    padding: 48px 16px;
+    border: 1px dashed var(--border);
+    border-radius: 10px;
+    text-align: center;
+    color: var(--muted);
+  }
+
+  .emissions__notice {
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--yellow) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--yellow) 35%, transparent);
+    font-size: 13px;
+    color: var(--text-2);
+  }
+
+  .emissions__notice code {
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+  }
+}

@@ -9,9 +9,33 @@ export interface ServiceWithLastReading {
   region: string | null;
   city: string | null;
   last_reading_at: Date | null;
+  error_message: string | null;
   cpu_percent: string | null;
   energy_kwh: string | null;
   co2e_grams: string | null;
+  /** Campos da mesma última coleta expostos ao dashboard (#297); `integer` chega como number, `numeric` como string. */
+  region_code: string | null;
+  collection_interval_seconds: number | null;
+  memory_gb: string | null;
+  disk_gb: string | null;
+  network_gb: string | null;
+  power_watts: string | null;
+  carbon_intensity_gco2e_per_kwh: string | null;
+}
+export interface ServicesSummaryRow { energy_kwh: string | null; co2e_grams: string | null; active: string; unavailable: string; without_metrics: string; removed: string }
+
+export interface ServiceComparisonRow {
+  id: DatabaseId; name: string; region: string | null;
+  collections: string; failed: string; not_calculated: string;
+  avg_cpu_percent: string | null; avg_memory_gb: string | null; avg_disk_gb: string | null; avg_network_gb: string | null;
+  energy_kwh: string | null; co2e_grams: string | null;
+}
+
+export type ServiceRankingMetric = 'energy' | 'co2e';
+export interface ServiceRankingRow {
+  id: DatabaseId; name: string; region: string | null; status: ServiceStatus;
+  collections: string; failed: string; not_calculated: string;
+  energy_kwh: string | null; co2e_grams: string | null;
 }
 
 export class ServiceRepository {
@@ -24,17 +48,75 @@ export class ServiceRepository {
   }
   async findAllWithLastReading(): Promise<ServiceWithLastReading[]> {
     return (await this.db.query<ServiceWithLastReading>(`
-      SELECT s.id, s.name, s.status, s.country, s.region, s.city,
-        latest.collected_at AS last_reading_at, latest.cpu_percent, latest.energy_kwh, latest.co2e_grams
+      SELECT s.id, s.name, s.status, s.country, s.region, s.city, s.region_code,
+        latest.collected_at AS last_reading_at, latest.cpu_percent, latest.energy_kwh, latest.co2e_grams, latest.error_message,
+        latest.collection_interval_seconds, latest.memory_gb, latest.disk_gb, latest.network_gb,
+        latest.power_watts, latest.carbon_intensity_gco2e_per_kwh
       FROM services AS s
       LEFT JOIN LATERAL (
-        SELECT collected_at, cpu_percent, energy_kwh, co2e_grams
+        SELECT collected_at, cpu_percent, energy_kwh, co2e_grams, error_message,
+          collection_interval_seconds, memory_gb, disk_gb, network_gb, power_watts, carbon_intensity_gco2e_per_kwh
         FROM collections
         WHERE service_id = s.id
         ORDER BY collected_at DESC, id DESC
         LIMIT 1
       ) AS latest ON true
       ORDER BY s.name ASC, s.id ASC`)).rows;
+  }
+  async findSummary(from: Date, to: Date): Promise<ServicesSummaryRow> {
+    const result = await this.db.query<ServicesSummaryRow>(`
+      SELECT
+        (SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel'))::text AS energy_kwh,
+        (SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel'))::text AS co2e_grams,
+        COUNT(DISTINCT s.id) FILTER (WHERE s.status = 'ativo')::text AS active,
+        COUNT(DISTINCT s.id) FILTER (WHERE s.status = 'indisponivel')::text AS unavailable,
+        COUNT(DISTINCT s.id) FILTER (WHERE s.status = 'sem_metricas')::text AS without_metrics,
+        COUNT(DISTINCT s.id) FILTER (WHERE s.status = 'removido')::text AS removed
+      FROM services AS s
+      LEFT JOIN collections AS c ON c.service_id = s.id AND c.collected_at >= $1 AND c.collected_at < $2`, [from, to]);
+    return result.rows[0] ?? { energy_kwh: null, co2e_grams: null, active: '0', unavailable: '0', without_metrics: '0', removed: '0' };
+  }
+
+  async compareByIds(ids: DatabaseId[], from: Date, to: Date): Promise<ServiceComparisonRow[]> {
+    return (await this.db.query<ServiceComparisonRow>(`
+      SELECT s.id, s.name, s.region,
+        COUNT(c.id)::text AS collections,
+        COUNT(c.id) FILTER (WHERE c.status <> 'ok')::text AS failed,
+        COUNT(c.id) FILTER (WHERE c.calculation_status <> 'disponivel')::text AS not_calculated,
+        AVG(c.cpu_percent) FILTER (WHERE c.status = 'ok') AS avg_cpu_percent,
+        AVG(c.memory_gb) FILTER (WHERE c.status = 'ok') AS avg_memory_gb,
+        AVG(c.disk_gb) FILTER (WHERE c.status = 'ok') AS avg_disk_gb,
+        AVG(c.network_gb) FILTER (WHERE c.status = 'ok') AS avg_network_gb,
+        SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel') AS energy_kwh,
+        SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel') AS co2e_grams
+      FROM services AS s
+      LEFT JOIN collections AS c ON c.service_id = s.id AND c.collected_at >= $2 AND c.collected_at < $3
+      WHERE s.id = ANY($1::bigint[])
+      GROUP BY s.id, s.name, s.region
+      ORDER BY s.id ASC`, [ids, from, to])).rows;
+  }
+  async rankByPeriod(metric: ServiceRankingMetric, from: Date, to: Date): Promise<ServiceRankingRow[]> {
+    return (await this.db.query<ServiceRankingRow>(`
+      SELECT s.id, s.name, s.region, s.status,
+        COUNT(c.id)::text AS collections,
+        COUNT(c.id) FILTER (WHERE c.status <> 'ok')::text AS failed,
+        COUNT(c.id) FILTER (WHERE c.calculation_status <> 'disponivel')::text AS not_calculated,
+        SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel') AS energy_kwh,
+        SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel') AS co2e_grams
+      FROM services AS s
+      LEFT JOIN collections AS c ON c.service_id = s.id AND c.collected_at >= $1 AND c.collected_at < $2
+      WHERE s.status <> 'removido' OR c.id IS NOT NULL
+      GROUP BY s.id, s.name, s.region, s.status
+      ORDER BY
+        CASE
+          WHEN $3::text = 'energy'
+            THEN SUM(c.energy_kwh)
+              FILTER (WHERE c.calculation_status = 'disponivel')
+          ELSE SUM(c.co2e_grams)
+              FILTER (WHERE c.calculation_status = 'disponivel')
+        END DESC NULLS LAST,
+        s.name ASC,
+        s.id ASC`, [from, to, metric])).rows;
   }
   async upsert(service: DiscoveredService, observedAt: Date): Promise<StoredService> {
     const result = await this.db.query<StoredService>(`

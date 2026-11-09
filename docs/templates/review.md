@@ -8,12 +8,12 @@
 | Local | `<sala / chamada online>` |
 | Participantes do time | @henriqueptbd-cell (PO), @travensolli (SM, escriba), @DeaTuribio, @LUCASAMR23, @viniciusaugusto1997 |
 | Cliente / avaliadores | `<nome — UniLaunch>`, `<professor(a)>` |
-| Versão demonstrada | branch `release/sprint-N`, commit `<sha curto>` → tag [`sprint-N`](https://github.com/DEVassos/greener-app/releases/tag/sprint-N) após o fechamento |
+| Versão demonstrada | branch `release/sprint-N`, commit `<sha curto>` → tag [`sprint-N`](https://github.com/DEVassos/ecopulse-app/releases/tag/sprint-N) após o fechamento |
 | Ambiente | `docker compose up --build` em `<máquina / clone limpo>` |
 
 ## 1. Objetivo da sprint e resultado
 
-`<objetivo da sprint>` — resultado: `<atingido / parcialmente atingido / não atingido>`, com `<x>` de `<y>` itens concluídos.
+`<objetivo da sprint>` — resultado: `<atingido / parcialmente atingido / não atingido>`. A situação de cada critério fica **só** no [plano de entregas](../../plano-de-entregas.md#sprint-n); esta ata aponta para ele em vez de repetir números ou status.
 
 ## 2. Roteiro da demonstração (por requisito)
 

@@ -33,7 +33,7 @@ O **painel da região** tem as cinco abas descritas na seção 4 de [identidade-
 
 O protótipo mostra a visão completa do produto; nem tudo entra na Sprint 1:
 
-- Ranking, mapa, recomendações e painel da região estão previstos para a Sprint 3 (US09–US12).
+- Ranking (US09) e comparação (US11) estão previstos para a Sprint 2 (#159); o mapa (US10) também, como could, e se não sair vai para a Sprint 3; recomendações e painel da região ficam na Sprint 3.
 - Os cards de KPI (#21) e o login (#25) estão na Sprint 2.
 - A tela de **cadastro** é visão futura: o cadastro ficou **fora do MVP** ([#63](https://github.com/DEVassos/greener-app/issues/63)), e no MVP o usuário inicial nasce junto com o banco. O protótipo a mantém para mostrar o fluxo completo do produto.
 

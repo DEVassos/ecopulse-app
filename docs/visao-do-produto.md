@@ -99,7 +99,7 @@ A aplicação será dividida em três níveis de detalhamento:
 
 ## 9. Fronteira do Escopo (Trava de MVP vs. Futuro)
 
-### 9.1 MVP da Sprint 1 (entregue na tag [`sprint-1`](https://github.com/DEVassos/greener-app/releases/tag/sprint-1), em 20/10/2026)
+### 9.1 MVP da Sprint 1 (entregue na tag [`sprint-1`](https://github.com/DEVassos/ecopulse-app/releases/tag/sprint-1), em 20/10/2026)
 
 No replanejamento de 05/10 ([plano de entregas](plano-de-entregas.md)), a Sprint 1 ficou com o pipeline e a primeira tela. O que está em `develop`:
 
@@ -120,7 +120,7 @@ Foram para a Sprint 2: os KPIs consolidados (Nível 1), a autenticação JWT da 
 
 ### 9.3 Fora do Escopo (Não priorizar sem validação prévia)
 
-- **Consumo de água:** Não há especificação oficial e metodologia validada no desafio atual.
+- **Consumo de água:** Não faz parte do desafio atual; o cliente admite considerá-lo como extra após a entrega principal, sem ampliar o escopo contratado. Não há API ou metodologia oficial validada. Ver [resposta do cliente na Review 1](sprints/sprint-1/review.md#32-resposta-complementar-do-cliente-02112026).
 - **Estimativas monetárias/financeiras:** O foco é puramente socioambiental (ESG).
 - **Mapeamento geográfico de alta precisão/polígonos:** A API fornece apenas coordenadas aproximadas.
 

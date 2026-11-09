@@ -1,0 +1,63 @@
+@layer components {
+  /*
+   * Barras da comparação (#218) sobre trilho em --border. Cor por grandeza, a mesma em todas as telas (#274): energia
+   * em --sky e CO₂e em --accent. No CO₂e, só o maior muda de cor (--warning, o tom de problema); o menor fica na cor
+   * da grandeza, marcado pela seta.
+   */
+  .compare-chart svg {
+    display: block;
+  }
+
+  .compare-chart__name {
+    fill: var(--text-2);
+    font-size: 12px;
+  }
+
+  .compare-chart__value {
+    fill: var(--text);
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+  }
+
+  .compare-chart__value--missing {
+    fill: var(--muted);
+    font-family: var(--sans);
+  }
+
+  .compare-chart__track {
+    fill: var(--border);
+  }
+
+  .compare-chart__bar--energy {
+    fill: var(--sky);
+  }
+
+  .compare-chart__bar--co2e {
+    fill: var(--accent);
+  }
+
+  .compare-chart__flag--lowest {
+    fill: var(--accent-hover);
+  }
+
+  .compare-chart__bar--highest,
+  .compare-chart__flag--highest {
+    fill: var(--warning);
+  }
+
+  .compare-chart__flag--lowest,
+  .compare-chart__flag--highest {
+    font-weight: 600;
+  }
+
+  .compare-chart__key {
+    width: 12px;
+    height: 8px;
+    border-radius: 2px;
+  }
+
+  .compare-chart__key--highest {
+    background: var(--warning);
+  }
+}

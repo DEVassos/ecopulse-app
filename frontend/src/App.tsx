@@ -1,20 +1,38 @@
 import { Navigate, Route, Routes } from 'react-router';
+import ProtectedRoute from './components/ProtectedRoute';
+import TooltipLayer from './components/TooltipLayer';
+import ComparePage from './pages/ComparePage';
 import DashboardPage from './pages/DashboardPage';
+import EmissionsPage from './pages/EmissionsPage';
+import LoginPage from './pages/LoginPage';
 import SettingsPage from './pages/SettingsPage';
+import AuthProvider from './providers/AuthProvider';
 import MonitoringProvider from './providers/MonitoringProvider';
 
 export default function App() {
   return (
-    <MonitoringProvider>
-      <Routes>
-        {/* Área pública: o dashboard abre direto, sem login */}
-        <Route path="/" element={<DashboardPage />} />
+    <AuthProvider>
+      <MonitoringProvider>
+        <Routes>
+          {/* Única página aberta sem sessão */}
+          <Route path="/login" element={<LoginPage />} />
 
-        {/* Configuração do monitoramento: rota reservada; a proteção por login (JWT) é escopo da #25 */}
-        <Route path="/configuracao" element={<SettingsPage />} />
+          {/* Aplicação inteira exige sessão (#257): sem ela, o ProtectedRoute manda para /login */}
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<DashboardPage />} />
+            <Route path="/emissoes" element={<EmissionsPage />} />
+            <Route path="/comparacao" element={<ComparePage />} />
+          </Route>
+          {/* Configuração exige sessão até no modo demonstração, em que não há backend para entrar */}
+          <Route element={<ProtectedRoute allowDemo={false} />}>
+            <Route path="/configuracao" element={<SettingsPage />} />
+          </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </MonitoringProvider>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        {/* Um tooltip só para a aplicação inteira (#274): qualquer elemento com data-tooltip */}
+        <TooltipLayer />
+      </MonitoringProvider>
+    </AuthProvider>
   );
 }

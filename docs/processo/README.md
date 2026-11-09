@@ -105,24 +105,26 @@ Ninguém move manualmente para Concluído: a única porta é o merge em `develop
 
 ## 5. Onde fica cada coisa
 
-| Arquivo / local | Conteúdo | Dono |
-|---|---|---|
-| GitHub Issues + [quadro](quadro.md) | Product Backlog vivo, Sprint Backlog (milestone), estado de cada item | PO (conteúdo), SM (quadro) |
-| `docs/backlog/product-backlog.md` | Retrato versionado das issues, gerado por `backlog-export.sh` na planning e no fechamento | SM |
-| `docs/plano-de-entregas.md` | Plano das três sprints exigido pela rubrica: critérios, entregas, responsáveis, evidências, situação, histórico de alterações | PO (SM revisa) |
-| `docs/requisitos.md` | RF/RNF/RP do edital com âncoras e critérios da rubrica relacionados | PO |
-| `docs/processo/*.md` | Este processo, DoR/DoD, quadro, onboarding | SM |
-| `docs/templates/*.md` | Modelos de todos os registros Scrum e dos documentos técnicos | SM |
-| `docs/sprints/sprint-N.md` | Registro oficial da sprint: objetivo, versão/tag, concluídos, pendentes, verificações realizadas, review, métricas | SM (PO valida) |
-| `docs/sprints/sprint-N/planning.md` · `review.md` · `retrospectiva.md` · `contribuicao.md` | Atas das cerimônias e relatório de participação (ES09) | SM |
-| `docs/sprints/sprint-N/burndown.md` | Burndown da sprint em Story Points, gerado por `burndown.sh N` ([seção 2.2](#22-burndown-da-sprint)) | SM |
-| `docs/sprints/sprint-N/dailies/AAAA-MM-DD.md` | Ata de cada daily (uma por dia útil) | SM ou quem registrar |
-| `docs/adr/` | Decisões de arquitetura no formato MADR, com rastreabilidade para issue/RF/critério | devs e SM |
-| `docs/api.md` · `docs/arquitetura.md` · `docs/calculos.md` | Documentação técnica; nasce no mesmo PR do código que documenta | dev da área (`calculos.md`: PO com o dev backend) |
-| `README.md` da raiz · `frontend/README.md` · `backend/README.md` · `database/README.md` | O que existe de fato e como executar | dev da área; raiz: SM com o PO |
-| `.github/CONTRIBUTING.md` | Regras de branch, commit, co-autoria, PR, release e tags | SM |
-| `.github/equipe.json` · `.github/calendario.json` | Dados do time e do calendário usados por scripts, hooks e CI | SM (alteração via PR) |
-| `.github/workflows` · `.github/scripts` | Checks (`commits`, `pr`, `docs`), automação do quadro, CI, exportadores | SM |
+| Arquivo / local | Conteúdo | Fonte principal de | Dono |
+|---|---|---|---|
+| GitHub Issues + [quadro](quadro.md) | Product Backlog vivo, Sprint Backlog (milestone), estado de cada item | estado e prioridade de cada item | PO (conteúdo), SM (quadro) |
+| `docs/backlog/product-backlog.md` | Retrato versionado das issues, gerado por `backlog-export.sh` na planning e no fechamento | retrato do backlog em uma data | SM |
+| `docs/plano-de-entregas.md` | Plano das três sprints exigido pela rubrica: critérios, entregas, responsáveis, evidências, situação, histórico de alterações | **critérios de cada sprint e situação de cada critério** | PO (SM revisa) |
+| `docs/requisitos.md` | RF/RNF/RP do edital com âncoras e critérios da rubrica relacionados | RF/RNF/RP do edital | PO |
+| `docs/processo/*.md` | Este processo, DoR/DoD, quadro, onboarding | processo, DoR/DoD, quadro e onboarding | SM |
+| `docs/templates/*.md` | Modelos de todos os registros Scrum e dos documentos técnicos | formato dos registros e documentos | SM |
+| `docs/sprints/sprint-N.md` | Registro oficial da sprint: objetivo, versão/tag, concluídos, pendentes, verificações realizadas, review, métricas | registro oficial de cada sprint | SM (PO valida) |
+| `docs/sprints/sprint-N/planning.md` · `review.md` · `retrospectiva.md` · `contribuicao.md` | Atas das cerimônias e relatório de participação (ES09) | atas das cerimônias e participação | SM |
+| `docs/sprints/sprint-N/burndown.md` | Burndown da sprint em Story Points, gerado por `burndown.sh N` ([seção 2.2](#22-burndown-da-sprint)) | burndown em Story Points | SM |
+| `docs/sprints/sprint-N/dailies/AAAA-MM-DD.md` | Ata de cada daily (uma por dia útil) | ata de cada daily | SM ou quem registrar |
+| `docs/adr/` | Decisões de arquitetura no formato MADR, com rastreabilidade para issue/RF/critério | decisões de arquitetura (ADR) | devs e SM |
+| `docs/api.md` · `docs/arquitetura.md` · `docs/calculos.md` | Documentação técnica; nasce no mesmo PR do código que documenta | documentação técnica (API, arquitetura, cálculos) | dev da área (`calculos.md`: PO com o dev backend) |
+| `README.md` da raiz · `frontend/README.md` · `backend/README.md` · `database/README.md` | O que existe de fato e como executar | o que existe e como executar cada módulo | dev da área; raiz: SM com o PO |
+| `.github/CONTRIBUTING.md` | Regras de branch, commit, co-autoria, PR, release e tags | regras de branch, commit, PR, release e tags | SM |
+| `.github/equipe.json` · `.github/calendario.json` | Dados do time e do calendário usados por scripts, hooks e CI | dados do time e calendário da automação | SM (alteração via PR) |
+| `.github/workflows` · `.github/scripts` | Checks (`commits`, `pr`, `docs`), automação do quadro, CI, exportadores | checks e automação do repositório | SM |
+
+**Regra de fonte principal:** a situação dos critérios de cada sprint fica apenas no plano de entregas; `sprint-N.md`, `sprint-N/review.md` e as demais atas apontam para ele em vez de repetir números ou status.
 
 ## 6. Fluxo resumido de uma sprint
 

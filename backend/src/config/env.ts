@@ -1,3 +1,4 @@
+import type { SignOptions } from 'jsonwebtoken';
 import { ValidationError } from '../shared/errors';
 
 export interface Environment {
@@ -6,6 +7,8 @@ export interface Environment {
   carbonApiUrl: string;
   metricsApiUrl: string;
   pollingIntervalMs: number;
+  jwtSecret: string;
+  jwtExpiresIn: NonNullable<SignOptions['expiresIn']>;
   /** Origens do frontend liberadas por CORS (ex.: http://localhost:5173). */
   corsOrigins: string[];
 }
@@ -13,6 +16,19 @@ export interface Environment {
 const DEFAULT_CARBON_API_URL = 'https://carbon.unilaunch.org';
 const DEFAULT_METRICS_API_URL = 'https://metrics.unilaunch.org';
 const DEFAULT_CORS_ORIGIN = 'http://localhost:5173';
+
+function readJwt(source: NodeJS.ProcessEnv): Pick<Environment, 'jwtSecret' | 'jwtExpiresIn'> {
+  const jwtSecret = source.JWT_SECRET;
+  if (typeof jwtSecret !== 'string' || jwtSecret.trim().length < 16) {
+    throw new ValidationError('JWT_SECRET deve ter ao menos 16 caracteres.');
+  }
+  const jwtExpiresIn = source.JWT_EXPIRES_IN;
+  if (typeof jwtExpiresIn !== 'string' || jwtExpiresIn.trim() === '') {
+    throw new ValidationError('JWT_EXPIRES_IN deve informar a validade do token.');
+  }
+  if (!/^[1-9]\d*(s|m|h|d)$/.test(jwtExpiresIn)) throw new ValidationError('JWT_EXPIRES_IN deve ser positivo e usar unidade (ex.: 8h ou 7d).');
+  return { jwtSecret, jwtExpiresIn: jwtExpiresIn as NonNullable<SignOptions['expiresIn']> };
+}
 
 /** CORS compara a origem exata do navegador: protocolo http(s), host e porta, sem caminho. */
 function readCorsOrigins(text: string): string[] {
@@ -75,6 +91,7 @@ export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
     carbonApiUrl: carbonApiUrl.toString().replace(/\/+$/, ''),
     metricsApiUrl: metricsApiText.replace(/\/+$/, ''),
     pollingIntervalMs,
+    ...readJwt(source),
     corsOrigins: readCorsOrigins(source.CORS_ORIGIN ?? DEFAULT_CORS_ORIGIN),
   };
 }

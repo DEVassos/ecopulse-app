@@ -1,10 +1,10 @@
 # Modelagem UML — integração do banco
 
-Modelo integrado pelo PR #77 (08/10/2026), a partir da modelagem versionada (#28), da v2 da UML e do SQL de Lucas (#5/#44). O backend, o worker de coleta e o cálculo que usam este modelo estão em `develop` (#94, #99, #139; ver [arquitetura](../arquitetura.md)); JWT e a consulta de entradas (`access_entries`) estão previstos para a Sprint 2. EcoPulse é o nome do produto, aplicado aos documentos na #68.
+Modelo integrado pelo PR #77 (08/10/2026), a partir da modelagem versionada (#28), da v2 da UML e do SQL de Lucas (#5/#44). O backend, o worker de coleta e o cálculo que usam este modelo estão em `develop` (#94, #99, #139; ver [arquitetura](../arquitetura.md)). A tabela `access_entries` existe no schema, mas os fluxos de gravação e consulta não estão implementados nem previstos no planejamento vigente. Após a review, a equipe decidirá se mantém ou remove a tabela. EcoPulse é o nome do produto, aplicado aos documentos na #68.
 
 ## Fontes e sprints
 
-Foram lidos os três PDFs e o DOCX originais em `docs/contexto/`. Matriz e divergências: [registro da integração](integracao-modelagem-banco.md). O edital confirma métricas em GB e JWT na configuração. Plano atual: coleta/persistência na Sprint 1; cálculo/OO/JWT na Sprint 2; ranking/comparação/exportação na Sprint 3. Auditoria simples solicitada por Vinicius: issue e sprint pendentes. Preparar colunas não implementa funcionalidades futuras.
+Foram lidos os três PDFs e o DOCX originais em `docs/contexto/`. Matriz e divergências: [registro da integração](integracao-modelagem-banco.md). O edital confirma métricas em GB e JWT na configuração. Plano atual: coleta/persistência na Sprint 1; cálculo/OO/JWT na Sprint 2; ranking e comparação na Sprint 2 (#159); exportação na Sprint 3. Auditoria simples solicitada por Vinicius: issue e sprint pendentes. Preparar colunas não implementa funcionalidades futuras.
 
 `database/schema.sql` é a fonte física de tipos, constraints e índices. Esta visão a espelha; o modelo OO é separado e conceitual.
 
@@ -64,11 +64,16 @@ classDiagram
         +inet ip_address
         +timestamptz entered_at
     }
+    class monitoring_settings {
+        +smallint id PK CHECK_1
+        +integer refresh_interval_seconds CHECK_15_30_60
+        +timestamptz updated_at
+    }
     note for collections "energy_kwh: numeric(20,12)<br/>co2e_grams: numeric(24,12)"
     services "1" --> "0..*" collections : service_id
 ```
 
-PKs: `bigint GENERATED ALWAYS AS IDENTITY`. Toda coleta pertence a um serviço, que pode ter zero coletas. FK `ON DELETE RESTRICT`; usuários e entradas independentes, sem FK artificial.
+PKs anteriores: `bigint GENERATED ALWAYS AS IDENTITY`; `monitoring_settings` (#250) usa `smallint` fixo 1 e admite zero linhas antes do primeiro PUT. Intervalo restrito a 15/30/60 s, `updated_at NOT NULL DEFAULT now()`, sem `updated_by`; a configuração é da tela, independente do worker. O Mermaid acima incorpora essa quinta tabela; o PNG anterior representa as quatro tabelas originais. Toda coleta pertence a um serviço, que pode ter zero coletas. FK `ON DELETE RESTRICT`; usuários e entradas independentes, sem FK artificial.
 
 ### Tipos, nulabilidade e índices
 
@@ -93,7 +98,7 @@ PKs: `bigint GENERATED ALWAYS AS IDENTITY`. Toda coleta pertence a um serviço, 
 | `users.created_at`, `updated_at` | `timestamptz` | Obrigatórios, default now(). |
 | `access_entries.ip_address`, `entered_at` | `inet`, `timestamptz` | Obrigatórios; IP observado no backend e horário do servidor. |
 
-Quatro índices explícitos: lower(email), coletas por (service_id, collected_at DESC) e collected_at DESC, entradas por entered_at DESC. Mais cinco índices automáticos: quatro PKs e UNIQUE de services.external_id. Total: nove índices. As consultas da aplicação ficam nos repositories do backend (`backend/src/modules/*/*.repository.ts`, #94); o histórico por serviço usa o índice `(service_id, collected_at DESC)`.
+Quatro índices explícitos: lower(email), coletas por (service_id, collected_at DESC) e collected_at DESC, entradas por entered_at DESC. Mais seis índices automáticos: cinco PKs e UNIQUE de services.external_id. Total: dez índices. As consultas da aplicação ficam nos repositories do backend (`backend/src/modules/*/*.repository.ts`, #94); o histórico por serviço usa o índice `(service_id, collected_at DESC)`.
 
 ### Estados e histórico
 
@@ -152,49 +157,74 @@ Visão preservada da ARQ-01 (#28), que exige diagrama de classes ou ERD; casos d
 
 ## Modelo OO separado
 
-![Modelo OO conceitual](diagramas/integracao-modelo-oo.png)
+As classes de objeto do monitoramento são as de `backend/src/domain/` (#173), usadas pelo coletor. O diagrama abaixo segue as classes do código ([fonte](https://github.com/DEVassos/ecopulse-app/tree/42f169d5edd91a0f5bf7e00fcf4c17817d1bd747/backend/src/domain)): as linhas tracejadas indicam uso entre objetos, e a relação serviço → coletas existe na coluna `collections.service_id`, não como atributo ou associação da entidade.
 
 ```mermaid
 classDiagram
-    class Service {
-        -bigint id
+    direction LR
+    class MonitoredService {
+        -string id
         -string externalId
-        -string status
-        +markSeen(instant)
-        +markRemoved()
+        -string regionCode nullable
+        +fromStored(service) MonitoredService
+        +id() string
+        +externalId() string
+        +regionCode() string
+        +canCalculateEmissions() boolean
     }
     class Collection {
-        -bigint serviceId
-        -Date collectedAt
-        -string metricsStatus
-        -string calculationStatus
-        +hasValidMetrics() boolean
-        +hasAvailableCalculation() boolean
+        -number intervalSeconds
+        -number cpuPercent
+        -number memoryGb
+        -number diskGb
+        -number networkGb
+        -object raw
+        +fromMetrics(metrics, raw) Collection
+        +intervalSeconds() number
+        +metrics() ServiceMetrics
+        +persistenceMetrics() object
+    }
+    class EnergyEstimate {
+        -string carbonIntensityGco2ePerKwh
+        -string powerWatts
+        -string energyKwh
+        -string co2eGrams
+        +toPersistence() EnergyEstimatePersistence
     }
     class CarbonCalculator {
-        +calculatePower(metrics) number
-        +calculateEnergy(watts, seconds) number
-        +calculateEmission(kwh, intensity) number
+        +calculate(metrics, intensityGco2ePerKwh) EnergyEstimate
     }
-    class AuthService {
-        +authenticate(email, password)
-        +verifyToken(token)
+    class MonitoringStatus {
+        -string value
+        +fromValue(value) MonitoringStatus
+        +fromCollection(status) MonitoringStatus
+        +value() string
+        +isAvailable() boolean
     }
-    class AccessEntryService {
-        +recordEntry(ip)
-        +listEntries(period)
-    }
-    Service "1" --> "0..*" Collection
-    CarbonCalculator ..> Collection : estima
+    CarbonCalculator ..> EnergyEstimate : cria
+    CarbonCalculator ..> Collection : recebe métricas validadas
+    MonitoringStatus ..> Collection : converte o status da coleta
 ```
 
-Contratos conceituais: Service controla estado; Collection expressa validade; CarbonCalculator aplica fórmulas; AuthService concentra bcrypt/JWT; AccessEntryService grava/consulta entradas. SQL exclusivamente em repositories parametrizados via pg. Não há quatro perfis ou tenants. TP01 requer classes usadas na aplicação, não somente o diagrama.
+| Classe | Responsabilidade | Onde é usada |
+|---|---|---|
+| `MonitoredService` | identidade do serviço e a condição para calcular emissões (região nula impede o cálculo) | `jobs/collector.ts` |
+| `Collection` | valida a observação (intervalo inteiro, CPU entre 0 e 100, GB não negativos) e converte nos valores das colunas de `collections` | `jobs/collector.ts` |
+| `CarbonCalculator` | valida as entradas, aplica as fórmulas de potência, energia e emissão e devolve `EnergyEstimate` | `jobs/collector.ts` |
+| `EnergyEstimate` | objeto de valor imutável com a precisão decimal das colunas | `jobs/collector.ts`, criado por `CarbonCalculator` |
+| `MonitoringStatus` | converte `ok`, `erro` e `sem_metricas` em `ativo`, `indisponivel` e `sem_metricas`; `isAvailable()` responde a mesma pergunta | `jobs/collector.ts` e `modules/services/services.service.ts` |
+
+As três entidades — `MonitoredService`, `Collection` e `MonitoringStatus` — têm construtor privado e campos `#privados`: a criação passa por factory (`fromStored`, `fromMetrics`, `fromValue` e `fromCollection`) e as validações lançam `ValidationError`. `EnergyEstimate` é um objeto de valor imutável, com campos `readonly` e construtor público, criado por `CarbonCalculator.calculate()`. `CarbonCalculator` não guarda estado: não declara campo nem construtor, apenas o método `calculate()`. Testes: `backend/tests/domain-models.test.ts` e `backend/tests/carbon-calculator.test.ts`.
+
+O que **não** existe no backend e por isso não aparece no diagrama: `AuthService` e `AccessEntryService`. A autenticação é feita por funções (`login` e `readToken` em `modules/usuarios/usuarios.service.ts`) e pelo middleware `middlewares/auth.ts`, com JWT e bcrypt (#20, #48); a tabela `access_entries` não tem fluxo de gravação nem de consulta. A interface `MonitoredService` de `modules/services/services.service.ts` é o contrato de resposta de `GET /api/services`, distinto da entidade de domínio do mesmo nome. SQL continua exclusivamente nos repositories parametrizados via `pg`. TP01 exige classes usadas na aplicação, não somente o diagrama.
 
 ## Acesso e entrada simples
 
-Dashboard público; configuração e consulta de entradas exigem JWT no backend com as credenciais administrativas de users. Login projetado POST /auth/login (#20/#48), sem cadastro público. Não há rotas implementadas nesta tarefa.
+Esta seção e o diagrama abaixo descrevem um modelo conceitual, não uma funcionalidade implementada ou planejada como entrega. A equipe decidirá após a review se mantém ou remove `access_entries`. A tabela existe no schema, mas não há fluxo de gravação ou consulta implementado.
 
-Entrada: primeira abertura por sessão de navegação em uma aba. Recarregar/navegar na mesma sessão não gera nova entrada; nova sessão gera. Polling e worker não geram eventos. Implementação futura preservará marcador da sessão da aba; não promete eliminar duplicidades entre abas/navegadores.
+No modelo conceitual, o dashboard é público; a área de configuração e uma eventual consulta de entradas seriam protegidas por JWT no backend, com as credenciais administrativas de `users`. Login projetado `POST /auth/login` (#20/#48), sem cadastro público. Não há rotas implementadas para entradas.
+
+Comportamento conceitual proposto: primeira abertura por sessão de navegação em uma aba; recarregar ou navegar na mesma sessão não gera nova entrada, e uma nova sessão gera. Polling e worker não geram eventos. Isso não representa implementação nem compromisso de entrega.
 
 IP obtido no backend pela conexão e somente por proxies confiáveis configurados; nunca pelo corpo enviado pelo cliente. Horário definido pelo servidor. IP não identifica inequivocamente pessoa. A tabela não registra usuário, rota, ação, método, status HTTP, tentativas de login, senha, hash ou JWT. Consulta por período/página somente após autorização; consultar não gera entrada. Retenção permanece pendente de decisão do cliente/equipe.
 

@@ -46,7 +46,7 @@ A sprint só é declarada fechada (`/sprint N fechar`) quando:
 
 O avaliador não vê reuniões; vê artefatos. A aplicação da DoD deixa três rastros:
 
-1. **Checklist do PR** — o autor marca os seis itens da DoD-PR no corpo do PR (o check `pr` recusa `- [ ]` pendente sem `N/A — motivo`). O revisor confirma item a item ao executar o "Como verificar" e marca os critérios de aceite copiados da issue.
+1. **Checklist do PR** — o autor marca os seis itens da DoD-PR no corpo do PR (o check `pr` recusa o corpo sem a seção DoD-PR, sem algum dos seis itens ou com `- [ ]` pendente sem `N/A — motivo`). O revisor confirma item a item ao executar o "Como verificar" e marca os critérios de aceite copiados da issue.
 2. **Aprovação com comentário "DoD verificada"** — a review de aprovação começa com a frase `DoD verificada` e descreve o que foi executado (comando, URL ou consulta e o resultado observado). O SM faz ≥2 dessas por sprint; devs e PO também aprovam dessa forma.
 3. **Tabela "Verificações realizadas" em `docs/sprints/sprint-N.md`** — uma linha por item concluído: item (issue/PR) · como foi verificado · quem verificou · resultado. Essa tabela é a prova consolidada de ES07 e alimenta a coluna Evidência do plano de entregas.
 

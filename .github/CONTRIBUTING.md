@@ -68,7 +68,7 @@ Use o `.agilekit/gitmessage` (descomente a linha da pessoa) ou `/commitar --par 
 - Base `develop` (trabalho) · `main` só para `release/*` e `hotfix/*`.
 - Corpo pelo template: `Closes #n`, requisito/critério, o que foi feito, **como verificar**, critérios de aceite da issue, evidências, **DoD-PR (6 itens)**, docs atualizados, co-autoria.
 - Labels: herde as da issue (`RFxx`, `tipo:*`, `area:*`); PRs de processo levam `tipo:processo`.
-- Checklist: nenhum `- [ ]` pode ficar pendente; se não se aplica, escreva `N/A — motivo`.
+- Checklist: a seção `## DoD-PR` do template traz os 6 itens, cada um `[x]` ou `N/A — motivo`; nenhum `- [ ]` pode ficar pendente. Só o PR de `release/*` dispensa a DoD-PR, porque segue a DoD-Sprint.
 - Revisão: 1 aprovação de alguém **≠ autor**, com ≥1 comentário substantivo; o revisor **executa** o "Como verificar" e marca os critérios de aceite. Revise em ≤24h.
 - Merge: **merge commit** (preserva a autoria de cada integrante). Squash e rebase estão desabilitados.
 - Sem rodapé de ferramenta ("Generated with …") no PR e sem trailer de IA nos commits: quem usou IA explica isso em texto no corpo do PR. O check `pr` recusa o rodapé, o hook `commit-msg` recusa o trailer e o kit desliga a atribuição automática do Claude Code e do Copilot no VS Code; no Copilot CLI, rode uma vez `/settings includeCoAuthoredBy off`.

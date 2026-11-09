@@ -1,0 +1,44 @@
+import { describe, expect, it } from 'vitest';
+import { CHAR_WIDTH, freeBaseline, labelBox, labelsOverlap } from './chart-labels';
+
+describe('labelBox', () => {
+  it('posiciona a caixa conforme a âncora do texto', () => {
+    expect(labelBox('abcd', 100, 50, 'start', 10, 12)).toEqual({ left: 100, right: 140, top: 38, bottom: 53 });
+    expect(labelBox('abcd', 100, 50, 'middle', 10, 12)).toMatchObject({ left: 80, right: 120 });
+    expect(labelBox('abcd', 100, 50, 'end', 10, 12)).toMatchObject({ left: 60, right: 100 });
+  });
+});
+
+describe('labelsOverlap', () => {
+  // Celular (390 px): o rótulo do maior intervalo centrado no pico e o da média na ponta direita, quase na mesma altura
+  const peak = labelBox('maior intervalo 6,71 g · 09:30', 200, 118, 'middle', CHAR_WIDTH.data12, 12);
+  const meanAbove = labelBox('média por intervalo 6,45 g', 334, 124, 'end', CHAR_WIDTH.sans11, 11);
+
+  it('acusa o choque entre os rótulos do pico e da média', () => {
+    expect(labelsOverlap(peak, meanAbove)).toBe(true);
+  });
+
+  it('não acusa choque quando a média desce para baixo da linha', () => {
+    const meanBelow = labelBox('média por intervalo 6,45 g', 334, 145, 'end', CHAR_WIDTH.sans11, 11);
+    expect(labelsOverlap(peak, meanBelow)).toBe(false);
+  });
+
+  it('não acusa choque entre rótulos distantes na horizontal', () => {
+    const left = labelBox('pico 1,2 g · 02:00', 80, 60, 'start', CHAR_WIDTH.data12, 12);
+    const right = labelBox('média 0,9 g', 1300, 62, 'end', CHAR_WIDTH.sans11, 11);
+    expect(labelsOverlap(left, right)).toBe(false);
+  });
+});
+
+describe('freeBaseline', () => {
+  const boxAt = (baseline: number) => labelBox('sem coleta 16 h 45 min', 200, baseline, 'middle', CHAR_WIDTH.sans11, 11);
+  const meanLabel = labelBox('média por intervalo 4,27 g', 260, 150, 'end', CHAR_WIDTH.sans11, 11);
+
+  it('pula a posição que encosta no rótulo da média e fica com a seguinte (#272)', () => {
+    expect(freeBaseline([150, 260, 40], boxAt, [meanLabel])).toBe(260);
+  });
+
+  it('devolve null quando nenhuma posição está livre', () => {
+    expect(freeBaseline([150], boxAt, [meanLabel])).toBeNull();
+  });
+});

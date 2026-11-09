@@ -2,7 +2,7 @@
   "_comentario": "Equipe EcoPulse (ABP 2DSM 2026-2). Arquivo gerenciado pelo time: edite via PR. 'emails' sao os enderecos aceitos no trailer Co-authored-by e na checagem de autoria (noreply do GitHub + e-mails verificados na conta). 'backup' cobre as responsabilidades do papel em ausencia.",
   "projeto": "EcoPulse",
   "org": "DEVassos",
-  "repo": "DEVassos/greener-app",
+  "repo": "DEVassos/ecopulse-app",
   "kit": "DEVassos/agilekit",
   "integrantes": [
     {
@@ -38,7 +38,7 @@
       "papel": "dev",
       "backup": "LUCASAMR23",
       "area_primaria": "frontend",
-      "par_de_revisao": "LUCASAMR23",
+      "par_de_revisao": "travensolli",
       "emails": [
         "139165742+DeaTuribio@users.noreply.github.com"
       ]
@@ -63,7 +63,7 @@
       "papel": "dev",
       "backup": "DeaTuribio",
       "area_primaria": "backend/db",
-      "par_de_revisao": "DeaTuribio",
+      "par_de_revisao": "LUCASAMR23",
       "emails": [
         "261281418+viniciusaugusto1997@users.noreply.github.com",
         "viniciusaugusto1997@gmail.com"

@@ -5,9 +5,11 @@ API REST em Node.js com Express 5 e TypeScript estrito, persistência no Postgre
 - descobre os serviços no agregador de métricas e coleta as métricas de cada um (worker, #19);
 - consulta a intensidade de carbono por região e calcula energia e CO₂e por coleta (#17, #133);
 - grava o histórico no PostgreSQL (#14, #19);
-- expõe `GET /health`, `GET /api/services` e `GET /api/collections` (#8, #111, #112), com CORS liberado para o dashboard (#118).
+- expõe `GET /health`, `GET /api/services` e `GET /api/collections` (#8, #111, #112), com CORS liberado para o dashboard (#118). Na Sprint 2, `GET /api/collections/series` passou a devolver a série temporal de um serviço em intervalos (#189).
 
-Autenticação JWT e a área de configuração (`/monitoring-settings`) estão previstas para a Sprint 2 ([#20](https://github.com/DEVassos/greener-app/issues/20)); ainda não existem neste código.
+`POST /api/auth/login` autentica administradores com bcrypt e emite JWT. As rotas de dados (`/api/services` e `/api/collections`) e `GET /api/auth/me` exigem `Authorization: Bearer <JWT>` (#257); `/health`, o login e `GET /api/monitoring-settings` continuam públicos. O módulo `modules/monitoring-settings` separa routes/controller/service/repository: GET público e PUT autenticado em `/api/monitoring-settings`, com intervalos 15/30/60 s para a tela (#250). O worker mantém seu agendamento individual. Contrato e erros: [API](../docs/api.md#get-apimonitoring-settings); volumes existentes exigem a [migração 001](../database/README.md#configuração-de-monitoramento-250). Nenhuma variável ou dependência nova.
+
+`GET /api/services` também devolve `statusReason` seguro somente para `indisponivel` (#251). Os 14 casos de `status-reason.test.ts` e o caso PostgreSQL em `repositories.integration.test.ts` cobrem estados, mensagens sensíveis, recuperação e desempate; a apresentação na tela é da #176 (frontend). Contrato em [API](../docs/api.md#get-apiservices).
 
 ## Organização
 
@@ -20,12 +22,12 @@ src/
 ├── integrations/           metrics-api.ts (agregador) e carbon-api.ts (intensidade de carbono), com tipos *.types.ts
 ├── domain/                 carbon-calculator.ts — potência, energia e CO₂e de uma coleta
 ├── jobs/collector.ts       descoberta, reconciliação e coleta periódica (worker)
-├── middlewares/            cors.ts e error-handler.ts
-├── modules/                health, services e collections em routes/controller/service/repository
+├── middlewares/            auth.ts (JWT), cors.ts e error-handler.ts
+├── modules/                health, services, collections, usuarios e monitoring-settings em routes/controller/service/repository
 └── shared/                 errors.ts (AppError e subclasses) e persistence.types.ts (tipos das linhas do banco)
 ```
 
-SQL só existe nos arquivos `*.repository.ts`, sempre com parâmetros `$1…$n`. A pasta `modules/usuarios/` tem só o `UserRepository.findByEmail` (usado pelos testes) e três arquivos reservados para a autenticação da Sprint 2; nenhuma rota dela é montada no `app.ts`.
+SQL só existe nos arquivos `*.repository.ts`, sempre com parâmetros `$1…$n`. `modules/usuarios/` contém repository, service, controller e rotas de autenticação; `middlewares/auth.ts` protege também o PUT de `monitoring-settings`.
 
 O `tsconfig.json` usa ES2022, Node16 para módulo e resolução, `strict`, `rootDir` `src` e `outDir` `dist`. Sem `type=module`, o build emite CommonJS. Os testes ficam fora de `src`.
 
@@ -36,8 +38,14 @@ Contrato completo, com exemplos e erros, em [`docs/api.md`](../docs/api.md).
 | Método e caminho | O que faz | Respostas |
 |---|---|---|
 | `GET /health` | consulta o PostgreSQL a cada chamada | 200 `{"status":"ok","db":"ok"}`; 500 `DATABASE_ERROR` |
-| `GET /api/services` | lista os serviços com estado, região e a última coleta (métricas, energia e CO₂e) ([#111](https://github.com/DEVassos/greener-app/issues/111), [#133](https://github.com/DEVassos/greener-app/issues/133)) | 200 `{ services, period }`; 500 `DATABASE_ERROR` |
-| `GET /api/collections` | histórico de coletas, com filtros `service_id`, `from`, `to` e `limit` (1–500, padrão 50) ([#112](https://github.com/DEVassos/greener-app/issues/112)) | 200 `{ collections, period }`; 400 `VALIDATION_ERROR`; 404 `NOT_FOUND`; 500 |
+| `GET /api/services` | lista os serviços com estado, região e a última coleta (métricas, energia e CO₂e) ([#111](https://github.com/DEVassos/ecopulse-app/issues/111), [#133](https://github.com/DEVassos/ecopulse-app/issues/133)) | 200 `{ services, period }`; 401 `UNAUTHORIZED`; 500 `DATABASE_ERROR` |
+| `GET /api/collections` | histórico de coletas, com filtros `service_id`, `from`, `to` e `limit` (1–500, padrão 50) ([#112](https://github.com/DEVassos/ecopulse-app/issues/112)) | 200 `{ collections, period }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 404 `NOT_FOUND`; 500 |
+| `POST /api/auth/login` | valida e-mail e senha com bcrypt e emite JWT HS256 | 200 `{ token }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 |
+| `GET /api/auth/me` | devolve o administrador autenticado pelo JWT | 200 `{ id, email }`; 401 `UNAUTHORIZED`; 500 |
+| `GET /api/monitoring-settings` | consulta pública do intervalo da tela; padrão sem gravação | 200 `{ refreshIntervalSeconds, allowedIntervalsSeconds, updatedAt }`; 500 |
+| `PUT /api/monitoring-settings` | salva intervalo inteiro 15/30/60, exigindo JWT | 200 no mesmo formato do GET; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 |
+| `GET /api/services/ranking` | ordena por energia ou CO₂e num período, com totais, contagens e estado; exige JWT | 200 `{ metric, from, to, services }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 `DATABASE_ERROR` |
+| `GET /api/collections/series` | série temporal de um serviço: agrupa as coletas do período em intervalos, com contagem, energia e CO₂e por intervalo e o total do período; parâmetros obrigatórios `service_id`, `from`, `to` (período de até 31 dias) e `bucket` (`15min`, `1h` ou `1d`) ([#189](https://github.com/DEVassos/ecopulse-app/issues/189)) | 200 `{ serviceId, from, to, bucket, buckets, totals }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 404 `NOT_FOUND`; 500 |
 
 JSON inválido no corpo devolve 400; rota inexistente, 404; erro inesperado, 500 `INTERNAL_ERROR` sem stack. Todo erro sai no formato `{"error":{"code","message"}}`, produzido só pelo `error-handler`.
 
@@ -51,8 +59,10 @@ JSON inválido no corpo devolve 400; rota inexistente, 404; erro inesperado, 500
 | `CARBON_API_URL` | `https://carbon.unilaunch.org` | base http(s), sem credenciais, query ou fragmento; vazia usa o padrão oficial |
 | `POLLING_INTERVAL_MS` | `30000` | inteiro de 1 a 2147483647 ms; intervalo da descoberta e prazo inicial e de recuperação da coleta. O `compose.yaml` ainda não repassa esta variável ao container, então no Docker vale o padrão de 30 s |
 | `CORS_ORIGIN` | `http://localhost:5173` | origens http(s) separadas por vírgula, sem caminho; só elas recebem `Access-Control-Allow-Origin`, e o preflight `OPTIONS` responde 204 |
+| `JWT_SECRET` | sem padrão | obrigatória; ao menos 16 caracteres; assina os JWTs |
+| `JWT_EXPIRES_IN` | `8h` | inteiro positivo com unidade `s`, `m`, `h` ou `d` |
 
-Só `config/env.ts` lê `process.env`, e não há leitura automática de `.env`: o ambiente é fornecido ao processo (no caminho oficial, pelo `compose.yaml` a partir do `.env` da raiz). Ambiente inválido impede o boot com mensagem clara. `JWT_SECRET` e `JWT_EXPIRES_IN` constam do [`.env.example`](../.env.example), mas só ganham consumidor com a autenticação da Sprint 2 ([#20](https://github.com/DEVassos/greener-app/issues/20)). Não registre URLs com credenciais em logs.
+Só `config/env.ts` lê `process.env`, e não há leitura automática de `.env`: o ambiente é fornecido ao processo (no caminho oficial, pelo `compose.yaml` a partir do `.env` da raiz). Ambiente inválido impede o boot com mensagem clara. `JWT_SECRET` é obrigatório e tem ao menos 16 caracteres; `JWT_EXPIRES_IN` é positivo e usa unidade, como `8h` ou `7d`. Não registre URLs com credenciais em logs.
 
 Caminho oficial: `docker compose up --build` na raiz. O serviço `backend` usa o Dockerfile deste módulo (#26) e só sobe depois do healthcheck do `postgres` (#27).
 
@@ -92,7 +102,7 @@ Esperado: `200` e `{"status":"ok","db":"ok"}`; no log, `API disponível na porta
 
 `jobs/collector.ts` é iniciado pelo `server.ts` depois que o HTTP abre e parado no SIGTERM. A cada ciclo:
 
-1. **Descoberta:** `GET /services` no agregador. A lista inteira é validada; se vier fora do formato, o ciclo é descartado e o cadastro e os estados ficam como estavam.
+1. **Descoberta:** `GET /services` no agregador. Se a consulta falhar, o cadastro é preservado, sem reconciliar remoções: os serviços conhecidos não removidos recebem coleta `erro`, medidas nulas e estado `indisponivel`, com diagnóstico explícito de falha na descoberta. A transição de `ativo` ou `sem_metricas` para `indisponivel` independe do prazo da próxima métrica; serviços já indisponíveis respeitam o prazo existente. Enquanto a falha persistir, novas tentativas seguem o último intervalo válido ou `POLLING_INTERVAL_MS`. Uma lista recebida, mas reprovada na validação interna, é descartada sem reconciliação.
 2. **Reconciliação**, numa transação: upsert por `external_id`, preservando o ID e a primeira descoberta; quem saiu da lista vira `removido` e volta a `ativo` quando reaparece. Lista vazia válida marca todos como removidos, sem fabricar coleta.
 3. **Coleta por prazo:** `GET /metrics/{id}` de cada serviço vencido, com o HTTP fora das transações. O próximo prazo segue o `collection_interval_seconds` da própria métrica; em caso de falha, vale o último intervalo válido, ou `POLLING_INTERVAL_MS` se ainda não houver um. O dispatcher agenda o próximo ciclo só depois de terminar o atual, sem sobreposição.
 4. **Cálculo** (#133): para coleta válida, consulta a intensidade de carbono da região e calcula potência, energia e CO₂e com o `CarbonCalculator` (`domain/carbon-calculator.ts`). Fórmula, constantes, unidades e exemplos em [`docs/calculos.md`](../docs/calculos.md); decisão em [ADR 0006](../docs/adr/0006-modelo-potencia-fatores-emissao.md).
@@ -120,15 +130,16 @@ Antes do INSERT, as medidas são validadas contra as faixas das colunas e arredo
 
 **Intensidade de carbono (#17)** — `integrations/carbon-api.ts`, `getIntensity(regionCode)` para `GET /regions/{code}/carbon-intensity`, chamado pelo coletor a cada coleta válida:
 
-- **Decisão do PO na [#17](https://github.com/DEVassos/greener-app/issues/17#issuecomment-6157652891):** cache em memória por região e instância por 1 hora; uma tentativa; timeout de 10 s cobrindo requisição e corpo. Ler o cache não renova o prazo, e falha nunca devolve fator antigo nem zero substituto.
+- **Decisão do PO na [#17](https://github.com/DEVassos/ecopulse-app/issues/17#issuecomment-6157652891):** cache em memória por região e instância por 1 hora; uma tentativa; timeout de 10 s cobrindo requisição e corpo. Ler o cache não renova o prazo, e falha nunca devolve fator antigo nem zero substituto.
 - **Resposta válida:** `status: 'ok'`, `factor` (região, intensidade em gCO₂e/kWh, renováveis), `source: 'api' | 'cache'`, `fetchedAt` e `expiresAt`. 404 devolve `{ status: 'region_not_found', regionCode }`.
 - **Falhas:** rede, timeout, HTTP inesperado ou resposta inválida lançam erro tipado com causa e não entram no cache; o coletor transforma isso em cálculo `indisponivel`.
 
 ## Repositories e transações (#14)
 
 - `ServiceRepository` (`modules/services`): lista com a última coleta, busca por ID, upsert por `external_id`, atualização de estado e marcação de ausentes como removidos.
-- `CollectionRepository` (`modules/collections`): insere coletas (com os campos de cálculo) e lista o histórico com filtros.
+- `CollectionRepository` (`modules/collections`): insere coletas (com os campos de cálculo) e lista o histórico com filtros; `findSeries` agrupa as coletas de um serviço por `date_bin` e devolve os intervalos e o total do período na mesma consulta, com `GROUPING SETS`.
 - `UserRepository` (`modules/usuarios`): busca por e-mail sem distinção de caixa; o hash é interno, nunca vai para resposta HTTP nem log.
+- `MonitoringSettingsRepository` (`modules/monitoring-settings`): consulta e upsert parametrizado da configuração única; leitura sem registro não insere o padrão.
 - `withTransaction(database, async tx => { ... })` (`db/transaction.repository.ts`) executa BEGIN/COMMIT/ROLLBACK na mesma conexão; os repositories do callback são criados com `tx`, nunca com o pool. Erros do PostgreSQL viram `DatabaseError` com a causa preservada.
 
 Os tipos em `shared/persistence.types.ts` mantêm `bigint` e `numeric` como strings, datas como `Date` e ausência como `null`. Não há DELETE de serviços ou coletas, nem UPDATE de coletas: o histórico só cresce.
@@ -145,24 +156,52 @@ Os tipos em `shared/persistence.types.ts` mantêm `bigint` e `numeric` como stri
 Com o compose da raiz (`cp .env.example .env && docker compose up --build -d`):
 
 1. `curl -i http://localhost:3000/health` → 200 e `{"status":"ok","db":"ok"}`.
-2. Depois de um ciclo (~30 s): `curl http://localhost:3000/api/services` → serviços com `status`, região e, nos ativos com fator disponível, `energyKwh` e `emissionsG` numéricos.
-3. `curl "http://localhost:3000/api/collections?limit=3"` → as coletas mais recentes; `curl -i "http://localhost:3000/api/collections?limit=0"` → 400 `VALIDATION_ERROR`.
-4. Queda da API de carbono: `CARBON_API_URL=http://127.0.0.1:9 docker compose up -d --force-recreate backend`. As coletas seguintes ficam com `calculation_status = indisponivel`, e `GET /api/services` devolve `energyKwh: null` e `emissionsG: null` com o serviço `ativo`. Para restaurar: `docker compose up -d --force-recreate backend`.
-5. Banco fora: `docker compose stop postgres` → `/health` responde 500 `DATABASE_ERROR` e o backend continua no ar; `docker compose start postgres` → volta a 200.
-6. `curl -i http://localhost:3000/inexistente` → 404 `NOT_FOUND`.
+2. Obtenha uma sessão: `TOKEN=$(curl -s -X POST http://localhost:3000/api/auth/login -H 'Content-Type: application/json' -d '{"email":"admin@ecopulse.local","password":"admin1234"}' | jq -r .token)`.
+3. Depois de um ciclo (~30 s): `curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/services` → serviços com `status`, região e, nos ativos com fator disponível, `energyKwh` e `emissionsG` numéricos.
+4. `curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/api/collections?limit=3"` → as coletas mais recentes; `curl -i -H "Authorization: Bearer $TOKEN" "http://localhost:3000/api/collections?limit=0"` → 400 `VALIDATION_ERROR`.
+5. Série do dia em intervalos de 1 h (troque a data pela de hoje, em UTC): `curl -H "Authorization: Bearer $TOKEN" "http://localhost:3000/api/collections/series?service_id=1&from=2026-10-23T00:00:00Z&to=2026-10-24T00:00:00Z&bucket=1h"` → 200 com `serviceId`, `from`, `to` e `bucket` ecoados, `buckets` em ordem crescente de `start` (só os intervalos com coleta) e `totals.collections` igual à soma das `collections` dos intervalos; com `bucket=7min` → 400 `VALIDATION_ERROR`; com `service_id=999` → 404 `NOT_FOUND`.
+5. Queda da API de carbono: `CARBON_API_URL=http://127.0.0.1:9 docker compose up -d --force-recreate backend`. As coletas seguintes ficam com `calculation_status = indisponivel`, e `curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/services` devolve `energyKwh: null` e `emissionsG: null` com o serviço `ativo`. Para restaurar: `docker compose up -d --force-recreate backend`.
+6. Banco fora: `docker compose stop postgres` → `/health` responde 500 `DATABASE_ERROR` e o backend continua no ar; `docker compose start postgres` → volta a 200.
+7. `curl -i http://localhost:3000/inexistente` → 404 `NOT_FOUND`.
 
 ## Testes
 
-`npm test` (Vitest) cobre configuração, boot e encerramento, rotas e erros HTTP, CORS, os dois clientes de API (sucesso, formato inválido, 404, 500, rede, timeout, cancelamento e cache), o coletor (descoberta, prazos, isolamento de falhas, rollback e cálculo disponível ou indisponível) e o `CarbonCalculator`. O CI roda `npx tsc --noEmit` e `npm test` a cada PR, e o job `compose` constrói a imagem, o que executa o build.
+### Dependências dos testes (#163)
 
-As suítes de integração com PostgreSQL real (`tests/repositories.integration.test.ts` e `tests/collector.integration.test.ts`) são puladas sem as variáveis `REPOSITORY_TEST_DATABASE_URL` e `WORKER_TEST_DATABASE_URL`. Para rodá-las, use bancos novos, distintos e descartáveis, com `database/schema.sql` aplicado; a suíte de repositories exige antes a fixture abaixo (hash sintético só no formato exigido pelo CHECK, não credencial):
+O Vitest usa a linha `~4.1.12`, compatível com o Node 22 do CI e o Node 24 do Dockerfile. O lockfile mantém Vite 7.3.7; não é necessário migrar para Vite 8, alterar os testes ou adicionar configuração de pool.
 
-```sql
-SELECT setval(pg_get_serial_sequence('services', 'id'), 9007199254740993, false);
-INSERT INTO users (id, email, password_hash) OVERRIDING SYSTEM VALUE
-VALUES (9007199254740993, 'review@example.test', '$2b$10$' || repeat('a', 53));
+- [`GHSA-82fw-gwwq-j7x9`](https://github.com/advisories/GHSA-82fw-gwwq-j7x9): leitura de arquivos fora dos limites permitidos pelo mocker, corrigida em Vitest e `@vitest/mocker` 4.1.11. O patch 4.1.12 também endurece os mocks manuais.
+- [`GHSA-5gmw-xhrv-c9v3`](https://github.com/advisories/GHSA-5gmw-xhrv-c9v3) e [`GHSA-85c8-ppgw-ccpr`](https://github.com/advisories/GHSA-85c8-ppgw-ccpr): opções de workers herdadas por poluição de protótipo no `tinypool`, corrigidas nele em 2.1.1 e 2.1.2, respectivamente. O [Vitest 4 removeu o tinypool](https://v4.vitest.dev/guide/migration.html#pool-rework); não foi necessário sobrescrever versões transitivas.
+
+Para conferir, rode `npm ci`, `npm ls vitest @vitest/mocker vite --all` e `npm audit`. Os três avisos acima não devem aparecer. O audit ainda pode sair com código 1 por alertas fora da #163: o levantamento de 31/10/2026 encontrou `body-parser` 2.3.0 (`GHSA-27r3-jxmh-p828`) e `qs` 6.16.0 (`GHSA-6pq8-jhm2-2vcw`), trazidos pelo Express. Essas dependências de produção não foram atualizadas nesta tarefa; exigem acompanhamento separado. Execute testes, tipos e build separadamente do audit, para que esses alertas não impeçam a verificação:
+
+```bash
+npm run typecheck
+npm run build
 ```
 
-As variáveis de teste pertencem só ao processo de testes, não à configuração do backend, e as suítes alteram dados. A suíte de repositories ainda não foi reexecutada depois que o #139 passou a gravar os campos de cálculo; o ajuste das coletas de teste está previsto com a [#140](https://github.com/DEVassos/greener-app/issues/140) (Sprint 2).
+### Suíte e PostgreSQL
+
+`npm test` (Vitest) cobre configuração, boot e encerramento, rotas e erros HTTP, CORS, os dois clientes de API (sucesso, formato inválido, 404, 500, rede, timeout, cancelamento e cache), o coletor (descoberta, prazos, isolamento de falhas, rollback e cálculo disponível ou indisponível) e o `CarbonCalculator`. O job `backend` do CI roda `npx tsc --noEmit` e `npm test` a cada PR com um PostgreSQL 16 descartável, então as suítes de integração também executam e nenhum teste fica pulado (#162). O job `compose` constrói a imagem, o que executa o build.
+
+As suítes de integração com PostgreSQL real (`tests/repositories.integration.test.ts` e `tests/collector.integration.test.ts`) leem `REPOSITORY_TEST_DATABASE_URL` e `WORKER_TEST_DATABASE_URL` e são puladas sem elas. Cada uma precisa de um banco próprio, novo e descartável, com `database/schema.sql` aplicado; a fixture fica no próprio teste (`tests/*-test.repository.ts`): IDs de `services` acima de `Number.MAX_SAFE_INTEGER` e, na de repositories, um usuário com hash sintético só no formato exigido pelo CHECK, não credencial. No CI, o job `backend` cria os bancos `repositories_test` e `worker_test` e define as duas variáveis. Para rodar localmente, a partir de `backend/`:
+
+```bash
+docker run -d --rm --name ecopulse-testes -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:16
+docker exec ecopulse-testes sh -c 'until pg_isready -h 127.0.0.1 -U postgres -q; do sleep 1; done'
+for db in repositories_test worker_test; do
+  docker exec ecopulse-testes psql -U postgres -qc "CREATE DATABASE $db"
+  docker exec -i ecopulse-testes psql -U postgres -d "$db" -v ON_ERROR_STOP=1 -q < ../database/schema.sql
+done
+REPOSITORY_TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/repositories_test \
+WORKER_TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:55432/worker_test npm test
+docker stop ecopulse-testes   # o --rm apaga o container e os dois bancos
+```
+
+`tests/monitoring-settings.integration.test.ts` usa também `REPOSITORY_TEST_DATABASE_URL`, alterando somente `monitoring_settings`, sem interferir nas fixtures de serviços/coletas. Cobre leitura inicial, constraints, upsert e persistência em outra conexão. Os testes HTTP cobrem JWT, validação estrita e falhas de banco (#250).
+
+Esperado: as três suítes de integração na lista e o resumo `Tests` só com `passed`, sem `skipped`. Para repetir, recrie o container: as suítes deixam dados nos bancos. Se a porta 55432 estiver ocupada, troque-a no `-p` e nas duas URLs. Para limitar memória, acrescente `-- --maxWorkers=1` a `npm test`.
+
+As variáveis de teste pertencem só ao processo de testes, não à configuração do backend, e as suítes alteram dados. A suíte de repositories voltou a passar em 28/10 (7/7, #175): as coletas de teste ganharam os campos de cálculo que o #139 tornou obrigatórios, e um caso cobre `findSummary` com 2 serviços e várias coletas cada.
 
 Verificações registradas na Sprint 1: 31/31 testes com PostgreSQL descartável em 11/10 (#94), 82/82 e o snapshot combinado 125/125 em 13/10 (#99), e o compose integrado com persistência após restart em 14/10 (#113). Detalhes em [`docs/sprints/sprint-1.md`](../docs/sprints/sprint-1.md) § Verificações realizadas.
