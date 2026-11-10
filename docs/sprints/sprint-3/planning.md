@@ -16,11 +16,11 @@ Consultas agregadas de ranking e comparação por período conferidas e document
 
 | Integrante | Dias disponíveis | Ausências previstas | Observações |
 |---|---|---|---|
-| @DeaTuribio | 9 | nenhuma registrada | frontend: bug de Emissões, resumo do dashboard, convites, exportação |
+| @DeaTuribio | 9 | nenhuma registrada | frontend: mapa (já iniciado localmente), resumo do dashboard, convites, exportação |
 | @LUCASAMR23 | 9 | nenhuma registrada | backend: convites (US15), resumo do dashboard, BD04 |
 | @viniciusaugusto1997 | 9 | nenhuma registrada | banco: BD04, tabela de convites, simulação regional |
 | @henriqueptbd-cell | 9 | nenhuma registrada | PO: refinamento da US11b, aceite, plano, `calculos.md` |
-| @travensolli | 9 | nenhuma registrada | SM: atas, quadro, CI visual, mapa, portfólio |
+| @travensolli | 9 | nenhuma registrada | SM: atas, quadro, bug de Emissões, CI visual, portfólio |
 
 Dias úteis: 10, 11, 12, 13, 16, 17, 18, 19 e 23/11. Feriado em 20/11 (daily assíncrona por texto, com ata). Capacidade total estimada: 45 pessoas-dia (5 × 9). Itens de processo não entram no total de pontos.
 
@@ -38,7 +38,7 @@ Todas as issues abertas que ainda cabem no produto entram na milestone `Sprint 3
 
 | Issue | Título | Requisito | Critério | Responsável | Estimativa | DoR |
 |---|---|---|---|---|---|---|
-| #256 | Emissões conta de novo coletas inválidas na página seguinte | RF09, RNF04 | DW04, TP03 (regressão) | @DeaTuribio | sem estimativa | ok (branch com 2 commits, sem PR) |
+| #256 | Emissões conta de novo coletas inválidas na página seguinte | RF09, RNF04 | DW04, TP03 (regressão) | @travensolli | sem estimativa | ok (assumida pelo SM em 10/11 a partir da branch `fix/256-paginacao-emissoes-2`, com 2 commits de @DeaTuribio) |
 | #234 | Resumo do dashboard no contrato de 23/10, com IndicatorsPanel | RF08 | DW05, BD04 (apoio) | @DeaTuribio, @LUCASAMR23 | 3 | ok |
 | #195 | US15: cadastro de usuário por convite do administrador | RNF05 | DW06 | @LUCASAMR23 | 10 | ok (quebrada em #196 e #197) |
 | #196 | Convites e cadastro por convite no backend | RNF05 | DW06, BD01 | @LUCASAMR23, @viniciusaugusto1997 | 5 | ok |
@@ -50,7 +50,7 @@ Todas as issues abertas que ainda cabem no produto entram na milestone `Sprint 3
 | Issue | Título | Requisito | Critério | Responsável | Estimativa | DoR |
 |---|---|---|---|---|---|---|
 | #226 | US11b: comparação orientada à decisão (Energia × intensidade = CO₂e) | RF07, RF15 | DW04, DW05, BD04 | @henriqueptbd-cell (refinamento) | 22 | **pendente**: em refinamento; o PO decide o escopo e quebra em tarefas ≤5 até 12/11 |
-| #51 | US10: visualização geográfica por bolhas (mapa) | RF12, RF13 | DW04 | @travensolli | 5 | ok |
+| #51 | US10: visualização geográfica por bolhas (mapa) | RF12, RF13 | DW04 | @DeaTuribio | 5 | ok (já iniciada por ela localmente) |
 | #53 | US12: simulação de migração regional | RF15 | DW03, DW04 | @viniciusaugusto1997 | 5 | ok |
 | #54 | US13: exportação de relatórios gerenciais (PDF e CSV) | RNF05 | DW04 | @DeaTuribio | 5 | ok (quebrada em #13 e #24) |
 | #13 | Layout do relatório executivo para impressão e PDF | RNF05 | DW04 | @DeaTuribio | 2 | ok |
@@ -84,7 +84,7 @@ Todas as issues abertas que ainda cabem no produto entram na milestone `Sprint 3
 | Risco | Impacto | Mitigação | Dono |
 |---|---|---|---|
 | Sprint curta (9 dias úteis) com 62 pontos selecionados | alto | must primeiro (#313, #256, #234, #196, #197, #55); could só depois; o que sobrar é registrado como pendente no fechamento | @henriqueptbd-cell |
-| Frontend concentrado em @DeaTuribio (7 itens) | alto | #51 com @travensolli; #13/#24 só depois de #256, #234 e #197; revisão pelo par da frente | @travensolli |
+| Frontend concentrado em @DeaTuribio | alto | #256 assumida por @travensolli; #51 fica com ela porque já começou; #13/#24 só depois de #234, #197 e #51; revisão pelo par da frente | @travensolli |
 | ES09 coletivo: @viniciusaugusto1997 não tinha item até esta planning | alto | #313 (BD04) e #196 (tabela `invitations`) com ele; PR até o checkpoint | @viniciusaugusto1997 |
 | #226 com 22 pontos e ainda em refinamento | médio | o PO decide o escopo até 12/11 e quebra em tarefas ≤5; sem decisão, a história sai da sprint com registro | @henriqueptbd-cell |
 | #197 depende das rotas de #196 | médio | contrato das rotas na issue antes do primeiro commit (#167); front com mock até o merge do back | @LUCASAMR23 |
