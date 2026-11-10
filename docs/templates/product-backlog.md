@@ -2,7 +2,7 @@
 
 <!-- Template do agilekit (repo/docs/templates/product-backlog.md). O arquivo real, docs/backlog/product-backlog.md, NÃO é editado à mão: é gerado por `bash .github/scripts/backlog-export.sh` a partir das issues do GitHub, na planning e no fechamento de cada sprint. Este modelo documenta a estrutura gerada e serve de referência para quem lê o export. -->
 
-_Exportado das issues de [DEVassos/greener-app](https://github.com/DEVassos/greener-app/issues) em `<dd/mm/aaaa hh:mm>` por `.github/scripts/backlog-export.sh`. A fonte da verdade é o GitHub Issues e o [quadro](https://github.com/orgs/DEVassos/projects/1); este arquivo é um retrato versionado para a avaliação (ES01)._
+_Exportado das issues de [DEVassos/ecopulse-app](https://github.com/DEVassos/ecopulse-app/issues) em `<dd/mm/aaaa hh:mm>` por `.github/scripts/backlog-export.sh`. A fonte da verdade é o GitHub Issues e o [quadro](https://github.com/orgs/DEVassos/projects/1); este arquivo é um retrato versionado para a avaliação (ES01)._
 
 Legenda — Prioridade: **must** (obrigatório), **should** (importante), **could** (desejável, ex.: RF13). Estado: aberta/fechada.
 
@@ -10,20 +10,20 @@ Legenda — Prioridade: **must** (obrigatório), **should** (importante), **coul
 
 | # | Título | Requisito | Tipo | Sprint | Estado | Responsáveis |
 |---|---|---|---|---|---|---|
-| [#`<n>`](https://github.com/DEVassos/greener-app/issues/1) | `<RF01 — Descobrir serviços no agregador>` | RF01 | historia | Sprint 1 | aberta | @LUCASAMR23 |
-| [#`<n>`](https://github.com/DEVassos/greener-app/issues/2) | `<RF10 — Gravar histórico de coletas>` | RF10 | historia | Sprint 1 | aberta | @viniciusaugusto1997 |
+| [#`<n>`](https://github.com/DEVassos/ecopulse-app/issues/1) | `<RF01 — Descobrir serviços no agregador>` | RF01 | historia | Sprint 1 | aberta | @LUCASAMR23 |
+| [#`<n>`](https://github.com/DEVassos/ecopulse-app/issues/2) | `<RF10 — Gravar histórico de coletas>` | RF10 | historia | Sprint 1 | aberta | @viniciusaugusto1997 |
 
 ## Prioridade should
 
 | # | Título | Requisito | Tipo | Sprint | Estado | Responsáveis |
 |---|---|---|---|---|---|---|
-| [#`<n>`](https://github.com/DEVassos/greener-app/issues/3) | `<RF12 — Exibir localização dos serviços>` | RF12 | historia | Sprint 1 | aberta | @DeaTuribio |
+| [#`<n>`](https://github.com/DEVassos/ecopulse-app/issues/3) | `<RF12 — Exibir localização dos serviços>` | RF12 | historia | Sprint 1 | aberta | @DeaTuribio |
 
 ## Prioridade could
 
 | # | Título | Requisito | Tipo | Sprint | Estado | Responsáveis |
 |---|---|---|---|---|---|---|
-| [#`<n>`](https://github.com/DEVassos/greener-app/issues/4) | `<RF13 — Mapa dos serviços>` | RF13 | historia | — | aberta | — |
+| [#`<n>`](https://github.com/DEVassos/ecopulse-app/issues/4) | `<RF13 — Mapa dos serviços>` | RF13 | historia | — | aberta | — |
 
 ## Sem prioridade definida
 

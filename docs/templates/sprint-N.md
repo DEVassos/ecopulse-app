@@ -5,8 +5,8 @@
 | Campo | Valor |
 |---|---|
 | Período | `<dd/mm>` a `<dd/mm/aaaa>` · checkpoint `<dd/mm>` · congelamento `<dd/mm>` 20h · review `<dd/mm>` 19h30 |
-| Milestone | [Sprint N](https://github.com/DEVassos/greener-app/milestones) |
-| Versão entregue | tag [`sprint-N`](https://github.com/DEVassos/greener-app/releases/tag/sprint-N) · commit `<sha curto>` em `main` |
+| Milestone | [Sprint N](https://github.com/DEVassos/ecopulse-app/milestones) |
+| Versão entregue | tag [`sprint-N`](https://github.com/DEVassos/ecopulse-app/releases/tag/sprint-N) · commit `<sha curto>` em `main` |
 | Plano | [docs/plano-de-entregas.md § Sprint N](../plano-de-entregas.md#sprint-n): critérios previstos, denominador e situação de cada critério |
 | Atas | [planning](sprint-N/planning.md) · [dailies](sprint-N/dailies/) · [review](sprint-N/review.md) · [retrospectiva](sprint-N/retrospectiva.md) · [participação](sprint-N/contribuicao.md) · [burndown](sprint-N/burndown.md) |
 
@@ -26,7 +26,7 @@ A situação de cada critério é registrada **só** no [plano de entregas](../p
 
 | Issue | Título | Requisito | Critério | PR mergeado | Responsável |
 |---|---|---|---|---|---|
-| #`<n>` | `<título>` | RF01 | DW02, DW03 | [#`<pr>`](https://github.com/DEVassos/greener-app/pull/1) | @LUCASAMR23 |
+| #`<n>` | `<título>` | RF01 | DW02, DW03 | [#`<pr>`](https://github.com/DEVassos/ecopulse-app/pull/1) | @LUCASAMR23 |
 
 ## 4. Itens pendentes ou movidos
 

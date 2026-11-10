@@ -74,6 +74,13 @@ export function readCount(value: unknown, field: string): number {
 }
 
 /** Data e hora em ISO 8601; devolve o texto como veio. */
+/** Intervalo de coleta: inteiro ≥ 1 segundo, ou null quando a coleta não tem intervalo (falhou). */
+export function readIntervalOrNull(value: unknown, field: string): number | null {
+  const interval = readAmountOrNull(value, field);
+  if (interval !== null && (!Number.isInteger(interval) || interval < 1)) throw unexpectedFormat(field);
+  return interval;
+}
+
 export function readInstant(value: unknown, field: string): string {
   if (typeof value !== 'string' || instant(value) === undefined) throw unexpectedFormat(field);
   return value;

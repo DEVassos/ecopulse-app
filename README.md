@@ -14,7 +14,7 @@
 
 </div>
 
-**EcoPulse** é o nome do produto. No edital do desafio ele aparece como **GreenER**; o repositório continua `DEVassos/greener-app`.
+**EcoPulse** é o nome do produto. No edital do desafio ele aparece como **GreenER**; o repositório é `DEVassos/ecopulse-app` (renomeado de `greener-app` em 08/11/2026, #122; o nome antigo redireciona).
 
 ---
 
@@ -34,9 +34,17 @@ Setup do backend: [organização e validação](backend/README.md) e [contrato d
 
 ## 3. Funcionalidades implementadas
 
-- **RF05/RF06 — Motivo seguro da indisponibilidade ([#251](https://github.com/DEVassos/greener-app/issues/251)):** `GET /api/services` inclui `statusReason` da última coleta somente para `indisponivel`, normalizado para não expor detalhes internos; demais estados recebem `null`. [Contrato](docs/api.md#get-apiservices). Na tela, o motivo aparece com a #176, abaixo.
+- **RNF01 — Tema claro alternável com o escuro (#265, PR #280):** o botão de tema no cabeçalho e na tela de login troca o atributo `data-theme` da página e guarda a escolha no navegador; os tokens de cor são redefinidos para o tema claro com o mesmo contraste mínimo, e as duas aparências valem para todas as páginas e gráficos.
 
-- **RF11 — Contrato backend da configuração ([#250](https://github.com/DEVassos/greener-app/issues/250)):** GET público e PUT com JWT para intervalo de atualização da tela (15/30/60 s, padrão 30). A interface é a da #176, abaixo. [Contrato e verificação HTTP](docs/api.md#get-apimonitoring-settings); [migração sem apagar volumes](database/README.md#configuração-de-monitoramento-250).
+- **RNF01 — Acessibilidade: leitura do período, placeholder, alvos e teclado (#262, PR #278):** link **Pular para o conteúdo** no primeiro Tab, alvos de toque de pelo menos 24 px nos botões de ordenação e de atualizar, placeholder dos campos com contraste de texto pequeno, período do painel lido pelo leitor de tela e resumo do gráfico de Emissões sem anúncio a cada ciclo; **Atualizar agora** com 44 px.
+
+- **RNF01 — Números em algarismos tabulares (#266, PR #281):** CPU, energia, emissão, horários, eixos e a matriz da comparação usam a fonte de texto com `tabular-nums` no lugar da fonte mono, então vírgulas e casas ficam alinhadas sem mudar a família tipográfica.
+
+- **RNF04 / TP03 — Erros tipados e tratamento de falhas no backend (#174, PR #233):** `shared/errors.ts` define `AppError` e as subclasses (400, 401, 404, 500 e 502) e `middlewares/error-handler.ts` converte qualquer falha no envelope `{"error":{"code","message"}}`, sem stack nem SQL; falhas da API de métricas, da API de carbono e do banco viram estado visível para o frontend em vez de resultado inválido.
+
+- **RF05/RF06 — Motivo seguro da indisponibilidade ([#251](https://github.com/DEVassos/ecopulse-app/issues/251)):** `GET /api/services` inclui `statusReason` da última coleta somente para `indisponivel`, normalizado para não expor detalhes internos; demais estados recebem `null`. [Contrato](docs/api.md#get-apiservices). Na tela, o motivo aparece com a #176, abaixo.
+
+- **RF11 — Contrato backend da configuração ([#250](https://github.com/DEVassos/ecopulse-app/issues/250)):** GET público e PUT com JWT para intervalo de atualização da tela (15/30/60 s, padrão 30). A interface é a da #176, abaixo. [Contrato e verificação HTTP](docs/api.md#get-apimonitoring-settings); [migração sem apagar volumes](database/README.md#configuração-de-monitoramento-250).
 
 - **RF05, RF06, RF11 — Intervalo configurável e estado com motivo (#176):** na **Configuração**, o administrador escolhe o intervalo da atualização automática (15, 30 ou 60 s) e salva com `PUT /api/monitoring-settings`. O dashboard lê `GET /api/monitoring-settings` a cada ciclo, então a troca vale em todas as abas e navegadores no ciclo seguinte, sem recarregar; sem resposta, usa `VITE_REFRESH_INTERVAL_MS` como reserva. Na tabela e na janela de detalhes, um serviço **Indisponível** mostra o motivo seguro (`statusReason`) abaixo do selo. Como verificar em [frontend/README.md](frontend/README.md#estado-com-motivo-176).
 
@@ -44,11 +52,17 @@ Setup do backend: [organização e validação](backend/README.md) e [contrato d
 
   _Backend real (`docker compose`) em 04/11/2026: depois de salvar 15 s, o dashboard buscou `GET /api/services` aos 13, 28 e 43 s._
 
-O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta lista quando o Pull Request correspondente é mergeado, com o requisito e o número do PR. A Sprint 1 foi encerrada em 20/10/2026 e está publicada na tag [`sprint-1`](https://github.com/DEVassos/greener-app/releases/tag/sprint-1); o registro completo, com a review e o retorno do cliente, está em [docs/sprints/sprint-1.md](docs/sprints/sprint-1.md).
+O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta lista quando o Pull Request correspondente é mergeado, com o requisito e o número do PR. A Sprint 1 foi encerrada em 20/10/2026 e está publicada na tag [`sprint-1`](https://github.com/DEVassos/ecopulse-app/releases/tag/sprint-1); o registro completo, com a review e o retorno do cliente, está em [docs/sprints/sprint-1.md](docs/sprints/sprint-1.md).
 
 **Vídeo da Sprint 1 (cerca de 3 min):** [EcoPulse - ABP FATEC 2DSM](https://youtu.be/3Hx4kzuudSw), com o produto como foi entregue na Sprint 1.
 
-- **RF09, RF12 — Tabela operacional de serviços (#69):** dashboard com cada serviço monitorado, CPU, energia, emissão, última leitura, localização (região, cidade e país) e status (ativo, indisponível, sem métricas ou removido, quando o serviço sai da lista do agregador), com busca por nome e ordenação por coluna. Só o problema ganha cor: o selo Ativo e o card Ativos ficam neutros, e a linha indisponível ou sem métricas tem o botão **Ver histórico** ao lado do status (#272). A tela consome `GET /api/services` (#115) pela base definida em `VITE_API_URL`; sem ela (variável vazia), o frontend sobe em modo demonstração com dados ilustrativos (`npm run mock`) — como executar em [frontend/README.md](frontend/README.md).
+**Vídeo da Sprint 2:** [EcoPulse — Sprint 2 | DEVassos (FATEC Jacareí) — De Monitoramento a Investigação de Emissões](https://youtu.be/an9g07c_nIs), com o produto como foi entregue na Sprint 2 (`release/sprint-2`).
+
+- **RF09, RF12 — Tabela operacional de serviços (#69):** dashboard com cada serviço monitorado, CPU, energia, emissão, última leitura, localização (código da região na célula; cidade, país e nome da região ao passar o mouse) e status (ativo, indisponível, sem métricas ou removido, quando o serviço sai da lista do agregador), com busca por nome e ordenação por coluna. A coluna **Fator da região (gCO₂e/kWh)** mostra a intensidade de carbono usada na última coleta, que explica por que CPU alta em região limpa emite menos que CPU baixa em região suja; potência estimada, RAM, disco e rede ficam no tooltip da CPU, o intervalo no da última leitura, e a janela de detalhes repete tudo (#298). Só o problema ganha cor: o selo Ativo e o card Ativos ficam neutros, e a linha indisponível ou sem métricas tem o botão **Ver histórico** ao lado do status (#272). A tela consome `GET /api/services` (#115) pela base definida em `VITE_API_URL`; sem ela (variável vazia), o frontend sobe em modo demonstração com dados ilustrativos (`npm run mock`) — como executar em [frontend/README.md](frontend/README.md).
+
+  ![Tabela de serviços com a coluna Fator da região e a localização pelo código](docs/img/sprint-2-tabela-fator.png)
+
+  _Tabela ligada ao backend real (`docker compose`) em 07/11/2026, 17h08, num banco novo com poucos minutos de coletas, em 1366 px: a coluna **Fator da região (gCO₂e/kWh)** vai de 40 (ca-central) a 465 (jp-east), e é ela que explica a emissão: o Audit Stream, com 64% de CPU, emite mais que o Recommendation AI, com 86%, porque a região dele tem fator maior. Os cabeçalhos quebram em duas linhas para as nove colunas caberem sem rolagem (#298)._
 
   ![Tabela de serviços monitorados com o backend real](docs/img/sprint-2-dashboard-backend-real.png)
 
@@ -66,11 +80,17 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Dashboard com o backend real (`docker compose`) em 06/11/2026, 10h02: 1,05 kWh e 258 g CO₂e nas últimas 24 h, na unidade que o valor pede, com "▼ 21,4%" e "▼ 22,1%" em verde, porque energia e CO₂e caíram em relação às 24 h anteriores (#271)._
 
+- **RF14 — Quem pesa mais no CO₂e (#260):** a tabela de serviços mostra a parte de cada serviço no CO₂e das últimas 24 h, com barra (o 1º lugar em neon e com o rótulo "1º"), e a frase acima dela diz quem respondeu por mais. Dentro de cada estado, a ordem segue o período e não muda a cada leitura. As partes exibidas somam 100,0%, e a coluna e a frase ficam em cinza quando a última busca falha. A API é `GET /api/services/ranking?metric=co2e&from=&to=`, com o contrato aprovado na #50 e implementada na #287 (PR #291).
+
+  ![Coluna Parte do CO₂e e frase "Quem pesa mais" no dashboard](docs/img/sprint-2-ranking-co2e.png)
+
+  _Dashboard com o backend real (`docker compose`) em 07/11/2026, 14h25, num banco novo com poucos minutos de coletas do agregador: o Fraud Detector respondeu por 27,6% do CO₂e das últimas 24 h, e a coluna soma 100,0%._
+
 - **RNF02 — Indicador de última atualização (#89):** selo no cabeçalho com o horário da última busca bem-sucedida e um ponto verde pulsando enquanto os dados estão em dia; se uma busca falha, ele fica laranja e passa a dizer "Desatualizado desde …", sem apagar os dados da tela.
 
   ![Selo de última atualização no cabeçalho](docs/img/sprint-2-ultima-atualizacao.png)
 
-- **RNF04 — Resposta da API conferida antes de aparecer na tela (#161):** o frontend confere o formato de `GET /api/services` e `GET /api/collections` (#161), e também de `GET /api/services/summary` e `GET /api/services/compare` (#237, PR [#252](https://github.com/DEVassos/greener-app/pull/252)), contra o contrato de [docs/api.md](docs/api.md) a cada busca. Um item sem `id` ou com CPU em texto faz a busca ser tratada como falha: os dados anteriores continuam com "Desatualizado desde …" e **Tentar novamente**, e o item inválido não aparece. Atende ao apontamento do cliente na review da Sprint 1. Como verificar em [frontend/README.md](frontend/README.md#conferência-das-respostas-da-api-161).
+- **RNF04 — Resposta da API conferida antes de aparecer na tela (#161):** o frontend confere o formato de `GET /api/services` e `GET /api/collections` (#161), e também de `GET /api/services/summary` e `GET /api/services/compare` (#237, PR [#252](https://github.com/DEVassos/ecopulse-app/pull/252)), contra o contrato de [docs/api.md](docs/api.md) a cada busca. Um item sem `id` ou com CPU em texto faz a busca ser tratada como falha: os dados anteriores continuam com "Desatualizado desde …" e **Tentar novamente**, e o item inválido não aparece. Atende ao apontamento do cliente na review da Sprint 1. Como verificar em [frontend/README.md](frontend/README.md#conferência-das-respostas-da-api-161).
 
   ![Dashboard depois de uma resposta com a CPU em texto](docs/img/sprint-2-resposta-fora-do-contrato.png)
 
@@ -135,8 +155,8 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 > Planejado, **ainda não implementado**. O andamento real está no [quadro do projeto](https://github.com/orgs/DEVassos/projects/6) e no [plano de entregas](docs/plano-de-entregas.md).
 
 - **Dashboard em três níveis:** visão executiva (kWh total, gCO₂e, serviços ativos e indisponíveis, com atualização sem recarregar), análise comparativa (ranking e distribuição geográfica) e investigação detalhada (histórico por serviço).
-- **Prioridade apontada pelo cliente na review da Sprint 1:** comparar serviços e analisar os dados já coletados, para ver o que compensa fazer ([#159](https://github.com/DEVassos/greener-app/issues/159)).
-- **Diferenciais em estudo:** simulação de migração para regiões com matriz mais limpa ([US12, #53](https://github.com/DEVassos/greener-app/issues/53)) e exportação de relatórios em PDF/CSV ([US13, #54](https://github.com/DEVassos/greener-app/issues/54)), previstas para a Sprint 3.
+- **Prioridade apontada pelo cliente na review da Sprint 1:** comparar serviços e analisar os dados já coletados, para ver o que compensa fazer ([#159](https://github.com/DEVassos/ecopulse-app/issues/159)).
+- **Diferenciais em estudo:** simulação de migração para regiões com matriz mais limpa ([US12, #53](https://github.com/DEVassos/ecopulse-app/issues/53)) e exportação de relatórios em PDF/CSV ([US13, #54](https://github.com/DEVassos/ecopulse-app/issues/54)), previstas para a Sprint 3.
 
 ## 5. Tecnologias
 
@@ -145,7 +165,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 | Frontend | React + TypeScript (Vite, Tailwind CSS) |
 | Backend | Node.js + TypeScript, API REST em módulos (routes, controllers, services, repositories) |
 | Banco de dados | PostgreSQL com DDL e DML explícitos via driver `pg`, sem ORM |
-| Segurança | Login JWT no backend e bcrypt para senhas ([#20](https://github.com/DEVassos/greener-app/issues/20), PR #208); tela de login no frontend ([#25](https://github.com/DEVassos/greener-app/issues/25), PR #243); `PUT /api/monitoring-settings` protegido ([#250](https://github.com/DEVassos/greener-app/issues/250), PR #253); todas as páginas e as rotas de dados exigem login ([#257](https://github.com/DEVassos/greener-app/issues/257)) |
+| Segurança | Login JWT no backend e bcrypt para senhas ([#20](https://github.com/DEVassos/ecopulse-app/issues/20), PR #208); tela de login no frontend ([#25](https://github.com/DEVassos/ecopulse-app/issues/25), PR #243); `PUT /api/monitoring-settings` protegido ([#250](https://github.com/DEVassos/ecopulse-app/issues/250), PR #253); todas as páginas e as rotas de dados exigem login ([#257](https://github.com/DEVassos/ecopulse-app/issues/257)) |
 | Execução | Docker Compose (frontend, backend e PostgreSQL com volume persistente) |
 
 ## 6. Equipe (DEVassos)
@@ -162,8 +182,8 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 | Sprint | Período | Review | Objetivo | Situação |
 |---|---|---|---|---|
-| 1 | 29/09 → 19/10/2026 | 19/10 às 19h30 (realizada) | Pipeline de coleta persistido em Docker e primeira tela do dashboard (serviços com estado e localização, atualizando sem recarregar) | Concluída: tag [`sprint-1`](https://github.com/DEVassos/greener-app/releases/tag/sprint-1) |
-| 2 | 20/10 → 09/11/2026 | 09/11 às 19h30 (a confirmar) | Dashboard completo com energia, CO₂e, tolerância a falhas e área de configuração protegida por JWT | Começa em 20/10 |
+| 1 | 29/09 → 19/10/2026 | 19/10 às 19h30 (realizada) | Pipeline de coleta persistido em Docker e primeira tela do dashboard (serviços com estado e localização, atualizando sem recarregar) | Concluída: tag [`sprint-1`](https://github.com/DEVassos/ecopulse-app/releases/tag/sprint-1) |
+| 2 | 20/10 → 09/11/2026 | 09/11 às 19h30 (a confirmar) | Dashboard completo com energia, CO₂e, tolerância a falhas e área de configuração protegida por JWT | Em fechamento: congelamento em 08/11 às 20h; 67 PRs mergeados em `develop` de 20/10 a 08/11; situação por critério no [plano](docs/plano-de-entregas.md) após a verificação do PO |
 | 3 | 10/11 → 23/11/2026 | 23/11 às 19h30 (a confirmar) | Ranking de impacto, comparação entre serviços, mapa e repositório pronto como portfólio | Planejada |
 
 Critérios previstos, responsáveis e evidências de cada sprint: [docs/plano-de-entregas.md](docs/plano-de-entregas.md).
@@ -173,8 +193,8 @@ Critérios previstos, responsáveis e evidências de cada sprint: [docs/plano-de
 Pré-requisitos: [Docker](https://www.docker.com/get-started) com Docker Compose e [Git](https://git-scm.com/).
 
 ```bash
-git clone https://github.com/DEVassos/greener-app.git
-cd greener-app
+git clone https://github.com/DEVassos/ecopulse-app.git
+cd ecopulse-app
 cp .env.example .env
 docker compose up --build
 ```
@@ -197,7 +217,7 @@ Os valores de configuração vivem em um `.env` na raiz do repositório, que **n
 
 São exemplos, não um preset universal: `DATABASE_URL` depende do banco, das credenciais e do host de cada ambiente — dentro de um container, `localhost` aponta para o próprio container, não para a máquina nem para o serviço do PostgreSQL. Revise os valores em cada instalação.
 
-O `compose.yaml` lê o `.env` e repassa as variáveis aos containers ([#27](https://github.com/DEVassos/greener-app/issues/27)). Dentro do compose, a `DATABASE_URL` do backend é montada a partir de `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB` com o host `postgres`; a `DATABASE_URL` do `.env` só vale para rodar o backend fora do Docker. O compose repassa só as variáveis declaradas nele, e `POLLING_INTERVAL_MS` ainda não está entre elas. Sem `.env`, o PostgreSQL não inicializa porque `ADMIN_EMAIL` e `ADMIN_PASSWORD` são obrigatórios para o seed; o backend também exige `JWT_SECRET`, e o frontend é construído sem `VITE_API_URL` e entra em modo demonstração. Por isso, rode sempre `cp .env.example .env` antes da primeira subida.
+O `compose.yaml` lê o `.env` e repassa as variáveis aos containers ([#27](https://github.com/DEVassos/ecopulse-app/issues/27)). Dentro do compose, a `DATABASE_URL` do backend é montada a partir de `POSTGRES_USER`, `POSTGRES_PASSWORD` e `POSTGRES_DB` com o host `postgres`; a `DATABASE_URL` do `.env` só vale para rodar o backend fora do Docker. O compose repassa só as variáveis declaradas nele, e `POLLING_INTERVAL_MS` ainda não está entre elas. Sem `.env`, o PostgreSQL não inicializa porque `ADMIN_EMAIL` e `ADMIN_PASSWORD` são obrigatórios para o seed; o backend também exige `JWT_SECRET`, e o frontend é construído sem `VITE_API_URL` e entra em modo demonstração. Por isso, rode sempre `cp .env.example .env` antes da primeira subida.
 
 | Variável | Exemplo em `.env.example` | Para que serve |
 |---|---|---|
@@ -247,15 +267,20 @@ Documentação técnica: [arquitetura](docs/arquitetura.md), [API](docs/api.md),
 
 ## 11. Status
 
-**Sprint 1** (29/09 → 19/10/2026): **concluída** em 20/10/2026, tag [`sprint-1`](https://github.com/DEVassos/greener-app/releases/tag/sprint-1).
+**Sprint 1** (29/09 → 19/10/2026): **concluída** em 20/10/2026, tag [`sprint-1`](https://github.com/DEVassos/ecopulse-app/releases/tag/sprint-1).
 
 - **Entrega:** 56 Pull Requests mergeados em `develop` entre 06/10 e 18/10, levados a `main` pela `release/sprint-1`.
-- **Review (19/10, videochamada):** o cliente aprovou a coleta, a persistência dos dados e a interface. Ele reforçou que o foco é comparar serviços e analisar os dados ([#159](https://github.com/DEVassos/greener-app/issues/159)).
+- **Review (19/10, videochamada):** o cliente aprovou a coleta, a persistência dos dados e a interface. Ele reforçou que o foco é comparar serviços e analisar os dados ([#159](https://github.com/DEVassos/ecopulse-app/issues/159)).
 - **Critérios** (pelo [plano de entregas](docs/plano-de-entregas.md)): concluídos ES01–ES06, ES08, ES09, DW01–DW04, DW07, BD01–BD03 e TP02. ES07 está **parcial**, porque #60, #82 e #110 entraram sem aprovação válida e houve aprovações de uma linha.
 
 Situação por critério, verificações, feedback e participação estão em [docs/sprints/sprint-1.md](docs/sprints/sprint-1.md).
 
-**Sprint 2** (20/10 → 09/11/2026): começa em 20/10.
+**Sprint 2** (20/10 → 09/11/2026): em fechamento. Congelamento em 08/11/2026 às 20h, review em 09/11 às 19h30 (a confirmar).
+
+- **Entrega:** 67 Pull Requests mergeados em `develop` de 20/10 a 08/11 e 71 issues fechadas na milestone, cobrindo RF02, RF04 a RF15, RNF01, RNF02, RNF04 e RNF05: energia e CO₂e por coleta e por período, página Emissões, comparação entre serviços, ranking de CO₂e das 24 h, fator da região na tabela, login JWT na aplicação inteira, intervalo de atualização configurável, erros tipados no backend e o pacote visual (tema claro, acessibilidade, celular).
+- **Critérios** (DW05, DW06, TP01, TP03 e os ES01–ES09 e DW01 de toda sprint): a situação de cada um é verificada pelo PO no fechamento e fica só no [plano de entregas](docs/plano-de-entregas.md); até 08/11, TP01 está **concluído** e os demais aguardam a verificação.
+
+Situação por critério, verificações, feedback e participação ficam em [docs/sprints/sprint-2.md](docs/sprints/sprint-2.md) ao fim da sprint.
 
 ---
 

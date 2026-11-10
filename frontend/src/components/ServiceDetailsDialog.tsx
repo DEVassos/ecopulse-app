@@ -4,6 +4,7 @@ import { useCollections } from '../hooks/useCollections';
 import { useMonitoring } from '../hooks/useMonitoring';
 import type { MonitoredService } from '../services/services.types';
 import { formatDayTime, formatNumber } from '../utils/format';
+import { factorMissing, intervalText, resourcesText } from '../utils/service-reading';
 import { statusReasonText } from '../utils/status';
 import CollectionsHistoryTable from './CollectionsHistoryTable';
 import CpuHistoryChart from './CpuHistoryChart';
@@ -88,13 +89,33 @@ export default function ServiceDetailsDialog({ service, onClose }: Props) {
 
         {/* Duas colunas já no celular: os quatro dados curtos cabem lado a lado e a janela fica mais baixa */}
         <dl className="m-0 grid grid-cols-2 gap-3 min-[800px]:grid-cols-4">
-          <Detail label="Região">{service.region ?? <MissingValue label="não informada" title="Região não informada pelo agregador" />}</Detail>
+          {/* Código da região (dado) com o nome embaixo; os dois ausentes viram "não informada" */}
+          <Detail label="Região">
+            {service.regionCode ?? service.region ?? <MissingValue label="não informada" title="Região não informada pelo agregador" />}
+            {service.regionCode !== null && service.region && <span className="block font-sans text-xs text-muted">{service.region}</span>}
+          </Detail>
           <Detail label="Cidade / país" data={false}>
             {location || <MissingValue label="não informada" title="Localização não informada pelo agregador" />}
           </Detail>
-          <Detail label="Última leitura">{service.lastReadingAt === null ? 'nunca' : formatDayTime(service.lastReadingAt)}</Detail>
+          <Detail label="Última leitura">
+            {service.lastReadingAt === null ? 'nunca' : formatDayTime(service.lastReadingAt)}
+            {intervalText(service) && <span className="block font-sans text-xs text-muted">{intervalText(service)}</span>}
+          </Detail>
           <Detail label="CPU na última leitura">
             {service.cpuPercent === null ? <MissingValue /> : `${formatNumber(service.cpuPercent, 0)}%`}
+          </Detail>
+          {/* O que a tabela mostra só no tooltip (#298), acessível pelo teclado aqui: fator, potência e recursos da leitura */}
+          <Detail label="Fator da região (gCO₂e/kWh)">
+            {service.carbonIntensityGco2ePerKwh === null ? <MissingValue {...factorMissing(service)} /> : formatNumber(service.carbonIntensityGco2ePerKwh, 0)}
+          </Detail>
+          <Detail label="Potência estimada">
+            {service.powerWatts === null ? <MissingValue label="sem potência" title="Sem potência: cálculo indisponível nesta leitura" /> : `${formatNumber(service.powerWatts, 1)} W`}
+          </Detail>
+          <Detail label="RAM · disco · rede" data={false}>
+            {resourcesText(service) ?? <MissingValue label="sem recursos" title="Sem memória, disco e rede nesta leitura" />}
+          </Detail>
+          <Detail label="Intervalo de coleta">
+            {service.collectionIntervalSeconds === null ? <MissingValue label="sem intervalo" title="Sem intervalo: a última coleta falhou ou não houve coleta" /> : intervalText(service)?.replace('coleta de ', '')}
           </Detail>
         </dl>
 

@@ -2,7 +2,7 @@
 
 Este documento detalha a identidade visual, a paleta de cores, os princípios de design e as diretrizes de interface do aplicativo **EcoPulse**, com foco em tecnologia, sustentabilidade e clareza de dados.
 
-EcoPulse é o nome da aplicação, decidido pelo time em 08/10/2026 (PR #62). A interface já o usava; a documentação e as configurações passaram a usá-lo na #68. No edital do desafio o produto aparece como GreenER, e o repositório continua `DEVassos/greener-app` (renome previsto na #122).
+EcoPulse é o nome da aplicação, decidido pelo time em 08/10/2026 (PR #62). A interface já o usava; a documentação e as configurações passaram a usá-lo na #68. No edital do desafio o produto aparece como GreenER, e o repositório, antes `greener-app`, foi renomeado para `DEVassos/ecopulse-app` em 08/11/2026 (#122).
 
 O protótipo navegável no Figma, com as telas de dashboard, login e cadastro em desktop e celular, está em [produto/prototipo-figma.md](produto/prototipo-figma.md).
 

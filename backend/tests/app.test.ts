@@ -85,11 +85,24 @@ describe('HTTP', () => {
     expect((await fetch(url + '/health', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{' })).status).toBe(400);
     expect((await fetch(url + '/missing')).status).toBe(404);
   });
-  it('lista serviços com a última leitura', async () => {
-    const { collections, services } = repositories([], [{ id: '1', name: 'Demo', status: 'ativo', country: 'BR', region: 'Sul', city: null, last_reading_at: new Date('2026-10-14T20:00:00.000Z'), cpu_percent: '51.25', energy_kwh: '0.000480452625', co2e_grams: '0.040838473125' }]);
+  it('lista serviços com a última leitura, inclusive região, intervalo, recursos, potência e fator (#297)', async () => {
+    const { collections, services } = repositories([], [{ id: '1', name: 'Demo', status: 'ativo', country: 'BR', region: 'Sul', city: null, region_code: 'br-sul', last_reading_at: new Date('2026-10-14T20:00:00.000Z'), cpu_percent: '51.25', energy_kwh: '0.000480452625', co2e_grams: '0.040838473125',
+      collection_interval_seconds: 27, memory_gb: '3.170000000', disk_gb: '19.260000000', network_gb: '0.450000000', power_watts: '64.060350', carbon_intensity_gco2e_per_kwh: '85.000000' }]);
     const response = await authenticatedRequest(await serve(createApp(async () => {}, collections, services)) + '/api/services');
-    expect(response.status).toBe(200); expect((await response.json()).services[0]).toMatchObject({ id: '1', cpuPercent: 51.25,
-      energyKwh: 0.000480452625, emissionsG: 0.040838473125 });
+    expect(response.status).toBe(200);
+    const [service] = (await response.json()).services;
+    expect(service).toMatchObject({ id: '1', cpuPercent: 51.25, energyKwh: 0.000480452625, emissionsG: 0.040838473125 });
+    // toEqual nos campos novos: Number(undefined) viraria NaN e sairia como null no JSON, escondendo um mapeamento errado
+    expect({ regionCode: service.regionCode, collectionIntervalSeconds: service.collectionIntervalSeconds, memoryGb: service.memoryGb, diskGb: service.diskGb,
+      networkGb: service.networkGb, powerWatts: service.powerWatts, carbonIntensityGco2ePerKwh: service.carbonIntensityGco2ePerKwh })
+      .toEqual({ regionCode: 'br-sul', collectionIntervalSeconds: 27, memoryGb: 3.17, diskGb: 19.26, networkGb: 0.45, powerWatts: 64.06035, carbonIntensityGco2ePerKwh: 85 });
+  });
+  it('serviço sem coleta devolve null nos campos da leitura e mantém o código da região (#297)', async () => {
+    const { collections, services } = repositories([], [{ id: '2', name: 'Vazio', status: 'sem_metricas', country: null, region: null, city: null, region_code: 'ca-central', last_reading_at: null, cpu_percent: null, energy_kwh: null, co2e_grams: null,
+      collection_interval_seconds: null, memory_gb: null, disk_gb: null, network_gb: null, power_watts: null, carbon_intensity_gco2e_per_kwh: null }]);
+    const [service] = (await (await authenticatedRequest(await serve(createApp(async () => {}, collections, services)) + '/api/services')).json()).services;
+    expect(service).toEqual(expect.objectContaining({ regionCode: 'ca-central', lastReadingAt: null, cpuPercent: null, collectionIntervalSeconds: null, memoryGb: null,
+      diskGb: null, networkGb: null, powerWatts: null, carbonIntensityGco2ePerKwh: null }));
   });
   it('retorna os indicadores agregados para o período solicitado', async () => {
     const summary = { energy_kwh: '1.2500', co2e_grams: '85.5000', active: '3', unavailable: '1', without_metrics: '2', removed: '0' };

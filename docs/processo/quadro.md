@@ -2,7 +2,7 @@
 
 <!-- gerado pelo agilekit — edite em DEVassos/agilekit (repo/docs/processo/quadro.md) -->
 
-O quadro é um **GitHub Project v2 da organização DEVassos**, público, ligado ao repositório `DEVassos/greener-app`. É a visão do Sprint Backlog para o time e para o avaliador; a fonte da verdade continua sendo as **issues** (o quadro só reflete o estado delas). O número do projeto fica na variável `PROJECT_NUMBER` do repositório (hoje `6`); a URL é `https://github.com/orgs/DEVassos/projects/<PROJECT_NUMBER>` — <https://github.com/orgs/DEVassos/projects/6>.
+O quadro é um **GitHub Project v2 da organização DEVassos**, público, ligado ao repositório `DEVassos/ecopulse-app`. É a visão do Sprint Backlog para o time e para o avaliador; a fonte da verdade continua sendo as **issues** (o quadro só reflete o estado delas). O número do projeto fica na variável `PROJECT_NUMBER` do repositório (hoje `6`); a URL é `https://github.com/orgs/DEVassos/projects/<PROJECT_NUMBER>` — <https://github.com/orgs/DEVassos/projects/6>.
 
 ## 1. Colunas (campo `Status`)
 
@@ -47,7 +47,7 @@ Em `Project → ⋯ → Workflows`, o SM habilita os workflows abaixo como rede 
 
 | Workflow nativo | Configuração |
 |---|---|
-| Auto-add to project | repositório `DEVassos/greener-app`, filtro `is:issue` |
+| Auto-add to project | repositório `DEVassos/ecopulse-app`, filtro `is:issue` |
 | Item closed | Status → **Concluído** |
 | Item reopened | Status → **Em andamento** |
 | Auto-archive items | desligado (o avaliador precisa ver o histórico completo) |
@@ -58,11 +58,11 @@ Em `Project → ⋯ → Workflows`, o SM habilita os workflows abaixo como rede 
 |---|---|---|
 | `PROJECT_OWNER` | variável do repositório (`gh variable set`) | `DEVassos` |
 | `PROJECT_NUMBER` | variável do repositório | número do Project (`gh project list --owner DEVassos`) |
-| `PROJECTS_TOKEN` | **secret** do repositório (`gh secret set`) | PAT **fine-grained** da organização DEVassos: Resource owner `DEVassos`; Organization permissions → **Projects: Read and write**; Repository permissions (apenas `greener-app`) → **Issues: Read and write**, Pull requests: Read, Metadata: Read. Validade **2026-12-31**. Titular: SM (`@travensolli`) |
+| `PROJECTS_TOKEN` | **secret** do repositório (`gh secret set`) | PAT **fine-grained** da organização DEVassos: Resource owner `DEVassos`; Organization permissions → **Projects: Read and write**; Repository permissions (apenas `ecopulse-app`) → **Issues: Read and write**, Pull requests: Read, Metadata: Read. Validade **2026-12-31**. Titular: SM (`@travensolli`) |
 
 O token padrão das Actions (`GITHUB_TOKEN`) **não acessa Projects v2**; por isso o PAT. Sem ele, o workflow `board` emite um aviso e termina com sucesso: issues, labels e comentários continuam funcionando e o quadro fica apenas com os workflows nativos da seção 4.
 
-**Rotação:** se o titular mudar, o token expirar ou vazar, o SM revoga em `Settings → Developer settings → Personal access tokens`, cria outro com as mesmas permissões e roda `gh secret set PROJECTS_TOKEN -R DEVassos/greener-app`. A troca é registrada na ata da daily do dia. Se a política da organização bloquear PATs fine-grained, pedir liberação ao owner (`devassosfatec`) ou usar um PAT classic com escopos `repo` e `project`.
+**Rotação:** se o titular mudar, o token expirar ou vazar, o SM revoga em `Settings → Developer settings → Personal access tokens`, cria outro com as mesmas permissões e roda `gh secret set PROJECTS_TOKEN -R DEVassos/ecopulse-app`. A troca é registrada na ata da daily do dia. Se a política da organização bloquear PATs fine-grained, pedir liberação ao owner (`devassosfatec`) ou usar um PAT classic com escopos `repo` e `project`.
 
 ## 6. Views do Project
 

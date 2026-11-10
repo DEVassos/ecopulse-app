@@ -157,43 +157,66 @@ Visão preservada da ARQ-01 (#28), que exige diagrama de classes ou ERD; casos d
 
 ## Modelo OO separado
 
-![Modelo OO conceitual](diagramas/integracao-modelo-oo.png)
+As classes de objeto do monitoramento são as de `backend/src/domain/` (#173), usadas pelo coletor. O diagrama abaixo segue as classes do código ([fonte](https://github.com/DEVassos/ecopulse-app/tree/42f169d5edd91a0f5bf7e00fcf4c17817d1bd747/backend/src/domain)): as linhas tracejadas indicam uso entre objetos, e a relação serviço → coletas existe na coluna `collections.service_id`, não como atributo ou associação da entidade.
 
 ```mermaid
 classDiagram
-    class Service {
-        -bigint id
+    direction LR
+    class MonitoredService {
+        -string id
         -string externalId
-        -string status
-        +markSeen(instant)
-        +markRemoved()
+        -string regionCode nullable
+        +fromStored(service) MonitoredService
+        +id() string
+        +externalId() string
+        +regionCode() string
+        +canCalculateEmissions() boolean
     }
     class Collection {
-        -bigint serviceId
-        -Date collectedAt
-        -string metricsStatus
-        -string calculationStatus
-        +hasValidMetrics() boolean
-        +hasAvailableCalculation() boolean
+        -number intervalSeconds
+        -number cpuPercent
+        -number memoryGb
+        -number diskGb
+        -number networkGb
+        -object raw
+        +fromMetrics(metrics, raw) Collection
+        +intervalSeconds() number
+        +metrics() ServiceMetrics
+        +persistenceMetrics() object
+    }
+    class EnergyEstimate {
+        -string carbonIntensityGco2ePerKwh
+        -string powerWatts
+        -string energyKwh
+        -string co2eGrams
+        +toPersistence() EnergyEstimatePersistence
     }
     class CarbonCalculator {
-        +calculatePower(metrics) number
-        +calculateEnergy(watts, seconds) number
-        +calculateEmission(kwh, intensity) number
+        +calculate(metrics, intensityGco2ePerKwh) EnergyEstimate
     }
-    class AuthService {
-        +authenticate(email, password)
-        +verifyToken(token)
+    class MonitoringStatus {
+        -string value
+        +fromValue(value) MonitoringStatus
+        +fromCollection(status) MonitoringStatus
+        +value() string
+        +isAvailable() boolean
     }
-    class AccessEntryService {
-        +recordEntry(ip)
-        +listEntries(period)
-    }
-    Service "1" --> "0..*" Collection
-    CarbonCalculator ..> Collection : estima
+    CarbonCalculator ..> EnergyEstimate : cria
+    CarbonCalculator ..> Collection : recebe métricas validadas
+    MonitoringStatus ..> Collection : converte o status da coleta
 ```
 
-Contratos conceituais (não equivalem a fluxos implementados): Service controla estado; Collection expressa validade; CarbonCalculator aplica fórmulas; AuthService concentra bcrypt/JWT. O desenho de AccessEntryService para gravação e consulta não está implementado nem comprometido com uma sprint. SQL exclusivamente em repositories parametrizados via pg. Não há quatro perfis ou tenants. TP01 requer classes usadas na aplicação, não somente o diagrama.
+| Classe | Responsabilidade | Onde é usada |
+|---|---|---|
+| `MonitoredService` | identidade do serviço e a condição para calcular emissões (região nula impede o cálculo) | `jobs/collector.ts` |
+| `Collection` | valida a observação (intervalo inteiro, CPU entre 0 e 100, GB não negativos) e converte nos valores das colunas de `collections` | `jobs/collector.ts` |
+| `CarbonCalculator` | valida as entradas, aplica as fórmulas de potência, energia e emissão e devolve `EnergyEstimate` | `jobs/collector.ts` |
+| `EnergyEstimate` | objeto de valor imutável com a precisão decimal das colunas | `jobs/collector.ts`, criado por `CarbonCalculator` |
+| `MonitoringStatus` | converte `ok`, `erro` e `sem_metricas` em `ativo`, `indisponivel` e `sem_metricas`; `isAvailable()` responde a mesma pergunta | `jobs/collector.ts` e `modules/services/services.service.ts` |
+
+As três entidades — `MonitoredService`, `Collection` e `MonitoringStatus` — têm construtor privado e campos `#privados`: a criação passa por factory (`fromStored`, `fromMetrics`, `fromValue` e `fromCollection`) e as validações lançam `ValidationError`. `EnergyEstimate` é um objeto de valor imutável, com campos `readonly` e construtor público, criado por `CarbonCalculator.calculate()`. `CarbonCalculator` não guarda estado: não declara campo nem construtor, apenas o método `calculate()`. Testes: `backend/tests/domain-models.test.ts` e `backend/tests/carbon-calculator.test.ts`.
+
+O que **não** existe no backend e por isso não aparece no diagrama: `AuthService` e `AccessEntryService`. A autenticação é feita por funções (`login` e `readToken` em `modules/usuarios/usuarios.service.ts`) e pelo middleware `middlewares/auth.ts`, com JWT e bcrypt (#20, #48); a tabela `access_entries` não tem fluxo de gravação nem de consulta. A interface `MonitoredService` de `modules/services/services.service.ts` é o contrato de resposta de `GET /api/services`, distinto da entidade de domínio do mesmo nome. SQL continua exclusivamente nos repositories parametrizados via `pg`. TP01 exige classes usadas na aplicação, não somente o diagrama.
 
 ## Acesso e entrada simples
 
