@@ -35,7 +35,7 @@ Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de
 
 ### Fonte das imagens
 
-1. **EOX Sentinel-2 cloudless** (camada `s2cloudless-2020_3857` do WMTS `tiles.maps.eox.at`).
+1. **EOX Sentinel-2 cloudless** (camada `s2cloudless-2025_3857` do WMTS `tiles.maps.eox.at`, o mosaico mais recente; o protótipo usava a de 2020).
 2. **Esri World Imagery** (`server.arcgisonline.com`), a camada usada no protótipo.
 3. **Nenhuma imagem**, só o contorno dos países.
 
@@ -45,7 +45,7 @@ Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de
 
 **Imagens: EOX Sentinel-2 cloudless como camada padrão**, com a atribuição visível no canto do mapa:
 
-> EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2020)
+> EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2025)
 
 - **Licença conferida em 11/11/2026** na [página oficial de licença não comercial](https://cloudless.eox.at/license-non-commercial): as camadas de 2018 a 2025 estão sob [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). A página permite usar os serviços WMTS e WMS diretamente na aplicação, desde que se cumpram a licença e a atribuição, colocada perto do uso e com os links.
 - **Uso comercial não está coberto.** Pela [página de licença comercial](https://cloudless.eox.at/license-legal/), ele exige a licença paga *EOX Commercial Attribution-RestrictedUse 1.2*. O EcoPulse é um projeto acadêmico, sem fins comerciais. O aviso fica registrado no README e na legenda do mapa: quem usar o app com fim comercial precisa contratar a licença da EOX ou trocar a fonte das imagens.
@@ -67,7 +67,7 @@ Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de
 - **WebGL:** navegadores ou máquinas sem WebGL não desenham o mapa. Nesse caso a tela mostra a lista de regiões e um aviso, como no critério da #51 para dados sem coordenada.
 - **Dependência de serviço externo:** as imagens vêm do WMTS da EOX, que não publica um limite de uso nem garantia de disponibilidade. O fundo offline cobre a falha, mas sem a imagem de satélite.
 - **Uso comercial bloqueado** pela licença das imagens (CC BY-NC-SA 4.0), como descrito em Decisão.
-- **Nível de detalhe:** a camada de 2020 vem de imagens Sentinel-2 de 10 m, e o protótipo a usa até o zoom 14. O mapa limita o zoom em 11, no nível de cidade, porque as coordenadas são da região e não do prédio.
+- **Nível de detalhe:** a camada de 2025 vem de imagens Sentinel-2 de 10 m, e o protótipo a usa até o zoom 14. O mapa limita o zoom em 11, no nível de cidade, porque as coordenadas são da região e não do prédio.
 
 **O que muda no repositório**
 - `frontend/package.json`: dependência `maplibre-gl` com a versão fixada (#322).
