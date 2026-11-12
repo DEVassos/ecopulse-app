@@ -5,15 +5,15 @@
 | Status | aceito |
 | Data | 2026-11-11 |
 | Decisores | @DeaTuribio (frontend, autora do protótipo), @travensolli (SM, autor da #318) |
-| Rastreabilidade | issue #318 · história #51 (US10) · tarefas #322, #323 e #326 · requisito RF13 · critérios DW04 (apoio) e ES08 |
+| Rastreabilidade | issue #318 · história #51 (US10), tarefas #321, #322 e #323 · história #53 (US12), tarefa #326 · requisito RF13 · critérios DW04 (apoio) e ES08 |
 
 ## Contexto e problema
 
-A US10 (#51) pede um mapa com uma bolha por região, de tamanho proporcional ao CO₂e, para o gestor ver onde se concentram as emissões. O protótipo [`docs/produto/prototipo-mapa-regioes.html`](../produto/prototipo-mapa-regioes.html) (commit `9172dc8`) testou a ideia com o MapLibre carregado de uma CDN, uma camada de satélite e os dados do modo demonstração. O time aprovou o caminho na #318 (11/11) e dividiu o trabalho em: componente (#322), alternativa mais limpa (#326), modo apresentação (#323) e funções de região (#321).
+A US10 (#51) pede um mapa com uma bolha por região, de tamanho proporcional ao CO₂e, para o gestor ver onde se concentram as emissões. O protótipo [`docs/produto/prototipo-mapa-regioes.html`](../produto/prototipo-mapa-regioes.html) (commit `9172dc8`) testou a ideia com o MapLibre carregado de uma CDN, uma camada de satélite e os dados do modo demonstração. O caminho foi aprovado na planning da Sprint 3 ([`docs/sprints/sprint-3/planning.md`](../sprints/sprint-3/planning.md), § Mapa e simulação, PR #314) e detalhado no corpo da #318, que dividiu o trabalho em: componente (#322), alternativa mais limpa (#326), modo apresentação (#323) e funções de região (#321).
 
 Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de resposta registrada:
 
-1. **Qual biblioteca desenha o mapa?** Ela entra no bundle, que hoje tem 412 KB (122 KB com gzip, um único arquivo JS).
+1. **Qual biblioteca desenha o mapa?** Ela entra no bundle, que hoje tem cerca de 117 kB de JS com gzip (um único arquivo, de 375,60 a 377,48 kB sem compressão, conforme a máquina) e 9,67 kB de CSS com gzip (46,47 kB sem compressão), medidos com `cd frontend && npx vite build` (vite 8.3.3 do lock) na develop em `802a9de`, no Linux e no Windows.
 2. **De onde vêm as imagens de satélite, e com qual licença?** O protótipo usava a Esri World Imagery, cujos termos o time ainda não tinha conferido.
 3. **O que acontece sem internet?** As imagens vêm de um serviço externo, e a apresentação pode acontecer numa rede ruim.
 
@@ -48,7 +48,7 @@ Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de
 > EOxCloudless https://cloudless.eox.at by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2025)
 
 - **Licença conferida em 11/11/2026** na [página oficial de licença não comercial](https://cloudless.eox.at/license-non-commercial): as camadas de 2018 a 2025 estão sob [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). A página permite usar os serviços WMTS e WMS diretamente na aplicação, desde que se cumpram a licença e a atribuição, colocada perto do uso e com os links.
-- **Uso comercial não está coberto.** Pela [página de licença comercial](https://cloudless.eox.at/license-legal/), ele exige a licença paga *EOX Commercial Attribution-RestrictedUse 1.2*. O EcoPulse é um projeto acadêmico, sem fins comerciais. O aviso fica registrado no README e na legenda do mapa: quem usar o app com fim comercial precisa contratar a licença da EOX ou trocar a fonte das imagens.
+- **Uso comercial não está coberto.** Pela [página de licença comercial](https://cloudless.eox.at/license-legal/), ele exige a licença paga *EOX Commercial Attribution-RestrictedUse 1.2*. O EcoPulse é um projeto acadêmico, sem fins comerciais. O aviso ficará registrado no README e na legenda do mapa, no PR do mapa (#322): quem usar o app com fim comercial precisa contratar a licença da EOX ou trocar a fonte das imagens.
 
 **Esri World Imagery fora do código por enquanto.** Os termos não são uma licença aberta. O uso é regido pelo contrato de licença da Esri e pelos termos do ArcGIS Online, as aplicações precisam exibir a atribuição "Powered by Esri", e a própria Esri [se reserva o direito](https://www.esri.com/en-us/legal/terms/web-site-service) de decidir se um uso sem cobrança é não comercial ou comercial (com licença paga). O time não conferiu esses termos para o nosso caso, então a camada sai do código. Para voltar, basta um novo ADR que registre os termos conferidos.
 
@@ -63,7 +63,7 @@ Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de
 - Quem não abre o mapa não baixa a biblioteca, porque ela fica num pedaço separado do bundle (`React.lazy`).
 
 **Negativas / custos**
-- **Peso:** o pacote `maplibre-gl` 6.16.0 soma cerca de 1,6 MB (441 KB com gzip), entre o módulo principal, o worker e o CSS. É mais de três vezes o app inteiro de hoje (122 KB com gzip). Por isso a carga sob demanda é obrigatória, e o mapa precisa de um estado de "carregando".
+- **Peso:** o pacote `maplibre-gl` 6.16.0 soma 1.699.017 B (452.428 B com gzip, ou 441,8 KiB), entre o módulo principal, o worker e o CSS do tarball do npm. É mais de três vezes o JS do app inteiro de hoje (cerca de 117 kB com gzip, medido como no Contexto). Por isso a carga sob demanda é obrigatória, e o mapa precisa de um estado de "carregando".
 - **WebGL:** navegadores ou máquinas sem WebGL não desenham o mapa. Nesse caso a tela mostra a lista de regiões e um aviso, como no critério da #51 para dados sem coordenada.
 - **Dependência de serviço externo:** as imagens vêm do WMTS da EOX, que não publica um limite de uso nem garantia de disponibilidade. O fundo offline cobre a falha, mas sem a imagem de satélite.
 - **Uso comercial bloqueado** pela licença das imagens (CC BY-NC-SA 4.0), como descrito em Decisão.
@@ -104,8 +104,10 @@ Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de
 
 ## Como verificar que está em vigor
 
+Esta seção vale depois do merge do PR do mapa (#322). Antes disso, os comandos abaixo voltam vazios, porque o componente ainda não existe.
+
 ```bash
-grep -n '"maplibre-gl"' frontend/package.json            # dependência fixada (depois da #322)
+grep -n '"maplibre-gl"' frontend/package.json            # dependência fixada
 grep -rn "React.lazy\|lazy(" frontend/src | grep -i map  # mapa carregado sob demanda
 grep -rn "cloudless.eox.at" frontend/src                 # atribuição da EOX no componente
 grep -rn "arcgisonline" frontend/src                     # deve voltar vazio: Esri fora do código
