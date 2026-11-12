@@ -13,7 +13,7 @@ A US10 (#51) pede um mapa com uma bolha por região, de tamanho proporcional ao 
 
 Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de resposta registrada:
 
-1. **Qual biblioteca desenha o mapa?** Ela entra no bundle, que hoje tem cerca de 117 kB de JS com gzip (um único arquivo, de 375,60 a 377,48 kB sem compressão, conforme a máquina) e 9,67 kB de CSS com gzip (46,47 kB sem compressão), medidos com `cd frontend && npx vite build` (vite 8.3.3 do lock) na develop em `802a9de`, no Linux e no Windows.
+1. **Qual biblioteca desenha o mapa?** Ela entra no bundle, que hoje tem 375,60 kB de JS (117,04 kB com gzip, um único arquivo) e 46,47 kB de CSS (9,67 kB com gzip), medidos com `cd frontend && npm ci && npx vite build` (vite 8.3.3 do lock) na develop em `802a9de`. Sem o `npm ci`, dependências antigas no `node_modules` mudam o número em cerca de 2 kB.
 2. **De onde vêm as imagens de satélite, e com qual licença?** O protótipo usava a Esri World Imagery, cujos termos o time ainda não tinha conferido.
 3. **O que acontece sem internet?** As imagens vêm de um serviço externo, e a apresentação pode acontecer numa rede ruim.
 
@@ -63,7 +63,7 @@ Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de
 - Quem não abre o mapa não baixa a biblioteca, porque ela fica num pedaço separado do bundle (`React.lazy`).
 
 **Negativas / custos**
-- **Peso:** o pacote `maplibre-gl` 6.16.0 soma 1.699.017 B (452.428 B com gzip, ou 441,8 KiB), entre o módulo principal, o worker e o CSS do tarball do npm. É mais de três vezes o JS do app inteiro de hoje (cerca de 117 kB com gzip, medido como no Contexto). Por isso a carga sob demanda é obrigatória, e o mapa precisa de um estado de "carregando".
+- **Peso:** o pacote `maplibre-gl` 6.16.0 soma 1.699.017 B (452.428 B com gzip, ou 441,8 KiB), entre o módulo principal, o worker e o CSS do tarball do npm. É mais de três vezes o JS do app inteiro de hoje (117,04 kB com gzip, medido como no Contexto). Por isso a carga sob demanda é obrigatória, e o mapa precisa de um estado de "carregando".
 - **WebGL:** navegadores ou máquinas sem WebGL não desenham o mapa. Nesse caso a tela mostra a lista de regiões e um aviso, como no critério da #51 para dados sem coordenada.
 - **Dependência de serviço externo:** as imagens vêm do WMTS da EOX, que não publica um limite de uso nem garantia de disponibilidade. O fundo offline cobre a falha, mas sem a imagem de satélite.
 - **Uso comercial bloqueado** pela licença das imagens (CC BY-NC-SA 4.0), como descrito em Decisão.
