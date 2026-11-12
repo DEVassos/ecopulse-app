@@ -43,4 +43,15 @@
     border-left-color: var(--border);
     color: var(--muted);
   }
+
+  /* Falha só do mapa (#322): a Carbon API fora do ar não derruba o Dashboard; o aviso fica no lugar do mapa */
+  .region-map-error {
+    margin: 0;
+    padding: 10px 14px;
+    border-left: 2px solid var(--warning);
+    border-radius: 0 8px 8px 0;
+    background: var(--surface-2);
+    font-size: 14px;
+    color: var(--text-2);
+  }
 }

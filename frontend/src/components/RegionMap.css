@@ -1,0 +1,427 @@
+@layer components {
+  /* Mapa de bolhas do Dashboard (#322, RF13) */
+  .region-map {
+    /*
+     * Cores das bolhas e da legenda: fixas, fora dos tokens do tema. Elas ficam sobre a imagem de satélite, que é escura
+     * nos dois temas; com os tokens do tema claro (mais escuros), perderiam o contraste sobre o oceano. Mesmo caso do
+     * tooltip, que também é sempre escuro (#274).
+     */
+    --bubble-ativo: #5cffb8;
+    --bubble-ativo-fill: rgb(52 211 153 / 0.4);
+    --bubble-indisponivel: #f87171;
+    --bubble-indisponivel-fill: rgb(239 68 68 / 0.45);
+    --bubble-sem_metricas: #fb923c;
+    --bubble-sem_metricas-fill: rgb(249 115 22 / 0.3);
+    --bubble-energy: #facc15;
+    --bubble-track: rgb(255 255 255 / 0.25);
+    --map-glass: rgb(11 18 32 / 0.86);
+    --map-glass-border: #22304a;
+    --map-glass-text: #cbd5e1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .region-map__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 16px;
+  }
+
+  .region-map__title {
+    margin: 0;
+    font-family: var(--display);
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .region-map__period {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  /* Mapa e painel lado a lado; abaixo de cerca de 900 px o painel desce (RNF01) */
+  .region-map__body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .region-map__stage {
+    position: relative;
+    flex: 999 1 520px;
+    min-width: 0;
+    height: 460px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #02060d;
+  }
+
+  /* Largura e altura, e não position/inset: o CSS do MapLibre (fora de camada) define position no contêiner e venceria */
+  .region-map__canvas {
+    width: 100%;
+    height: 100%;
+  }
+
+  .region-map__overview,
+  .region-map__legend,
+  .region-map__failed,
+  .region-map__notice {
+    position: absolute;
+    z-index: 2;
+    border: 1px solid var(--map-glass-border);
+    background: var(--map-glass);
+    color: var(--map-glass-text);
+  }
+
+  /* Ao lado dos botões de zoom do MapLibre, que ficam no canto superior direito */
+  .region-map__overview {
+    top: 10px;
+    right: 52px;
+    min-height: 44px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .region-map__overview:hover {
+    color: #ffffff;
+  }
+
+  /* Legenda compacta no canto inferior esquerdo, um item por linha, para não cobrir o mapa */
+  .region-map__legend {
+    left: 10px;
+    bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin: 0;
+    padding: 6px 9px;
+    border-radius: 8px;
+    list-style: none;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .region-map__legend li {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    white-space: nowrap;
+  }
+
+  .region-map__failed {
+    top: 50%;
+    left: 50%;
+    width: min(320px, calc(100% - 32px));
+    margin: 0;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    text-align: center;
+    transform: translate(-50%, -50%);
+  }
+
+  /* Marca de estado: o mesmo desenho na legenda, na lista e na barra. O tracejado distingue "sem métricas" sem depender da cor */
+  .region-map__key {
+    flex: none;
+    width: 11px;
+    height: 11px;
+    border: 1.5px solid;
+    border-radius: 50%;
+  }
+
+  .region-map__key--ativo {
+    border-color: var(--bubble-ativo);
+    background: var(--bubble-ativo-fill);
+  }
+
+  .region-map__key--indisponivel {
+    border-color: var(--bubble-indisponivel);
+    background: var(--bubble-indisponivel-fill);
+  }
+
+  .region-map__key--sem_metricas {
+    border-color: var(--bubble-sem_metricas);
+    border-style: dashed;
+    background: var(--bubble-sem_metricas-fill);
+  }
+
+  .region-map__key--size {
+    border-color: var(--map-glass-text);
+  }
+
+  .region-map__key--ring {
+    border: 0;
+    background: conic-gradient(var(--bubble-energy) 65%, var(--bubble-track) 0);
+    mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  }
+
+  /* ── Bolha: o MapLibre posiciona o botão; o <b> tem o tamanho e a cor, o <i> é o anel de energia ── */
+  .region-bubble {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .region-bubble b {
+    display: block;
+    border: 2px solid;
+    border-radius: 50%;
+    transition: width 0.45s ease, height 0.45s ease, box-shadow 0.3s ease;
+  }
+
+  .region-bubble--ativo b {
+    border-color: var(--bubble-ativo);
+    background: var(--bubble-ativo-fill);
+  }
+
+  .region-bubble--indisponivel b {
+    border-color: var(--bubble-indisponivel);
+    background: var(--bubble-indisponivel-fill);
+  }
+
+  .region-bubble--sem_metricas b {
+    border-color: var(--bubble-sem_metricas);
+    border-style: dashed;
+    background: var(--bubble-sem_metricas-fill);
+  }
+
+  .region-bubble--selected b {
+    box-shadow: 0 0 0 3px #ffffff, 0 0 26px 8px rgb(255 255 255 / 0.35);
+  }
+
+  /* Pulso das regiões ativas: o mesmo "ao vivo" do logo */
+  .region-bubble--ativo:not(.region-bubble--selected) b {
+    animation: region-bubble-pulse 2.4s ease-out infinite;
+  }
+
+  /* A parte amarela é a energia do local diante do local que mais consumiu (--ring, de 4 a 100) */
+  .region-bubble__ring {
+    position: absolute;
+    inset: -9px;
+    border-radius: 50%;
+    pointer-events: none;
+    background: conic-gradient(var(--bubble-energy) calc(var(--ring, 0) * 1%), var(--bubble-track) 0);
+    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+  }
+
+  .region-bubble__ring[hidden] {
+    display: none;
+  }
+
+  @keyframes region-bubble-pulse {
+    0% {
+      box-shadow: 0 0 0 0 rgb(92 255 184 / 0.55);
+    }
+
+    100% {
+      box-shadow: 0 0 0 16px rgb(92 255 184 / 0);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .region-bubble b {
+      transition: none;
+    }
+
+    .region-bubble--ativo:not(.region-bubble--selected) b {
+      animation: none;
+    }
+  }
+
+  /* ── Painel: lista de regiões e detalhes da selecionada ── */
+  .region-map__panel {
+    display: flex;
+    flex: 1 1 300px;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    max-height: 460px;
+    padding: 14px;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+
+  .region-map__list,
+  .region-map__counts {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .region-map__region {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .region-map__region:hover {
+    background: var(--surface-2);
+  }
+
+  .region-map__region[aria-pressed='true'] {
+    border-color: var(--accent);
+    background: var(--surface-3);
+  }
+
+  .region-map__region-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .region-map__region-name {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-weight: 500;
+  }
+
+  .region-map__region-name small {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .region-map__value {
+    white-space: nowrap;
+  }
+
+  /* Dado da atualização anterior: apagado, como nos cards e na tabela (#261) */
+  .region-map--stale .region-map__value {
+    color: var(--muted);
+  }
+
+  .region-map__bar {
+    display: block;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--surface-2);
+  }
+
+  .region-map__bar-fill {
+    display: block;
+    height: 4px;
+    border-radius: 2px;
+    transition: width 0.45s ease;
+  }
+
+  .region-map__bar-fill--ativo {
+    background: var(--accent);
+  }
+
+  .region-map__bar-fill--indisponivel {
+    background: var(--error);
+  }
+
+  .region-map__bar-fill--sem_metricas {
+    background: var(--warning);
+  }
+
+  .region-map__detail {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .region-map__detail-title {
+    margin: 0;
+    font-family: var(--display);
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .region-map__detail-place,
+  .region-map__unplaced {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .region-map__facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 0;
+  }
+
+  .region-map__facts > div {
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--surface-2);
+  }
+
+  .region-map__facts dt,
+  .region-map__label {
+    margin: 0 0 4px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .region-map__facts dd {
+    margin: 0;
+    font-weight: 600;
+  }
+
+  /* Contagem de serviços por estado da região selecionada (critério 2 da #322) */
+  .region-map__counts li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 14px;
+  }
+
+  /* Sem imagens de satélite (sem internet ou serviço da EOX fora): o contorno dos países fica visível e o aviso, no topo */
+  .region-map__notice {
+    top: 12px;
+    left: 12px;
+    max-width: calc(100% - 120px);
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+  }
+
+  /* Região sem serviço: ponto neutro e pequeno, só destino possível (não pulsa e não tem anel) */
+  .region-bubble--idle b {
+    border: 1.5px solid var(--map-glass-text);
+    background: rgb(148 163 184 / 0.35);
+  }
+
+  .region-map__key--idle {
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid var(--map-glass-text);
+    background: rgb(148 163 184 / 0.35);
+  }
+}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import AppHeader from '../components/AppHeader';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -18,7 +18,13 @@ import type { ServicesRankingResponse } from '../services/ranking.types';
 import { rankingIsStale, rankingShares, rankingSentence } from '../utils/ranking';
 import SummaryPanel from '../components/SummaryPanel';
 import { summarizeStatus } from '../utils/summary';
+import { fetchRegions, fetchRegionsSummary } from '../services/regions.service';
+import { joinRegions } from '../utils/region-map';
+import type { RegionJoin } from '../utils/region-map';
 import './DashboardPage.css';
+
+// O mapa (MapLibre, ~270 KB com gzip) fica num arquivo à parte: só baixa quando o Dashboard tem dados (ADR 0010)
+const RegionMap = lazy(() => import('../components/RegionMap'));
 
 export default function DashboardPage() {
   const { data, loading, error, updatedAt, refresh } = useServices();
@@ -35,6 +41,8 @@ export default function DashboardPage() {
   const sentence = ranking ? rankingSentence(ranking, 'das últimas 24 h') : null;
   // Parte de cada serviço no CO₂e das 24 h (#260): em cinza quando a última busca do ranking ou da lista falhou
   const rankingStale = rankingIsStale(rankingError, error);
+  const [regionJoin, setRegionJoin] = useState<RegionJoin | null>(null);
+  const [regionsError, setRegionsError] = useState('');
   useEffect(() => {
     if (isDemoMode) return;
     const controller = new AbortController(); const to = new Date(); const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
@@ -81,6 +89,28 @@ export default function DashboardPage() {
           const detail = reason instanceof Error ? reason.message : 'não foi possível carregar o ranking.';
           setRankingError(`Ranking de CO₂e do período: ${detail}`);
         }
+      }
+    })();
+    return () => controller.abort();
+  }, [updatedAt]);
+  // Mapa das regiões (#322): as mesmas 24 h dos KPIs, a cada ciclo. Falha aqui (ex.: Carbon API fora do ar) fica só no
+  // lugar do mapa, com o último dado em cinza se houver: o resto do Dashboard continua funcionando
+  useEffect(() => {
+    if (updatedAt === null) return;
+    const controller = new AbortController();
+    const to = new Date();
+    const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
+    void (async () => {
+      try {
+        const [list, summary] = await Promise.all([
+          fetchRegions(controller.signal),
+          fetchRegionsSummary(from.toISOString(), to.toISOString(), controller.signal),
+        ]);
+        if (controller.signal.aborted) return;
+        setRegionJoin(joinRegions(list, summary));
+        setRegionsError('');
+      } catch (reason: unknown) {
+        if (!controller.signal.aborted) setRegionsError(reason instanceof Error ? reason.message : 'não foi possível carregar as regiões.');
       }
     })();
     return () => controller.abort();
@@ -165,6 +195,19 @@ export default function DashboardPage() {
             <span className="dashboard-reading__title">Quem pesa mais</span>
             {sentence}
           </p>
+        )}
+
+        {/* Onde está o impacto (#322, RF13): entre a leitura do período e a tabela */}
+        {data && data.services.length > 0 && regionsError && !regionJoin && (
+          <p className="region-map-error" role="status">Mapa das regiões indisponível: {regionsError}</p>
+        )}
+        {data && data.services.length > 0 && regionJoin && (
+          <Suspense fallback={<LoadingState message="Carregando o mapa…" />}>
+            <RegionMap join={regionJoin} periodLabel="últimas 24 h" stale={regionsError !== '' || error !== ''} />
+          </Suspense>
+        )}
+        {data && data.services.length > 0 && regionsError && regionJoin && (
+          <p className="region-map-error" role="status">Mapa das regiões desatualizado: {regionsError}</p>
         )}
 
         {data && data.services.length > 0 && (
