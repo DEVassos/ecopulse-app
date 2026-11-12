@@ -100,6 +100,24 @@ Somente números inteiros 15, 30 ou 60 são aceitos. Campo ausente, string, bool
 
 Erros seguem `{"error":{"code":"VALIDATION_ERROR","message":"refreshIntervalSeconds deve ser 15, 30 ou 60."}}`; respostas não expõem SQL ou stack. Aplicação em volumes existentes: [migração do banco](../database/README.md#configuração-de-monitoramento-250).
 
+## GET /api/regions
+
+Lista as regiões fornecidas pela Carbon API para o mapa (RF13, #319). Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`.
+
+`GET /api/regions`
+
+Cada região sempre traz coordenadas, intensidade de carbono e percentual renovável válidos. `monitoredServices` é a quantidade atual de serviços com o mesmo `code` e estado diferente de `removido`; uma região sem serviço monitorado aparece com `0`. `source: "cache"` informa que a Carbon API falhou e a resposta veio do último cache disponível; por uma hora ele é usado sem nova requisição e, vencido, ainda é a alternativa segura se a atualização falhar.
+
+```json
+{"regions":[{"code":"us-east","country":"United States","region":"Virginia","city":"Ashburn","latitude":39.04,"longitude":-77.49,"carbonIntensityGco2ePerKwh":378,"renewableSharePercent":22,"monitoredServices":2}],"source":"api","fetchedAt":"2026-11-12T13:00:00.000Z"}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 401 | `UNAUTHORIZED` | JWT ausente, inválido ou expirado |
+| 502 | `EXTERNAL_API_ERROR` | Carbon API indisponível ou resposta fora do contrato e não há cache válido/anterior |
+| 500 | `DATABASE_ERROR` | falha ao contar os serviços monitorados |
+
 ## GET /api/services/summary
 
 Indicadores agregados do dashboard (RF08, #175). Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`.
