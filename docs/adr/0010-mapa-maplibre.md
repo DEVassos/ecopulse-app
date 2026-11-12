@@ -35,8 +35,8 @@ Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de
 
 ### Fonte das imagens
 
-1. **EOX Sentinel-2 cloudless** (camada `s2cloudless-2025_3857` do WMTS `tiles.maps.eox.at`, o mosaico mais recente; o protótipo usava a de 2020).
-2. **Esri World Imagery** (`server.arcgisonline.com`), a camada usada no protótipo.
+1. **EOX Sentinel-2 cloudless** (camada `s2cloudless-2025_3857` do WMTS `tiles.maps.eox.at`, o mosaico mais recente, já usada no protótipo).
+2. **Esri World Imagery** (`server.arcgisonline.com`), a camada da primeira versão do protótipo (`9172dc8`).
 3. **Nenhuma imagem**, só o contorno dos países.
 
 ## Decisão
@@ -67,14 +67,14 @@ Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de
 - **WebGL:** navegadores ou máquinas sem WebGL não desenham o mapa. Nesse caso a tela mostra a lista de regiões e um aviso, como no critério da #51 para dados sem coordenada.
 - **Dependência de serviço externo:** as imagens vêm do WMTS da EOX, que não publica um limite de uso nem garantia de disponibilidade. O fundo offline cobre a falha, mas sem a imagem de satélite.
 - **Uso comercial bloqueado** pela licença das imagens (CC BY-NC-SA 4.0), como descrito em Decisão.
-- **Nível de detalhe:** a camada de 2025 vem de imagens Sentinel-2 de 10 m, e o protótipo a usa até o zoom 14. O mapa limita o zoom em 11, no nível de cidade, porque as coordenadas são da região e não do prédio.
+- **Nível de detalhe:** o mapa limita o zoom em 11, no nível de cidade, porque as coordenadas são da região e não do prédio. Em z11 a resolução Web Mercator é de cerca de 76 m/px no equador, então os 10 m das imagens Sentinel-2 sobram, e a alta resolução da Esri não faria diferença.
 
 **O que muda no repositório**
 - `frontend/package.json`: dependência `maplibre-gl` com a versão fixada (#322).
 - Componente do mapa carregado com `React.lazy` no Dashboard (#322), com a atribuição da EOX e o fundo offline.
 - GeoJSON dos países (Natural Earth 1:110m, simplificado) junto ao componente do mapa (#322).
 - `frontend/README.md` e README raiz: atribuição das imagens e aviso de uso comercial, no PR do mapa.
-- O protótipo continua em `docs/produto/` como referência visual. A camada Esri sai dele no PR do mapa, junto com a troca para a EOX.
+- O protótipo continua em `docs/produto/` como referência visual, já com a EOX de 2025 e a atribuição acima. A camada Esri saiu dele neste PR (#338).
 
 ## Prós e contras das opções
 
@@ -92,10 +92,10 @@ Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de
 
 ### Imagens — EOX Sentinel-2 cloudless
 - Bom: licença pública e conferida, atribuição clara, uso direto do WMTS permitido, imagem sem nuvens.
-- Ruim: só para uso não comercial; resolução de 10 m.
+- Ruim: só para uso não comercial.
 
 ### Imagens — Esri World Imagery
-- Bom: alta resolução (o protótipo a usa até o zoom 17) e visual muito conhecido.
+- Bom: visual muito conhecido. A alta resolução não pesa aqui, porque o mapa para no zoom 11.
 - Ruim: termos proprietários ainda não conferidos para o nosso uso, atribuição "Powered by Esri" obrigatória e decisão da Esri sobre o que é uso comercial.
 
 ### Imagens — nenhuma
