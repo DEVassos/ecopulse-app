@@ -9,11 +9,36 @@ const body = {
 const json = (value: unknown = body) => new Response(JSON.stringify(value));
 const baseUrl = 'https://carbon.example';
 const makeFetch = () => vi.fn<typeof fetch>().mockImplementation(async () => json());
+const regionsBody = {
+  regions: [{ code: 'br-sudeste', country: 'Brazil', region: 'Sudeste', city: 'Sao Paulo', latitude: -23.5505,
+    longitude: -46.6333, carbon_intensity_gco2e_per_kwh: 85, renewable_share_percent: 83 }], total: 1,
+};
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(0); });
 afterEach(() => { vi.useRealTimers(); });
 
 describe('cliente de carbono', () => {
+  it('lista regiões, reutiliza o cache por uma hora e preserva cache vencido em falha', async () => {
+    const fetchFn = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(json(regionsBody))
+      .mockRejectedValueOnce(new Error('offline'));
+    const api = createCarbonApi({ baseUrl, fetchFn });
+    await expect(api.listRegions()).resolves.toEqual({
+      source: 'api', fetchedAt: 0,
+      regions: [{ code: 'br-sudeste', country: 'Brazil', region: 'Sudeste', city: 'Sao Paulo', latitude: -23.5505,
+        longitude: -46.6333, intensityGco2ePerKwh: 85, renewableSharePercent: 83 }],
+    });
+    vi.setSystemTime(3_599_999);
+    await expect(api.listRegions()).resolves.toMatchObject({ source: 'cache', fetchedAt: 0 });
+    vi.setSystemTime(3_600_000);
+    await expect(api.listRegions()).resolves.toMatchObject({ source: 'cache', fetchedAt: 0 });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(fetchFn.mock.calls[0][0]).toBe(`${baseUrl}/regions`);
+  });
+  it('rejeita uma lista de regiões fora do contrato sem cache', async () => {
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(json({ ...regionsBody, regions: [{ ...regionsBody.regions[0], latitude: null }] }));
+    await expect(createCarbonApi({ baseUrl, fetchFn }).listRegions()).rejects.toBeInstanceOf(ExternalApiError);
+  });
   it('consulta uma vez, valida o contrato e retorna a unidade original', async () => {
     const fetchFn = makeFetch();
     const api = createCarbonApi({ baseUrl: `${baseUrl}/`, fetchFn });
