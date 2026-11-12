@@ -9,14 +9,14 @@ import { UserRepository } from './modules/usuarios/usuarios.repository';
 import { AppError } from './shared/errors';
 import { Collector, type CollectorLifecycle } from './jobs/collector';
 import { createMetricsApi } from './integrations/metrics-api';
-import { createCarbonApi } from './integrations/carbon-api';
+import { createCarbonApi, type CarbonApi } from './integrations/carbon-api';
 import { MonitoringSettingsRepository } from './modules/monitoring-settings/monitoring-settings.repository';
 
-export async function startServer(env: Environment, database: Database, collector?: CollectorLifecycle): Promise<Server> {
+export async function startServer(env: Environment, database: Database, collector?: CollectorLifecycle, carbonApi?: CarbonApi): Promise<Server> {
   try {
     await verifyConnection(database);
     const server = createServer(createApp(() => verifyConnection(database), new CollectionRepository(database), new ServiceRepository(database), env.corsOrigins,
-      new UserRepository(database), { jwtSecret: env.jwtSecret, jwtExpiresIn: env.jwtExpiresIn }, new MonitoringSettingsRepository(database)));
+      new UserRepository(database), { jwtSecret: env.jwtSecret, jwtExpiresIn: env.jwtExpiresIn }, new MonitoringSettingsRepository(database), carbonApi));
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
       server.listen(env.port, () => { server.off('error', reject); resolve(); });
@@ -42,9 +42,10 @@ export async function stopServer(server: Server, database: Database, collector?:
 async function main(): Promise<void> {
   const env = readEnvironment();
   const database = createDatabase(env.databaseUrl);
+  const carbonApi = createCarbonApi({ baseUrl: env.carbonApiUrl });
   const collector = new Collector(database, createMetricsApi({ baseUrl: env.metricsApiUrl }), env.pollingIntervalMs,
-    Date.now, console.error, createCarbonApi({ baseUrl: env.carbonApiUrl }));
-  const server = await startServer(env, database, collector);
+    Date.now, console.error, carbonApi);
+  const server = await startServer(env, database, collector, carbonApi);
   console.info(`API disponível na porta ${env.port}.`);
   let stopping = false;
   const shutdown = () => {
