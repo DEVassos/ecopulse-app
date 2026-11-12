@@ -50,7 +50,7 @@ Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de
 - **Licença conferida em 11/11/2026** na [página oficial de licença não comercial](https://cloudless.eox.at/license-non-commercial): as camadas de 2018 a 2025 estão sob [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/). A página permite usar os serviços WMTS e WMS diretamente na aplicação, desde que se cumpram a licença e a atribuição, colocada perto do uso e com os links.
 - **Uso comercial não está coberto.** Pela [página de licença comercial](https://cloudless.eox.at/license-legal/), ele exige a licença paga *EOX Commercial Attribution-RestrictedUse 1.2*. O EcoPulse é um projeto acadêmico, sem fins comerciais. O aviso ficará registrado no README e na legenda do mapa, no PR do mapa (#322): quem usar o app com fim comercial precisa contratar a licença da EOX ou trocar a fonte das imagens.
 
-**Esri World Imagery fora do código por enquanto.** Os termos não são uma licença aberta. O uso é regido pelo contrato de licença da Esri e pelos termos do ArcGIS Online, as aplicações precisam exibir a atribuição "Powered by Esri", e a própria Esri [se reserva o direito](https://www.esri.com/en-us/legal/terms/web-site-service) de decidir se um uso sem cobrança é não comercial ou comercial (com licença paga). O time não conferiu esses termos para o nosso caso, então a camada sai do código. Para voltar, basta um novo ADR que registre os termos conferidos.
+**Esri World Imagery fora do código por enquanto.** Os termos não são uma licença aberta. O uso é regido pelo contrato de licença da Esri e pelos termos do ArcGIS Online, as aplicações precisam exibir a atribuição exigida pela Esri, e a própria Esri [se reserva o direito](https://www.esri.com/en-us/legal/terms/web-site-service) de decidir se um uso sem cobrança é não comercial ou comercial (com licença paga). O time não conferiu esses termos para o nosso caso, então a camada sai do código. Para voltar, basta um novo ADR que registre os termos conferidos.
 
 **Sem internet: fundo escuro e contorno dos países** em GeoJSON embutido no pacote do mapa, a partir da [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/) 1:110m, que está em domínio público ("All versions of Natural Earth raster + vector map data … are in the public domain"), sem exigir atribuição e com uso comercial permitido. Quando as imagens falham, por erro de tile ou com o navegador offline, o mapa troca para esse fundo e mostra um aviso curto. As bolhas, a lista e o detalhe continuam funcionando, porque dependem só dos dados da API.
 
@@ -96,7 +96,7 @@ Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de
 
 ### Imagens — Esri World Imagery
 - Bom: visual muito conhecido. A alta resolução não pesa aqui, porque o mapa para no zoom 11.
-- Ruim: termos proprietários ainda não conferidos para o nosso uso, atribuição "Powered by Esri" obrigatória e decisão da Esri sobre o que é uso comercial.
+- Ruim: termos proprietários ainda não conferidos para o nosso uso, atribuição obrigatória e decisão da Esri sobre o que é uso comercial.
 
 ### Imagens — nenhuma
 - Bom: zero dependência externa e zero questão de licença.
@@ -114,3 +114,10 @@ grep -rn "arcgisonline" frontend/src                     # deve voltar vazio: Es
 ```
 
 Na tela, com o compose no ar: o canto do mapa mostra a atribuição da EOX. Com a rede desligada nas ferramentas do navegador, o mapa troca para o contorno dos países e as bolhas continuam clicáveis.
+
+## Links
+
+- Issue: #318 (decisão no corpo da issue) · história #51 (US10) · planning: [`docs/sprints/sprint-3/planning.md`](../sprints/sprint-3/planning.md), § Mapa e simulação (PR #314)
+- Requisito: [RF13](../requisitos.md)
+- Critério no plano: [plano de entregas](../plano-de-entregas.md) (DW04 e ES08)
+- Referências externas: [licença não comercial da EOX](https://cloudless.eox.at/license-non-commercial) · [licença comercial da EOX](https://cloudless.eox.at/license-legal/) · [termos da Esri](https://www.esri.com/en-us/legal/terms/web-site-service) · [termos da Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/) · [MapLibre GL JS](https://maplibre.org/maplibre-gl-js/docs/)
