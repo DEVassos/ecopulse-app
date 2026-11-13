@@ -62,6 +62,10 @@ interface Props {
   shares?: Map<string, RankingShare> | null;
   /** A última busca do ranking falhou (#261): a coluna fica em --muted, como os cards. */
   sharesStale?: boolean;
+  /** Região selecionada na lista de regiões (#342): as linhas dela ficam destacadas. */
+  selectedRegion?: string | null;
+  /** Clique no código da região: seleciona a mesma região na lista. Sem ele, o código é só texto. */
+  onSelectRegion?: (code: string) => void;
 }
 
 type Shares = Map<string, RankingShare> | null | undefined;
@@ -136,7 +140,15 @@ function ShareCell({
 }
 
 /** Tabela operacional dos serviços monitorados (RF09, RF12): busca por nome, ordenação por coluna e clique para os detalhes. */
-export default function ServicesTable({ services, onSelect, stale = false, shares = null, sharesStale = false }: Props) {
+export default function ServicesTable({
+  services,
+  onSelect,
+  stale = false,
+  shares = null,
+  sharesStale = false,
+  selectedRegion = null,
+  onSelectRegion,
+}: Props) {
   const [search, setSearch] = useState('');
   // Ordem inicial por gravidade (Status crescente): indisponíveis e sem métricas no topo, acima da dobra
   const [sortKey, setSortKey] = useState<SortKey>('status');
@@ -231,6 +243,8 @@ export default function ServicesTable({ services, onSelect, stale = false, share
             {rows.map((service) => {
               // Número que não é atual fica apagado: a busca falhou ou o serviço saiu do agregador (#261)
               const dim = stale || service.status === 'removido' ? ' text-muted' : '';
+              // Região selecionada na lista (#342): fundo e filete verde à esquerda, sem mexer na ordem da tabela
+              const inRegion = selectedRegion !== null && service.regionCode === selectedRegion;
               return (
                 // O clique vale para a linha toda; o botão do nome dá o mesmo acesso pelo teclado (o clique dele sobe até aqui).
                 // Focar o botão antes de abrir faz o foco voltar para ele ao fechar, mesmo com clique fora do nome.
@@ -242,7 +256,7 @@ export default function ServicesTable({ services, onSelect, stale = false, share
                     (clicked ?? event.currentTarget.querySelector('button'))?.focus();
                     onSelect(service);
                   }}
-                  className="cursor-pointer border-t border-border hover:bg-surface-2"
+                  className={`cursor-pointer border-t border-border hover:bg-surface-2${inRegion ? ' bg-surface-3 shadow-[inset_3px_0_0_var(--accent)]' : ''}`}
                 >
                   <th scope="row" className="px-5 py-2 text-left font-medium">
                     <button
@@ -318,7 +332,22 @@ export default function ServicesTable({ services, onSelect, stale = false, share
                   </td>
                   {/* Código da região na célula e cidade, país e nome no tooltip (#298): a coluna fica estreita para caber o fator */}
                   <td className="whitespace-nowrap px-5 py-2 text-muted">
-                    {service.regionCode !== null ? (
+                    {service.regionCode !== null && onSelectRegion ? (
+                      // O clique no código seleciona a região e não abre a janela do serviço (o da linha não é chamado)
+                      <button
+                        type="button"
+                        aria-pressed={inRegion}
+                        aria-label={`Selecionar a região ${service.regionCode}${locationText(service) ? ` (${locationText(service)})` : ''}`}
+                        data-tooltip={`${locationText(service) || 'Cidade e país não informados pelo agregador'} · clique para ver a região na lista`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onSelectRegion(service.regionCode as string);
+                        }}
+                        className={`min-h-6 cursor-pointer rounded-md border bg-transparent px-1.5 font-data text-sm hover:border-primary hover:text-text ${inRegion ? 'border-[var(--accent)] text-text' : 'border-border text-muted'}`}
+                      >
+                        {service.regionCode}
+                      </button>
+                    ) : service.regionCode !== null ? (
                       <span data-tooltip={locationText(service) || 'Cidade e país não informados pelo agregador'} className="font-data">
                         {service.regionCode}
                         {locationText(service) && <span className="sr-only"> ({locationText(service)})</span>}
