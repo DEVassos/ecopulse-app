@@ -41,6 +41,8 @@ interface Props {
   missing?: TimeSpan[];
   /** A última atualização falhou: o gráfico fica apagado, como o resumo. */
   stale?: boolean;
+  /** Início do monitoramento depois de boa parte do período (#332): linha tracejada no instante, com o texto da marca. */
+  startMark?: { t: number; label: string };
 }
 
 const MARGIN = { top: 16, right: 20, bottom: 50, left: 64 };
@@ -103,7 +105,7 @@ function nearestIndex(times: number[], t: number): number {
 /** Sem trechos sem coleta: a mesma referência em toda renderização. */
 const NO_SPANS: TimeSpan[] = [];
 
-export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, missing = NO_SPANS, stale = false }: Props) {
+export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, missing = NO_SPANS, stale = false, startMark }: Props) {
   const [containerRef, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -298,6 +300,11 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
     const chip = labelBox(peakText, peak.cx, peak.cy - 14, peakAnchor, CHAR_WIDTH.data12, 12);
     labelObstacles.push({ left: chip.left - 6, right: chip.right + 6, top: chip.top - 3, bottom: peak.cy + 10 });
   }
+  // Marca do início do monitoramento (#332): o texto vai à esquerda da linha, no trecho vazio, quando cabe nele;
+  // senão fica só a linha, e a legenda diz o que ela é
+  const startX = startMark && startMark.t > fromMs ? x(startMark.t) : null;
+  const startLabelFits =
+    startMark !== undefined && startX !== null && startX - MARGIN.left >= startMark.label.length * CHAR_WIDTH.sans11 + 12;
   // Embaixo primeiro (no trecho sem coleta não há linha perto do zero), depois no meio e no alto
   const nodataBaselines = [MARGIN.top + plotH - 10, MARGIN.top + plotH / 2 + 4, MARGIN.top + 18];
   // Fundo do chip do pico na medida do texto já desenhado; sem getBBox (jsdom), o rótulo fica sem fundo
@@ -311,7 +318,8 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
     } else {
       setPeakBox(null);
     }
-  }, [peakText, width, mode, bucket, points]);
+    // fromMs entra porque o ajuste do eixo ao trecho com dados (#332) move o chip sem mudar os pontos
+  }, [peakText, width, mode, bucket, points, fromMs, toMs]);
 
   return (
     <div
@@ -406,6 +414,17 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
               </g>
             )}
           </g>
+
+          {startMark && startX !== null && (
+            <g className="emissions-chart__start" pointerEvents="none">
+              <line className="emissions-chart__start-line" x1={startX} x2={startX} y1={MARGIN.top} y2={MARGIN.top + plotH} />
+              {startLabelFits && (
+                <text className="emissions-chart__start-label" x={startX - 6} y={MARGIN.top + 12} textAnchor="end">
+                  {startMark.label}
+                </text>
+              )}
+            </g>
+          )}
 
           {open && <circle className="emissions-chart__open" cx={open.cx} cy={open.cy} r={4} pointerEvents="none" />}
 
@@ -536,8 +555,14 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
         </p>
       )}
 
-      {(presentGaps.size > 0 || bandPath || missing.length > 0) && (
+      {(presentGaps.size > 0 || bandPath || missing.length > 0 || startX !== null) && (
         <ul className="emissions-chart__legend" aria-label="Legenda do gráfico">
+          {startMark && startX !== null && (
+            <li>
+              <span className="emissions-chart__swatch emissions-chart__swatch--start" aria-hidden="true" />
+              {startMark.label.charAt(0).toUpperCase() + startMark.label.slice(1)}
+            </li>
+          )}
           {bandPath && (
             <li>
               <span className="emissions-chart__swatch emissions-chart__swatch--band" aria-hidden="true" />

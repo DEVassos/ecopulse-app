@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { describePeriod, missingSpans, missingTimeMs, peakRatio, readPeriodFilter, seriesStats } from './emissions';
+import {
+  describeLateStart,
+  describePeriod,
+  fittedAxisStart,
+  lateStartMs,
+  missingSpans,
+  missingTimeMs,
+  peakRatio,
+  readPeriodFilter,
+  seriesStats,
+} from './emissions';
 import type { EmissionPoint } from '../services/emissions.types';
 
 const TODAY = '2026-11-02';
@@ -117,5 +127,63 @@ describe('missingSpans', () => {
   it('não conta antes da primeira nem depois da última coleta', () => {
     const points = [point(origin + 60 * MIN, 1)];
     expect(missingSpans(points, '15min', origin, origin + 24 * 60 * MIN)).toEqual([]);
+  });
+});
+
+describe('lateStartMs (#332)', () => {
+  const MIN = 60_000;
+  const from = Date.UTC(2026, 10, 5, 3);
+  const to = from + 24 * 60 * MIN;
+
+  it('marca o início quando mais de 20% do período passou sem coleta (o "Ontem" com dados só depois das 18:40)', () => {
+    const start = from + (18 * 60 + 40) * MIN;
+    expect(lateStartMs([point(start, 1), point(start + 30_000, 1)], from, to)).toBe(start);
+  });
+
+  it('não marca quando o primeiro dado chega até 20% do período (inclusive)', () => {
+    const atLimit = from + 0.2 * 24 * 60 * MIN;
+    expect(lateStartMs([point(atLimit, 1)], from, to)).toBeNull();
+    expect(lateStartMs([point(atLimit + MIN, 1)], from, to)).toBe(atLimit + MIN);
+  });
+
+  it('não marca sem coleta no período nem ignora o ponto sem cálculo: coleta sem cálculo também é monitoramento', () => {
+    expect(lateStartMs([], from, to)).toBeNull();
+    const start = from + 12 * 60 * MIN;
+    expect(lateStartMs([point(start, null), point(start + MIN, 1)], from, to)).toBe(start);
+  });
+
+  it('no período "Hoje", que termina agora, mede pelo que já passou do dia', () => {
+    // Monitoramento ligado às 13:50 e agora são 14:00: quase todo o trecho até agora ficou vazio
+    const now = from + 14 * 60 * MIN;
+    expect(lateStartMs([point(now - 10 * MIN, 1)], from, now)).toBe(now - 10 * MIN);
+  });
+});
+
+describe('fittedAxisStart (#332)', () => {
+  const MIN = 60_000;
+  const from = Date.UTC(2026, 10, 5, 3);
+
+  it('começa o eixo no primeiro dado', () => {
+    expect(fittedAxisStart(from + 600 * MIN, from, from + 1440 * MIN, '15min')).toBe(from + 600 * MIN);
+  });
+
+  it('deixa pelo menos um intervalo do agrupamento até o fim, sem passar do início do período', () => {
+    const to = from + 600 * MIN;
+    expect(fittedAxisStart(to - 5 * MIN, from, to, '15min')).toBe(to - 15 * MIN);
+    expect(fittedAxisStart(from + 5 * MIN, from, from + 10 * MIN, '1h')).toBe(from);
+  });
+});
+
+describe('describeLateStart (#332)', () => {
+  const start = new Date(2026, 10, 5, 18, 40).getTime();
+
+  it('dá o horário da coleta, com o dia quando o período tem mais de um', () => {
+    expect(describeLateStart(start, 'coleta', false)).toBe('monitoramento começou às 18:40');
+    expect(describeLateStart(start, 'coleta', true)).toBe('monitoramento começou em 05/11 18:40');
+  });
+
+  it('no agrupado, diz o intervalo em que a primeira coleta caiu', () => {
+    const bucketStart = new Date(2026, 10, 5, 18, 30).getTime();
+    expect(describeLateStart(bucketStart, '15min', false)).toBe('monitoramento começou entre 18:30 e 18:45');
   });
 });
