@@ -11,12 +11,14 @@ import { Collector, type CollectorLifecycle } from './jobs/collector';
 import { createMetricsApi } from './integrations/metrics-api';
 import { createCarbonApi, type CarbonApi } from './integrations/carbon-api';
 import { MonitoringSettingsRepository } from './modules/monitoring-settings/monitoring-settings.repository';
+import { RegionsSummaryRepository } from './modules/regions/regions-summary.repository';
 
 export async function startServer(env: Environment, database: Database, collector?: CollectorLifecycle, carbonApi?: CarbonApi): Promise<Server> {
   try {
     await verifyConnection(database);
     const server = createServer(createApp(() => verifyConnection(database), new CollectionRepository(database), new ServiceRepository(database), env.corsOrigins,
-      new UserRepository(database), { jwtSecret: env.jwtSecret, jwtExpiresIn: env.jwtExpiresIn }, new MonitoringSettingsRepository(database), carbonApi));
+      new UserRepository(database), { jwtSecret: env.jwtSecret, jwtExpiresIn: env.jwtExpiresIn }, new MonitoringSettingsRepository(database), carbonApi,
+      new RegionsSummaryRepository(database)));
     await new Promise<void>((resolve, reject) => {
       server.once('error', reject);
       server.listen(env.port, () => { server.off('error', reject); resolve(); });
