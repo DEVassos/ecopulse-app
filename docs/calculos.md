@@ -115,17 +115,21 @@ Percentual arredondado a 2 casas só na exibição: 16,90 ÷ 18,90 = 0,894179…
 Sem dado de carga de trabalho (requisições, jobs, usuários), eficiência aqui significa **quanta potência o serviço gasta para estar no ar** — e é isso que a tela precisa dizer, em vez de sugerir eficiência por unidade de trabalho.
 
 ```text
-segundos monitorados  = SUM(collection_interval_seconds) das coletas com status = 'ok' no período
+segundos monitorados  = SUM(collection_interval_seconds) das mesmas coletas de E_período
+                        (calculation_status = 'disponivel'), não das coletas com status = 'ok'
 P_média (W)           = E_período (kWh) × 3 600 000 ÷ segundos monitorados
 eficiência de carbono = intensidade da região (g CO₂e/kWh), menor é melhor
 ```
 
 `P_média` é a média **ponderada pelo tempo**, não `AVG(power_watts)`: como `E = P × Δt ÷ 3 600 000`, somando as coletas `Σ P·Δt = E × 3 600 000` e `P_média = Σ P·Δt ÷ Σ Δt`. Com intervalos iguais as duas contas coincidem; com intervalos diferentes, só a ponderada está certa — e é por isso que a rota precisa devolver os segundos monitorados, coisa que nenhuma rota faz hoje.
 
+Numerador e denominador têm de sair do **mesmo conjunto de coletas**, e o conjunto é o de `E_período` (`calculation_status = 'disponivel'`). Somar o tempo das coletas `status = 'ok'` e a energia das calculadas mistura dois conjuntos: uma coleta `ok` sem fator tem energia `NULL`, entra no tempo e não entra na energia. Com 1 h da API de carbono fora em 24 h a 20 W, a conta misturada dá 0,46 × 3 600 000 ÷ 86 400 = 19,17 W em vez de 20 W — o serviço parece mais eficiente exatamente quando a medição falhou.
+
 Exemplos conferíveis à mão:
 
 - 0,48 kWh em 24 h monitoradas: 0,48 × 3 600 000 ÷ 86 400 = **20 W**.
 - De volta ao exemplo oficial: 1.000 coletas de 60 s com P = 50,87 W dão `E` = 0,847833333 kWh e 60 000 s; 0,847833333 × 3 600 000 ÷ 60 000 = **50,87 W**, a potência de origem.
+- Eficiência de carbono, com o exemplo da seção de simulação (`us-east`, `E_período` 0,050 kWh, `CO₂e_real` 18,90 g): 18,90 ÷ 0,050 = **378 g CO₂e/kWh**, o fator da região. O mesmo serviço em `br-sudeste` daria 4,25 ÷ 0,050 = **85 g CO₂e/kWh**.
 
 `segundos monitorados = 0` (período só com coletas `erro` ou `sem_metricas`) não é potência zero: é "sem dado no período".
 
@@ -147,7 +151,7 @@ Os mesmos coeficientes da seção "Fonte e fórmula", decompostos. Exemplo do Op
 
 A soma das parcelas reproduz a potência da seção principal (64,06035 W). As parcelas usam o intermediário completo; 97,83 + 1,86 + 0,30 + 0,01 fecha 100,00 apenas porque as quatro foram arredondadas juntas. A tela não soma percentuais arredondados: exibe o total em W e calcula cada percentual a partir dos watts.
 
-### A composição de um período sai das médias, sem campo novo
+### A composição de um período sai das médias existentes
 
 Cada parcela é **linear** no recurso, então a média da soma é a soma das médias:
 
@@ -155,22 +159,30 @@ Cada parcela é **linear** no recurso, então a média da soma é a soma das mé
 média(P) = Σ_r coef_r × média(x_r)   para r em {CPU, RAM, disco, rede}
 ```
 
-`GET /api/services/compare` já devolve `avgCpuPercent`, `avgMemoryGb`, `avgDiskGb`, `avgNetworkGb` e `energyKwh`, então a composição de um período pode ser calculada na borda **sem erro de aproximação**. A condição é que as quatro médias venham do mesmo filtro — hoje vêm (`WHERE c.status = 'ok'` e o mesmo período); se um recurso ganhar filtro próprio, a igualdade deixa de valer. Enquanto `cpu_percent = 0` for valor válido, a parcela de CPU é 0 W e a de RAM pode ser a maior: a barra não pode assumir CPU dominante.
+`GET /api/services/compare` já devolve `avgCpuPercent`, `avgMemoryGb`, `avgDiskGb`, `avgNetworkGb` e `energyKwh`, então a composição de um período pode ser calculada na borda sobre as médias que a rota já devolve, sem coluna nova no banco. A condição é que as quatro médias venham do mesmo filtro — hoje vêm (`WHERE c.status = 'ok'` e o mesmo período); se um recurso ganhar filtro próprio, a igualdade deixa de valer.
+
+Isso garante a **soma das médias**, não a média ponderada pelo tempo. As quatro médias do `/compare` são `AVG(...)` por coleta: com intervalos diferentes, `Σ coef_r × AVG(x_r)` só coincide com `P_média` da seção de eficiência quando todos os intervalos são iguais. Por isso a tela usa a composição para as **parcelas em %** — a proporção entre os recursos não depende do intervalo — e não afirma que o total em W fecha com `P_média`. A média ponderada por recurso (`SUM(x·Δt) ÷ SUM(Δt)`) está pedida na [#327](https://github.com/DEVassos/ecopulse-app/issues/327).
+
+Enquanto `cpu_percent = 0` for valor válido, a parcela de CPU é 0 W e a de RAM pode ser a maior: a barra não pode assumir CPU dominante.
 
 ## Limite de "rede limpa"
 
-Um serviço recebe o selo de rede limpa quando a intensidade da sua região no período é **≤ 100 g CO₂e/kWh**.
+O limite é o mesmo nos dois casos — 100 g CO₂e/kWh —, mas a intensidade vem de fontes diferentes:
 
 ```text
-intensidade do período (g CO₂e/kWh) = CO₂e_real ÷ E_período   quando E_período > 0
-selo = intensidade do período ≤ 100
+região  (fator de agora)    selo quando a intensidade de GET /api/regions ≤ 100
+serviço (fator do período)  selo quando CO₂e_real ÷ E_período ≤ 100, com E_período > 0
 ```
+
+O caso **região** olha o fator atual e vale mesmo sem coleta no período; é o que a coluna "Rede limpa (≤ 100 g/kWh)" da tabela de regiões marca, inclusive `ca-central`, que não tem serviço. O caso **serviço** usa o fator que as coletas gravaram e responde "este serviço rodou em rede limpa no período?" — um serviço que migrou de região no meio do período pode ter os dois resultados.
+
+A #324 usa o caso **região**: o selo da tabela de serviços e o do painel do mapa vêm de `GET /api/regions` (via `utils/regions.ts`), com a intensidade de agora. O caso serviço ainda não tem rota; a fórmula fica aqui para quando ela existir.
 
 A justificativa é a distribuição das cinco regiões da API, não um número da documentação do desafio: 40, 85, 295, 378 e 465 g CO₂e/kWh, mediana 295. O corte em 100 fica **entre a segunda mais limpa (85) e a terceira (295)**, separando exatamente as duas regiões com ≥ 83 % de renovável das três com ≤ 38 %, e está longe dos cinco valores — uma atualização pequena da API não muda o resultado. É **decisão de produto**, registrada no histórico do plano, e não constante do modelo: quem discordar do número muda o limite, não a fórmula.
 
-Verificação em um comando — `curl -s https://carbon.unilaunch.org/regions | jq -r '.regions[] | "\(.code) \(.carbon_intensity_gco2e_per_kwh)"'` — precisa mostrar valores abaixo de 100 para `ca-central` e `br-sudeste`, e acima de 100 para `eu-west`, `us-east` e `jp-east` (a saída traz os valores como `40.0`, `85.0`, `295.0`, `378.0` e `465.0`, em ordem alfabética de `code`).
+Verificação em um comando — `curl -s https://carbon.unilaunch.org/regions | jq -r '.regions[] | "\(.code) \(.carbon_intensity_gco2e_per_kwh)"'` — precisa mostrar valores abaixo de 100 para `ca-central` e `br-sudeste`, e acima de 100 para `eu-west`, `us-east` e `jp-east` (a saída traz os valores como `40.0`, `85.0`, `295.0`, `378.0` e `465.0`). A API devolve as regiões na ordem dela, não em ordem alfabética de `code`; para ordenar, use `jq -r '.regions | sort_by(.code)[] | "\(.code) \(.carbon_intensity_gco2e_per_kwh)"'`.
 
-Sem intensidade não há selo: `E_período = 0`, `CO₂e_real` nulo ou região sem fator mostram "sem dado no período", nunca "rede limpa". Um período com mais de uma intensidade (cache de 1 h) usa a intensidade ponderada pela energia, `CO₂e_real ÷ E_período`, que é igual ao fator da região quando ele não mudou no período.
+Sem intensidade não há selo: no caso região, região fora de `GET /api/regions`; no caso serviço, `E_período = 0`, `CO₂e_real` nulo ou região sem fator — os dois casos mostram "sem dado no período", nunca "rede limpa". No caso serviço, um período com mais de uma intensidade (cache de 1 h) usa a intensidade ponderada pela energia, `CO₂e_real ÷ E_período`, que é igual ao fator da região quando ele não mudou no período.
 
 ## Como verificar e migrar
 
