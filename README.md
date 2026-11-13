@@ -146,7 +146,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 - **RF13, RNF01 — Mapa de bolhas das regiões (#322):** ao lado da lista de regiões, um globo com uma bolha por região com serviço: a cor é o pior estado, a área é o CO₂e das últimas 24 h e o anel é a energia; regiões sem serviço hoje são pontos neutros. Escolher uma região no mapa, na lista ou na tabela leva o mapa até ela (com "reduzir movimento", ele salta). O MapLibre só baixa quando há regiões, e sem internet o contorno dos países aparece por baixo, com aviso ([detalhes](frontend/README.md#mapa-das-regiões-rf13-322)).
 
-  **Aviso de uso comercial:** as imagens de satélite (EOX Sentinel-2 cloudless 2025) estão sob CC BY-NC-SA 4.0, livres só para uso não comercial, com o crédito visível no mapa. Uso comercial do EcoPulse exige a licença paga da EOX ou outra fonte de imagens ([ADR 0010](docs/adr/0010-mapa-maplibre.md)).
+  **Aviso de uso comercial:** as imagens de satélite (EOX Sentinel-2 cloudless 2025) estão sob CC BY-NC-SA 4.0, livres só para uso não comercial, com o crédito no canto do mapa (no celular, atrás do botão **i**). Uso comercial do EcoPulse exige a licença paga da EOX ou outra fonte de imagens ([ADR 0010](docs/adr/0010-mapa-maplibre.md)).
 
   ![Globo com as bolhas das regiões ao lado da lista de regiões por CO₂e](docs/img/sprint-3-mapa.png)
 

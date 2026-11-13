@@ -83,7 +83,7 @@
     line-height: 1.3;
   }
 
-  /* Celular: a legenda vira uma faixa abaixo do mapa, com as cores do tema, e o crédito da EOX fica livre no canto */
+  /* Celular: a legenda vira uma faixa abaixo do mapa, com as cores do tema, e o botão "i" do crédito da EOX fica livre no canto */
   @media (max-width: 599px) {
     .region-map__legend {
       position: static;

@@ -15,7 +15,7 @@ import './RegionMap.css';
 
 /**
  * Imagens de satélite: EOX Sentinel-2 cloudless 2025, licença CC BY-NC-SA 4.0 (ADR 0010). Livre para uso não comercial,
- * com o crédito visível no mapa; uso comercial do EcoPulse exige licenciar as imagens com a EOX ou trocar a fonte.
+ * com o crédito no canto do mapa; uso comercial do EcoPulse exige licenciar as imagens com a EOX ou trocar a fonte.
  */
 const SATELLITE_TILES = 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/{z}/{y}/{x}.jpg';
 const SATELLITE_CREDIT =
@@ -123,8 +123,9 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
           center: HOME.center,
           zoom: HOME.zoom,
           maxZoom: MAX_ZOOM,
-          // Crédito da EOX sempre aberto no canto, como a licença pede (ADR 0010), e não atrás do botão "i"
-          attributionControl: { compact: false },
+          // Crédito da EOX (ADR 0010) no modo automático do MapLibre, combinado com o Gabriel em 13/11: aberto no canto em
+          // mapas a partir de 640 px; mais estreito (celular), atrás do botão "i", para não cobrir o mapa
+          attributionControl: {},
           style: {
             version: 8,
             sources: {
@@ -349,7 +350,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
         )}
         {mapFailed && <p className="region-map__failed" role="status">Não foi possível abrir o mapa neste navegador. A lista de regiões continua com os dados de cada região.</p>}
       </div>
-      {/* Fora do palco: no celular ela desce para baixo do mapa e não cobre o crédito da EOX */}
+      {/* Fora do palco: no celular ela desce para baixo do mapa e não cobre o botão "i" do crédito */}
       <ul className="region-map__legend" aria-label="Legenda do mapa">
         <li><i className="region-map__key region-map__key--ativo" aria-hidden="true" />Ativo</li>
         <li><i className="region-map__key region-map__key--indisponivel" aria-hidden="true" />Indisponível</li>
