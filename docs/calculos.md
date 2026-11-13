@@ -68,3 +68,25 @@ No exemplo oficial periódico, 1.000 linhas de energia já persistida somam 0,84
 ## Como verificar e migrar
 
 [Roteiro reproduzível](arquitetura/verificacao-schema.md) usa PostgreSQL descartável: exemplos acima, agregações, limites, NULL, estados e índices. Schema inicial não migra banco populado: a versão anterior com escala seis é recusada pelo guard. Migração futura deverá ampliar os tipos explicitamente e preservar dados; não consegue recuperar energia já arredondada para zero sem entradas originais confiáveis. Nenhuma migração em banco do usuário foi executada.
+
+## Equivalências
+
+O card "Emissões no período" traduz o CO₂e acumulado em duas unidades do dia a dia (#333). A equivalência é **só de apresentação**: não entra na coleta, não é gravada e não substitui o valor em gramas, que continua sendo o número principal do card. É uma ordem de grandeza, derivada de médias nacionais dos Estados Unidos, não uma medição do serviço monitorado.
+
+| Unidade familiar | Fator | Como se chega nele | Fonte (consultada em 13/11/2026) |
+|---|---|---|---|
+| km de carro a gasolina | 244,2 g CO₂e/km | 3,93×10⁻⁴ t CO₂e por milha (393 g/mi) ÷ 1,609344 km/mi, com 22,8 mpg combinado (2022) e 8.887 g CO₂ por galão (IPCC 2006) | [EPA, Greenhouse Gas Equivalencies Calculator — Calculations and References](https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator-calculations-and-references) (FHWA, *Highway Statistics* 2024; EPA, *Inventory of U.S. GHG Emissions* 2024, cap. 3) |
+| cargas de celular | 12,4 g CO₂/carga | 0,019 kWh por carga (28,446 Wh − 22 h × 0,411 W em standby) × 1.405,3 lb CO₂/MWh | [mesma página](https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator-calculations-and-references) (U.S. DOE/Jeremy Dommu, comunicação de 04/10/2024; EPA eGRID 2024a) |
+
+```text
+km de carro    = co2e_grams / 244,2
+cargas de celular = co2e_grams / 12,4
+```
+
+Exibição: dois algarismos significativos no padrão brasileiro (`1,0565` → "1,1"; `20,8` → "21"); abaixo de 0,01 a unidade familiar não diz nada e o texto é "< 0,01", nunca zero. O card mostra as duas unidades numa linha (`≈ 1,1 km de carro a gasolina · ≈ 21 cargas de celular`) com o aviso "(ordem de grandeza)"; o tooltip traz o fator, a fonte e a data de consulta de cada uma. Sem CO₂e calculado (`NULL`) a linha não aparece — como no resto da tela, desconhecido não vira zero; com total zero também não aparece, porque a equivalência não diria nada.
+
+Exemplo numérico (o mesmo do critério de aceite da #333): 258 g CO₂e no período → 258 / 244,2 = 1,0565 → "≈ 1,1 km de carro a gasolina"; 258 / 12,4 = 20,806 → "≈ 21 cargas de celular".
+
+Onde isso vive: `frontend/src/utils/equivalents.ts` (fatores, arredondamento e texto), com teste em `frontend/src/utils/equivalents.test.ts`, e a linha no card em `frontend/src/components/SummaryPanel.tsx`. Mudou um fator aqui, mude lá — o teste fixa a conta dos dois lados.
+
+Como verificar: `cd frontend && npx vitest run src/utils/equivalents.test.ts` e, com o dashboard aberto, conferir que o card "Emissões no período" mostra a linha de equivalências coerente com o valor em gramas formatado acima dela.
