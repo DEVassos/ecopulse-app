@@ -184,6 +184,34 @@ Verificação em um comando — `curl -s https://carbon.unilaunch.org/regions | 
 
 Sem intensidade não há selo: no caso região, região fora de `GET /api/regions`; no caso serviço, `E_período = 0`, `CO₂e_real` nulo ou região sem fator — os dois casos mostram "sem dado no período", nunca "rede limpa". No caso serviço, um período com mais de uma intensidade (cache de 1 h) usa a intensidade ponderada pela energia, `CO₂e_real ÷ E_período`, que é igual ao fator da região quando ele não mudou no período.
 
+## Agregação regional por período
+
+`RegionsSummaryRepository.summarize`, em `backend/src/modules/regions/regions-summary.repository.ts` (#320, RF13/RF14), agrupa pelo `services.region_code` atual. O `LEFT JOIN` filtra `collected_at >= $1 AND collected_at < $2`; as somas de `energy_kwh` (kWh) e `co2e_grams` (g) usam `FILTER (WHERE calculation_status = 'disponivel')`, como o resumo geral. Sem cálculo disponível, a soma é `NULL`; zero calculado continua sendo zero.
+
+O histórico de serviços removidos entra nas somas, mas não nas contagens de estado atual. `COUNT(DISTINCT s.id) FILTER (...)` evita multiplicar serviços pelo número de coletas. O pior estado é `indisponivel`, depois `sem_metricas`, depois `ativo`; com as três contagens zeradas, é `null`. Uma região só com removidos pode aparecer com histórico e estado nulo. Serviços sem região formam no máximo um grupo `code: null`; regiões sem serviço cadastrado não são inventadas.
+
+### Conferência numérica e plano regional
+
+Reexecutado em 13/11/2026 com PostgreSQL 16 e fixtures transacionais, na base `dd5fa78183486a23db235034be3b266b5288ab00`. O teste `backend/tests/regions-summary.test.ts` compara cada região com um SELECT independente e a soma regional com `GET /api/services/summary`, usando os mesmos limites e a mesma transação. Duas janelas UTC com os mesmos serviços deram:
+
+| Período [início, fim) | Energia regional = resumo = SELECT | CO₂e regional = resumo = SELECT |
+|---|---|---|
+| 01/04/2026 → 03/04/2026, 00h | 7,75 kWh | 40 g |
+| 01/04/2026 → 02/04/2026, 00h | 5,5 kWh | 17 g |
+| 01/01/2025 → 02/01/2025, 00h, sem cálculo | NULL | NULL |
+
+O helper `regionalPlan` captura o SQL real do repository e executa `EXPLAIN (ANALYZE, BUFFERS)` com `$1 = 2026-04-01T00:00:00Z` e `$2 = 2026-04-03T00:00:00Z`. A fixture acrescenta 6.000 coletas fora da janela e executa `ANALYZE collections`; não altera índices nem desabilita planos. Trechos literais da execução de 13/11:
+
+```text
+GroupAggregate  (cost=31.72..51.34 rows=200 width=288) (actual time=0.113..0.130 rows=6 loops=1)
+Seq Scan on services s  (cost=0.00..12.50 rows=250 width=72) (actual time=0.006..0.008 rows=36 loops=1)
+Index Scan using collections_collected_at_idx on collections c  (cost=0.28..8.30 rows=1 width=50) (actual time=0.013..0.017 rows=9 loops=1)
+Planning Time: 0.918 ms
+Execution Time: 0.230 ms
+```
+
+O plano completo também contém Sort e Hash Left Join. A janela seletiva favoreceu o índice de data; a tabela de serviços pequena recebeu Seq Scan. O tempo é uma observação local, não garantia de latência. Nenhuma alteração de schema foi necessária. [Evidência e reprodução regional](arquitetura/verificacao-regions-summary.md) registram a massa, o SELECT independente e os comandos para rodar com bancos descartáveis.
+
 ## Como verificar e migrar
 
 [Roteiro reproduzível](arquitetura/verificacao-schema.md) usa PostgreSQL descartável: exemplos acima, agregações, limites, NULL, estados e índices. Schema inicial não migra banco populado: a versão anterior com escala seis é recusada pelo guard. Migração futura deverá ampliar os tipos explicitamente e preservar dados; não consegue recuperar energia já arredondada para zero sem entradas originais confiáveis. Nenhuma migração em banco do usuário foi executada.

@@ -13,6 +13,8 @@ API REST em Node.js com Express 5 e TypeScript estrito, persistência no Postgre
 
 ## Organização
 
+O módulo `modules/regions/regions-summary.*` da #320 mantém routes/controller/service/repository para `GET /api/regions/summary`, com JWT e SQL regional; os arquivos `regions.*` ficam reservados à lista da #319. Usa o pool e as variáveis existentes. Contrato em [API](../docs/api.md#get-apiregionssummary); testes em `tests/regions-summary.test.ts` (`npm test`, com PostgreSQL descartável via `REPOSITORY_TEST_DATABASE_URL` como no CI).
+
 ```
 src/
 ├── app.ts                  monta o Express: CORS, JSON, rotas por módulo, 404 e error-handler por último
