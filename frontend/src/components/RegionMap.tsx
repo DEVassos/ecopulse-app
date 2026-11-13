@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoJSONSourceSpecification, Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+// O worker do MapLibre 6 é procurado ao lado do módulo, e o build do Vite não o copia: sem ele, o contorno dos países
+// (GeoJSON) não aparece. `?worker&url` faz o Vite empacotar o worker como .js, extensão que o nginx serve como JavaScript
+// (o .mjs sairia como application/octet-stream, recusado pelo navegador com o nosniff do nginx.conf).
+import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+import { REGION_STATUSES } from '../services/regions.types';
 import type { RegionStatus } from '../services/regions.types';
 import { formatQuantity } from '../utils/units';
-import { bubbleDiameter, formatCoordinates, IDLE_DOT, ringPercent } from '../utils/region-map';
-import type { MapRegion, RegionJoin } from '../utils/region-map';
+import { bubbleDiameter, IDLE_DOT, ringPercent } from '../utils/region-map';
+import type { ListedRegion, RegionOverview } from '../utils/region-map';
 import countries from './countries-110m.json';
-import StatusBadge from './StatusBadge';
 import './RegionMap.css';
 
 /**
@@ -29,7 +33,9 @@ const RING_GAP = 9;
 
 /** Os mesmos nomes do selo da tabela (StatusBadge): um estado, um nome em toda a página. */
 const STATE_LABEL: Record<RegionStatus, string> = { ativo: 'Ativo', indisponivel: 'Indisponível', sem_metricas: 'Sem métricas' };
-const REGION_STATES: RegionStatus[] = ['ativo', 'indisponivel', 'sem_metricas'];
+
+/** Uma região com coordenada: só ela vira bolha. As sem coordenada ficam na lista e no aviso "fora do mapa". */
+type PlacedRegion = ListedRegion & { latitude: number; longitude: number };
 
 interface View {
   center: [number, number];
@@ -39,10 +45,12 @@ interface View {
 }
 
 interface Props {
-  join: RegionJoin;
-  /** A que período os números se referem, como aparece na tela (ex.: "últimas 24 h"). */
-  periodLabel: string;
-  /** A última busca falhou: os números são da atualização anterior e ficam apagados (#261). */
+  overview: RegionOverview;
+  /** Região selecionada, a mesma da lista e da tabela (#342); o mapa viaja até ela. */
+  selectedCode: string | null;
+  /** Clique numa bolha separada: o Dashboard seleciona a região, ou desfaz a seleção se ela já estava escolhida. */
+  onSelect: (code: string) => void;
+  /** A última busca falhou: os números são da atualização anterior (#261). */
   stale?: boolean;
 }
 
@@ -55,14 +63,18 @@ function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
-function regionLabel(region: MapRegion): string {
-  if (region.state === null) {
-    const grid = region.carbonIntensity === null ? '' : `, rede com ${region.carbonIntensity} gCO₂e/kWh`;
+function isPlaced(region: ListedRegion): region is PlacedRegion {
+  return region.latitude !== null && region.longitude !== null;
+}
+
+function regionLabel(region: PlacedRegion): string {
+  if (region.worstStatus === null && region.co2eGrams === null) {
+    const grid = region.carbonIntensityGco2ePerKwh === null ? '' : `, rede com ${region.carbonIntensityGco2ePerKwh} gCO₂e/kWh`;
     return `${region.name}, sem serviço hoje${grid}`;
   }
   return [
     region.name,
-    STATE_LABEL[region.state],
+    region.worstStatus === null ? null : STATE_LABEL[region.worstStatus],
     region.co2eGrams === null ? null : `${formatQuantity('co2e', region.co2eGrams)} de CO₂e`,
     region.energyKwh === null ? null : `${formatQuantity('energy', region.energyKwh)} de energia`,
   ].filter((part) => part !== null).join(', ');
@@ -70,16 +82,16 @@ function regionLabel(region: MapRegion): string {
 
 /**
  * Mapa de bolhas do Dashboard (#322, RF13). Uma bolha por região com serviço: a cor é o pior estado, o tamanho é o CO₂e
- * e o anel amarelo é a energia. Regiões sem serviço são pontos neutros. Clicar numa bolha ou numa região da lista leva o
- * mapa até lá; a lista é também a alternativa acessível ao mapa. Sem imagens de satélite, o contorno dos países aparece.
+ * e o anel amarelo é a energia. Regiões sem serviço são pontos neutros. A seleção é a mesma da lista de regiões e da
+ * tabela (#342): escolher uma região em qualquer um dos três leva o mapa até ela. Sem imagens de satélite, o contorno
+ * dos países aparece por baixo.
  */
-export default function RegionMap({ join, periodLabel, stale = false }: Props) {
-  const { regions, unplacedServices } = join;
-  const monitored = useMemo(() => regions.filter((region) => region.state !== null), [regions]);
+export default function RegionMap({ overview, selectedCode, onSelect, stale = false }: Props) {
+  const monitored = useMemo(() => overview.monitored.filter(isPlaced), [overview]);
+  const regions = useMemo(() => [...monitored, ...overview.idle.filter(isPlaced)], [monitored, overview]);
   const maxCo2e = useMemo(() => Math.max(0, ...monitored.map((region) => region.co2eGrams ?? 0)), [monitored]);
   const maxEnergy = useMemo(() => Math.max(0, ...monitored.map((region) => region.energyKwh ?? 0)), [monitored]);
 
-  const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [zoomed, setZoomed] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapFailed, setMapFailed] = useState(false);
@@ -92,8 +104,9 @@ export default function RegionMap({ join, periodLabel, stale = false }: Props) {
   /** Cada viagem tem um número: uma etapa só continua se nenhuma viagem mais nova começou. */
   const flightRef = useRef(0);
   const bubbleClickRef = useRef<(code: string) => void>(() => {});
-
-  const selected = regions.find((region) => region.code === selectedCode) ?? null;
+  const followRef = useRef<(code: string | null) => void>(() => {});
+  /** Região da última viagem: a seleção só move o mapa quando muda, nunca a cada ciclo do polling. */
+  const followedRef = useRef<string | null>(null);
 
   // O mapa nasce uma vez. A biblioteca vem por import dinâmico e o componente inteiro por React.lazy (Dashboard).
   useEffect(() => {
@@ -104,12 +117,14 @@ export default function RegionMap({ join, periodLabel, stale = false }: Props) {
       try {
         const library = await import('maplibre-gl');
         if (cancelled || !containerRef.current) return;
+        library.setWorkerUrl(workerUrl);
         map = new library.Map({
           container: containerRef.current,
           center: HOME.center,
           zoom: HOME.zoom,
           maxZoom: MAX_ZOOM,
-          attributionControl: { compact: true },
+          // Crédito da EOX sempre aberto no canto, como a licença pede (ADR 0010), e não atrás do botão "i"
+          attributionControl: { compact: false },
           style: {
             version: 8,
             sources: {
@@ -141,7 +156,7 @@ export default function RegionMap({ join, periodLabel, stale = false }: Props) {
         mapRef.current = map;
         setMapReady(true);
       } catch {
-        // Sem WebGL ou sem a biblioteca: a lista continua com os dados de cada região
+        // Sem WebGL ou sem a biblioteca: a lista de regiões continua com os dados de cada região
         if (!cancelled) setMapFailed(true);
       }
     })();
@@ -199,36 +214,41 @@ export default function RegionMap({ join, periodLabel, stale = false }: Props) {
     else leg({ zoom: CRUISE_ZOOM, pitch: 0, bearing: 0, duration: 1800 }, cruise);
   }
 
-  function overview() {
-    setSelectedCode(null);
+  /** Segue a seleção da página: viaja até a região escolhida, ou volta à visão geral quando a seleção é desfeita. */
+  function follow(code: string | null) {
+    const region = regions.find((item) => item.code === code);
+    if (region) {
+      setZoomed(true);
+      goTo({ center: [region.longitude, region.latitude], zoom: REGION_ZOOM });
+    } else if (followedRef.current !== null) {
+      setZoomed(false);
+      goTo(HOME);
+    }
+    followedRef.current = code;
+  }
+
+  /** "Visão geral": desfaz a seleção (o mapa volta pela seleção) ou, sem seleção, só afasta. */
+  function showOverview() {
+    if (selectedCode !== null) {
+      onSelect(selectedCode);
+      return;
+    }
     setZoomed(false);
     goTo(HOME);
   }
 
-  /** Clique na lista ou numa bolha separada: seleciona e viaja; clicar de novo na mesma volta à visão geral. */
-  function toggleRegion(region: MapRegion) {
-    if (region.code === selectedCode) {
-      overview();
-      return;
-    }
-    setSelectedCode(region.code);
-    setZoomed(true);
-    goTo({ center: [region.longitude, region.latitude], zoom: REGION_ZOOM });
-  }
-
   /**
    * Clique numa bolha. Se ela está encostada em outras na tela, o primeiro clique aproxima só o bastante para o grupo
-   * se separar; com as bolhas separadas, o clique seleciona a região.
+   * se separar; com as bolhas separadas, o clique seleciona a região (na lista e na tabela também).
    */
   function clickBubble(code: string) {
     const map = mapRef.current;
     const library = libraryRef.current;
-    const region = regions.find((item) => item.code === code);
-    if (!map || !library || !region) return;
+    if (!map || !library) return;
     const placed = regions.map((item) => ({
       region: item,
       point: map.project([item.longitude, item.latitude]),
-      radius: (item.state === null ? IDLE_DOT : bubbleDiameter(item.co2eGrams, maxCo2e)) / 2 + RING_GAP,
+      radius: (item.worstStatus === null && item.co2eGrams === null ? IDLE_DOT : bubbleDiameter(item.co2eGrams, maxCo2e)) / 2 + RING_GAP,
     }));
     const group = placed.filter((item) => item.region.code === code);
     for (let index = 0; index < group.length; index += 1) {
@@ -239,14 +259,13 @@ export default function RegionMap({ join, periodLabel, stale = false }: Props) {
       }
     }
     if (group.length < 2) {
-      toggleRegion(region);
+      onSelect(code);
       return;
     }
     const bounds = new library.LngLatBounds();
     for (const item of group) bounds.extend([item.region.longitude, item.region.latitude]);
     const camera = map.cameraForBounds(bounds, { padding: 110 });
     const center = bounds.getCenter();
-    setSelectedCode(null);
     setZoomed(true);
     goTo({ center: [center.lng, center.lat], zoom: Math.min(camera?.zoom ?? 4, REGION_ZOOM), flat: true });
   }
@@ -254,7 +273,13 @@ export default function RegionMap({ join, periodLabel, stale = false }: Props) {
   // As bolhas são elementos do MapLibre, fora da árvore do React: o clique delas chama sempre a função desta renderização
   useEffect(() => {
     bubbleClickRef.current = clickBubble;
+    followRef.current = follow;
   });
+
+  // A seleção mudou (na lista, na tabela ou numa bolha), ou o mapa acabou de abrir com uma região já escolhida
+  useEffect(() => {
+    if (mapReady && selectedCode !== followedRef.current) followRef.current(selectedCode);
+  }, [mapReady, selectedCode]);
 
   // Bolhas em dia com os dados a cada ciclo, sem recriar o mapa: cria as que faltam, atualiza as outras, tira as que saíram
   useEffect(() => {
@@ -284,7 +309,7 @@ export default function RegionMap({ join, periodLabel, stale = false }: Props) {
         markers.set(region.code, entry);
       }
       const { element, marker } = entry;
-      const idle = region.state === null;
+      const idle = region.worstStatus === null && region.co2eGrams === null;
       const diameter = idle ? IDLE_DOT : bubbleDiameter(region.co2eGrams, maxCo2e);
       const ring = idle ? null : ringPercent(region.energyKwh, maxEnergy);
       const [bubble, ringElement] = [element.children[0] as HTMLElement, element.children[1] as HTMLElement];
@@ -292,8 +317,9 @@ export default function RegionMap({ join, periodLabel, stale = false }: Props) {
       // classList, e não className: o MapLibre põe no mesmo elemento as classes que o posicionam no mapa
       element.classList.add('region-bubble');
       element.classList.toggle('region-bubble--idle', idle);
-      for (const state of REGION_STATES) element.classList.toggle(`region-bubble--${state}`, state === region.state);
+      for (const state of REGION_STATUSES) element.classList.toggle(`region-bubble--${state}`, state === region.worstStatus);
       element.classList.toggle('region-bubble--selected', region.code === selectedCode);
+      element.setAttribute('aria-pressed', String(region.code === selectedCode));
       // As menores por cima, para continuarem clicáveis quando encostam numa maior
       element.style.zIndex = String(200 - diameter);
       bubble.style.width = bubble.style.height = `${diameter}px`;
@@ -310,98 +336,28 @@ export default function RegionMap({ join, periodLabel, stale = false }: Props) {
 
   return (
     <section className={stale ? 'region-map region-map--stale' : 'region-map'} aria-labelledby="region-map-title">
-      <div className="region-map__head">
-        <h2 id="region-map-title" className="region-map__title">Mapa das regiões</h2>
-        <span className="region-map__period">CO₂e e energia: {periodLabel}</span>
+      <h2 id="region-map-title" className="sr-only">Mapa das regiões</h2>
+      <div className="region-map__stage">
+        <div ref={containerRef} className="region-map__canvas" aria-label="Globo com uma bolha por região monitorada" />
+        {zoomed && (
+          <button type="button" className="region-map__overview" onClick={showOverview}>
+            Visão geral
+          </button>
+        )}
+        {tilesFailed && !mapFailed && (
+          <p className="region-map__notice" role="status">Sem imagens de satélite agora. O mapa mostra o contorno dos países.</p>
+        )}
+        {mapFailed && <p className="region-map__failed" role="status">Não foi possível abrir o mapa neste navegador. A lista de regiões continua com os dados de cada região.</p>}
       </div>
-
-      <div className="region-map__body">
-        <div className="region-map__stage">
-          <div ref={containerRef} className="region-map__canvas" aria-label="Globo com uma bolha por região monitorada" />
-          {zoomed && (
-            <button type="button" className="region-map__overview" onClick={overview}>
-              Visão geral
-            </button>
-          )}
-          {tilesFailed && !mapFailed && (
-            <p className="region-map__notice" role="status">Sem imagens de satélite agora. O mapa mostra o contorno dos países.</p>
-          )}
-          <ul className="region-map__legend" aria-label="Legenda do mapa">
-            <li><i className="region-map__key region-map__key--ativo" aria-hidden="true" />Ativo</li>
-            <li><i className="region-map__key region-map__key--indisponivel" aria-hidden="true" />Indisponível</li>
-            <li><i className="region-map__key region-map__key--sem_metricas" aria-hidden="true" />Sem métricas</li>
-            <li><i className="region-map__key region-map__key--idle" aria-hidden="true" />Sem serviço hoje</li>
-            <li><i className="region-map__key region-map__key--size" aria-hidden="true" />Tamanho: CO₂e</li>
-            <li><i className="region-map__key region-map__key--ring" aria-hidden="true" />Anel: energia</li>
-          </ul>
-          {mapFailed && <p className="region-map__failed" role="status">Não foi possível abrir o mapa neste navegador. A lista ao lado continua com os dados de cada região.</p>}
-        </div>
-
-        <div className="region-map__panel">
-          <ul className="region-map__list" aria-label="Regiões por CO₂e">
-            {monitored.map((region) => {
-              const state = region.state as RegionStatus;
-              const share = region.co2eGrams === null || maxCo2e <= 0 ? 0 : Math.max(3, Math.round((region.co2eGrams / maxCo2e) * 100));
-              return (
-                <li key={region.code}>
-                  <button type="button" className="region-map__region" aria-pressed={region.code === selectedCode} onClick={() => toggleRegion(region)}>
-                    <span className="region-map__region-top">
-                      <span className="region-map__region-name">
-                        <i className={`region-map__key region-map__key--${state}`} aria-hidden="true" />
-                        {region.name}
-                        <small>{region.code}</small>
-                      </span>
-                      <span className="region-map__value font-data">
-                        {region.co2eGrams === null ? STATE_LABEL[state] : formatQuantity('co2e', region.co2eGrams)}
-                      </span>
-                    </span>
-                    <span className="region-map__bar" aria-hidden="true">
-                      <i className={`region-map__bar-fill region-map__bar-fill--${state}`} style={{ width: `${share}%` }} />
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-
-          {selected && (
-            <div className="region-map__detail">
-              <div>
-                <h3 className="region-map__detail-title">{selected.name}</h3>
-                <p className="region-map__detail-place">
-                  {selected.place ? `${selected.place} · ` : ''}
-                  {formatCoordinates(selected.latitude, selected.longitude)} (posição aproximada)
-                </p>
-              </div>
-              <dl className="region-map__facts">
-                <div><dt>Estado</dt><dd>{selected.state === null ? 'Sem serviço hoje' : <StatusBadge status={selected.state} />}</dd></div>
-                <div><dt>Fator da rede</dt><dd className="font-data">{selected.carbonIntensity === null ? '—' : `${selected.carbonIntensity} gCO₂e/kWh`}</dd></div>
-                <div><dt>CO₂e</dt><dd className="font-data region-map__value">{selected.co2eGrams === null ? '—' : formatQuantity('co2e', selected.co2eGrams)}</dd></div>
-                <div><dt>Energia</dt><dd className="font-data region-map__value">{selected.energyKwh === null ? '—' : formatQuantity('energy', selected.energyKwh)}</dd></div>
-              </dl>
-              {selected.state !== null && (
-                <div>
-                  <p className="region-map__label">Serviços por estado</p>
-                  <ul className="region-map__counts">
-                    {REGION_STATES.filter((state) => selected.services[state] > 0).map((state) => (
-                      <li key={state}>
-                        <StatusBadge status={state} />
-                        <span className="font-data">{selected.services[state]}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-
-          {unplacedServices > 0 && (
-            <p className="region-map__unplaced">
-              {unplacedServices === 1 ? '1 serviço sem região ou sem coordenada aparece' : `${unplacedServices} serviços sem região ou sem coordenada aparecem`} só na tabela.
-            </p>
-          )}
-        </div>
-      </div>
+      {/* Fora do palco: no celular ela desce para baixo do mapa e não cobre o crédito da EOX */}
+      <ul className="region-map__legend" aria-label="Legenda do mapa">
+        <li><i className="region-map__key region-map__key--ativo" aria-hidden="true" />Ativo</li>
+        <li><i className="region-map__key region-map__key--indisponivel" aria-hidden="true" />Indisponível</li>
+        <li><i className="region-map__key region-map__key--sem_metricas" aria-hidden="true" />Sem métricas</li>
+        <li><i className="region-map__key region-map__key--idle" aria-hidden="true" />Sem serviço hoje</li>
+        <li><i className="region-map__key region-map__key--size" aria-hidden="true" />Tamanho: CO₂e</li>
+        <li><i className="region-map__key region-map__key--ring" aria-hidden="true" />Anel: energia</li>
+      </ul>
     </section>
   );
 }

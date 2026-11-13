@@ -17,44 +17,17 @@
     --map-glass: rgb(11 18 32 / 0.86);
     --map-glass-border: #22304a;
     --map-glass-text: #cbd5e1;
+    position: relative;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 8px;
   }
 
-  .region-map__head {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 4px 16px;
-  }
-
-  .region-map__title {
-    margin: 0;
-    font-family: var(--display);
-    font-size: 18px;
-    font-weight: 600;
-  }
-
-  .region-map__period {
-    font-size: 13px;
-    color: var(--muted);
-  }
-
-  /* Mapa e painel lado a lado; abaixo de cerca de 900 px o painel desce (RNF01) */
-  .region-map__body {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 16px;
-    align-items: stretch;
-  }
-
+  /* No celular o mapa fica mais baixo, para a lista de regiões aparecer logo abaixo dele (RNF01) */
   .region-map__stage {
     position: relative;
-    flex: 999 1 520px;
     min-width: 0;
-    height: 460px;
+    height: clamp(300px, 60vw, 460px);
     border: 1px solid var(--border);
     border-radius: 12px;
     overflow: hidden;
@@ -108,6 +81,23 @@
     list-style: none;
     font-size: 12px;
     line-height: 1.3;
+  }
+
+  /* Celular: a legenda vira uma faixa abaixo do mapa, com as cores do tema, e o crédito da EOX fica livre no canto */
+  @media (max-width: 599px) {
+    .region-map__legend {
+      position: static;
+      flex-flow: row wrap;
+      gap: 4px 12px;
+      border-color: var(--border);
+      background: var(--surface);
+      color: var(--text-2);
+      /* Fora da imagem escura, as marcas usam os tokens do tema para manter o contraste também no tema claro */
+      --bubble-ativo: var(--accent);
+      --bubble-indisponivel: var(--error);
+      --bubble-sem_metricas: var(--warning);
+      --map-glass-text: var(--muted);
+    }
   }
 
   .region-map__legend li {
@@ -218,6 +208,12 @@
     display: none;
   }
 
+  /* Dados da atualização anterior: bolhas sem cor e sem pulso, como os números apagados da página (#261) */
+  .region-map--stale .region-bubble b {
+    filter: grayscale(1);
+    animation: none;
+  }
+
   @keyframes region-bubble-pulse {
     0% {
       box-shadow: 0 0 0 0 rgb(92 255 184 / 0.55);
@@ -236,169 +232,6 @@
     .region-bubble--ativo:not(.region-bubble--selected) b {
       animation: none;
     }
-  }
-
-  /* ── Painel: lista de regiões e detalhes da selecionada ── */
-  .region-map__panel {
-    display: flex;
-    flex: 1 1 300px;
-    flex-direction: column;
-    gap: 12px;
-    min-width: 0;
-    max-height: 460px;
-    padding: 14px;
-    overflow-y: auto;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--surface);
-  }
-
-  .region-map__list,
-  .region-map__counts {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  .region-map__region {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    width: 100%;
-    min-height: 44px;
-    padding: 8px 10px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: transparent;
-    color: var(--text);
-    font-family: inherit;
-    font-size: 14px;
-    text-align: left;
-    cursor: pointer;
-  }
-
-  .region-map__region:hover {
-    background: var(--surface-2);
-  }
-
-  .region-map__region[aria-pressed='true'] {
-    border-color: var(--accent);
-    background: var(--surface-3);
-  }
-
-  .region-map__region-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-
-  .region-map__region-name {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-    font-weight: 500;
-  }
-
-  .region-map__region-name small {
-    color: var(--muted);
-    font-size: 12px;
-    font-weight: 400;
-  }
-
-  .region-map__value {
-    white-space: nowrap;
-  }
-
-  /* Dado da atualização anterior: apagado, como nos cards e na tabela (#261) */
-  .region-map--stale .region-map__value {
-    color: var(--muted);
-  }
-
-  .region-map__bar {
-    display: block;
-    height: 4px;
-    border-radius: 2px;
-    background: var(--surface-2);
-  }
-
-  .region-map__bar-fill {
-    display: block;
-    height: 4px;
-    border-radius: 2px;
-    transition: width 0.45s ease;
-  }
-
-  .region-map__bar-fill--ativo {
-    background: var(--accent);
-  }
-
-  .region-map__bar-fill--indisponivel {
-    background: var(--error);
-  }
-
-  .region-map__bar-fill--sem_metricas {
-    background: var(--warning);
-  }
-
-  .region-map__detail {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    padding-top: 12px;
-    border-top: 1px solid var(--border);
-  }
-
-  .region-map__detail-title {
-    margin: 0;
-    font-family: var(--display);
-    font-size: 18px;
-    font-weight: 600;
-  }
-
-  .region-map__detail-place,
-  .region-map__unplaced {
-    margin: 0;
-    font-size: 13px;
-    color: var(--muted);
-  }
-
-  .region-map__facts {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
-    margin: 0;
-  }
-
-  .region-map__facts > div {
-    padding: 8px 10px;
-    border-radius: 8px;
-    background: var(--surface-2);
-  }
-
-  .region-map__facts dt,
-  .region-map__label {
-    margin: 0 0 4px;
-    font-size: 12px;
-    color: var(--muted);
-  }
-
-  .region-map__facts dd {
-    margin: 0;
-    font-weight: 600;
-  }
-
-  /* Contagem de serviços por estado da região selecionada (critério 2 da #322) */
-  .region-map__counts li {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: 14px;
   }
 
   /* Sem imagens de satélite (sem internet ou serviço da EOX fora): o contorno dos países fica visível e o aviso, no topo */

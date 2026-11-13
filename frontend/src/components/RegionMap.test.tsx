@@ -1,60 +1,44 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import type { MapRegion, RegionJoin } from '../utils/region-map';
-import { formatQuantity } from '../utils/units';
+import type { ListedRegion, RegionOverview } from '../utils/region-map';
 import RegionMap from './RegionMap';
 
-// A renderização estática não roda efeitos: o globo (MapLibre, WebGL) não é montado. Os testes cobrem o que a pessoa lê
-// sem o mapa: a lista de regiões, a legenda e os avisos.
-function mapRegion(code: string, name: string, overrides: Partial<MapRegion> = {}): MapRegion {
+// A renderização estática não roda efeitos: o globo (MapLibre, WebGL) não é montado. Os testes cobrem o que aparece sem
+// o mapa: a legenda, o título para o leitor de tela e quando o mapa não aparece.
+function listed(code: string, overrides: Partial<ListedRegion> = {}): ListedRegion {
   return {
-    code, name, place: null, latitude: 0, longitude: 0, carbonIntensity: 300, renewableSharePercent: 30,
-    state: 'ativo', services: { ativo: 1, indisponivel: 0, sem_metricas: 0 }, co2eGrams: 100, energyKwh: 1, ...overrides,
+    code, name: code, place: null, country: 'País', region: 'Região', city: code, latitude: 10, longitude: 20,
+    carbonIntensityGco2ePerKwh: 300, renewableSharePercent: 30, monitoredServices: 1,
+    energyKwh: 1, co2eGrams: 100, services: { ativo: 1, indisponivel: 0, sem_metricas: 0 }, worstStatus: 'ativo', ...overrides,
   };
 }
 
-const JOIN: RegionJoin = {
-  regions: [
-    mapRegion('us-east', 'Ashburn', { co2eGrams: 1029.4 }),
-    mapRegion('br-sudeste', 'São Paulo', { state: 'indisponivel', co2eGrams: null, energyKwh: null, services: { ativo: 0, indisponivel: 1, sem_metricas: 0 } }),
-    mapRegion('eu-north', 'Estocolmo', { state: null, co2eGrams: null, energyKwh: null, services: { ativo: 0, indisponivel: 0, sem_metricas: 0 } }),
-  ],
-  unplacedServices: 1,
-};
+const NONE = { services: 0, co2eGrams: null };
 
-function render(join: RegionJoin = JOIN, periodLabel = 'últimas 24 h'): string {
-  return renderToStaticMarkup(<RegionMap join={join} periodLabel={periodLabel} />);
+function render(overview: RegionOverview, stale = false): string {
+  return renderToStaticMarkup(<RegionMap overview={overview} selectedCode={null} onSelect={() => {}} stale={stale} />);
 }
 
 describe('RegionMap', () => {
-  it('lista só as regiões com serviço, na ordem recebida; a sem serviço fica só no mapa', () => {
-    const html = render();
-    const listed = [...html.matchAll(/class="region-map__region"[\s\S]*?aria-hidden="true"><\/i>([^<]+)<small>/g)].map((match) => match[1]);
-    expect(listed).toEqual(['Ashburn', 'São Paulo']);
-    expect(html).not.toContain('Estocolmo<small>');
-  });
-
-  it('mostra o CO₂e da região, ou o estado em texto quando não há cálculo', () => {
-    const html = render();
-    expect(html).toContain(`Ashburn<small>us-east</small></span><span class="region-map__value font-data">${formatQuantity('co2e', 1029.4)}</span>`);
-    expect(html).toMatch(/São Paulo<small>br-sudeste<\/small>[\s\S]*?Indisponível/);
-  });
+  const overview: RegionOverview = { monitored: [listed('us-east')], idle: [listed('eu-north', { worstStatus: null, co2eGrams: null })], outside: NONE, unplacedServices: 0 };
 
   it('traz a legenda com os três estados, o ponto sem serviço, o tamanho e o anel', () => {
-    const html = render();
+    const html = render(overview);
     for (const label of ['Ativo', 'Indisponível', 'Sem métricas', 'Sem serviço hoje', 'Tamanho: CO₂e', 'Anel: energia']) expect(html).toContain(`</i>${label}</li>`);
   });
 
-  it('mostra a que período os números se referem', () => {
-    expect(render(JOIN, 'últimas 24 h')).toContain('CO₂e e energia: últimas 24 h');
+  it('tem um título para o leitor de tela e não mostra aviso antes de o mapa abrir', () => {
+    const html = render(overview);
+    expect(html).toContain('<h2 id="region-map-title" class="sr-only">Mapa das regiões</h2>');
+    expect(html).not.toContain('role="status"');
   });
 
-  it('avisa quantos serviços ficaram fora do mapa', () => {
-    expect(render()).toContain('1 serviço sem região ou sem coordenada aparece só na tabela.');
-    expect(render({ ...JOIN, unplacedServices: 2 })).toContain('2 serviços sem região ou sem coordenada aparecem só na tabela.');
+  it('apaga as bolhas quando a última busca falhou', () => {
+    expect(render(overview, true)).toContain('class="region-map region-map--stale"');
   });
 
-  it('não aparece quando nenhuma região tem serviço', () => {
-    expect(render({ regions: [JOIN.regions[2]], unplacedServices: 0 })).toBe('');
+  it('não aparece sem nenhuma região com serviço e coordenada; a lista e o aviso "fora do mapa" cobrem esse caso', () => {
+    expect(render({ ...overview, monitored: [] })).toBe('');
+    expect(render({ ...overview, monitored: [listed('sem-gps', { latitude: null, longitude: null })], unplacedServices: 1 })).toBe('');
   });
 });

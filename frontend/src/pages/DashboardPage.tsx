@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import AppHeader from '../components/AppHeader';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -23,6 +23,9 @@ import { fetchRegions, fetchRegionsSummary } from '../services/regions.service';
 import { buildRegionOverview } from '../utils/region-map';
 import type { RegionOverview } from '../utils/region-map';
 import './DashboardPage.css';
+
+// O mapa (MapLibre, mais pesado que o app inteiro) fica num arquivo à parte e só baixa quando há regiões (ADR 0010)
+const RegionMap = lazy(() => import('../components/RegionMap'));
 
 export default function DashboardPage() {
   const { data, loading, error, updatedAt, refresh } = useServices();
@@ -204,14 +207,20 @@ export default function DashboardPage() {
             {regions ? 'Regiões desatualizadas' : 'Regiões indisponíveis'}: {regionsError}
           </p>
         )}
+        {/* Mapa e lista lado a lado; no celular, o mapa em cima e a lista embaixo (#322, RNF01) */}
         {data && data.services.length > 0 && regions && (
-          <RegionList
-            overview={regions}
-            selectedCode={selectedRegion}
-            onSelect={toggleRegion}
-            periodLabel="últimas 24 h"
-            stale={regionsError !== '' || error !== ''}
-          />
+          <div className="region-area">
+            <Suspense fallback={<LoadingState message="Carregando o mapa…" />}>
+              <RegionMap overview={regions} selectedCode={selectedRegion} onSelect={toggleRegion} stale={regionsError !== '' || error !== ''} />
+            </Suspense>
+            <RegionList
+              overview={regions}
+              selectedCode={selectedRegion}
+              onSelect={toggleRegion}
+              periodLabel="últimas 24 h"
+              stale={regionsError !== '' || error !== ''}
+            />
+          </div>
         )}
 
         {data && data.services.length > 0 && (
