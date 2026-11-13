@@ -44,8 +44,8 @@
     color: var(--muted);
   }
 
-  /* Falha só do mapa (#322): a Carbon API fora do ar não derruba o Dashboard; o aviso fica no lugar do mapa */
-  .region-map-error {
+  /* Falha só das regiões (#342): a Carbon API fora do ar não derruba o Dashboard; o aviso fica no lugar da lista */
+  .region-list-error {
     margin: 0;
     padding: 10px 14px;
     border-left: 2px solid var(--warning);

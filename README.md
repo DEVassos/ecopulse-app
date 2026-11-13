@@ -132,6 +132,18 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Dashboard com o backend real (`docker compose`) em 06/11/2026, numa tela de 390 px e com a sessão aberta: o botão **Menu** e o **Sair** na linha da marca (#274) e, em cada serviço, a emissão da última leitura sob o nome (Checkout Worker, 525 mg CO₂e) (#263). O Fraud Detector, que saiu da lista do agregador, aparece como Removido, no fim da tabela e com os números apagados (#261)._
 
+- **RF09, RNF01 — Eixo de Emissões ajustado ao trecho com dados (#332, PR #344):** quando o monitoramento de um serviço começa depois de 20% do período escolhido, o gráfico de Emissões marca o início ("monitoramento começou entre 19:30 e 19:45") e oferece **Ajustar ao trecho com dados**, que encurta o eixo; KPIs e totais continuam sendo do período inteiro, e o texto sob o título avisa isso ([detalhes](frontend/README.md#página-emissões-190)).
+
+  ![Emissões de ontem com a marca do início do monitoramento](docs/img/sprint-3-emissoes-eixo.png)
+
+  _Página Emissões com o backend real (`docker compose`) em 12/11/2026, em 1280 px, com o período "Ontem" (11/11) do Audit Stream: o monitoramento começou entre 19:30 e 19:45, e a linha tracejada marca o início; à esquerda dela, quase todo o dia ficou sem dados. O botão **Ajustar ao trecho com dados** fica acima do gráfico._
+
+- **RF13, RNF01 — Regiões por CO₂e no Dashboard, com seleção compartilhada (#342, PR #345):** entre **Quem pesa mais** e a tabela, uma linha por região, da maior para a menor emissão das últimas 24 h, com os serviços por estado, a intensidade da rede e a parte renovável; os serviços sem região ou sem coordenada aparecem num aviso e continuam na tabela. Clicar numa região destaca as linhas dela na tabela, e clicar no código da região na tabela marca a região na lista. É a base do mapa de bolhas da #322 e a alternativa acessível a ele ([detalhes](frontend/README.md#regiões-por-coe-rf13-342)).
+
+  ![Lista de regiões por CO₂e com Ashburn selecionada e as linhas de us-east destacadas na tabela](docs/img/sprint-3-regioes-lista.png)
+
+  _Dashboard com o backend falso (`npm run mock`) em 13/11/2026, em 1280 px: Ashburn (us-east) selecionada na lista e, na tabela, Fraud Detector e Checkout Worker destacados. A soma da lista (2,13 kg) é igual ao card **Emissões no período**. O Inventory Sync, sem região, fica no aviso abaixo da lista. As rotas de regiões do backend real (#319, #320) ainda estavam em revisão._
+
 - **RNF01 — Fundo azul, verde nos destaques e logo pulsante (#180, PR #184):** a base da paleta voltou ao azul-escuro e o verde ficou só em ações e destaques (botão vazado nas ações secundárias, item ativo do menu, neon no que pede atenção), em resposta ao feedback da Sprint Review 1. O logo pulsa uma vez a cada atualização bem-sucedida dos dados, como sinal de "ao vivo", e fica parado em falha ou com "reduzir movimento". Regras e contrastes em [docs/identidade-visual.md](docs/identidade-visual.md).
 
   ![Dashboard com fundo azul-escuro](docs/img/sprint-2-fundo-azul.png)
