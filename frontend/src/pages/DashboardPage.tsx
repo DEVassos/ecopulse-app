@@ -5,6 +5,7 @@ import ErrorState from '../components/ErrorState';
 import KpiPanel from '../components/KpiPanel';
 import LastUpdated from '../components/LastUpdated';
 import LoadingState from '../components/LoadingState';
+import RegionList from '../components/RegionList';
 import ServiceDetailsDialog from '../components/ServiceDetailsDialog';
 import ServicesTable from '../components/ServicesTable';
 import UpdateFailedBanner from '../components/UpdateFailedBanner';
@@ -18,6 +19,9 @@ import type { ServicesRankingResponse } from '../services/ranking.types';
 import { rankingIsStale, rankingShares, rankingSentence } from '../utils/ranking';
 import SummaryPanel from '../components/SummaryPanel';
 import { summarizeStatus } from '../utils/summary';
+import { fetchRegions, fetchRegionsSummary } from '../services/regions.service';
+import { buildRegionOverview } from '../utils/region-map';
+import type { RegionOverview } from '../utils/region-map';
 import './DashboardPage.css';
 
 export default function DashboardPage() {
@@ -35,6 +39,11 @@ export default function DashboardPage() {
   const sentence = ranking ? rankingSentence(ranking, 'das últimas 24 h') : null;
   // Parte de cada serviço no CO₂e das 24 h (#260): em cinza quando a última busca do ranking ou da lista falhou
   const rankingStale = rankingIsStale(rankingError, error);
+  const [regions, setRegions] = useState<RegionOverview | null>(null);
+  const [regionsError, setRegionsError] = useState('');
+  // Uma seleção para a lista de regiões e a tabela (#342); o mapa da #322 entra nela. Clicar de novo desfaz.
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
+  const toggleRegion = (code: string) => setSelectedRegion((current) => (current === code ? null : code));
   useEffect(() => {
     if (isDemoMode) return;
     const controller = new AbortController(); const to = new Date(); const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
@@ -81,6 +90,28 @@ export default function DashboardPage() {
           const detail = reason instanceof Error ? reason.message : 'não foi possível carregar o ranking.';
           setRankingError(`Ranking de CO₂e do período: ${detail}`);
         }
+      }
+    })();
+    return () => controller.abort();
+  }, [updatedAt]);
+  // Regiões (#342): as mesmas 24 h dos KPIs, a cada ciclo. Uma falha aqui (ex.: Carbon API fora do ar) fica só no lugar
+  // da lista, com o último dado em cinza se houver: o resto do Dashboard continua funcionando
+  useEffect(() => {
+    if (updatedAt === null) return;
+    const controller = new AbortController();
+    const to = new Date();
+    const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
+    void (async () => {
+      try {
+        const [list, totals] = await Promise.all([
+          fetchRegions(controller.signal),
+          fetchRegionsSummary(from.toISOString(), to.toISOString(), controller.signal),
+        ]);
+        if (controller.signal.aborted) return;
+        setRegions(buildRegionOverview(list, totals));
+        setRegionsError('');
+      } catch (reason: unknown) {
+        if (!controller.signal.aborted) setRegionsError(reason instanceof Error ? reason.message : 'não foi possível carregar as regiões.');
       }
     })();
     return () => controller.abort();
@@ -167,6 +198,22 @@ export default function DashboardPage() {
           </p>
         )}
 
+        {/* Onde está o impacto (#342, RF13): entre a leitura do período e a tabela. A falha só das regiões fica neste lugar */}
+        {data && data.services.length > 0 && regionsError && (
+          <p className="region-list-error" role="status">
+            {regions ? 'Regiões desatualizadas' : 'Regiões indisponíveis'}: {regionsError}
+          </p>
+        )}
+        {data && data.services.length > 0 && regions && (
+          <RegionList
+            overview={regions}
+            selectedCode={selectedRegion}
+            onSelect={toggleRegion}
+            periodLabel="últimas 24 h"
+            stale={regionsError !== '' || error !== ''}
+          />
+        )}
+
         {data && data.services.length > 0 && (
           <ServicesTable
             services={data.services}
@@ -174,6 +221,8 @@ export default function DashboardPage() {
             stale={error !== ''}
             shares={shares}
             sharesStale={rankingStale}
+            selectedRegion={selectedRegion}
+            onSelectRegion={toggleRegion}
           />
         )}
 
