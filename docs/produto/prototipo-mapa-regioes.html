@@ -1,0 +1,465 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EcoPulse — simulação do mapa</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.0.0/dist/maplibre-gl.css">
+<script src="https://unpkg.com/maplibre-gl@5.0.0/dist/maplibre-gl.js"></script>
+<style>
+  /* Tokens do EcoPulse (frontend/src/styles/global.css) */
+  :root {
+    color-scheme: dark;
+    --bg: #0b1220; --surface: #131c2e; --surface-2: #0e1626; --surface-3: #16233a; --border: #22304a;
+    --text: #e2e8f0; --text-2: #cbd5e1; --muted: #94a3b8;
+    --accent: #10b981; --accent-hover: #34d399; --yellow: #facc15; --sky: #38bdf8;
+    --ativo: #5cffb8; --ativo-fill: rgba(52, 211, 153, 0.40);
+    --inativo: #f97316; --inativo-fill: rgba(249, 115, 22, 0.45);
+    --sem: #e2e8f0; --sem-fill: rgba(148, 163, 184, 0.28);
+    --glass: rgba(11, 18, 32, 0.86);
+    --sans: 'IBM Plex Sans', system-ui, sans-serif;
+    --display: 'Space Grotesk', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 15px; display: flex; flex-direction: column; }
+  button { font-family: inherit; color: inherit; }
+  button:focus-visible { outline: 2px solid var(--sky); outline-offset: 2px; }
+
+  .note { background: var(--surface-3); color: var(--text-2); font-size: 13px; text-align: center; padding: 6px 16px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 24px; padding: 12px 20px; border-bottom: 1px solid var(--border); }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: var(--display); font-weight: 700; font-size: 22px; }
+  .brand em { font-style: normal; color: var(--yellow); }
+  .live { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
+  .live i { width: 10px; height: 10px; border-radius: 50%; background: var(--ativo); box-shadow: 0 0 0 4px rgba(92, 255, 184, 0.2); }
+
+  .stage { flex: 1; min-height: 0; display: flex; flex-wrap: wrap; gap: 16px; padding: 16px 20px 20px; }
+  .map-wrap { flex: 999 1 520px; min-width: 0; min-height: 420px; position: relative; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #02060d; }
+  #map { position: absolute; inset: 0; }
+  .panel { flex: 1 1 320px; min-width: 0; max-height: 100%; overflow-y: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .panel h2 { margin: 0; font-family: var(--display); font-size: 18px; font-weight: 600; }
+  .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .caption { font-size: 13px; color: var(--muted); }
+
+  .glass { position: absolute; z-index: 2; background: var(--glass); border: 1px solid var(--border); border-radius: 10px; }
+  .controls { left: 12px; top: 12px; display: flex; flex-direction: column; gap: 6px; padding: 8px; }
+  .control-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--text-2); }
+  .seg { display: flex; gap: 4px; }
+  .seg button { min-height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-2); font-size: 13px; font-weight: 600; cursor: pointer; }
+  .seg button[aria-pressed="true"] { border-color: var(--accent); background: #0f2a26; color: var(--accent-hover); }
+  #overview { right: 52px; top: 12px; min-height: 40px; padding: 0 14px; font-size: 14px; font-weight: 500; cursor: pointer; }
+  .legend { left: 10px; bottom: 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 6px 9px; font-size: 12px; line-height: 1.3; color: var(--text-2); border-radius: 8px; }
+  .legend span { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .legend span > i { flex: none; width: 11px; height: 11px; border-width: 1.5px; }
+  .size-key { border-radius: 50%; border: 1.5px solid var(--muted); }
+  .dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid; }
+  .dot.ativo { background: var(--ativo-fill); border-color: var(--ativo); }
+  .dot.inativo { background: var(--inativo-fill); border-color: var(--inativo); }
+  .dot.sem { background: var(--sem-fill); border-color: var(--sem); border-style: dashed; }
+  #tile-error { left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 12px 16px; max-width: 320px; text-align: center; font-size: 14px; }
+
+  /* Bolha: o MapLibre posiciona o elemento externo; o interno tem o tamanho e a cor */
+  .bubble { border: 0; padding: 0; background: transparent; cursor: pointer; }
+  .bubble b { display: block; border-radius: 50%; border: 2px solid; transition: width 0.45s ease, height 0.45s ease, box-shadow 0.3s ease; }
+  /* Anel de energia: a parte amarela é a energia da região em relação à região que mais gastou */
+  .bubble .ring { position: absolute; inset: -9px; border-radius: 50%; pointer-events: none;
+    background: conic-gradient(var(--yellow) calc(var(--p, 0) * 1%), rgba(255, 255, 255, 0.22) 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); }
+  .ring-key { width: 16px; height: 16px; border-radius: 50%;
+    background: conic-gradient(var(--yellow) 65%, rgba(255, 255, 255, 0.3) 0);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px)); }
+  .bubble.ativo b { background: var(--ativo-fill); border-color: var(--ativo); }
+  .bubble.inativo b { background: var(--inativo-fill); border-color: var(--inativo); }
+  .bubble.sem b { background: var(--sem-fill); border-color: var(--sem); border-style: dashed; }
+  .bubble.selected b { box-shadow: 0 0 0 3px #ffffff, 0 0 26px 8px rgba(255, 255, 255, 0.35); }
+  .bubble.ativo:not(.selected) b { animation: pulse 2.4s ease-out infinite; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(92, 255, 184, 0.55); } 100% { box-shadow: 0 0 0 16px rgba(92, 255, 184, 0); } }
+  @media (prefers-reduced-motion: reduce) { .bubble.ativo:not(.selected) b { animation: none; } .bubble b { transition: none; } }
+
+  .region { width: 100%; text-align: left; min-height: 52px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: transparent; cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
+  .region:hover { background: var(--surface-2); }
+  .region[aria-pressed="true"] { border-color: var(--accent); background: var(--surface-3); }
+  .region-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; }
+  .region-name { display: flex; align-items: center; gap: 8px; min-width: 0; font-weight: 500; }
+  .region-name small { color: var(--muted); font-weight: 400; font-size: 13px; }
+  .region-name .dot { flex: none; width: 12px; height: 12px; }
+  .value { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .bar { height: 4px; border-radius: 2px; background: var(--surface-2); }
+  .bar i { display: block; height: 4px; border-radius: 2px; transition: width 0.45s ease; }
+  #list { display: flex; flex-direction: column; gap: 6px; }
+
+  #detail { border-top: 1px solid var(--border); padding-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+  #detail h3 { margin: 0; font-family: var(--display); font-size: 18px; font-weight: 600; }
+  .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .fact { background: var(--surface-2); border-radius: 8px; padding: 8px 10px; }
+  .fact small { display: block; font-size: 12px; color: var(--muted); }
+  .fact strong { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .services { font-size: 13px; color: var(--text-2); }
+  .alt { background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .alt p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--text-2); }
+  .alt-title { font-size: 12px; color: var(--muted); }
+  .alt-btn { min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--accent); background: #0f2a26; color: var(--accent-hover); font-size: 14px; font-weight: 600; cursor: pointer; }
+  .alt-btn:hover { background: #123a33; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="note">Simulação para a equipe: dados ilustrativos (os do modo demonstração) e coordenadas aproximadas de cada cidade.</div>
+
+<header>
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20c0-9 6-15 16-16 0 10-5 16-13 16-1 0-2 0-3 0Z"/><path d="M4 20c3-5 7-8 11-10"/></svg>
+    <span>Eco<em>Pulse</em></span>
+  </div>
+  <div class="live"><i></i><span>Mapa de regiões · última 1 hora</span></div>
+</header>
+
+<div class="stage">
+  <div class="map-wrap">
+    <div id="map"></div>
+
+    <button type="button" id="overview" class="glass" hidden>Visão geral</button>
+
+    <div class="glass legend">
+      <span><i class="dot ativo"></i>Ativo</span>
+      <span><i class="dot inativo"></i>Inativo</span>
+      <span><i class="dot sem"></i>Sem medição</span>
+      <span id="size-legend"><i class="size-key"></i>Tamanho: CO₂e</span>
+      <span><i class="ring-key"></i>Anel: energia</span>
+    </div>
+
+    <div id="tile-error" class="glass" hidden>Não consegui carregar a imagem de satélite. Confira a conexão e recarregue a página.</div>
+  </div>
+
+  <aside class="panel">
+    <div class="panel-head">
+      <h2>Regiões</h2>
+      <span class="caption" id="list-caption">por CO₂e na última 1 hora</span>
+    </div>
+    <div id="list"></div>
+    <div id="detail" hidden>
+      <div>
+        <h3 id="d-city"></h3>
+        <div class="caption" id="d-place"></div>
+      </div>
+      <div class="facts">
+        <div class="fact"><small>Estado</small><strong id="d-status"></strong></div>
+        <div class="fact"><small>Intensidade da rede</small><strong id="d-intensity"></strong></div>
+        <div class="fact"><small>CO₂e</small><strong id="d-co2"></strong></div>
+        <div class="fact"><small>Energia</small><strong id="d-wh"></strong></div>
+      </div>
+      <div class="services" id="d-services"></div>
+      <div class="alt">
+        <span class="alt-title" id="alt-title">Alternativa mais limpa</span>
+        <p id="alt-text"></p>
+        <button type="button" class="alt-btn" id="alt-go" hidden></button>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // Uma bolha por região. Valores: soma dos serviços da região na última 1 hora (demo-data.ts).
+  var REGIONS = [
+    { id: 'us-east', city: 'Ashburn', place: 'Virgínia, Estados Unidos', code: 'us-east', lon: -77.49, lat: 39.04, status: 'ativo', co2: 44.6, wh: 118.0, intensity: 378, services: ['Fraud Detector', 'Checkout Worker'] },
+    { id: 'eu-west', city: 'Dublin', place: 'Leinster, Irlanda', code: 'eu-west', lon: -6.26, lat: 53.35, status: 'ativo', co2: 25.6, wh: 86.8, intensity: 295, services: ['Recommendation AI'] },
+    { id: 'jp-east', city: 'Tóquio', place: 'Kanto, Japão', code: 'jp-east', lon: 139.69, lat: 35.69, status: 'ativo', co2: 24.8, wh: 53.3, intensity: 465, services: ['Audit Stream'] },
+    { id: 'ca-central', city: 'Montreal', place: 'Quebec, Canadá', code: 'ca-central', lon: -73.57, lat: 45.50, status: 'ativo', co2: 2.9, wh: 72.6, intensity: 40, services: ['Reporting Batch'] },
+    { id: 'br-sudeste', city: 'São Paulo', place: 'Sudeste, Brasil', code: 'br-sudeste', lon: -46.63, lat: -23.55, status: 'inativo', co2: null, wh: null, intensity: null, services: ['Email Dispatcher'] },
+    { id: 'ca-ontario', city: 'Toronto', place: 'Ontario, Canadá', code: 'sem código', lon: -79.38, lat: 43.65, status: 'sem', co2: null, wh: null, intensity: null, services: ['Inventory Sync'] }
+  ];
+  var STATUS = {
+    ativo: { text: 'Ativo', color: 'var(--ativo)' },
+    inativo: { text: 'Inativo', color: 'var(--inativo)' },
+    sem: { text: 'Sem medição', color: 'var(--sem)' }
+  };
+  var HOME = { center: [-40, 15], zoom: 1.7 };
+  var REGION_ZOOM = 9;      // nível de cidade: as coordenadas são aproximadas, não o endereço do prédio
+  var MIN_SIZE = 22;        // bolha sem valor (inativo ou sem medição)
+
+  var MAX_WH = REGIONS.reduce(function (m, r) { return r.wh !== null && r.wh > m ? r.wh : m; }, 0);
+  var RING = 9;             // folga do anel de energia em volta da bolha
+  var compareFrom = null;   // região de origem, quando o usuário veio pelo botão "Ver alternativa mais limpa"
+  var altAction = null;
+  var metric = 'co2';
+  var selected = null;
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function $(id) { return document.getElementById(id); }
+  function fmt(n) { return n.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }); }
+  function value(r) { return metric === 'co2' ? r.co2 : r.wh; }
+  function unit() { return metric === 'co2' ? 'g' : 'Wh'; }
+  function maxValue() {
+    return REGIONS.reduce(function (m, r) { var v = value(r); return v !== null && v > m ? v : m; }, 0);
+  }
+  // Área proporcional ao valor (raiz quadrada), para a bolha não exagerar as diferenças
+  function sizeOf(r) {
+    var v = value(r);
+    return v === null ? MIN_SIZE : Math.round(28 + 60 * Math.sqrt(v / maxValue()));
+  }
+  function valueText(r) {
+    var v = value(r);
+    return v === null ? STATUS[r.status].text : fmt(v) + ' ' + unit();
+  }
+
+  var map = new maplibregl.Map({
+    container: 'map',
+    center: HOME.center,
+    zoom: HOME.zoom,
+    maxZoom: 11,
+    attributionControl: { compact: true },
+    style: {
+      version: 8,
+      sources: {
+        eox: {
+          type: 'raster', tileSize: 256, maxzoom: 14,
+          tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3857/default/g/{z}/{y}/{x}.jpg'],
+          // Texto exigido pela licença (CC BY-NC-SA 4.0), igual ao do ADR 0010
+          attribution: '<a href="https://cloudless.eox.at" target="_blank" rel="noopener">EOxCloudless https://cloudless.eox.at</a> by <a href="https://eox.at" target="_blank" rel="noopener">EOX IT Services GmbH</a> (Contains modified Copernicus Sentinel data 2025)'
+        }
+      },
+      layers: [
+        { id: 'space', type: 'background', paint: { 'background-color': '#02060d' } },
+        { id: 'eox', type: 'raster', source: 'eox' }
+      ]
+    }
+  });
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  map.on('style.load', function () {
+    // Globo na visão geral; o MapLibre passa para o plano sozinho ao aproximar
+    if (map.setProjection) map.setProjection({ type: 'globe' });
+  });
+  map.on('error', function (e) {
+    if (e && e.sourceId) $('tile-error').hidden = false;
+  });
+  map.on('data', function (e) {
+    if (e.dataType === 'source' && e.tile) $('tile-error').hidden = true;
+  });
+
+  // Bolhas: maiores primeiro, para as menores ficarem por cima e continuarem clicáveis
+  var markers = {};
+  REGIONS.slice().sort(function (a, b) { return (b.co2 || 0) - (a.co2 || 0); }).forEach(function (r) {
+    var el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'bubble ' + r.status;
+    el.appendChild(document.createElement('b'));
+    var ring = document.createElement('i');
+    ring.className = 'ring';
+    el.appendChild(ring);
+    el.addEventListener('click', function (ev) { ev.stopPropagation(); if (el.style.opacity === '0') return; clickBubble(r.id); });
+    markers[r.id] = { el: el, marker: new maplibregl.Marker({ element: el, opacityWhenCovered: '0' }).setLngLat([r.lon, r.lat]).addTo(map) };
+  });
+
+  function renderBubbles() {
+    REGIONS.forEach(function (r) {
+      var m = markers[r.id], s = sizeOf(r) + 'px';
+      m.el.firstChild.style.width = s;
+      m.el.firstChild.style.height = s;
+      m.el.classList.toggle('selected', selected === r.id);
+      var ring = m.el.querySelector('.ring');
+      ring.hidden = r.wh === null;
+      if (r.wh !== null) ring.style.setProperty('--p', String(Math.max(4, Math.round(r.wh / MAX_WH * 100))));
+      var label = r.city + ', ' + STATUS[r.status].text + (value(r) === null ? '' : ', ' + valueText(r) + ' de CO₂e')
+        + (r.wh === null ? '' : ', ' + fmt(r.wh) + ' Wh de energia');
+      m.el.setAttribute('aria-label', label);
+      m.el.title = label;
+    });
+  }
+
+  function renderList() {
+    var list = $('list'), max = maxValue();
+    list.textContent = '';
+    REGIONS.slice().sort(function (a, b) {
+      var va = value(a), vb = value(b);
+      return (vb === null ? -1 : vb) - (va === null ? -1 : va);
+    }).forEach(function (r) {
+      var v = value(r);
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'region';
+      btn.setAttribute('aria-pressed', selected === r.id ? 'true' : 'false');
+      btn.addEventListener('click', function () { select(r.id); });
+
+      var top = document.createElement('span'); top.className = 'region-top';
+      var name = document.createElement('span'); name.className = 'region-name';
+      var dot = document.createElement('i'); dot.className = 'dot ' + r.status;
+      var city = document.createElement('span'); city.textContent = r.city;
+      var code = document.createElement('small'); code.textContent = r.code;
+      name.appendChild(dot); name.appendChild(city); name.appendChild(code);
+      var val = document.createElement('span'); val.className = 'value'; val.textContent = valueText(r);
+      if (v === null) val.style.color = STATUS[r.status].color;
+      top.appendChild(name); top.appendChild(val);
+
+      var bar = document.createElement('span'); bar.className = 'bar';
+      var fill = document.createElement('i');
+      fill.style.width = v === null ? '0%' : Math.max(3, Math.round(v / max * 100)) + '%';
+      fill.style.background = STATUS[r.status].color;
+      bar.appendChild(fill);
+
+      btn.appendChild(top); btn.appendChild(bar);
+      list.appendChild(btn);
+    });
+  }
+
+  function renderDetail() {
+    var r = REGIONS.filter(function (x) { return x.id === selected; })[0];
+    $('detail').hidden = !r;
+    $('overview').hidden = !r;
+    if (!r) return;
+    var ns = r.lat < 0 ? 'S' : 'N', ew = r.lon < 0 ? 'O' : 'L';
+    $('d-city').textContent = r.city;
+    $('d-place').textContent = r.place + ' · ' + fmt(Math.abs(r.lat)) + '° ' + ns + ', ' + fmt(Math.abs(r.lon)) + '° ' + ew;
+    $('d-status').textContent = STATUS[r.status].text;
+    $('d-status').style.color = STATUS[r.status].color;
+    $('d-intensity').textContent = r.intensity === null ? '—' : r.intensity + ' gCO₂e/kWh';
+    $('d-co2').textContent = r.co2 === null ? '—' : fmt(r.co2) + ' g';
+    $('d-wh').textContent = r.wh === null ? '—' : fmt(r.wh) + ' Wh';
+    $('d-services').textContent = 'Serviços: ' + r.services.join(', ');
+    renderAlternative(r);
+  }
+
+  // Alternativa mais limpa: a região medida com a menor intensidade de carbono da rede (gCO₂e/kWh).
+  // Estimativa: a energia gasta na região de origem multiplicada pela intensidade da rede de destino.
+  function byId(id) { return REGIONS.filter(function (x) { return x.id === id; })[0]; }
+  function cleanest() {
+    return REGIONS.reduce(function (best, r) {
+      return r.intensity !== null && (best === null || r.intensity < best.intensity) ? r : best;
+    }, null);
+  }
+  function estimate(from, to) {
+    var grams = from.wh * to.intensity / 1000;
+    return { grams: grams, percent: Math.round((1 - grams / from.co2) * 100) };
+  }
+  function renderAlternative(r) {
+    var text = $('alt-text'), btn = $('alt-go'), title = $('alt-title');
+    var from = compareFrom ? byId(compareFrom) : null;
+    var best = cleanest();
+    altAction = null;
+    title.textContent = 'Alternativa mais limpa';
+    if (from && r.intensity !== null) {
+      var e = estimate(from, r);
+      title.textContent = 'Comparação com ' + from.city;
+      text.textContent = 'Os ' + fmt(from.wh) + ' Wh gastos em ' + from.city + ' emitiram ' + fmt(from.co2) + ' g de CO₂e. Aqui, com ' + r.intensity
+        + ' gCO₂e/kWh, emitiriam cerca de ' + fmt(e.grams) + ' g: ' + e.percent + '% menos. É uma estimativa, que não considera latência nem custo de migração.';
+      btn.textContent = 'Voltar para ' + from.city;
+      altAction = function () { travelTo(from.id, null); };
+    } else if (r.intensity === null) {
+      text.textContent = 'Sem medição nesta região, não há como comparar com as outras.';
+    } else if (best && best.id === r.id) {
+      text.textContent = 'Esta já é a região de menor intensidade de carbono entre as medidas.';
+    } else if (best) {
+      var est = estimate(r, best);
+      text.textContent = best.city + ' tem a rede mais limpa (' + best.intensity + ' gCO₂e/kWh). A mesma energia emitiria lá cerca de '
+        + fmt(est.grams) + ' g de CO₂e: ' + est.percent + '% menos.';
+      btn.textContent = 'Ver alternativa mais limpa';
+      altAction = function () { travelTo(best.id, r.id); };
+    }
+    btn.hidden = !altAction;
+  }
+  function travelTo(id, cameFrom) {
+    var r = byId(id);
+    selected = id;
+    compareFrom = cameFrom;
+    goTo({ center: [r.lon, r.lat], zoom: REGION_ZOOM });
+    render();
+  }
+
+  function render() {
+    renderBubbles(); renderList(); renderDetail();
+    $('list-caption').textContent = metric === 'co2' ? 'por CO₂e na última 1 hora' : 'por energia na última 1 hora';
+  }
+
+  // O voo: com "reduzir movimento" ligado no sistema, o mapa salta em vez de voar
+  // Viagem em três tempos, como no Google Earth: sobe até ver o globo, gira até o destino e desce inclinando a câmera.
+  var CRUISE_ZOOM = 1.9;
+  var flight = 0;
+  function smooth(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function leg(options, next) {
+    var id = flight;
+    options.easing = smooth;
+    options.essential = true;
+    map.once('moveend', function () { if (id === flight && next) next(); });
+    map.easeTo(options);
+  }
+  function goTo(view) {
+    flight += 1;
+    map.stop();
+    var landing = view.zoom > CRUISE_ZOOM + 1;
+    var tilt = landing && !view.flat;
+    var end = { center: view.center, zoom: view.zoom, pitch: tilt ? 50 : 0, bearing: tilt ? -12 : 0 };
+    if (reduceMotion) { map.jumpTo(end); return; }
+    flight += 1;
+    var from = map.getCenter();
+    var dLon = Math.abs(((view.center[0] - from.lng + 540) % 360) - 180);
+    var dLat = Math.abs(view.center[1] - from.lat);
+    // Destino vizinho e câmera já perto: vai direto, sem subir até o globo
+    if (dLon + dLat < 15 && map.getZoom() > CRUISE_ZOOM + 0.5) {
+      leg({ center: end.center, zoom: end.zoom, pitch: end.pitch, bearing: end.bearing, duration: 2200 });
+      return;
+    }
+    var cruiseMs = Math.round(900 + Math.min(2400, (dLon + dLat) * 18));
+    var climb = function (next) {
+      if (map.getZoom() <= CRUISE_ZOOM + 0.5) { next(); return; }
+      leg({ zoom: CRUISE_ZOOM, pitch: 0, bearing: 0, duration: 1800 }, next);
+    };
+    climb(function () {
+      leg({ center: view.center, zoom: CRUISE_ZOOM, pitch: 0, bearing: 0, duration: cruiseMs }, function () {
+        if (landing) leg({ center: end.center, zoom: end.zoom, pitch: end.pitch, bearing: end.bearing, duration: 3200 });
+      });
+    });
+  }
+  // Bolhas encostadas na tela formam um grupo (ex.: Ashburn, Toronto e Montreal vistos do globo)
+  function overlapGroup(id) {
+    var pos = {};
+    REGIONS.forEach(function (r) { pos[r.id] = { p: map.project([r.lon, r.lat]), radius: sizeOf(r) / 2 + RING, region: r }; });
+    var group = [id], queue = [id];
+    while (queue.length) {
+      var a = pos[queue.shift()];
+      REGIONS.forEach(function (r) {
+        if (group.indexOf(r.id) !== -1) return;
+        var b = pos[r.id], dx = a.p.x - b.p.x, dy = a.p.y - b.p.y;
+        if (Math.sqrt(dx * dx + dy * dy) < a.radius + b.radius) { group.push(r.id); queue.push(r.id); }
+      });
+    }
+    return group.map(function (g) { return pos[g].region; });
+  }
+  // Clique numa bolha: se ela está encostada em outras, o primeiro clique aproxima até o grupo se separar;
+  // com as bolhas separadas, o clique seleciona a região
+  function clickBubble(id) {
+    var group = overlapGroup(id);
+    if (group.length < 2) { select(id); return; }
+    var bounds = new maplibregl.LngLatBounds();
+    group.forEach(function (r) { bounds.extend([r.lon, r.lat]); });
+    var cam = map.cameraForBounds(bounds, { padding: 110 });
+    var c = cam && cam.center ? cam.center : bounds.getCenter();
+    var center = Array.isArray(c) ? c : [c.lng, c.lat];
+    var zoom = Math.min(cam && typeof cam.zoom === 'number' ? cam.zoom : 4, REGION_ZOOM);
+    selected = null;
+    compareFrom = null;
+    goTo({ center: center, zoom: zoom, flat: true });
+    render();
+    $('overview').hidden = false;
+  }
+  function select(id) {
+    compareFrom = null;
+    selected = selected === id ? null : id;
+    var r = REGIONS.filter(function (x) { return x.id === selected; })[0];
+    goTo(r ? { center: [r.lon, r.lat], zoom: REGION_ZOOM } : HOME);
+    render();
+  }
+
+  $('overview').addEventListener('click', function () { selected = null; compareFrom = null; goTo(HOME); render(); });
+  $('alt-go').addEventListener('click', function () { if (altAction) altAction(); });
+
+  render();
+})();
+</script>
+</body>
+</html>
