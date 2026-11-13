@@ -65,6 +65,128 @@ A intensidade em seis casas também pode perder valores inferiores a 0,0000005 g
 
 No exemplo oficial periódico, 1.000 linhas de energia já persistida somam 0,847833333 kWh, contra 0,847833333333… do cálculo sem quantização. O desvio aproximado 0,000000000333… kWh está abaixo do limite de 0,0000000005 kWh para 1.000 linhas. É um teste de armazenamento/agrupamento, não entrega de ranking/comparação da Sprint 3.
 
+## Consultas agregadas por período
+
+O ranking, a comparação, o resumo e o gráfico de um serviço agregam `collections` por período. As consultas estão em `backend/src/modules/services/services.repository.ts` (`findSummary`, `compareByIds`, `rankByPeriod`) e em `backend/src/modules/collections/collections.repository.ts` (`findSeries`), sempre dentro de um `*.repository.ts` e sempre com o período recebido como parâmetro (`$1`–`$3`), nunca interpolado no texto do SQL.
+
+### Período: fechado no início, aberto no fim
+
+```text
+collected_at >= $from  AND  collected_at < $to      -- [from, to)
+```
+
+`from` e `to` chegam como ISO 8601 com offset (`2026-11-08T00:00:00-03:00`) e o controller (`summaryPeriod`, em `services.controller.ts`) os converte para `Date`; o driver envia esse `Date` como parâmetro `timestamptz`. O banco não guarda hora local em lugar nenhum. As duas pontas são validadas na borda: `from < to` e no máximo 31 dias de janela — acima disso a resposta é 400, não uma agregação truncada. Sem `from`/`to`, `GET /api/services/summary` e `GET /api/services/ranking` usam as últimas 24 h a partir do instante do pedido (o ranking tem janela padrão própria, a mesma função `summaryPeriod`).
+
+O intervalo é **aberto no fim** por três razões: dois períodos consecutivos somam exatamente o período maior (sem a coleta contada duas vezes na virada), a coleta que cai exatamente em `to` pertence ao dia seguinte e não ao anterior, e a soma dos totais diários de 08/11 e 09/11 reconstrói o total de 08/11→09/11. `BETWEEN` nas duas pontas quebraria a primeira e a terceira propriedades.
+
+`GET /api/collections` (lista de coletas cruas, sem agregação) é a **exceção conhecida**: usa `collected_at >= $from AND collected_at <= $to`, inclusivo no fim, e aceita `from = to`. A diferença de um único instante na borda é pequena, mas é uma inconsistência real entre a lista e as agregações: quem comparar a lista com o ranking encontra uma linha de diferença quando existe coleta exatamente em `to`. O alinhamento do contrato (sugestão: `[from, to)` em todas as rotas) está em [#348](https://github.com/DEVassos/ecopulse-app/issues/348); até a mudança entrar em `develop`, esta seção descreve o comportamento atual da lista.
+
+### Fórmula de cada agregação
+
+| Campo da resposta | Fórmula SQL | Conta | Não conta |
+|---|---|---|---|
+| `collections` | `COUNT(c.id)` | toda coleta no período, inclusive com falha | serviço sem nenhuma coleta no período entra com `0` |
+| `failed` | `COUNT(c.id) FILTER (WHERE c.status <> 'ok')` | `erro` e `sem_metricas` | — |
+| `notCalculated` | `COUNT(c.id) FILTER (WHERE c.calculation_status <> 'disponivel')` | `nao_calculado` (inclui as coletas com falha) e `indisponivel` | — |
+| `energyKwh` | `SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel')` | só coleta com energia calculada | coleta sem cálculo, mesmo com `status = 'ok'` |
+| `co2eGrams` | `SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel')` | só coleta com emissão calculada | idem |
+| `avgCpuPercent` | `AVG(c.cpu_percent) FILTER (WHERE c.status = 'ok')` | coleta com métrica lida | coleta com falha (que não tem CPU) |
+| `avgMemoryGb`, `avgDiskGb`, `avgNetworkGb` | idem, cada coluna com o mesmo filtro | idem | idem |
+| `notCalculated` (série) | `COUNT(*) FILTER (WHERE status = 'ok' AND calculation_status <> 'disponivel')` | `nao_calculado` e `indisponivel` de coleta com métrica lida | coleta com falha, que a série já conta em `failed` |
+| `carbonIntensity…` (série) | `AVG(c.carbon_intensity_gco2e_per_kwh) FILTER (WHERE c.calculation_status = 'disponivel')` | média simples da intensidade, não ponderada pela energia | coleta sem cálculo |
+
+No ranking e na comparação, as três colunas de contagem usam `COUNT(c.id)` sobre `LEFT JOIN`, então serviço sem coleta no período aparece com `0` e `NULL` — é o que permite à interface distinguir "sem dado no período" de "serviço inexistente". Com uma exceção no ranking: `WHERE s.status <> 'removido' OR c.id IS NOT NULL` tira da resposta o serviço `removido` sem nenhuma coleta na janela, e ele só aparece com `0` se tiver ao menos uma coleta no período. `compareByIds` sempre devolve os `ids` pedidos (`s.id = ANY($1::bigint[])`), com `0` quando não há coleta. `findSeries` é outro caso: usa `COUNT(*)` sobre a CTE `ranged` (já filtrada por `service_id` e período) com `GROUPING SETS ((bucket_start), ())`, então período sem coleta devolve **uma** linha de total com `0` e nenhum bucket.
+
+### Os dois filtros não são o mesmo, e é de propósito
+
+A soma usa `calculation_status` e a média usa `status`. Uma coleta com `status = 'ok'` e `calculation_status = 'indisponivel'` — a API de métricas respondeu e o cálculo de emissões falhou, e é o que `unavailableCalculation` grava em `backend/src/jobs/collector.ts` — entra no `avgCpuPercent`, porque a métrica existe, e fica fora do `energyKwh`. `ok` com `nao_calculado` só acontece quando o coletor roda **sem** `carbonApi` configurada; com a calculadora presente, toda coleta `ok` sem fator termina em `indisponivel`. Misturar os dois filtros somaria energia que não existe ou descartaria CPU que foi medida.
+
+`findSeries` soma `co2e_grams` **sem** `FILTER`, enquanto as outras três somam com `FILTER (WHERE calculation_status = 'disponivel')`. Hoje os dois dão o mesmo número porque a `CHECK collections_calculation_state_valid` (`database/schema.sql`) exige `co2e_grams IS NULL` nas duas situações sem cálculo: `nao_calculado` exige `carbon_intensity_gco2e_per_kwh`, `power_watts`, `energy_kwh`, `co2e_grams` e `calculation_error_message` todos `NULL`, e `indisponivel` exige `co2e_grams IS NULL` com `calculation_error_message` preenchido. Uma rotina que marcasse `nao_calculado` mantendo o valor seria recusada pelo banco antes de chegar ao gráfico: a igualdade é garantida pelo schema, não apenas pela escrita.
+
+Em `energy_kwh` essa garantia não existe: `indisponivel` aceita `power_watts` e `energy_kwh` preenchidos (as duas colunas juntas, nunca uma só), com `co2e_grams` NULL. É exatamente por isso que o `FILTER` na soma de energia importa e a soma de `co2e_grams` da série não muda o número hoje. Acrescentar o `FILTER` na série continua sendo consistência de leitura, e está registrado em [#347](https://github.com/DEVassos/ecopulse-app/issues/347), sem efeito nos valores atuais.
+
+### Ordem do ranking
+
+```text
+ORDER BY
+  CASE WHEN $3::text = 'energy' THEN SUM(c.energy_kwh) FILTER (...) ELSE SUM(c.co2e_grams) FILTER (...) END DESC NULLS LAST,
+  s.name ASC, s.id ASC
+```
+
+A métrica escolhida é um **valor de parâmetro**, não texto de SQL: `metric` é validado na borda (`energy` ou `co2e`) e chega ao `CASE`. É a alternativa ao `ORDER BY` dinâmico — não existe caminho em que dado de requisição vire identificador de coluna. `NULLS LAST` põe serviço sem dado no fim da lista em vez de no topo, e o desempate por `s.name, s.id` mantém a ordem estável entre duas chamadas com totais iguais.
+
+### Exemplo numérico conferido
+
+Serviço 4 (`Inventory Sync`, `region_code` `ca-central` — `Ontario` no campo `region` da API —, intensidade 40 g CO₂e/kWh), janela de 08/11/2026 00:00 a 00:20 em `America/Sao_Paulo`:
+
+| Grandeza | Valor | Como se confere |
+|---|---|---|
+| coletas | 22 | todas com `status = 'ok'` e `calculation_status = 'disponivel'` |
+| `energyKwh` | 0,010455447016 | soma das 22 linhas, conferida fora do banco |
+| `co2eGrams` | 0,418217880595 | soma das 22 linhas |
+| `avgCpuPercent` | 41,1382 | média das 22 leituras |
+| CO₂e médio por coleta | 0,019009903663 g | 0,418217880595 ÷ 22 |
+
+Duas conferências que fecham a conta:
+
+1. **Energia × intensidade.** 0,010455447016 kWh × 40 g/kWh = 0,418217880640 g, contra 0,418217880595 g somados — diferença de 4,5 × 10⁻¹¹ g. Ela existe porque o `CarbonCalculator` multiplica a energia **não arredondada** e o `SUM` usa a energia persistida com 12 casas (ver "Precisão SQL e limites"); não é erro de agregação e não cresce com o número de linhas de forma descontrolada.
+2. **API × SQL.** `GET /api/services/compare?ids=4,1&from=2026-11-08T00:00:00-03:00&to=2026-11-08T00:20:00-03:00` devolve para o serviço 4 exatamente `collections: 22`, `avgCpuPercent: 41.13818181818182`, `energyKwh: 0.010455447016`, `co2eGrams: 0.418217880595` — os mesmos números do `SELECT` manual abaixo.
+
+### Conferência manual do período
+
+Uma única consulta reproduz o ranking inteiro. O comentário marcador na primeira linha do bloco é o que o "Como verificar" da issue usa para extraí-lo — por isso ele precisa continuar sendo a primeira linha entre o marcador e o ponto e vírgula final:
+
+```sql
+-- conferência BD04: totais manuais do período 08/11/2026 (America/Sao_Paulo), para comparar com o ranking
+SELECT s.id, s.name,
+  COUNT(c.id) AS coletas,
+  COUNT(c.id) FILTER (WHERE c.status <> 'ok') AS falhas,
+  to_char(SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel'), 'FM999990.000000000000') AS energia_kwh,
+  to_char(SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel'), 'FM999990.000000000000') AS co2e_grams,
+  to_char(AVG(c.cpu_percent) FILTER (WHERE c.status = 'ok'), 'FM9990.0000') AS cpu_medio
+FROM services AS s
+LEFT JOIN collections AS c ON c.service_id = s.id
+  AND c.collected_at >= timestamptz '2026-11-08T00:00:00-03:00'
+  AND c.collected_at <  timestamptz '2026-11-09T00:00:00-03:00'
+WHERE s.status <> 'removido' OR c.id IS NOT NULL
+GROUP BY s.id, s.name
+ORDER BY SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel') DESC NULLS LAST, s.name, s.id;
+```
+
+Executado em 10/11/2026 contra o banco de desenvolvimento do PO, com **15.238 coletas de 8 serviços** acumuladas pelo coletor. Não é um conjunto reproduzível: em um clone limpo do avaliador o mesmo bloco roda sem erro, mas devolve as 8 linhas com `0` coletas e `NULL`, porque a janela é uma data fixa. O que é reproduzível é o método — o mesmo `SELECT` rodado na janela de 5 minutos dos passos 2 e 3 do "Como verificar" da #313 dá o mesmo resultado da API. Com esses dados, o resultado bate linha a linha com `GET /api/services/ranking?metric=co2e&from=2026-11-08T00:00:00-03:00&to=2026-11-09T00:00:00-03:00`: `Fraud Detector` 439,697261980482 g; `Checkout Worker` 427,330492644840; `Recommendation AI` 372,703075277339; `Audit Stream` 350,168079144919; `Billing API` 73,337305308002; `Email Dispatcher` 51,958362956387; `Reporting Batch` 32,992927302410; `Inventory Sync` 24,836959141307. As contagens (`1.327`, `1.366`, `1.320`, `1.320`, `1.323`, `1.370`, `1.369`, `1.365`) e as falhas também coincidem.
+
+### O período muda o resultado
+
+Mudar a janela muda os totais e eles continuam batendo com o `SELECT` manual (mesmo banco do exemplo anterior): 08/11 00:00 → 09/11 00:00 soma 1.773,024463755686 g em 10.760 coletas; 07/11 00:00 → 09/11 00:00 soma 2.273,846990265378 g em 13.781 coletas. A diferença (500,822526509692 g e 3.021 coletas) é exatamente o dia 07/11, o que confirma que a janela é aplicada e que as bordas não se sobrepõem.
+
+### EXPLAIN: por que o ranking não usa o índice
+
+`EXPLAIN (ANALYZE, BUFFERS)` da consulta do ranking no período de um dia (10.760 de 15.254 linhas, 71 % da tabela), medido em 11/11/2026. O bloco é o **plano resumido**: só os nós que sustentam a leitura. A saída literal traz ainda o `Sort` do `ORDER BY` como nó raiz e o `Filter: ((s.status <> 'removido'::text) OR (c.id IS NOT NULL))` do `Hash Right Join`, que não mudam a conclusão.
+
+```text
+HashAggregate (actual time=29.136..29.150 rows=8 loops=1)
+  Buffers: shared hit=691
+  ->  Hash Right Join (actual time=1.374..17.931 rows=10760 loops=1)
+        ->  Seq Scan on collections c (actual time=1.289..8.692 rows=10760 loops=1)
+              Filter: ((collected_at >= '2026-11-08 03:00:00+00'::timestamp with time zone) AND (collected_at < '2026-11-09 03:00:00+00'::timestamp with time zone))
+              Rows Removed by Filter: 4494
+              Buffers: shared hit=690
+        ->  Hash (rows=8) -> Seq Scan on services s (rows=8)
+Execution Time: 29.838 ms
+```
+
+**É `Seq Scan`, e está correto.** Quando a janela cobre 71 % da tabela, ler a tabela inteira em ordem física custa menos que saltar por 10.760 posições de índice: forçando o índice (`SET enable_seqscan = off`) o plano vira `Index Scan using collections_collected_at_idx` e o tempo, medido em execuções seguidas com cache aquecido, sobe de 14,0 ms para 16,7 ms com a mesma saída. O par 14,0 ms × 16,7 ms é o que sustenta a conclusão, porque foi medido nas mesmas condições; o bloco acima é uma execução única e mostra apenas `shared hit=691`, sem `read=`, ou seja, com a relação já em cache. A conta das linhas fecha o total: 10.760 devolvidas mais 4.494 removidas pelo filtro dão 15.254 linhas na tabela no instante da medição — 16 a mais que as 15.238 do `SELECT` manual, que é o coletor gravando entre uma medição e outra. O índice que existe é `collections_collected_at_idx (collected_at DESC)`; `collections_service_collected_at_idx (service_id, collected_at DESC)` é feito para o outro padrão de acesso — filtrar por serviço — e não ajuda quando a consulta varre todos os serviços.
+
+Com janela estreita o planejador troca sozinho: para 30 minutos do mesmo dia ele usa `Index Scan using collections_collected_at_idx` (252 linhas, 2,9 ms). Ou seja, o índice é usado quando a seletividade justifica, e a decisão de não usá-lo é do planejador com estatística atualizada, não uma ausência de índice.
+
+**Uma correção pendente.** A consulta da última coleta por serviço (`findAllWithLastReading`, `LEFT JOIN LATERAL … ORDER BY collected_at DESC, id DESC LIMIT 1`) também não usa `collections_service_collected_at_idx`: o desempate `id DESC` não está no índice, então o plano prefere `collections_collected_at_idx` e filtra `service_id = s.id` linha a linha, com um `Incremental Sort` no caminho. Medido no compose desta entrega (PostgreSQL 16.15, 311 coletas para 8 serviços) em 13/11/2026: **12 entradas do índice percorridas e 10 descartadas** pelo `Filter: (service_id = s.id)` para devolver 1 linha por serviço.
+
+Com `(service_id, collected_at DESC, id DESC)` o filtro e a ordenação ficam cobertos, mas o plano **não** vira `Index Only Scan`: `findAllWithLastReading` projeta `cpu_percent`, `energy_kwh`, `co2e_grams`, `error_message`, `collection_interval_seconds`, `memory_gb`, `disk_gb`, `network_gb`, `power_watts` e `carbon_intensity_gco2e_per_kwh`, e nenhuma dessas colunas está no índice — sem elas o índice não cobre a consulta e o plano ainda precisa do heap. Com o índice criado em transação descartada (`CREATE INDEX` + `ANALYZE` + `ROLLBACK`) o nó continua sendo `Index Scan` acessando a tabela; `Index Only Scan` só aparece quando a projeção se limita às colunas do índice, que não é o caso desta consulta. Por isso este documento não atribui `Index Only Scan` nem tempos de IOS à consulta completa.
+
+Também não vale prometer que o planejador troca de índice sozinho: com esse volume os dois caminhos têm estimativa de custo praticamente igual (com `LIMIT 1` o plano coberto fica em ≈1,8) e o planejador manteve `collections_collected_at_idx`. A vantagem do composto é estrutural — é o único que chega à linha por `Index Cond` sem ordenar —, mas a escolha depende de volume e de estatística. Isso é alteração de `database/schema.sql`, com `database/README.md` e `docs/arquitetura.md` § Modelo de dados no mesmo PR — está registrado em [#346](https://github.com/DEVassos/ecopulse-app/issues/346) e **não foi aplicado aqui**.
+
+Nenhum índice foi criado ou alterado nesta tarefa: `database/schema.sql` continua com as mesmas definições, e a conferência de índices do roteiro reproduzível (`docs/arquitetura/verificacao-schema.md`) segue valendo sem alteração.
+
 ## Intensidade de carbono por região
 
 `GET https://carbon.unilaunch.org/regions` devolve as regiões com `code`, `country`, `region`, `city`, `latitude`, `longitude`, `carbon_intensity_gco2e_per_kwh` e `renewable_share_percent`. Retrato consultado em 11/11/2026 (`jq '.total'` → 5):
