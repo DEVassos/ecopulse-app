@@ -194,8 +194,8 @@ O card "Emissões no período" traduz o CO₂e acumulado em duas unidades do dia
 
 | Unidade familiar | Fator | Como se chega nele | Fonte (consultada em 13/11/2026) |
 |---|---|---|---|
-| km de carro a gasolina | 244,2 g CO₂e/km | 3,93×10⁻⁴ t CO₂e por milha (393 g/mi) ÷ 1,609344 km/mi, com 22,8 mpg combinado (2022) e 8.887 g CO₂ por galão (IPCC 2006) | [EPA, Greenhouse Gas Equivalencies Calculator — Calculations and References](https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator-calculations-and-references) (FHWA, *Highway Statistics* 2024; EPA, *Inventory of U.S. GHG Emissions* 2024, cap. 3) |
-| cargas de celular | 12,4 g CO₂/carga | 0,019 kWh por carga (28,446 Wh − 22 h × 0,411 W em standby) × 1.405,3 lb CO₂/MWh | [mesma página](https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator-calculations-and-references) (U.S. DOE/Jeremy Dommu, comunicação de 04/10/2024; EPA eGRID 2024a) |
+| km de carro a gasolina | 244,2 g CO₂e/km | 8.887 g CO₂/gal ÷ 22,8 mpg combinado (2022, IPCC 2006) = 389,8 g CO₂/mi; ÷ 0,994 (razão CO₂/CO₂e da EPA) = 392 g CO₂e/mi, que a EPA publica arredondado em 3,93×10⁻⁴ t CO₂e/mi (393 g/mi); ÷ 1,609344 km/mi = 244,2 g CO₂e/km | [EPA, Greenhouse Gas Equivalencies Calculator — Calculations and References](https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator-calculations-and-references) (FHWA, *Highway Statistics 2022*, publicado em 2024; EPA, *Inventory of U.S. GHG Emissions* 2024, cap. 3) |
+| cargas de celular | 12,4 g CO₂/carga | 0,0194 kWh por carga (28,446 Wh − 22 h × 0,411 W em standby, sem arredondar) × 1.405,3 lb CO₂/MWh; o fator da EPA é só de CO₂, sem o CO₂e, e é aceito aqui por ser ordem de grandeza | [mesma página](https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator-calculations-and-references) (U.S. DOE/Jeremy Dommu, comunicação de 04/10/2024; EPA eGRID 2024a) |
 
 ```text
 km de carro    = co2e_grams / 244,2
