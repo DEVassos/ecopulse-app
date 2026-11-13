@@ -21,6 +21,8 @@ interface Props {
   unit?: string;
   /** Texto curto ao lado do valor (proporção, base da contagem, variação); omitido quando não acrescenta nada. */
   note?: ReactNode;
+  /** Linha extra abaixo do valor, em corpo menor (equivalências do CO₂e, #333); omitida quando vazia. */
+  detail?: ReactNode;
   icon: ReactNode;
   tone?: MetricTone;
   /** Última busca falhou: o valor continua, em cor apagada, para não parecer atual. */
@@ -30,7 +32,17 @@ interface Props {
 }
 
 /** Card de indicador de nível 1. O que ele mede está sempre no rótulo: a cor nunca é a única pista. */
-export default function MetricTile({ label, value, unit, note, icon, tone = 'neutral', stale = false, compact = false }: Props) {
+export default function MetricTile({
+  label,
+  value,
+  unit,
+  note,
+  detail,
+  icon,
+  tone = 'neutral',
+  stale = false,
+  compact = false,
+}: Props) {
   return (
     <div className={`metric metric--${tone}${stale ? ' metric--stale' : ''}${compact ? ' metric--compact' : ''}`}>
       <div className="metric-top">
@@ -45,6 +57,7 @@ export default function MetricTile({ label, value, unit, note, icon, tone = 'neu
         </span>
         {note && <span className="metric-note">{note}</span>}
       </div>
+      {detail && <p className="metric-detail">{detail}</p>}
     </div>
   );
 }
