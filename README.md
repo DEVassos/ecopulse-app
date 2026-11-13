@@ -132,7 +132,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Dashboard com o backend real (`docker compose`) em 06/11/2026, numa tela de 390 px e com a sessão aberta: o botão **Menu** e o **Sair** na linha da marca (#274) e, em cada serviço, a emissão da última leitura sob o nome (Checkout Worker, 525 mg CO₂e) (#263). O Fraud Detector, que saiu da lista do agregador, aparece como Removido, no fim da tabela e com os números apagados (#261)._
 
-- **RF09, RNF01 — Eixo de Emissões ajustado ao trecho com dados (#332):** quando o monitoramento de um serviço começa depois de 20% do período escolhido, o gráfico de Emissões marca o início ("monitoramento começou entre 19:30 e 19:45") e oferece **Ajustar ao trecho com dados**, que encurta o eixo; KPIs e totais continuam sendo do período inteiro, e o texto sob o título avisa isso ([detalhes](frontend/README.md#página-emissões-190)).
+- **RF09, RNF01 — Eixo de Emissões ajustado ao trecho com dados (#332, PR #344):** quando o monitoramento de um serviço começa depois de 20% do período escolhido, o gráfico de Emissões marca o início ("monitoramento começou entre 19:30 e 19:45") e oferece **Ajustar ao trecho com dados**, que encurta o eixo; KPIs e totais continuam sendo do período inteiro, e o texto sob o título avisa isso ([detalhes](frontend/README.md#página-emissões-190)).
 
   ![Emissões de ontem com a marca do início do monitoramento](docs/img/sprint-3-emissoes-eixo.png)
 
