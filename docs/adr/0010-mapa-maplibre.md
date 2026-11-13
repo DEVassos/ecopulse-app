@@ -9,7 +9,7 @@
 
 ## Contexto e problema
 
-A US10 (#51) pede um mapa com uma bolha por região, de tamanho proporcional ao CO₂e, para o gestor ver onde se concentram as emissões. O protótipo [`docs/produto/prototipo-mapa-regioes.html`](../produto/prototipo-mapa-regioes.html) (commit `9172dc8`) testou a ideia com o MapLibre carregado de uma CDN, uma camada de satélite e os dados do modo demonstração. O caminho foi aprovado na planning da Sprint 3 ([`docs/sprints/sprint-3/planning.md`](../sprints/sprint-3/planning.md), § Mapa e simulação, PR #314) e detalhado no corpo da #318, que dividiu o trabalho em: componente (#322), alternativa mais limpa (#326), modo apresentação (#323) e funções de região (#321).
+A US10 (#51) pede um mapa com uma bolha por região, de tamanho proporcional ao CO₂e, para o gestor ver onde se concentram as emissões. O protótipo [`docs/produto/prototipo-mapa-regioes.html`](../produto/prototipo-mapa-regioes.html) (commit `9172dc8`) testou a ideia com o MapLibre carregado de uma CDN, uma camada de satélite e os dados do modo demonstração. O caminho foi aprovado na planning da Sprint 3 ([`docs/sprints/sprint-3/planning.md`](../sprints/sprint-3/planning.md), § Mapa e simulação, PR #314), que dividiu o trabalho em: componente (#322), alternativa mais limpa (#326), modo apresentação (#323) e funções de região (#321). O corpo da #318 registra as opções e o plano sem internet.
 
 Antes de instalar qualquer biblioteca no frontend, três perguntas precisavam de resposta registrada:
 
