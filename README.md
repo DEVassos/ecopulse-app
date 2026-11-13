@@ -138,20 +138,6 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Página Emissões com o backend real (`docker compose`) em 12/11/2026, em 1280 px, com o período "Ontem" (11/11) do Audit Stream: o monitoramento começou entre 19:30 e 19:45, e a linha tracejada marca o início; à esquerda dela, quase todo o dia ficou sem dados. O botão **Ajustar ao trecho com dados** fica acima do gráfico._
 
-- **RF13, RNF01 — Regiões por CO₂e no Dashboard, com seleção compartilhada (#342, PR #345):** entre **Quem pesa mais** e a tabela, uma linha por região, da maior para a menor emissão das últimas 24 h, com os serviços por estado, a intensidade da rede e a parte renovável; os serviços sem região ou sem coordenada aparecem num aviso e continuam na tabela. Clicar numa região destaca as linhas dela na tabela, e clicar no código da região na tabela marca a região na lista. É a base do mapa de bolhas da #322 e a alternativa acessível a ele ([detalhes](frontend/README.md#regiões-por-coe-rf13-342)).
-
-  ![Lista de regiões por CO₂e com Ashburn selecionada e as linhas de us-east destacadas na tabela](docs/img/sprint-3-regioes-lista.png)
-
-  _Dashboard com o backend falso (`npm run mock`) em 13/11/2026, em 1280 px: Ashburn (us-east) selecionada na lista e, na tabela, Fraud Detector e Checkout Worker destacados. A soma da lista (2,13 kg) é igual ao card **Emissões no período**. O Inventory Sync, sem região, fica no aviso abaixo da lista. As rotas de regiões do backend real (#319, #320) ainda estavam em revisão._
-
-- **RF13, RNF01 — Mapa de bolhas das regiões (#322):** ao lado da lista de regiões, um globo com uma bolha por região com serviço: a cor é o pior estado, a área é o CO₂e das últimas 24 h e o anel é a energia; regiões sem serviço hoje são pontos neutros. Escolher uma região no mapa, na lista ou na tabela leva o mapa até ela (com "reduzir movimento", ele salta). O MapLibre só baixa quando há regiões, e sem internet o contorno dos países aparece por baixo, com aviso ([detalhes](frontend/README.md#mapa-das-regiões-rf13-322)).
-
-  **Aviso de uso comercial:** as imagens de satélite (EOX Sentinel-2 cloudless 2025) estão sob CC BY-NC-SA 4.0, livres só para uso não comercial, com o crédito no canto do mapa (no celular, atrás do botão **i**). Uso comercial do EcoPulse exige a licença paga da EOX ou outra fonte de imagens ([ADR 0010](docs/adr/0010-mapa-maplibre.md)).
-
-  ![Globo com as bolhas das regiões ao lado da lista de regiões por CO₂e](docs/img/sprint-3-mapa.png)
-
-  _Dashboard com o backend falso (`npm run mock`) em 13/11/2026, em 1280 px: bolhas verdes em Ashburn, Montreal e Dublin, vermelha em São Paulo (Indisponível) e o ponto neutro de Estocolmo, sem serviço. O crédito da EOX fica aberto no canto inferior direito._
-
 - **RNF01 — Fundo azul, verde nos destaques e logo pulsante (#180, PR #184):** a base da paleta voltou ao azul-escuro e o verde ficou só em ações e destaques (botão vazado nas ações secundárias, item ativo do menu, neon no que pede atenção), em resposta ao feedback da Sprint Review 1. O logo pulsa uma vez a cada atualização bem-sucedida dos dados, como sinal de "ao vivo", e fica parado em falha ou com "reduzir movimento". Regras e contrastes em [docs/identidade-visual.md](docs/identidade-visual.md).
 
   ![Dashboard com fundo azul-escuro](docs/img/sprint-2-fundo-azul.png)
@@ -187,6 +173,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 | Banco de dados | PostgreSQL com DDL e DML explícitos via driver `pg`, sem ORM |
 | Segurança | Login JWT no backend e bcrypt para senhas ([#20](https://github.com/DEVassos/ecopulse-app/issues/20), PR #208); tela de login no frontend ([#25](https://github.com/DEVassos/ecopulse-app/issues/25), PR #243); `PUT /api/monitoring-settings` protegido ([#250](https://github.com/DEVassos/ecopulse-app/issues/250), PR #253); todas as páginas e as rotas de dados exigem login ([#257](https://github.com/DEVassos/ecopulse-app/issues/257)) |
 | Execução | Docker Compose (frontend, backend e PostgreSQL com volume persistente) |
+| Mapa | MapLibre GL JS 6.16.0, carregado só quando o mapa abre ([ADR 0010](docs/adr/0010-mapa-maplibre.md)). Imagens de satélite EOX Sentinel-2 cloudless 2025 sob CC BY-NC-SA 4.0, com o crédito no canto do mapa. **Aviso de uso comercial:** a licença das imagens é só para uso não comercial; uso comercial do EcoPulse exige a licença paga da EOX ou outra fonte de imagens |
 
 ## 6. Equipe (DEVassos)
 
