@@ -7,7 +7,7 @@ export type EquivalentKey = 'carKm' | 'smartphoneCharge';
 export interface EquivalentFactor {
   /** Gramas de CO₂e por unidade do fator, como publicado na fonte. */
   gramsPerUnit: number;
-  /** Unidade no plural ("244 g por km de carro a gasolina"). */
+  /** Unidade no plural ("km de carro a gasolina"), sem o valor: o fator fica em `gramsPerUnit`. */
   unit: string;
   /** Fonte e data de consulta: vai no tooltip, porque fator sem origem é número solto. */
   source: string;
@@ -28,7 +28,7 @@ export const EQUIVALENT_FACTORS: Record<EquivalentKey, EquivalentFactor> = {
     gramsPerUnit: 12.4,
     unit: 'cargas de celular',
     source:
-      'EPA, Greenhouse Gas Equivalencies Calculator: 1,24×10⁻⁵ t CO₂ por carga (0,019 kWh × 1.405,3 lb CO₂/MWh) — consultado em 13/11/2026',
+      'EPA, Greenhouse Gas Equivalencies Calculator: 1,24×10⁻⁵ t CO₂ por carga (0,0194 kWh × 1.405,3 lb CO₂/MWh) — consultado em 13/11/2026',
   },
 };
 
@@ -37,7 +37,7 @@ export const EQUIVALENTS_DISCLAIMER =
   'Equivalência aproximada, só para dar ordem de grandeza: é o CO₂e do período dividido pelo fator da fonte, não uma medição.';
 
 /**
- * Duas algarismos significativos, no padrão brasileiro: 1,0565 → "1,1" · 20,8 → "21" · 0,0193 → "0,019".
+ * Dois algarismos significativos, no padrão brasileiro: 1,0565 → "1,1" · 20,8 → "21" · 0,0193 → "0,019".
  * Abaixo de 0,01 a unidade familiar perde o sentido: mostra "< 0,01", nunca zero.
  */
 export function formatEquivalentUnits(units: number): string {

@@ -91,9 +91,12 @@ export default function SummaryPanel({ summary, previousSummary, comparisonLoadi
   const missing = <MissingValue label="sem cálculo" title="Sem cálculo no período" />;
   // Equivalência do CO₂e (#333): só com valor conhecido, com os fatores e a fonte no tooltip
   const equivalents = summary ? describeEquivalents(summary.co2eGrams) : null;
+  // O leitor de tela e o toque não têm hover: as fontes também vão no texto lido, como no EstimateTag (#272)
+  const equivalentsText = `${EQUIVALENTS_DISCLAIMER} ${equivalentsSources()}`;
   const equivalentsNote = equivalents && (
-    <span data-tooltip={`${EQUIVALENTS_DISCLAIMER} ${equivalentsSources()}`}>
+    <span data-tooltip={equivalentsText}>
       {equivalents} <span className="text-muted">(ordem de grandeza)</span>
+      <span className="sr-only">: {equivalentsText}</span>
     </span>
   );
   // Escala única (#271): "841 Wh" em vez de "0,8413 kWh"
