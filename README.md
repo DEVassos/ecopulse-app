@@ -138,6 +138,12 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Página Emissões com o backend real (`docker compose`) em 12/11/2026, em 1280 px, com o período "Ontem" (11/11) do Audit Stream: o monitoramento começou entre 19:30 e 19:45, e a linha tracejada marca o início; à esquerda dela, quase todo o dia ficou sem dados. O botão **Ajustar ao trecho com dados** fica acima do gráfico._
 
+- **RF07, DW05 — Equivalências do CO₂e no card de emissões (#333, PR #350):** abaixo do total de **Emissões no período**, o dashboard mostra a mesma conta em duas unidades do dia a dia — quilômetros de carro a gasolina e cargas de celular — com a etiqueta **ordem de grandeza** e os dois fatores, a fonte e a data de consulta no tooltip da linha. São dois algarismos significativos no padrão brasileiro; abaixo de 0,01 a unidade vira "< 0,01", nunca zero, e sem CO₂e calculado a linha não aparece. A conta é só de apresentação e não é gravada ([fatores, contas e exemplo em docs/calculos.md](docs/calculos.md#equivalências); [detalhes em frontend/README.md](frontend/README.md#indicadores-agregados-rf08)).
+
+  ![Emissões no período com a linha de equivalência abaixo do valor](docs/img/sprint-3-equivalencias.png)
+
+  _Dashboard com o backend falso (`npm run mock`) em 13/11/2026, em 1280 px: 2,13 kg CO₂e no período e, abaixo, "≈ 8,7 km de carro a gasolina · ≈ 170 cargas de celular (ordem de grandeza)". A fonte dos dois fatores aparece no tooltip da linha ([segundo print](docs/img/sprint-3-equivalencias-fonte.png))._
+
 - **RNF01 — Fundo azul, verde nos destaques e logo pulsante (#180, PR #184):** a base da paleta voltou ao azul-escuro e o verde ficou só em ações e destaques (botão vazado nas ações secundárias, item ativo do menu, neon no que pede atenção), em resposta ao feedback da Sprint Review 1. O logo pulsa uma vez a cada atualização bem-sucedida dos dados, como sinal de "ao vivo", e fica parado em falha ou com "reduzir movimento". Regras e contrastes em [docs/identidade-visual.md](docs/identidade-visual.md).
 
   ![Dashboard com fundo azul-escuro](docs/img/sprint-2-fundo-azul.png)
