@@ -182,4 +182,19 @@ describe('ServicesTable', () => {
     );
     expect(withoutCalculation).toMatch(/sem cálculo no período/);
   });
+
+  it('destaca as linhas da região selecionada e deixa o código da região selecionar a região (#342)', () => {
+    const other = { ...service('fora', 'ativo', 1), regionCode: 'us-east' };
+    const html = renderToStaticMarkup(
+      <ServicesTable services={[service('dentro', 'ativo', 2), other]} onSelect={() => undefined} selectedRegion="br-sudeste" onSelectRegion={() => undefined} />,
+    );
+    expect(html.match(/shadow-\[inset_3px_0_0_var\(--accent\)\]/g)).toHaveLength(1);
+    expect(html).toMatch(/aria-pressed="true" aria-label="Selecionar a região br-sudeste \(São Paulo, Brasil · br-sudeste\)"/);
+    expect(html).toMatch(/aria-pressed="false" aria-label="Selecionar a região us-east/);
+  });
+
+  it('mantém o código da região como texto quando a página não usa a seleção', () => {
+    const html = renderToStaticMarkup(<ServicesTable services={[service('a', 'ativo', 1)]} onSelect={() => undefined} />);
+    expect(html).not.toContain('Selecionar a região');
+  });
 });
