@@ -75,7 +75,8 @@ case "$EVENT" in
     REF="$(ev .ref)"; BRANCH="${REF#refs/heads/}"
     [ "$(ev .deleted)" = "true" ] && { info "branch apagada; nada a fazer"; exit 0; }
     branch_protegida "$BRANCH" && { info "push em $BRANCH; quadro não muda"; exit 0; }
-    NUMS="$( { issue_da_branch "$BRANCH"; ev '.commits[].message' | issues_from_text; } | uniq_nums)"
+    # só os commits novos: os que já estavam no repositório (ex.: trazidos por merge da develop) vêm com distinct: false
+    NUMS="$( { issue_da_branch "$BRANCH"; ev '.commits[] | select(.distinct != false) | .message' | issues_from_text; } | uniq_nums)"
     [ -n "$NUMS" ] || { info "push em $BRANCH sem #issue; nada a fazer"; exit 0; }
     while IFS= read -r n; do
       set_status "$n" "Em andamento" "_,Backlog,Sprint Backlog"
