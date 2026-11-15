@@ -13,9 +13,11 @@ import type { AuthConfig } from './modules/usuarios/usuarios.service';
 import { MonitoringSettingsRepository } from './modules/monitoring-settings/monitoring-settings.repository';
 import { monitoringSettingsRoutes } from './modules/monitoring-settings/monitoring-settings.routes';
 import { NotFoundError } from './shared/errors';
+import type { CarbonApi } from './integrations/carbon-api';
+import { regionsRoutes } from './modules/regions/regions.routes';
 
 export function createApp(verify: () => Promise<void>, collections: CollectionRepository, services: ServiceRepository,
-  corsOrigins: readonly string[], users: UserRepository, auth: AuthConfig, settings?: MonitoringSettingsRepository) {
+  corsOrigins: readonly string[], users: UserRepository, auth: AuthConfig, settings?: MonitoringSettingsRepository, carbonApi?: CarbonApi) {
   const app = express();
   app.disable('x-powered-by');
   app.use(cors(corsOrigins));
@@ -23,10 +25,12 @@ export function createApp(verify: () => Promise<void>, collections: CollectionRe
   app.use(healthRoutes(verify));
   app.use('/api/services', authMiddleware(auth));
   app.use('/api/collections', authMiddleware(auth));
+  app.use('/api/regions', authMiddleware(auth));
   app.use(collectionsRoutes(collections, services));
   app.use(servicesRoutes(services));
   app.use(authRoutes(users, auth));
   if (settings !== undefined) app.use(monitoringSettingsRoutes(settings, auth));
+  if (carbonApi !== undefined) app.use(regionsRoutes(carbonApi, services));
   app.use((_req, _res, next) => next(new NotFoundError()));
   app.use(errorHandler);
   return app;

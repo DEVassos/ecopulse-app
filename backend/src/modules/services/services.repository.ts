@@ -38,6 +38,8 @@ export interface ServiceRankingRow {
   energy_kwh: string | null; co2e_grams: string | null;
 }
 
+export interface MonitoredServicesByRegionRow { region_code: string; monitored_services: string }
+
 export class ServiceRepository {
   constructor(private readonly db: QueryExecutor) {}
   async findAll(): Promise<StoredService[]> {
@@ -117,6 +119,13 @@ export class ServiceRepository {
         END DESC NULLS LAST,
         s.name ASC,
         s.id ASC`, [from, to, metric])).rows;
+  }
+  async countMonitoredByRegion(): Promise<MonitoredServicesByRegionRow[]> {
+    return (await this.db.query<MonitoredServicesByRegionRow>(`
+      SELECT region_code, COUNT(*)::text AS monitored_services
+      FROM services
+      WHERE status <> $1 AND region_code IS NOT NULL
+      GROUP BY region_code`, ['removido'])).rows;
   }
   async upsert(service: DiscoveredService, observedAt: Date): Promise<StoredService> {
     const result = await this.db.query<StoredService>(`

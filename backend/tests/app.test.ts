@@ -8,6 +8,7 @@ import { errorHandler } from '../src/middlewares/error-handler';
 import { CollectionRepository } from '../src/modules/collections/collections.repository';
 import { ServiceRepository } from '../src/modules/services/services.repository';
 import { UserRepository } from '../src/modules/usuarios/usuarios.repository';
+import type { CarbonApi } from '../src/integrations/carbon-api';
 import type { AuthConfig } from '../src/modules/usuarios/usuarios.service';
 import { DatabaseError, ExternalApiError } from '../src/shared/errors';
 
@@ -25,9 +26,9 @@ function repositories(collectionRows: unknown[] = [], serviceRows: unknown[] = [
 }
 
 function createApp(verify: () => Promise<void>, collections: CollectionRepository, services: ServiceRepository,
-  corsOrigins: readonly string[] = []) {
+  corsOrigins: readonly string[] = [], carbonApi?: CarbonApi) {
   const users = new UserRepository({ query: vi.fn().mockResolvedValue({ rows: [] }) });
-  return buildApp(verify, collections, services, corsOrigins, users, authConfig);
+  return buildApp(verify, collections, services, corsOrigins, users, authConfig, undefined, carbonApi);
 }
 
 function authenticatedRequest(url: string, init?: RequestInit): Promise<Response> {
@@ -57,6 +58,7 @@ describe('HTTP', () => {
     '/api/services/compare',
     '/api/collections',
     '/api/collections/series',
+    '/api/regions',
   ])('exige autenticação em %s', async path => {
     const { collections, services } = repositories();
     const url = await serve(createApp(async () => {}, collections, services));
@@ -69,6 +71,39 @@ describe('HTTP', () => {
         error: { code: 'UNAUTHORIZED', message: 'Token ausente, inválido ou expirado.' },
       });
     }
+  });
+
+  it('lista regiões autenticadas com a quantidade de serviços monitorados (#319)', async () => {
+    const { collections, services } = repositories([], [
+      { region_code: 'br-sudeste', monitored_services: '2' },
+      { region_code: 'us-east', monitored_services: '1' },
+    ]);
+    const carbonApi: CarbonApi = {
+      getIntensity: vi.fn(),
+      listRegions: vi.fn().mockResolvedValue({
+        source: 'api', fetchedAt: Date.parse('2026-11-12T13:00:00.000Z'),
+        regions: [{ code: 'br-sudeste', country: 'Brazil', region: 'Sudeste', city: 'Sao Paulo', latitude: -23.5505,
+          longitude: -46.6333, intensityGco2ePerKwh: 85, renewableSharePercent: 83 }],
+      }),
+    };
+    const url = await serve(createApp(async () => {}, collections, services, [], carbonApi));
+    const response = await authenticatedRequest(`${url}/api/regions`);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      source: 'api', fetchedAt: '2026-11-12T13:00:00.000Z',
+      regions: [{ code: 'br-sudeste', country: 'Brazil', region: 'Sudeste', city: 'Sao Paulo', latitude: -23.5505,
+        longitude: -46.6333, carbonIntensityGco2ePerKwh: 85, renewableSharePercent: 83, monitoredServices: 2 }],
+    });
+  });
+  it('expõe EXTERNAL_API_ERROR sem detalhes internos ao listar regiões', async () => {
+    const { collections, services } = repositories();
+    const carbonApi: CarbonApi = {
+      getIntensity: vi.fn(),
+      listRegions: vi.fn().mockRejectedValue(new ExternalApiError('Falha externa interna.')),
+    };
+    const response = await authenticatedRequest(`${await serve(createApp(async () => {}, collections, services, [], carbonApi))}/api/regions`);
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ error: { code: 'EXTERNAL_API_ERROR', message: 'Falha externa interna.' } });
   });
 
   it('verifica em cada chamada, informa falha e recupera', async () => {
