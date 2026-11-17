@@ -132,7 +132,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Dashboard com o backend real (`docker compose`) em 17/11/2026, numa tela de 390 px e com a sessão aberta: sob o nome de cada serviço, o CO₂e das últimas 24 h (Fraud Detector, 294 g), na ordem do período, e as colunas das 24 h a uma rolagem de distância (#263, #330)._
 
-- **RF09, RF14 — Tabela com energia e CO₂e das 24 h (#330):** as colunas da tabela de serviços passam a ser os totais de cada serviço nas mesmas 24 h dos cards do topo (a soma da coluna **CO₂e 24 h** é igual ao card **Emissões no período**), vindos do `GET /api/services/ranking` já buscado a cada ciclo, sem requisição nova; a tabela abre pelo maior emissor e as colunas ficam em cinza, nunca zero, quando o ranking falha. A energia e o CO₂e da última leitura (~30 s) foram para a janela de detalhes ([detalhes](frontend/README.md#energia-e-emissão-na-tabela)).
+- **RF09, RF14 — Tabela com energia e CO₂e das 24 h (#330, PR #368):** as colunas da tabela de serviços passam a ser os totais de cada serviço nas mesmas 24 h dos cards do topo (a soma da coluna **CO₂e 24 h** é igual ao card **Emissões no período**), vindos do `GET /api/services/ranking` já buscado a cada ciclo, sem requisição nova; a tabela abre pelo maior emissor e as colunas ficam em cinza, nunca zero, quando o ranking falha. A energia e o CO₂e da última leitura (~30 s) foram para a janela de detalhes ([detalhes](frontend/README.md#energia-e-emissão-na-tabela)).
 
   ![Tabela de serviços com energia, CO₂e e parte das últimas 24 h](docs/img/sprint-3-dashboard-24h.png)
 
