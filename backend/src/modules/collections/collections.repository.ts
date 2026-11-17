@@ -44,7 +44,7 @@ export class CollectionRepository {
       FROM collections
       WHERE ($1::bigint IS NULL OR service_id = $1)
         AND ($2::timestamptz IS NULL OR collected_at >= $2)
-        AND ($3::timestamptz IS NULL OR collected_at <= $3)
+        AND ($3::timestamptz IS NULL OR collected_at < $3)
       ORDER BY collected_at DESC, id DESC
       LIMIT $4`, [filters.serviceId, filters.from, filters.to, filters.limit])).rows;
   }
