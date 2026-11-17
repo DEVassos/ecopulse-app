@@ -7,7 +7,9 @@ import { statusReasonText } from '../utils/status';
 import { factorMissing, factorTooltip, intervalText, powerText, resourcesText } from '../utils/service-reading';
 import { formatInScale, scaleFor } from '../utils/units';
 import type { Quantity } from '../utils/units';
+import type { RegionGrid } from '../utils/regions';
 import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow';
+import CleanGridBadge from './CleanGridBadge';
 import CompactValue from './CompactValue';
 import MissingValue from './MissingValue';
 import StatusBadge from './StatusBadge';
@@ -66,6 +68,13 @@ interface Props {
   selectedRegion?: string | null;
   /** Clique no código da região: seleciona a mesma região na lista. Sem ele, o código é só texto. */
   onSelectRegion?: (code: string) => void;
+  /**
+   * Rede de cada região pelo código, de GET /api/regions (#324): dá o selo "Rede limpa" ao lado da localização. null
+   * enquanto as regiões não chegaram: nenhum selo, nunca um palpite.
+   */
+  regionGrids?: ReadonlyMap<string, RegionGrid> | null;
+  /** A última busca das regiões falhou: o selo fica em cinza, com o dado da atualização anterior. */
+  regionGridsStale?: boolean;
 }
 
 type Shares = Map<string, RankingShare> | null | undefined;
@@ -148,6 +157,8 @@ export default function ServicesTable({
   sharesStale = false,
   selectedRegion = null,
   onSelectRegion,
+  regionGrids = null,
+  regionGridsStale = false,
 }: Props) {
   const [search, setSearch] = useState('');
   // Ordem inicial por gravidade (Status crescente): indisponíveis e sem métricas no topo, acima da dobra
@@ -245,6 +256,8 @@ export default function ServicesTable({
               const dim = stale || service.status === 'removido' ? ' text-muted' : '';
               // Região selecionada na lista (#342): fundo e filete verde à esquerda, sem mexer na ordem da tabela
               const inRegion = selectedRegion !== null && service.regionCode === selectedRegion;
+              // Rede da região agora (#324): o selo segue GET /api/regions, não o fator gravado na última leitura
+              const grid = service.regionCode === null ? undefined : regionGrids?.get(service.regionCode);
               return (
                 // O clique vale para a linha toda; o botão do nome dá o mesmo acesso pelo teclado (o clique dele sobe até aqui).
                 // Focar o botão antes de abrir faz o foco voltar para ele ao fechar, mesmo com clique fora do nome.
@@ -359,6 +372,8 @@ export default function ServicesTable({
                         </span>
                       )
                     )}
+                    {/* Selo de rede limpa ao lado da região (#324); fora do limite ou sem intensidade, nada aparece */}
+                    {grid && <CleanGridBadge grid={grid} stale={regionGridsStale} className="ml-2 align-middle" />}
                   </td>
                 </tr>
               );

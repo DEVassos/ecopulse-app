@@ -102,6 +102,14 @@
     color: var(--muted);
   }
 
+  /* Rede da região com o selo de rede limpa à frente (#324); em tela estreita, o texto desce para baixo do selo */
+  .region-list__grid {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+  }
+
   /* Marca de estado: o tracejado distingue "sem métricas" sem depender da cor */
   .region-list__key {
     flex: none;

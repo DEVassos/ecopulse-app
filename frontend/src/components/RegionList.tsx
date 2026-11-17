@@ -3,6 +3,7 @@ import type { RegionStatus } from '../services/regions.types';
 import { formatNumber } from '../utils/format';
 import { formatQuantity } from '../utils/units';
 import type { ListedRegion, RegionOverview } from '../utils/region-map';
+import CleanGridBadge from './CleanGridBadge';
 import './RegionList.css';
 
 /** Os mesmos nomes do selo da tabela (StatusBadge): um estado, um nome em toda a página. */
@@ -75,7 +76,11 @@ export default function RegionList({ overview, selectedCode, onSelect, periodLab
               <span className="region-list__meta">{countsText(region)}</span>
             </>
           ) : null}
-          <span className="region-list__meta">{gridText(region)}</span>
+          {/* Selo de rede limpa (#324) antes da intensidade: os números já estão ao lado, o leitor de tela não os repete */}
+          <span className="region-list__meta region-list__grid">
+            <CleanGridBadge grid={region} stale={stale} describe={false} />
+            {gridText(region)}
+          </span>
         </button>
       </li>
     );
