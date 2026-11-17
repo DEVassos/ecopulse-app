@@ -112,7 +112,10 @@ if [ "$TIPO" = "release" ]; then ok "release: segue a DoD-Sprint, sem DoD-PR"
 elif ! printf '%s\n' "$BODY" | grep -Eq '^##[[:space:]]+DoD-PR'; then
   fail "corpo sem a seção '## DoD-PR' do template (.github/PULL_REQUEST_TEMPLATE.md): itens 1 a 6, cada um [x] ou 'N/A — motivo' (ES07)"
 else
-  # uma linha "<n> ok|pendente|sem-marca" por item numerado; aceita "- [x] 3. N/A — …", "- N/A — 3. …" e "- [x] 2. `N/A — …`"
+  # uma linha "<n> ok|pendente|sem-marca" por item numerado. O nº do item é o primeiro "N. " isolado na linha
+  # (no início ou depois de espaço), então "#342." ou "24 h" no motivo do N/A não viram item.
+  # Forma recomendada: "- [x] 2. <texto do item> — N/A — motivo"; continuam aceitas "- [x] 3. N/A — …",
+  # "- N/A — 3. …" e "- [x] 2. `N/A — …`"
   ITENS="$(printf '%s\n' "$BODY" | tr -d '\r' | awk '
     /^##[[:space:]]+DoD-PR/ { f = 1; next }
     /^##[[:space:]]/        { f = 0 }
@@ -121,8 +124,7 @@ else
       marcado = (l ~ /^[[:space:]]*[-*][[:space:]]+\[[xX]\]/); na = (l ~ /[Nn]\/[Aa]/)
       vazio = (l ~ /^[[:space:]]*[-*][[:space:]]+\[ \]/)
       sub(/^[[:space:]]*[-*][[:space:]]+/, "", l); sub(/^\[[ xX]\][[:space:]]*/, "", l); sub(/^`/, "", l)
-      sub(/^[Nn]\/[Aa][^0-9]*/, "", l)
-      if (l ~ /^[1-6]\./) print substr(l, 1, 1), ((marcado || na) ? "ok" : (vazio ? "pendente" : "sem-marca"))
+      if (match(l, /(^|[[:space:]])[1-6]\.[[:space:]]/)) print substr(l, RSTART + RLENGTH - 3, 1), ((marcado || na) ? "ok" : (vazio ? "pendente" : "sem-marca"))
     }')"
   FALTAM=""; SEM_MARCA=""
   for n in 1 2 3 4 5 6; do

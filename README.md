@@ -179,6 +179,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 | Banco de dados | PostgreSQL com DDL e DML explícitos via driver `pg`, sem ORM |
 | Segurança | Login JWT no backend e bcrypt para senhas ([#20](https://github.com/DEVassos/ecopulse-app/issues/20), PR #208); tela de login no frontend ([#25](https://github.com/DEVassos/ecopulse-app/issues/25), PR #243); `PUT /api/monitoring-settings` protegido ([#250](https://github.com/DEVassos/ecopulse-app/issues/250), PR #253); todas as páginas e as rotas de dados exigem login ([#257](https://github.com/DEVassos/ecopulse-app/issues/257)) |
 | Execução | Docker Compose (frontend, backend e PostgreSQL com volume persistente) |
+| Mapa | MapLibre GL JS 6.16.0, carregado só quando o mapa abre ([ADR 0010](docs/adr/0010-mapa-maplibre.md)). Imagens de satélite EOX Sentinel-2 cloudless 2025 sob CC BY-NC-SA 4.0, com o crédito no canto do mapa. **Aviso de uso comercial:** a licença das imagens é só para uso não comercial; uso comercial do EcoPulse exige a licença paga da EOX ou outra fonte de imagens |
 
 ## 6. Equipe (DEVassos)
 

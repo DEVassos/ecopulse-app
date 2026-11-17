@@ -1,7 +1,7 @@
 // Lista de regiões do Dashboard (#342, RF13): o que cada linha mostra, em cálculo puro, sem React. A junção das duas
 // respostas e o pior estado vêm da #321 (`utils/regions.ts`); aqui ficam só o nome, o lugar e a ordem da tela.
 import type { RegionStatus, RegionsResponse, RegionsSummaryResponse } from '../services/regions.types';
-import { joinRegions } from './regions';
+import { bubbleRadius, joinRegions } from './regions';
 import type { RegionWithTotals } from './regions';
 
 /** Uma região pronta para a lista (e, na #322, para o mapa). */
@@ -60,4 +60,24 @@ export function buildRegionOverview(list: RegionsResponse, summary: RegionsSumma
     outside: { services: outsideServices, co2eGrams: sumOrNull(unlisted.map((item) => item.co2eGrams)) },
     unplacedServices: outsideServices + withoutCoordinate,
   };
+}
+
+/** Diâmetro mínimo, em px: bolha sem valor (indisponível ou sem métricas) só marca o lugar. */
+export const MIN_BUBBLE = 22;
+/** Ponto neutro de uma região sem serviço. */
+export const IDLE_DOT = 10;
+
+/**
+ * Diâmetro da bolha no mapa (#322), em px: `28 + 60 × raio relativo`, a escala do protótipo. O raio relativo é o
+ * `bubbleRadius` da #321, com a área proporcional ao CO₂e. Sem CO₂e calculado, a bolha só marca o lugar.
+ */
+export function bubbleDiameter(co2eGrams: number | null, maxCo2eGrams: number): number {
+  const radius = bubbleRadius(co2eGrams, maxCo2eGrams);
+  return radius === null ? MIN_BUBBLE : Math.round(28 + 60 * radius);
+}
+
+/** Parte preenchida do anel de energia, de 4 a 100: a energia da região diante da que mais consumiu. null: sem anel. */
+export function ringPercent(energyKwh: number | null, maxEnergyKwh: number): number | null {
+  if (energyKwh === null || maxEnergyKwh <= 0) return null;
+  return Math.max(4, Math.round(Math.min(1, energyKwh / maxEnergyKwh) * 100));
 }
