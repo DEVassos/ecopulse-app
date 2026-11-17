@@ -193,6 +193,28 @@ describe('ServicesTable', () => {
     expect(html).toMatch(/aria-pressed="false" aria-label="Selecionar a região us-east/);
   });
 
+  it('mostra o selo "Rede limpa" só nos serviços de região abaixo do limite, com a rede de GET /api/regions (#324)', () => {
+    const grids = new Map([
+      ['br-sudeste', { carbonIntensityGco2ePerKwh: 85, renewableSharePercent: 83 }],
+      ['us-east', { carbonIntensityGco2ePerKwh: 378, renewableSharePercent: 26 }],
+    ]);
+    const html = renderToStaticMarkup(
+      <ServicesTable
+        services={[service('limpo', 'ativo', 2), { ...service('sujo', 'ativo', 1), regionCode: 'us-east' }, { ...service('sem-fator', 'ativo', 1), regionCode: 'ap-sul' }]}
+        onSelect={() => undefined}
+        regionGrids={grids}
+      />,
+    );
+    // Uma linha só: a intensidade é a de agora (85), não o fator gravado na última leitura do serviço (377)
+    expect(html.match(/>Rede limpa</g)).toHaveLength(1);
+    expect(html).toContain('data-tooltip-value="85 g CO₂e/kWh · 83% renovável"');
+  });
+
+  it('não mostra selo enquanto as regiões não chegaram', () => {
+    const html = renderToStaticMarkup(<ServicesTable services={[service('a', 'ativo', 1)]} onSelect={() => undefined} />);
+    expect(html).not.toContain('Rede limpa');
+  });
+
   it('mantém o código da região como texto quando a página não usa a seleção', () => {
     const html = renderToStaticMarkup(<ServicesTable services={[service('a', 'ativo', 1)]} onSelect={() => undefined} />);
     expect(html).not.toContain('Selecionar a região');
