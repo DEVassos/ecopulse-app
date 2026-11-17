@@ -21,6 +21,8 @@ RFxx — <título> · Critério(s): DWxx / BDxx / TPxx
 <!-- prints em docs/img/sprint-N-<tela>.png, saídas de comando, links -->
 
 ## DoD-PR (marque [x] ou escreva "N/A — motivo")
+<!-- Item que não se aplica: deixe o número e o texto do item primeiro e o motivo no fim,
+     como em "- [x] 2. <texto do item> — N/A — motivo". -->
 - [ ] 1. `Closes #n` e commits com `#n`; co-autoria vazia ou de alguém do time [ES04]
 - [ ] 2. Roda com `docker compose up --build`; o revisor executou o "Como verificar" [ES07/DW07]
 - [ ] 3. SQL só em `*.repository.ts`, parametrizado (`$1`…), sem ORM [BD02]

@@ -44,7 +44,7 @@ git -C "$ROOT" log "origin/$BRANCH" --no-merges --since="$INICIO" --until="${FIM
     nprs="$(jq -r --arg l "$login" '[.[] | select(.author.login==$l)] | length' "$TMP/prs.json")"
     rev="$(jq -r --arg l "$login" '[.[] | .reviews[]? | select(.author.login==$l and (.state=="APPROVED" or .state=="CHANGES_REQUESTED" or .state=="COMMENTED"))] | length' "$TMP/prs_all.json")"
     com="$(jq -r --arg l "$login" '[.[] | select(.login==$l)] | length' "$TMP/commits.json")"
-    areas="$(printf '%s\n' "$emails" | tr ',' '\n' | lower | while read -r e; do grep -F "${e}|" "$TMP/files.txt" | awk -F'|' '{print $2 " (" $3 ")"}'; done | sort -u | paste -sd ', ' -)"
+    areas="$(printf '%s\n' "$emails" | tr ',' '\n' | lower | awk -F'|' 'NR==FNR{if($0!="") want[$0]=1; next} (tolower($1) in want){s[$2]+=$3} END{for(k in s) print k " (" s[k] ")"}' - "$TMP/files.txt" | sort | paste -sd ',' - | sed 's/,/, /g')"
     lac=""
     [ "$nprs" = 0 ] && lac="$lac sem PR mergeado;"
     [ "$rev" = 0 ] && lac="$lac sem review;"
