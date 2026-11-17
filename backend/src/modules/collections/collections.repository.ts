@@ -62,7 +62,7 @@ export class CollectionRepository {
         COUNT(*) FILTER (WHERE status <> 'ok') AS failed,
         COUNT(*) FILTER (WHERE status = 'ok' AND calculation_status <> 'disponivel') AS not_calculated,
         SUM(energy_kwh) FILTER (WHERE calculation_status = 'disponivel') AS energy_kwh,
-        SUM(co2e_grams) AS co2e_grams,
+        SUM(co2e_grams) FILTER (WHERE calculation_status = 'disponivel') AS co2e_grams,
         MIN(co2e_grams) AS co2e_min_grams,
         MAX(co2e_grams) AS co2e_max_grams,
         AVG(carbon_intensity_gco2e_per_kwh) FILTER (WHERE calculation_status = 'disponivel') AS carbon_intensity_gco2e_per_kwh
