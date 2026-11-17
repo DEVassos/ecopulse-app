@@ -5,6 +5,7 @@ import { useMonitoring } from '../hooks/useMonitoring';
 import type { MonitoredService } from '../services/services.types';
 import { formatDayTime, formatNumber } from '../utils/format';
 import { factorMissing, intervalText, resourcesText } from '../utils/service-reading';
+import { formatQuantity } from '../utils/units';
 import { statusReasonText } from '../utils/status';
 import CollectionsHistoryTable from './CollectionsHistoryTable';
 import CpuHistoryChart from './CpuHistoryChart';
@@ -87,8 +88,9 @@ export default function ServiceDetailsDialog({ service, onClose }: Props) {
         {/* Motivo do estado em texto, ao lado da cor do badge (#176) */}
         {statusReasonText(service) && <p className="m-0 text-sm text-muted">{statusReasonText(service)}</p>}
 
-        {/* Duas colunas já no celular: os quatro dados curtos cabem lado a lado e a janela fica mais baixa */}
-        <dl className="m-0 grid grid-cols-2 gap-3 min-[800px]:grid-cols-4">
+        {/* Duas colunas já no celular: os dados curtos cabem lado a lado e a janela fica mais baixa; cinco em tela larga,
+            para os dez caberem em duas linhas */}
+        <dl className="m-0 grid grid-cols-2 gap-3 min-[800px]:grid-cols-5">
           {/* Código da região (dado) com o nome embaixo; os dois ausentes viram "não informada" */}
           <Detail label="Região">
             {service.regionCode ?? service.region ?? <MissingValue label="não informada" title="Região não informada pelo agregador" />}
@@ -103,6 +105,13 @@ export default function ServiceDetailsDialog({ service, onClose }: Props) {
           </Detail>
           <Detail label="CPU na última leitura">
             {service.cpuPercent === null ? <MissingValue /> : `${formatNumber(service.cpuPercent, 0)}%`}
+          </Detail>
+          {/* Energia e CO₂e da última coleta (~30 s), que saíram da tabela (#330): lá ficam os totais das 24 h */}
+          <Detail label="Energia na última leitura">
+            {service.energyKwh === null ? <MissingValue label="sem cálculo" title="Sem cálculo nesta leitura" /> : formatQuantity('energy', service.energyKwh)}
+          </Detail>
+          <Detail label="CO₂e na última leitura">
+            {service.emissionsG === null ? <MissingValue label="sem cálculo" title="Sem cálculo nesta leitura" /> : formatQuantity('co2e', service.emissionsG)}
           </Detail>
           {/* O que a tabela mostra só no tooltip (#298), acessível pelo teclado aqui: fator, potência e recursos da leitura */}
           <Detail label="Fator da região (gCO₂e/kWh)">
