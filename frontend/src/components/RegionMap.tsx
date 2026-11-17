@@ -146,8 +146,13 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
         map.addControl(new library.NavigationControl({ showCompass: false }), 'top-right');
         // Globo na visão geral; ao aproximar, o MapLibre passa sozinho para o plano
         map.on('style.load', () => map?.setProjection({ type: 'globe' }));
+        // Com um listener de 'error', o MapLibre deixa de imprimir os erros: os que não são do satélite vão ao console
         map.on('error', (event) => {
-          if ('sourceId' in event && event.sourceId === 'satellite') setTilesFailed(true);
+          if ('sourceId' in event && event.sourceId === 'satellite') {
+            setTilesFailed(true);
+            return;
+          }
+          console.error(event.error);
         });
         map.on('sourcedata', (event) => {
           if (event.sourceId === 'satellite' && event.tile !== undefined) setTilesFailed(false);
@@ -156,8 +161,9 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
         libraryRef.current = library;
         mapRef.current = map;
         setMapReady(true);
-      } catch {
+      } catch (error) {
         // Sem WebGL ou sem a biblioteca: a lista de regiões continua com os dados de cada região
+        console.error(error);
         if (!cancelled) setMapFailed(true);
       }
     })();
