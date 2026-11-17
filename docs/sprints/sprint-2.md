@@ -185,3 +185,26 @@ O PR [#214](https://github.com/DEVassos/ecopulse-app/pull/214) (backend da compa
 | [#51](https://github.com/DEVassos/ecopulse-app/issues/51) US10 — Mapa de bolhas (`could`) | não puxada: a planning a condicionou às histórias `must` concluídas até 06/11 | Sprint 3, movida pelo PO em 06/11 |
 | [#167](https://github.com/DEVassos/ecopulse-app/issues/167) e [#169](https://github.com/DEVassos/ecopulse-app/issues/169) (processo) | ações da retrospectiva da Sprint 1 com resultado registrado em 07/11 | Sprint 3, movidas no congelamento ([#167](https://github.com/DEVassos/ecopulse-app/issues/167#issuecomment-6723975416), [#169](https://github.com/DEVassos/ecopulse-app/issues/169#issuecomment-6723976230)); fecham pelo PR da retrospectiva da Sprint 2 |
 | [#256](https://github.com/DEVassos/ecopulse-app/issues/256) bug da paginação em Emissões | em andamento com @DeaTuribio | Sprint 3, por decisão do PO com @DeaTuribio em 06/11 |
+
+## 7. Participação
+
+Relatório ES09 gerado por `evidencias.sh 2 --branch main` em 16/11: [contribuicao.md](sprint-2/contribuicao.md).
+
+- **Sem lacunas:** os cinco integrantes têm contribuição verificável por login, com PRs mergeados, revisões e commits; nenhum commit do período ficou sem login.
+- **Ausência programada:** a viagem de @viniciusaugusto1997, com a volta registrada em 30/10, está na § 3; as entregas dele (#242, #253, #254, #291, #295 e #296) estão no relatório.
+- **Concentração:** @travensolli é autor de 41 dos 71 PRs mergeados em `develop`. O tema foi levado à retrospectiva ([#311](https://github.com/DEVassos/ecopulse-app/issues/311)).
+
+## 8. Métricas
+
+| Métrica | Valor |
+|---|---|
+| Issues da milestone | 77, das quais 75 fechadas (abertas: #305, a entrega, e #172, a issue fixada das dailies, que fecham no fechamento) |
+| Story Points: escopo inicial / final / concluídos | 31 / 120 / 120 ([burndown](sprint-2/burndown.md)); o escopo passou de 118 no congelamento para 120 com a #301 (08/11) e a #307 (09/11) |
+| PRs mergeados em `develop` | 71, de 20/10 a 09/11 (70 até o congelamento e o #308, do vídeo, em 09/11), mais a entrega em `main` (#306 e #309) |
+| Merges por dia em `develop` | 20/10: 1 · 21/10: 3 · 22/10: 2 · 23/10: 7 · 25/10: 2 · 26/10: 2 · 27/10: 6 · 28/10: 5 · 29/10: 1 · 30/10: 5 · 02/11: 5 · 03/11: 2 · 04/11: 4 · 05/11: 3 · 06/11: 15 · 07/11: 3 · 08/11: 4 · 09/11: 1 (horário de Brasília) |
+| Merges por integrante (20–25/10 · 26/10–01/11 · 02–09/11) | Andrea 2 · 2 · 5 · Gabriel 8 · 12 · 21 · Henrique 3 · 2 · 5 · Lucas 2 · 3 · 0 · Vinicius 0 · 0 · 6 |
+| PRs com primeira revisão em mais de 24h | 6: #233 (91h), #213 (50h), #215 (46h), #216, #268 e #269 (pouco mais de 24h). Sprint 1: 7 |
+| PRs mergeados sem revisão | 1 em `develop` (#191) e 1 em `main` (#192), por bypass registrado na § 4. Sprint 1: 2 |
+| Atas de daily / dias úteis | 15 / 15. As de 20/10 e 09/11 registram que não houve daily |
+| Regressões (`regressao`) | 0 |
+| Nota estimada (`/auditar 2`, 09/11) | 45,5 de 61 antes do fechamento; 55,5 a 59,5 de 61 (9,1 a 9,8) com o fechamento executado |
