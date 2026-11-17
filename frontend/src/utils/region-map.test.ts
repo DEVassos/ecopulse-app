@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Region, RegionsResponse, RegionsSummaryResponse, RegionSummary } from '../services/regions.types';
-import { buildRegionOverview, serviceCount } from './region-map';
+import { MIN_BUBBLE, bubbleDiameter, buildRegionOverview, ringPercent, serviceCount } from './region-map';
 
 function region(code: string, overrides: Partial<Region> = {}): Region {
   return { code, country: 'Estados Unidos', region: 'Virgínia', city: 'Ashburn', latitude: 39.04, longitude: -77.49, carbonIntensityGco2ePerKwh: 377, renewableSharePercent: 22, monitoredServices: 1, ...overrides };
@@ -74,5 +74,21 @@ describe('buildRegionOverview', () => {
 describe('serviceCount', () => {
   it('soma os três estados', () => {
     expect(serviceCount({ ativo: 2, indisponivel: 1, sem_metricas: 3 })).toBe(6);
+  });
+});
+
+describe('cálculos visuais do mapa', () => {
+  it('faz a área, e não o diâmetro, crescer com o CO₂e', () => {
+    expect(bubbleDiameter(100, 100)).toBe(88);
+    expect(bubbleDiameter(25, 100)).toBe(58);
+    expect(bubbleDiameter(0, 100)).toBe(28);
+    expect(bubbleDiameter(null, 100)).toBe(MIN_BUBBLE);
+  });
+
+  it('preenche o anel pela energia diante da região que mais consumiu, com mínimo de 4%', () => {
+    expect(ringPercent(1, 2)).toBe(50);
+    expect(ringPercent(0.001, 2)).toBe(4);
+    expect(ringPercent(null, 2)).toBeNull();
+    expect(ringPercent(1, 0)).toBeNull();
   });
 });
