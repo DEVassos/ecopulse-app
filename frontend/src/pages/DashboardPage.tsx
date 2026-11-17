@@ -47,8 +47,9 @@ export default function DashboardPage() {
   // Uma seleção para a lista de regiões e a tabela (#342); o mapa da #322 entra nela. Clicar de novo desfaz.
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const toggleRegion = (code: string) => setSelectedRegion((current) => (current === code ? null : code));
+  // Como o ranking e as regiões, espera a primeira lista: antes, a busca do primeiro render era cancelada logo em seguida
   useEffect(() => {
-    if (isDemoMode) return;
+    if (isDemoMode || updatedAt === null) return;
     const controller = new AbortController(); const to = new Date(); const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
     const previousFrom = new Date(from.getTime() - (to.getTime() - from.getTime()));
     void (async () => {
