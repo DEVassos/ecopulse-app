@@ -146,6 +146,16 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Janela de detalhes do Fraud Detector na mesma data: **Energia na última leitura** (1,00 Wh) e **CO₂e na última leitura** (379 mg) ao lado da CPU, com o fator, a potência e os recursos da mesma coleta (#330)._
 
+- **RF02, RF05, RF06 — Avisos de mudança de estado (#331, PR #374):** a cada atualização, o dashboard compara a lista de serviços com a anterior, sem requisição nova, e avisa serviço novo, removido, indisponível, sem métricas e de volta a ativo: um aviso discreto no canto, que some em 8 s e não tira o foco, e a lista **Últimas mudanças** abaixo dos cards de estado, com as 10 mais recentes e o horário em cada frase. Na tabela, a linha que mudou ganha um destaque breve, e CPU e fator que mudaram ganham ▲/▼; com "reduzir movimento", o destaque fica parado. A carga da página nunca avisa nada ([detalhes](frontend/README.md#avisos-de-mudança-de-estado-rf02-rf05-rf06-331)).
+
+  ![Tabela com o destaque nas linhas que mudaram e o aviso no canto](docs/img/sprint-3-avisos-mudancas.png)
+
+  _Dashboard com o backend falso (`npm run mock`) em 18/11/2026, em 1366 px, com a resposta seguinte ao **Atualizar agora** alterada para derrubar o Checkout Worker e incluir a Billing API: as duas linhas com o destaque, setas na CPU de Audit Stream e Reporting Batch, e o aviso "Checkout Worker ficou indisponível às 11:46 · Novo serviço: Billing API, às 11:46" (#331)._
+
+  ![Lista Últimas mudanças abaixo dos cards de estado](docs/img/sprint-3-ultimas-mudancas.png)
+
+  _A mesma sessão depois que o aviso sumiu: **Últimas mudanças** guarda as duas frases, a mais grave em cima (#331)._
+
 - **RF09, RNF01 — Eixo de Emissões ajustado ao trecho com dados (#332, PR #344):** quando o monitoramento de um serviço começa depois de 20% do período escolhido, o gráfico de Emissões marca o início ("monitoramento começou entre 19:30 e 19:45") e oferece **Ajustar ao trecho com dados**, que encurta o eixo; KPIs e totais continuam sendo do período inteiro, e o texto sob o título avisa isso ([detalhes](frontend/README.md#página-emissões-190)).
 
   ![Emissões de ontem com a marca do início do monitoramento](docs/img/sprint-3-emissoes-eixo.png)
