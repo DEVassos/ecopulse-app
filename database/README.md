@@ -137,3 +137,20 @@ docker compose exec postgres psql -U ecopulse -d ecopulse_db -c "SELECT calculat
 ```
 
 A tabela `access_entries` (IP e horário da primeira entrada por sessão) existe no schema, mas não há fluxo implementado de gravação nem de consulta, e esses fluxos não estão previstos no planejamento vigente. Após a review, a equipe decidirá se mantém ou remove a tabela.
+
+## Índice da última coleta (#346)
+
+`collections_service_collected_at_idx` é `(service_id, collected_at DESC, id DESC)`: o terceiro campo cobre o desempate já usado em `findAllWithLastReading`. Não há índice adicional nem mudança no SQL da API. Massa, planos completos e protocolo: [cálculos](../docs/calculos.md#última-coleta-índice-com-desempate-por-id-346); SQL manual em `verification/346-last-reading.sql` (não executado automaticamente no boot).
+
+Em banco vazio, `schema.sql` já cria a definição nova. Em banco existente, `CREATE INDEX IF NOT EXISTS` mantém a definição antiga: **não** basta reaplicar o schema. Com backup e janela de manutenção, aplique explicitamente a migração numerada, sem apagar volume ou reaplicar seeds:
+
+```bash
+docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/migrations/002-collections-last-reading-index.sql'
+docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT indexdef FROM pg_indexes WHERE indexname = '\''collections_service_collected_at_idx'\'';"'
+```
+
+Esperado: índice com `service_id, collected_at DESC, id DESC`. A migração substitui o índice antigo atomicamente (DROP/CREATE na mesma transação), preserva serviços/coletas e pode ser reaplicada. Se o índice já tiver a definição nova, nada é recriado; se estiver ausente, é criado. Uma definição diferente das duas conhecidas provoca erro e rollback. O índice antigo não deve ser removido manualmente antes dessa migração.
+
+A reconstrução não é `CONCURRENTLY`: bloqueia escritas durante a transação e exige janela de manutenção. `lock_timeout=5s` limita a espera por locks; erro ou timeout reverte a troca, mantendo a definição anterior. A duração da criação em si depende do volume. Nenhuma migração foi aplicada ao banco habitual/compartilhado: a validação da #346 usa bancos exclusivos.
+
+Validação de 17/11/2026 em PostgreSQL 16.15: banco novo criou as três colunas; banco descartável com a definição antiga recebeu a migração e sua reaplicação sem erro. Os hashes das linhas de `services` e `collections` permaneceram iguais antes/depois. O roteiro de medição confirmou respostas idênticas entre os índices, inclusive nos casos de empate de timestamp e serviço sem coleta; a massa terminou revertida.

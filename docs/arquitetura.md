@@ -47,6 +47,8 @@ Fonte física: [schema.sql](../database/schema.sql). Modelos persistente/OO e se
 
 CPU, GB e intervalo positivo são obrigatórios quando status=ok. Status de métricas (ok/erro/sem_metricas) é independente de calculation_status (nao_calculado/disponivel/indisponivel). Sem cálculo, campos ambientais ficam nulos; falha de carbono preserva métricas e não usa emissão zero. Quando disponível, cálculo exige região histórica, intensidade e resultados completos. JSONB preserva a resposta bruta, sem duplicação manual de todo o modelo.
 
+O índice `collections_service_collected_at_idx` de `collections` inclui `(service_id, collected_at DESC, id DESC)` para filtrar por serviço e desempatar a última coleta pelo maior ID (#346). A consulta continua em `LEFT JOIN LATERAL` e preserva serviços sem coleta; métricas projetadas exigem acesso ao heap. Bancos existentes recebem a migração numerada `002-collections-last-reading-index.sql` em janela de manutenção, conforme [README do banco](../database/README.md#índice-da-última-coleta-346). A quantidade de índices permanece dez.
+
 ## Histórico e falhas
 
 Energia usa numeric(20,12) e emissão numeric(24,12), mantendo 0,00000015 kWh por coleta e resolução de 10⁻¹² em ambas. Intensidade/potência permanecem numeric(14,6). Quatro índices explícitos somam-se aos seis automáticos das cinco PKs e UNIQUE externo: dez no total. Casos de uso atuais constam na UML, com dashboard público e consulta/configuração autenticadas, sem ampliar a auditoria.
