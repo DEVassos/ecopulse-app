@@ -1,5 +1,5 @@
 // Regiões no frontend (#321, RF13 e RF15): junção das duas rotas de região, pior estado, região mais limpa, simulação de
-// migração e escala da bolha. Cálculo puro, sem React e sem HTTP; o mapa (#322) e a simulação (#53) consomem daqui.
+// migração, escala da bolha e limite de rede limpa (#324). Cálculo puro, sem React e sem HTTP; o mapa (#322) e a simulação (#53) consomem daqui.
 import type { Region, RegionStatus, RegionSummary } from '../services/regions.types';
 import type { ServiceStatus } from '../services/services.types';
 
@@ -125,6 +125,33 @@ export function estimateMigration(
   const grams = energyKwh * targetIntensity;
   const savedGrams = originCo2eGrams - grams;
   return { grams, savedGrams, savedPercent: originCo2eGrams > 0 ? (100 * savedGrams) / originCo2eGrams : null };
+}
+
+/**
+ * Limite de "rede limpa", em gCO₂e/kWh (docs/calculos.md § Limite de "rede limpa"). É decisão de produto do PO, não
+ * constante do modelo: quem discordar do número muda o limite aqui e no documento, no mesmo PR.
+ */
+export const CLEAN_GRID_MAX_GCO2E_PER_KWH = 100;
+
+/** A rede de uma região, como GET /api/regions informa: o que o selo de rede limpa mostra (#324). */
+export type RegionGrid = Pick<Region, 'carbonIntensityGco2ePerKwh' | 'renewableSharePercent'>;
+
+/**
+ * Caso **região** do limite (#324): a intensidade de agora, de GET /api/regions, está em até 100 gCO₂e/kWh. Sem
+ * intensidade não há selo: falta de dado nunca vira "rede limpa".
+ */
+export function isCleanGrid(intensity: number | null): boolean {
+  return intensity !== null && Number.isFinite(intensity) && intensity <= CLEAN_GRID_MAX_GCO2E_PER_KWH;
+}
+
+/** Rede de cada região pelo `code`: a tabela de serviços acha a rede da região de cada serviço sem repetir a busca. */
+export function gridByCode(regions: readonly (Pick<Region, 'code'> & RegionGrid)[]): Map<string, RegionGrid> {
+  return new Map(
+    regions.map((region) => [
+      region.code,
+      { carbonIntensityGco2ePerKwh: region.carbonIntensityGco2ePerKwh, renewableSharePercent: region.renewableSharePercent },
+    ]),
+  );
 }
 
 /**
