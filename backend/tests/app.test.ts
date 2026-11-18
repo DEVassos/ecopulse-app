@@ -218,6 +218,13 @@ describe('HTTP', () => {
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'limit deve ser inteiro entre 1 e 500.' } });
   });
+  it('rejeita intervalo vazio em collections', async () => {
+    const { collections, services } = repositories();
+    const base = await serve(createApp(async () => {}, collections, services));
+    const response = await authenticatedRequest(base + '/api/collections?from=2026-10-20T00:00:00Z&to=2026-10-20T00:00:00Z');
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'from deve ser anterior a to.' } });
+  });
   it('retorna 404 para service_id inexistente', async () => {
     const { collections, services } = repositories([], []);
     expect((await authenticatedRequest(await serve(createApp(async () => {}, collections, services)) + '/api/collections?service_id=99')).status).toBe(404);

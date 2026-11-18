@@ -22,6 +22,8 @@ import { summarizeStatus } from '../utils/summary';
 import { fetchRegions, fetchRegionsSummary } from '../services/regions.service';
 import { buildRegionOverview } from '../utils/region-map';
 import type { RegionOverview } from '../utils/region-map';
+import { gridByCode } from '../utils/regions';
+import type { RegionGrid } from '../utils/regions';
 import './DashboardPage.css';
 
 // O mapa (MapLibre, mais pesado que o app inteiro) fica num arquivo à parte e só baixa quando há regiões (ADR 0010)
@@ -44,6 +46,10 @@ export default function DashboardPage() {
   const rankingStale = rankingIsStale(rankingError, error);
   const [regions, setRegions] = useState<RegionOverview | null>(null);
   const [regionsError, setRegionsError] = useState('');
+  // Rede de cada região, só de GET /api/regions (#324): o selo "Rede limpa" da tabela não depende dos totais do período,
+  // então continua na tela quando só GET /api/regions/summary falha. Falhou a lista, fica o último dado em cinza
+  const [regionGrids, setRegionGrids] = useState<Map<string, RegionGrid> | null>(null);
+  const [regionGridsFailed, setRegionGridsFailed] = useState(false);
   // Uma seleção para a lista de regiões e a tabela (#342); o mapa da #322 entra nela. Clicar de novo desfaz.
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const toggleRegion = (code: string) => setSelectedRegion((current) => (current === code ? null : code));
@@ -106,17 +112,21 @@ export default function DashboardPage() {
     const to = new Date();
     const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
     void (async () => {
-      try {
-        const [list, totals] = await Promise.all([
-          fetchRegions(controller.signal),
-          fetchRegionsSummary(from.toISOString(), to.toISOString(), controller.signal),
-        ]);
-        if (controller.signal.aborted) return;
-        setRegions(buildRegionOverview(list, totals));
+      // allSettled, e não all: a lista de regiões serve sozinha ao selo de rede limpa da tabela (#324)
+      const [list, totals] = await Promise.allSettled([
+        fetchRegions(controller.signal),
+        fetchRegionsSummary(from.toISOString(), to.toISOString(), controller.signal),
+      ]);
+      if (controller.signal.aborted) return;
+      if (list.status === 'fulfilled') setRegionGrids(gridByCode(list.value.regions));
+      setRegionGridsFailed(list.status === 'rejected');
+      if (list.status === 'fulfilled' && totals.status === 'fulfilled') {
+        setRegions(buildRegionOverview(list.value, totals.value));
         setRegionsError('');
-      } catch (reason: unknown) {
-        if (!controller.signal.aborted) setRegionsError(reason instanceof Error ? reason.message : 'não foi possível carregar as regiões.');
+        return;
       }
+      const reason: unknown = list.status === 'rejected' ? list.reason : totals.status === 'rejected' ? totals.reason : null;
+      setRegionsError(reason instanceof Error ? reason.message : 'não foi possível carregar as regiões.');
     })();
     return () => controller.abort();
   }, [updatedAt]);
@@ -233,6 +243,8 @@ export default function DashboardPage() {
             sharesStale={rankingStale}
             selectedRegion={selectedRegion}
             onSelectRegion={toggleRegion}
+            regionGrids={regionGrids}
+            regionGridsStale={regionGridsFailed || error !== ''}
           />
         )}
 
