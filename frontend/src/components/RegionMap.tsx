@@ -155,7 +155,12 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
         });
         // Girou o celular ou mudou a janela: na visão geral, o globo volta a caber no novo tamanho
         // No celular (mapa até 640 px), o crédito da EOX começa fechado atrás do botão "i", para não cobrir as bolhas
-        const collapseCredit = () => containerRef.current?.querySelector('.maplibregl-compact-show')?.classList.remove('maplibregl-compact-show');
+        // Tira também o atributo open, para o leitor de tela anunciar o "i" como fechado
+        const collapseCredit = () => {
+          const credit = containerRef.current?.querySelector('.maplibregl-compact-show');
+          credit?.classList.remove('maplibregl-compact-show');
+          credit?.removeAttribute('open');
+        };
         map.once('idle', collapseCredit);
         map.on('resize', () => {
           if (!map) return;
