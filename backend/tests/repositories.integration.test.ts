@@ -8,7 +8,7 @@ import { UserRepository } from '../src/modules/usuarios/usuarios.repository';
 import type { DiscoveredService, NewCollection } from '../src/shared/persistence.types';
 import { DatabaseError } from '../src/shared/errors';
 import { prepare } from './repositories-test.repository';
-import { getServices } from '../src/modules/services/services.service';
+import { getServiceComparison, getServices } from '../src/modules/services/services.service';
 
 // URL exclusiva de teste; schema aplicado antes em banco descartável vazio, fixture no beforeAll.
 const url = process.env.REPOSITORY_TEST_DATABASE_URL;
@@ -261,17 +261,32 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
   it('expõe região, intervalo, recursos, potência e fator da última coleta (#297)', async () => {
     const a = await services.upsert(service('reading-fields'), first);
     const current = async () => (await getServices(services)).services.find(item => item.id === a.id)!;
-    const none = { collectionIntervalSeconds: null, memoryGb: null, diskGb: null, networkGb: null, powerWatts: null, carbonIntensityGco2ePerKwh: null };
+    const none = { collectionIntervalSeconds: null, memoryGb: null, diskGb: null, networkGb: null, powerWatts: null, carbonIntensityGco2ePerKwh: null, powerBreakdown: null };
     expect(await current()).toEqual(expect.objectContaining({ regionCode: 'br-sudeste', lastReadingAt: null, ...none }));
     await collections.insert({ ...reading(a.id), calculation_status: 'disponivel', carbon_intensity_gco2e_per_kwh: '85',
       power_watts: '64.06035', energy_kwh: '0.000480452625', co2e_grams: '0.040838473125' });
     expect(await current()).toEqual(expect.objectContaining({ regionCode: 'br-sudeste', collectionIntervalSeconds: 27, memoryGb: 3.17, diskGb: 19.26,
-      networkGb: 0.45, powerWatts: 64.06035, carbonIntensityGco2ePerKwh: 85, energyKwh: 0.000480452625 }));
+      networkGb: 0.45, powerWatts: 64.06035, carbonIntensityGco2ePerKwh: 85, energyKwh: 0.000480452625,
+      powerBreakdown: { cpuW: 62.67, memoryW: 1.18875, diskW: 0.1926, networkW: 0.009 } }));
     // Uma coleta com erro mais recente: os campos da leitura caem para null e a região do cadastro continua
     await collections.insert({ ...reading(a.id), collected_at: second, status: 'erro', collection_interval_seconds: null, cpu_percent: null,
       memory_gb: null, disk_gb: null, network_gb: null, error_message: 'Timeout' });
     expect(await current()).toEqual(expect.objectContaining({ regionCode: 'br-sudeste', cpuPercent: null, ...none }));
     const noRegion = await services.upsert({ ...service('reading-no-region'), region_code: null }, first);
     expect((await getServices(services)).services.find(item => item.id === noRegion.id)?.regionCode).toBeNull();
+  });
+  it('pondera as médias dos recursos pelo intervalo de coleta na comparação (#327)', async () => {
+    const a = await services.upsert(service('compare-weighted'), first);
+    const ok = (interval: number, cpu: string, memory: string, disk: string, network: string): NewCollection => ({ ...reading(a.id),
+      collection_interval_seconds: interval, cpu_percent: cpu, memory_gb: memory, disk_gb: disk, network_gb: network,
+      metrics: { collection_interval_seconds: interval, metrics: { cpu_percent: Number(cpu), memory_gb: Number(memory),
+        disk_gb: Number(disk), network_gb: Number(network) } } });
+    await collections.insert(ok(60, '10', '1', '5', '0.5'));
+    await collections.insert({ ...ok(20, '70', '3', '11', '2'), collected_at: second });
+    const [compared] = (await getServiceComparison(services, {
+      ids: [a.id], from: first, to: new Date(second.getTime() + 1000),
+    })).services;
+    expect(compared).toMatchObject({ collections: 2, avgCpuPercent: 25, avgMemoryGb: 1.5, avgDiskGb: 6.5, avgNetworkGb: 0.875 });
+    expect(compared.avgPowerBreakdown).toEqual({ cpuW: 25, memoryW: 0.5625, diskW: 0.065, networkW: 0.0175 });
   });
 });

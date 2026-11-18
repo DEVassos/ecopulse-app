@@ -1,4 +1,5 @@
 import type { ServiceStatus } from '../../shared/persistence.types';
+import { powerBreakdown, type PowerBreakdown } from '../../domain/carbon-calculator';
 import { MonitoringStatus } from '../../domain/monitoring-status';
 import { NotFoundError } from '../../shared/errors';
 import { ServiceRepository, type ServiceComparisonRow, type ServiceRankingMetric, type ServiceRankingRow, type ServiceWithLastReading } from './services.repository';
@@ -24,6 +25,8 @@ export interface MonitoredService {
   networkGb: number | null;
   powerWatts: number | null;
   carbonIntensityGco2ePerKwh: number | null;
+  /** Parcelas da potência da mesma última coleta, em W (#327); `null` quando `powerWatts` é `null`. */
+  powerBreakdown: PowerBreakdown | null;
 }
 
 export interface ServicesResponse {
@@ -33,6 +36,14 @@ export interface ServicesResponse {
 
 const PERIOD = 'última leitura (intervalo de coleta)';
 const numberOrNull = (value: string | null): number | null => value === null ? null : Number(value);
+
+/**
+ * Parcelas da potência a partir dos quatro recursos, ou `null` quando falta algum deles.
+ */
+function breakdownOf(cpu: string | null, memory: string | null, disk: string | null, network: string | null): PowerBreakdown | null {
+  if (cpu === null || memory === null || disk === null || network === null) return null;
+  return powerBreakdown({ cpuPercent: Number(cpu), memoryGb: Number(memory), diskGb: Number(disk), networkGb: Number(network) });
+}
 
 /** Expõe somente diagnósticos conhecidos; detalhes arbitrários continuam restritos ao banco/log. */
 function statusReason(service: ServiceWithLastReading): string | null {
@@ -67,6 +78,9 @@ function toMonitoredService(service: ServiceWithLastReading): MonitoredService {
     networkGb: numberOrNull(service.network_gb),
     powerWatts: numberOrNull(service.power_watts),
     carbonIntensityGco2ePerKwh: numberOrNull(service.carbon_intensity_gco2e_per_kwh),
+    powerBreakdown: service.power_watts === null
+      ? null
+      : breakdownOf(service.cpu_percent, service.memory_gb, service.disk_gb, service.network_gb),
   };
 }
 
@@ -85,11 +99,17 @@ export interface ServiceComparisonInput { ids: string[]; from: Date; to: Date }
 export interface ServiceComparisonResponse {
   from: string; to: string;
   services: Array<{ id: string; name: string; region: string | null; collections: number; failed: number; notCalculated: number;
-    avgCpuPercent: number | null; avgMemoryGb: number | null; avgDiskGb: number | null; avgNetworkGb: number | null; energyKwh: number | null; co2eGrams: number | null }>;
+    avgCpuPercent: number | null; avgMemoryGb: number | null; avgDiskGb: number | null; avgNetworkGb: number | null;
+    /** Composição da potência média do período, em W (#327); `null` quando falta alguma das quatro médias. */
+    avgPowerBreakdown: PowerBreakdown | null;
+    energyKwh: number | null; co2eGrams: number | null }>;
 }
 function comparison(row: ServiceComparisonRow): ServiceComparisonResponse['services'][number] {
   return { id: row.id, name: row.name, region: row.region, collections: Number(row.collections), failed: Number(row.failed), notCalculated: Number(row.not_calculated),
-    avgCpuPercent: numberOrNull(row.avg_cpu_percent), avgMemoryGb: numberOrNull(row.avg_memory_gb), avgDiskGb: numberOrNull(row.avg_disk_gb), avgNetworkGb: numberOrNull(row.avg_network_gb), energyKwh: numberOrNull(row.energy_kwh), co2eGrams: numberOrNull(row.co2e_grams) };
+    avgCpuPercent: numberOrNull(row.avg_cpu_percent), avgMemoryGb: numberOrNull(row.avg_memory_gb), avgDiskGb: numberOrNull(row.avg_disk_gb),
+    avgNetworkGb: numberOrNull(row.avg_network_gb),
+    avgPowerBreakdown: breakdownOf(row.avg_cpu_percent, row.avg_memory_gb, row.avg_disk_gb, row.avg_network_gb),
+    energyKwh: numberOrNull(row.energy_kwh), co2eGrams: numberOrNull(row.co2e_grams) };
 }
 export async function getServiceComparison(repository: ServiceRepository, input: ServiceComparisonInput): Promise<ServiceComparisonResponse> {
   const rows = await repository.compareByIds(input.ids, input.from, input.to);

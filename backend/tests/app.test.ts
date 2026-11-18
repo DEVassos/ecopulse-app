@@ -121,23 +121,27 @@ describe('HTTP', () => {
     expect((await fetch(url + '/missing')).status).toBe(404);
   });
   it('lista serviços com a última leitura, inclusive região, intervalo, recursos, potência e fator (#297)', async () => {
-    const { collections, services } = repositories([], [{ id: '1', name: 'Demo', status: 'ativo', country: 'BR', region: 'Sul', city: null, region_code: 'br-sul', last_reading_at: new Date('2026-10-14T20:00:00.000Z'), cpu_percent: '51.25', energy_kwh: '0.000480452625', co2e_grams: '0.040838473125',
+    const { collections, services } = repositories([], [{ id: '1', name: 'Demo', status: 'ativo', country: 'BR', region: 'Sul', city: null, region_code: 'br-sul', last_reading_at: new Date('2026-10-14T20:00:00.000Z'), cpu_percent: '62.670000000', energy_kwh: '0.000480452625', co2e_grams: '0.040838473125',
       collection_interval_seconds: 27, memory_gb: '3.170000000', disk_gb: '19.260000000', network_gb: '0.450000000', power_watts: '64.060350', carbon_intensity_gco2e_per_kwh: '85.000000' }]);
     const response = await authenticatedRequest(await serve(createApp(async () => {}, collections, services)) + '/api/services');
     expect(response.status).toBe(200);
     const [service] = (await response.json()).services;
-    expect(service).toMatchObject({ id: '1', cpuPercent: 51.25, energyKwh: 0.000480452625, emissionsG: 0.040838473125 });
+    expect(service).toMatchObject({ id: '1', cpuPercent: 62.67, energyKwh: 0.000480452625, emissionsG: 0.040838473125 });
     // toEqual nos campos novos: Number(undefined) viraria NaN e sairia como null no JSON, escondendo um mapeamento errado
     expect({ regionCode: service.regionCode, collectionIntervalSeconds: service.collectionIntervalSeconds, memoryGb: service.memoryGb, diskGb: service.diskGb,
-      networkGb: service.networkGb, powerWatts: service.powerWatts, carbonIntensityGco2ePerKwh: service.carbonIntensityGco2ePerKwh })
-      .toEqual({ regionCode: 'br-sul', collectionIntervalSeconds: 27, memoryGb: 3.17, diskGb: 19.26, networkGb: 0.45, powerWatts: 64.06035, carbonIntensityGco2ePerKwh: 85 });
+      networkGb: service.networkGb, powerWatts: service.powerWatts, carbonIntensityGco2ePerKwh: service.carbonIntensityGco2ePerKwh,
+      powerBreakdown: service.powerBreakdown })
+      .toEqual({ regionCode: 'br-sul', collectionIntervalSeconds: 27, memoryGb: 3.17, diskGb: 19.26, networkGb: 0.45, powerWatts: 64.06035,
+        carbonIntensityGco2ePerKwh: 85, powerBreakdown: { cpuW: 62.67, memoryW: 1.18875, diskW: 0.1926, networkW: 0.009 } });
+    expect(service.powerBreakdown.cpuW + service.powerBreakdown.memoryW + service.powerBreakdown.diskW + service.powerBreakdown.networkW)
+      .toBe(service.powerWatts);
   });
   it('serviço sem coleta devolve null nos campos da leitura e mantém o código da região (#297)', async () => {
     const { collections, services } = repositories([], [{ id: '2', name: 'Vazio', status: 'sem_metricas', country: null, region: null, city: null, region_code: 'ca-central', last_reading_at: null, cpu_percent: null, energy_kwh: null, co2e_grams: null,
       collection_interval_seconds: null, memory_gb: null, disk_gb: null, network_gb: null, power_watts: null, carbon_intensity_gco2e_per_kwh: null }]);
     const [service] = (await (await authenticatedRequest(await serve(createApp(async () => {}, collections, services)) + '/api/services')).json()).services;
     expect(service).toEqual(expect.objectContaining({ regionCode: 'ca-central', lastReadingAt: null, cpuPercent: null, collectionIntervalSeconds: null, memoryGb: null,
-      diskGb: null, networkGb: null, powerWatts: null, carbonIntensityGco2ePerKwh: null }));
+      diskGb: null, networkGb: null, powerWatts: null, carbonIntensityGco2ePerKwh: null, powerBreakdown: null }));
   });
   it('retorna os indicadores agregados para o período solicitado', async () => {
     const summary = { energy_kwh: '1.2500', co2e_grams: '85.5000', active: '3', unavailable: '1', without_metrics: '2', removed: '0' };
@@ -202,8 +206,9 @@ describe('HTTP', () => {
     const response = await authenticatedRequest(base + '/api/services/compare?ids=1,2&from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z');
     expect(response.status).toBe(200);
     expect((await response.json()).services).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: '1', collections: 2, avgCpuPercent: 20, energyKwh: 0.02, co2eGrams: 1.7 }),
-      expect.objectContaining({ id: '2', collections: 0, avgCpuPercent: null, energyKwh: null }),
+      expect.objectContaining({ id: '1', collections: 2, avgCpuPercent: 20,
+        avgPowerBreakdown: { cpuW: 20, memoryW: 0.5625, diskW: 0.02, networkW: 0.006 }, energyKwh: 0.02, co2eGrams: 1.7 }),
+      expect.objectContaining({ id: '2', collections: 0, avgCpuPercent: null, avgPowerBreakdown: null, energyKwh: null }),
     ]));
   });
   it('valida a comparação antes de consultar o banco', async () => {
