@@ -30,7 +30,7 @@ A lista completa, com requisito e PR, está no [README § 3](../../../README.md#
 
 ## 2. Roteiro da demonstração (por requisito)
 
-O roteiro do vídeo foi estruturado pelo PO e combinado com o time antes da review. A tabela segue a ordem do produto e indica, para cada item, onde ele aparece e quem o entregou no GitHub. Quem apresentou cada parte na reunião fica registrado com o feedback, depois da review.
+O roteiro do vídeo foi estruturado pelo PO e combinado com o time antes da review. A tabela segue a ordem do produto e indica, para cada item, onde ele aparece e quem o entregou no GitHub. Na reunião, o PO conduziu a apresentação com o time inteiro (§ 3).
 
 | Ordem | Requisito | O que é mostrado | Como (URL, tela) | Entregue por |
 |---|---|---|---|---|
@@ -68,10 +68,38 @@ As perguntas vêm da [planning § 8](planning.md#8-perguntas-de-produto-para-a-s
 - As informações mostradas justificam o espaço que ocupam na interface? Quais filtros devem ficar visíveis e como os recursos devem ser organizados?
 - A distinção entre dado mensurável e informação contextualizada está clara?
 
+## 3. Feedback do cliente
+
+A reunião de 09/11 foi conduzida pelo PO com o time inteiro. O único retorno registrado é o verbal, dado na própria reunião ([ata de 10/11](https://github.com/DEVassos/ecopulse-app/blob/8bb141dc95cbc4c4ff88f08d293b3eff49161a38/docs/sprints/sprint-3/dailies/2026-11-10.md?plain=1#L17)). Na reunião ficou combinado um retorno escrito, que traria os apontamentos por requisito, como os da Sprint 1 ([review da Sprint 1 § 3.1](../sprint-1/review.md#31-apontamentos-escritos-do-cliente-20102026)). Ele foi cobrado nas dailies de 10/11 e 13/11 e na [#305](https://github.com/DEVassos/ecopulse-app/issues/305#issuecomment-6810945205), e não tinha chegado até 18/11.
+
+| Item demonstrado | Comentário do cliente | Classificação | Ação |
+|---|---|---|---|
+| Entrega da Sprint 2 como um todo (vídeo e roteiro da § 2) | Retorno verbal positivo na reunião, sem apontamento por requisito | aceito | nenhuma |
+| Perguntas de produto da § 2.2 | Sem resposta registrada: dependiam do retorno escrito | sem resposta | levadas à Review 3 (§ 5) |
+
+## 4. Decisões e alterações no backlog
+
+| Decisão | Issue criada ou alterada | Label | Milestone |
+|---|---|---|---|
+| Fechar a Sprint 2 sem o retorno escrito do cliente. O time decidiu em 13/11 não esperar mais ([ata de 13/11](https://github.com/DEVassos/ecopulse-app/blob/8bb141dc95cbc4c4ff88f08d293b3eff49161a38/docs/sprints/sprint-3/dailies/2026-11-13.md?plain=1#L50)), e o PO confirmou com o SM em 18/11. Se o retorno chegar, ele é registrado na review da Sprint 3 | [#305](https://github.com/DEVassos/ecopulse-app/issues/305) | — | Sprint 2 |
+| Nenhuma issue `feedback-cliente` nova: a reunião não trouxe apontamento acionável | — | — | — |
+| O backlog da Sprint 3 muda pela planning de 10/11 e pelo refinamento, não por feedback desta review. As mudanças estão no [Histórico do plano](https://github.com/DEVassos/ecopulse-app/blob/9a7c1f7edacec28efc888a17ba46997691b4fe14/docs/plano-de-entregas.md#histórico-de-alterações-do-plano) a partir de 10/11 | — | — | Sprint 3 |
+| Nenhum critério muda de sprint: os denominadores continuam 61 na Sprint 2 e 46 na Sprint 3 | — | — | — |
+
+Registrado no "Histórico de alterações do plano" em 18/11 (PR [#361](https://github.com/DEVassos/ecopulse-app/pull/361)).
+
+## 5. Pendências e perguntas em aberto
+
+| Pendência | Quem | Prazo |
+|---|---|---|
+| Retorno escrito do cliente sobre a Review de 09/11: se chegar, registrar na review da Sprint 3 e abrir as issues `feedback-cliente` que ele pedir | @henriqueptbd-cell (contato com o cliente), @travensolli (registro) | Review 3, 23/11 |
+| Perguntas de produto da § 2.2, que vinham da [review da Sprint 1 § 5](../sprint-1/review.md#5-pendências-e-perguntas-em-aberto): fazer na Review 3 só as que a entrega da Sprint 3 não responder | @henriqueptbd-cell | 23/11 |
+
 ## 6. Encaminhamentos pós-review (até 10/11)
 
-- [ ] Feedback do cliente, decisões e pendências registrados neste arquivo, nas seções 3 a 5 (@travensolli)
-- [ ] Issues `feedback-cliente` criadas na milestone Sprint 3 (@henriqueptbd-cell)
-- [ ] Situação de cada critério da Sprint 2 verificada no plano, com permalink, e entrada no "Histórico de alterações do plano" (@henriqueptbd-cell)
-- [ ] `docs/sprints/sprint-2.md` com versão, concluídos, review, participação e métricas; `contribuicao.md`, backlog e burndown finais (@travensolli)
-- [ ] Merge de `release/sprint-2` em `main`, tag `sprint-2` e GitHub Release (@travensolli)
+- [x] Feedback do cliente, decisões e pendências registrados neste arquivo, nas seções 3 a 5 (@travensolli, 18/11, depois da decisão de fechar sem o retorno escrito)
+- [x] N/A — issues `feedback-cliente` na milestone Sprint 3: a reunião não trouxe apontamento acionável (§ 4)
+- [x] Situação de cada critério da Sprint 2 verificada no plano, com permalink, e entrada no "Histórico de alterações do plano" (@henriqueptbd-cell, na revisão do PR [#361](https://github.com/DEVassos/ecopulse-app/pull/361))
+- [x] `docs/sprints/sprint-2.md` com versão, concluídos, review, participação e métricas; `contribuicao.md`, backlog e burndown finais (@travensolli, 16 e 18/11)
+
+O merge da `release/sprint-2` em `main`, a tag `sprint-2` e a GitHub Release são feitos logo depois deste registro, pela [#305](https://github.com/DEVassos/ecopulse-app/issues/305).
