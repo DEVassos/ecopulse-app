@@ -99,6 +99,16 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
       disk_gb: null, network_gb: null, metrics: {}, error_message: status === 'erro' ? 'Timeout' : null, ...notCalculated });
     expect(result).toMatchObject({ status, calculation_status: 'nao_calculado', cpu_percent: null, co2e_grams: null });
   });
+  it('lista coletas no intervalo [from, to), excluindo a coleta exatamente em to', async () => {
+    const saved = await services.upsert(service(`history-boundary-${randomUUID()}`), first);
+    const from = new Date('2026-10-11T00:00:00Z');
+    const to = new Date('2026-10-12T00:00:00Z');
+    await collections.insert({ ...reading(saved.id), collected_at: from });
+    await collections.insert({ ...reading(saved.id), collected_at: to });
+
+    const rows = await collections.findAll({ serviceId: saved.id, from, to, limit: 10 });
+    expect(rows.map(row => row.collected_at.toISOString())).toEqual([from.toISOString()]);
+  });
   it('resumo soma só coletas calculadas em [from, to) e conta cada serviço uma vez no estado atual', async () => {
     // Janela própria: as outras coletas desta suíte são de 11/10 e não entram nos totais
     const from = new Date('2026-09-01T10:00:00Z');

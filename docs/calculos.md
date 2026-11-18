@@ -79,7 +79,7 @@ collected_at >= $from  AND  collected_at < $to      -- [from, to)
 
 O intervalo é **aberto no fim** por três razões: dois períodos consecutivos somam exatamente o período maior (sem a coleta contada duas vezes na virada), a coleta que cai exatamente em `to` pertence ao dia seguinte e não ao anterior, e a soma dos totais diários de 08/11 e 09/11 reconstrói o total de 08/11→09/11. `BETWEEN` nas duas pontas quebraria a primeira e a terceira propriedades.
 
-`GET /api/collections` (lista de coletas cruas, sem agregação) é a **exceção conhecida**: usa `collected_at >= $from AND collected_at <= $to`, inclusivo no fim, e aceita `from = to`. A diferença de um único instante na borda é pequena, mas é uma inconsistência real entre a lista e as agregações: quem comparar a lista com o ranking encontra uma linha de diferença quando existe coleta exatamente em `to`. O alinhamento do contrato (sugestão: `[from, to)` em todas as rotas) está em [#348](https://github.com/DEVassos/ecopulse-app/issues/348); até a mudança entrar em `develop`, esta seção descreve o comportamento atual da lista.
+`GET /api/collections` (lista de coletas cruas, sem agregação) também usa `[from, to)`: `collected_at >= $from AND collected_at < $to`, com `from < to`. Uma coleta exatamente em `to` fica fora, como nas agregações; a rota só consulta o histórico e não altera as coletas gravadas.
 
 ### Fórmula de cada agregação
 
