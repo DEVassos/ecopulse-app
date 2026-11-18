@@ -126,6 +126,24 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
     const empty = await services.findSummary(new Date('2026-08-01T00:00:00Z'), new Date('2026-08-02T00:00:00Z'));
     expect(empty).toMatchObject({ energy_kwh: null, co2e_grams: null });
   });
+  it('série e ranking ignoram emissão de coleta indisponível', async () => {
+    const from = new Date('2026-09-05T00:00:00Z');
+    const to = new Date('2026-09-06T00:00:00Z');
+    const saved = await services.upsert(service(`series-filter-${randomUUID()}`), first);
+    await collections.insert({ ...reading(saved.id), collected_at: from, calculation_status: 'disponivel',
+      carbon_intensity_gco2e_per_kwh: '100', power_watts: '10', energy_kwh: '0.0005',
+      co2e_grams: '0.05', calculation_error_message: null });
+    await collections.insert({ ...reading(saved.id), collected_at: new Date(from.getTime() + 60_000),
+      calculation_status: 'indisponivel', power_watts: '10', energy_kwh: '5',
+      co2e_grams: null, calculation_error_message: 'Fator indisponível' });
+
+    const series = await collections.findSeries({ serviceId: saved.id, from, to, bucket: '1d' });
+    const total = series.find(row => row.bucket_start === null);
+    const ranked = (await services.rankByPeriod('co2e', from, to)).find(row => row.id === saved.id);
+    expect(Number(total?.co2e_grams)).toBe(0.05);
+    expect(Number(total?.energy_kwh)).toBe(0.0005);
+    expect(Number(ranked?.co2e_grams)).toBe(Number(total?.co2e_grams));
+  });
   it('ranqueia no PostgreSQL por métrica, preserva null/zero e inclui removidos com histórico', async () => {
     const from = new Date('2026-09-10T00:00:00Z');
     const to = new Date('2026-09-11T00:00:00Z');

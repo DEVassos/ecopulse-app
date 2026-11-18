@@ -89,7 +89,7 @@ O intervalo é **aberto no fim** por três razões: dois períodos consecutivos 
 | `failed` | `COUNT(c.id) FILTER (WHERE c.status <> 'ok')` | `erro` e `sem_metricas` | — |
 | `notCalculated` | `COUNT(c.id) FILTER (WHERE c.calculation_status <> 'disponivel')` | `nao_calculado` (inclui as coletas com falha) e `indisponivel` | — |
 | `energyKwh` | `SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel')` | só coleta com energia calculada | coleta sem cálculo, mesmo com `status = 'ok'` |
-| `co2eGrams` | `SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel')` | só coleta com emissão calculada | idem |
+| `co2eGrams` | `SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel')` (na série, `SUM(co2e_grams) FILTER (WHERE calculation_status = 'disponivel')`) | só coleta com emissão calculada | idem |
 | `avgCpuPercent` | `AVG(c.cpu_percent) FILTER (WHERE c.status = 'ok')` | coleta com métrica lida | coleta com falha (que não tem CPU) |
 | `avgMemoryGb`, `avgDiskGb`, `avgNetworkGb` | idem, cada coluna com o mesmo filtro | idem | idem |
 | `notCalculated` (série) | `COUNT(*) FILTER (WHERE status = 'ok' AND calculation_status <> 'disponivel')` | `nao_calculado` e `indisponivel` de coleta com métrica lida | coleta com falha, que a série já conta em `failed` |
@@ -101,9 +101,9 @@ No ranking e na comparação, as três colunas de contagem usam `COUNT(c.id)` so
 
 A soma usa `calculation_status` e a média usa `status`. Uma coleta com `status = 'ok'` e `calculation_status = 'indisponivel'` — a API de métricas respondeu e o cálculo de emissões falhou, e é o que `unavailableCalculation` grava em `backend/src/jobs/collector.ts` — entra no `avgCpuPercent`, porque a métrica existe, e fica fora do `energyKwh`. `ok` com `nao_calculado` só acontece quando o coletor roda **sem** `carbonApi` configurada; com a calculadora presente, toda coleta `ok` sem fator termina em `indisponivel`. Misturar os dois filtros somaria energia que não existe ou descartaria CPU que foi medida.
 
-`findSeries` soma `co2e_grams` **sem** `FILTER`, enquanto as outras três somam com `FILTER (WHERE calculation_status = 'disponivel')`. Hoje os dois dão o mesmo número porque a `CHECK collections_calculation_state_valid` (`database/schema.sql`) exige `co2e_grams IS NULL` nas duas situações sem cálculo: `nao_calculado` exige `carbon_intensity_gco2e_per_kwh`, `power_watts`, `energy_kwh`, `co2e_grams` e `calculation_error_message` todos `NULL`, e `indisponivel` exige `co2e_grams IS NULL` com `calculation_error_message` preenchido. Uma rotina que marcasse `nao_calculado` mantendo o valor seria recusada pelo banco antes de chegar ao gráfico: a igualdade é garantida pelo schema, não apenas pela escrita.
+`findSeries` também soma `co2e_grams` com `FILTER (WHERE calculation_status = 'disponivel')`, como as outras agregações. O filtro explicita o contrato de leitura, embora os valores não mudem hoje: a `CHECK collections_calculation_state_valid` (`database/schema.sql`) exige `co2e_grams IS NULL` nas duas situações sem cálculo. `nao_calculado` exige `carbon_intensity_gco2e_per_kwh`, `power_watts`, `energy_kwh`, `co2e_grams` e `calculation_error_message` todos `NULL`; `indisponivel` exige `co2e_grams IS NULL` com `calculation_error_message` preenchido. A igualdade atual também é garantida pelo schema, não apenas pela escrita.
 
-Em `energy_kwh` essa garantia não existe: `indisponivel` aceita `power_watts` e `energy_kwh` preenchidos (as duas colunas juntas, nunca uma só), com `co2e_grams` NULL. É exatamente por isso que o `FILTER` na soma de energia importa e a soma de `co2e_grams` da série não muda o número hoje. Acrescentar o `FILTER` na série continua sendo consistência de leitura, e está registrado em [#347](https://github.com/DEVassos/ecopulse-app/issues/347), sem efeito nos valores atuais.
+Em `energy_kwh` essa garantia não existe: `indisponivel` aceita `power_watts` e `energy_kwh` preenchidos (as duas colunas juntas, nunca uma só), com `co2e_grams` NULL. Por isso, o `FILTER` na soma de energia afeta os valores e o de CO₂e documenta explicitamente a regra, mesmo sem alterar os resultados atuais.
 
 ### Ordem do ranking
 

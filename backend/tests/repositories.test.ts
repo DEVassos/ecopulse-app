@@ -45,6 +45,7 @@ it('agrupa a série por intervalo e devolve o total do período na mesma consult
   expect(sql).toContain("COUNT(*) FILTER (WHERE status <> 'ok') AS failed");
   expect(sql).toContain("COUNT(*) FILTER (WHERE status = 'ok' AND calculation_status <> 'disponivel') AS not_calculated");
   expect(sql).toContain("SUM(energy_kwh) FILTER (WHERE calculation_status = 'disponivel') AS energy_kwh");
+  expect(sql).toContain("SUM(co2e_grams) FILTER (WHERE calculation_status = 'disponivel') AS co2e_grams");
   expect(sql).toContain("AVG(carbon_intensity_gco2e_per_kwh) FILTER (WHERE calculation_status = 'disponivel')");
   expect(sql).toContain('ORDER BY bucket_start');
   expect(sql).not.toContain('15 minutes');
