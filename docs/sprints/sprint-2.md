@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Período | 20/10 a 09/11/2026 · checkpoint 30/10 · congelamento 08/11 20h · review 09/11 19h30 (a confirmar) |
+| Período | 20/10 a 09/11/2026 · checkpoint 30/10 · congelamento 08/11 20h · review 09/11 19h30 |
 | Milestone | [Sprint 2](https://github.com/DEVassos/ecopulse-app/milestone/2) |
 | Plano | [docs/plano-de-entregas.md § Sprint 2](../plano-de-entregas.md#sprint-2): critérios previstos, denominador e situação de cada critério |
 | Atas | [planning](sprint-2/planning.md) · [dailies](sprint-2/dailies/) |
@@ -185,6 +185,27 @@ O PR [#214](https://github.com/DEVassos/ecopulse-app/pull/214) (backend da compa
 | [#51](https://github.com/DEVassos/ecopulse-app/issues/51) US10 — Mapa de bolhas (`could`) | não puxada: a planning a condicionou às histórias `must` concluídas até 06/11 | Sprint 3, movida pelo PO em 06/11 |
 | [#167](https://github.com/DEVassos/ecopulse-app/issues/167) e [#169](https://github.com/DEVassos/ecopulse-app/issues/169) (processo) | ações da retrospectiva da Sprint 1 com resultado registrado em 07/11 | Sprint 3, movidas no congelamento ([#167](https://github.com/DEVassos/ecopulse-app/issues/167#issuecomment-6723975416), [#169](https://github.com/DEVassos/ecopulse-app/issues/169#issuecomment-6723976230)); fecham pelo PR da retrospectiva da Sprint 2 |
 | [#256](https://github.com/DEVassos/ecopulse-app/issues/256) bug da paginação em Emissões | em andamento com @DeaTuribio | Sprint 3, por decisão do PO com @DeaTuribio em 06/11 |
+
+## 6. Review (09/11/2026)
+
+Ata completa: [review.md](https://github.com/DEVassos/ecopulse-app/blob/19d681135a498b73adf84901a0966315c103d285/docs/sprints/sprint-2/review.md).
+
+### 6.1 Demonstrado
+
+- **Formato:** videochamada às 19h30, conduzida pelo PO com o time inteiro ([ata de 10/11](https://github.com/DEVassos/ecopulse-app/blob/8bb141dc95cbc4c4ff88f08d293b3eff49161a38/docs/sprints/sprint-3/dailies/2026-11-10.md?plain=1#L17)). O [vídeo da Sprint 2](https://youtu.be/an9g07c_nIs) mostra o produto como está na `release/sprint-2`.
+- **Roteiro:** 11 itens por requisito, do login com JWT ao processo ([review.md § 2](sprint-2/review.md#2-roteiro-da-demonstração-por-requisito)), e as respostas aos apontamentos da Review 1, [#159](https://github.com/DEVassos/ecopulse-app/issues/159) a [#166](https://github.com/DEVassos/ecopulse-app/issues/166), todas fechadas por PR ([review.md § 2.1](sprint-2/review.md#21-apontamentos-da-review-1-atendidos-na-sprint-2)).
+- **Verificação da versão:** teste do avaliador em clone limpo de `develop` em `0d03190`, em 09/11 (§ 4).
+
+### 6.2 Feedback do cliente
+
+- Retorno verbal positivo na reunião, sem apontamento por requisito.
+- O retorno escrito combinado na reunião não tinha chegado até 18/11. Por isso não há comentário item a item nem issue `feedback-cliente` desta review ([review.md § 3](sprint-2/review.md#3-feedback-do-cliente)).
+
+### 6.3 Decisões e alterações no backlog
+
+- **Fechamento sem o retorno escrito:** decidido pelo time em 13/11 ([ata de 13/11](https://github.com/DEVassos/ecopulse-app/blob/8bb141dc95cbc4c4ff88f08d293b3eff49161a38/docs/sprints/sprint-3/dailies/2026-11-13.md?plain=1#L50)) e confirmado pelo PO com o SM em 18/11. Se o retorno chegar, ele é registrado na review da Sprint 3.
+- **Critérios:** nenhum muda de sprint. A situação de cada um está no [plano de entregas](../plano-de-entregas.md#sprint-2), com a entrada de 18/11 no "Histórico de alterações do plano".
+- **Backlog da Sprint 3:** as mudanças vieram da planning de 10/11 e do refinamento, não desta review, e estão no [Histórico do plano](https://github.com/DEVassos/ecopulse-app/blob/9a7c1f7edacec28efc888a17ba46997691b4fe14/docs/plano-de-entregas.md#histórico-de-alterações-do-plano) a partir de 10/11.
 
 ## 7. Participação
 
