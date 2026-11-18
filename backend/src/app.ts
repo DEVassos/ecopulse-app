@@ -15,9 +15,12 @@ import { monitoringSettingsRoutes } from './modules/monitoring-settings/monitori
 import { NotFoundError } from './shared/errors';
 import type { CarbonApi } from './integrations/carbon-api';
 import { regionsRoutes } from './modules/regions/regions.routes';
+import type { RegionsSummaryRepository } from './modules/regions/regions-summary.repository';
+import { regionsSummaryRoutes } from './modules/regions/regions-summary.routes';
 
 export function createApp(verify: () => Promise<void>, collections: CollectionRepository, services: ServiceRepository,
-  corsOrigins: readonly string[], users: UserRepository, auth: AuthConfig, settings?: MonitoringSettingsRepository, carbonApi?: CarbonApi) {
+  corsOrigins: readonly string[], users: UserRepository, auth: AuthConfig, settings?: MonitoringSettingsRepository,
+  carbonApi?: CarbonApi, regionsSummary?: RegionsSummaryRepository) {
   const app = express();
   app.disable('x-powered-by');
   app.use(cors(corsOrigins));
@@ -26,6 +29,7 @@ export function createApp(verify: () => Promise<void>, collections: CollectionRe
   app.use('/api/services', authMiddleware(auth));
   app.use('/api/collections', authMiddleware(auth));
   app.use('/api/regions', authMiddleware(auth));
+  if (regionsSummary) app.use(regionsSummaryRoutes(regionsSummary));
   app.use(collectionsRoutes(collections, services));
   app.use(servicesRoutes(services));
   app.use(authRoutes(users, auth));
