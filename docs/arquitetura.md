@@ -17,6 +17,8 @@ PostgreSQL ──► GET /api/services · GET /api/collections ──(polling do
 
 ## Backend
 
+Na #320, `modules/regions/regions-summary.*` agrega o histórico PostgreSQL por região atual dos serviços, separado dos arquivos da lista da Carbon API (#319). O fluxo é JWT → controller (período compartilhado em `shared/summary-period.ts`) → service (JSON e pior estado) → repository parametrizado; o resumo geral mantém sua consulta. Somas incluem histórico de removidos, mas as contagens e o pior estado não os incluem. Ver [contrato regional](api.md#get-apiregionssummary).
+
 Camadas por módulo (`health`, `services`, `collections`, `usuarios`): **routes** só mapeiam a URL → **controller** valida a entrada e escolhe o status HTTP → **service** monta a resposta → **repository** tem o SQL (`pg`, parâmetros `$1…$n`, sem ORM). As classes de objeto do monitoramento ficam em `domain/` — `MonitoredService`, `Collection`, `EnergyEstimate`, `CarbonCalculator` e `MonitoringStatus`, usadas pelo coletor (#173) e por `modules/services/services.service.ts` (`MonitoringStatus`); diagrama em [modelagem UML](arquitetura/modelagem-uml.md#modelo-oo-separado). `config/env.ts` é o único ponto que lê o ambiente; `shared/errors.ts` define `AppError` e as subclasses, incluindo `UnauthorizedError` (401), além de 400, 404, 500 e 502; `middlewares/error-handler.ts` converte qualquer erro no envelope `{"error":{"code","message"}}`, sem stack. O boot valida o ambiente, consulta o banco, abre o HTTP e só então inicia o coletor; SIGTERM para o coletor e fecha HTTP e pool. Organização, variáveis e verificação no [README do backend](../backend/README.md).
 
 O login administrativo usa JWT no backend e a tabela `users` (#20). Em volume PostgreSQL novo, `zz-seed-admin.sh` cria um administrador com `ADMIN_EMAIL` e hash bcrypt da senha fornecida em `ADMIN_PASSWORD` (#6); nenhum segredo ou hash fixo é versionado. A área de configuração e a consulta de entradas usarão o mesmo middleware quando forem implementadas. O intervalo externo de coleta vem de cada observação; o intervalo de atualização da tela é configuração independente do frontend (`VITE_REFRESH_INTERVAL_MS`).
@@ -46,6 +48,8 @@ Fonte física: [schema.sql](../database/schema.sql). Modelos persistente/OO e se
 | monitoring_settings | Configuração global de atualização da tela (#250), sem alterar o coletor. | No máximo uma linha: smallint id=1, intervalo integer em 15/30/60, updated_at timestamptz. Sem updated_by. |
 
 CPU, GB e intervalo positivo são obrigatórios quando status=ok. Status de métricas (ok/erro/sem_metricas) é independente de calculation_status (nao_calculado/disponivel/indisponivel). Sem cálculo, campos ambientais ficam nulos; falha de carbono preserva métricas e não usa emissão zero. Quando disponível, cálculo exige região histórica, intensidade e resultados completos. JSONB preserva a resposta bruta, sem duplicação manual de todo o modelo.
+
+O índice `collections_service_collected_at_idx` de `collections` inclui `(service_id, collected_at DESC, id DESC)` para filtrar por serviço e desempatar a última coleta pelo maior ID (#346). A consulta continua em `LEFT JOIN LATERAL` e preserva serviços sem coleta; métricas projetadas exigem acesso ao heap. Bancos existentes recebem a migração numerada `002-collections-last-reading-index.sql` em janela de manutenção, conforme [README do banco](../database/README.md#índice-da-última-coleta-346). A quantidade de índices permanece dez.
 
 ## Histórico e falhas
 

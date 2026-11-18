@@ -36,7 +36,8 @@ estimativa_do_corpo() {
   printf '%s' "$e"
 }
 issues_from_text() { grep -oE "$RE_ISSUE_REF" | grep -oE '[0-9]+' || true; }
-uniq_nums() { tr ' ' '\n' | grep -E '^[0-9]+$' | sort -un; }
+# sem nenhum número, o grep sai com 1: o "|| true" evita que o pipefail derrube o script (PR só com Refs, push sem #n)
+uniq_nums() { tr ' ' '\n' | { grep -E '^[0-9]+$' || true; } | sort -un; }
 
 # issues ligadas a um PR: closingIssuesReferences ∪ nº da branch ∪ Closes/Fixes/Resolves #n do corpo
 # ("Refs #n" só cita a issue: fica fora daqui, então não fecha nem move o cartão)

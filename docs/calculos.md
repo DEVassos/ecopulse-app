@@ -79,7 +79,7 @@ collected_at >= $from  AND  collected_at < $to      -- [from, to)
 
 O intervalo é **aberto no fim** por três razões: dois períodos consecutivos somam exatamente o período maior (sem a coleta contada duas vezes na virada), a coleta que cai exatamente em `to` pertence ao dia seguinte e não ao anterior, e a soma dos totais diários de 08/11 e 09/11 reconstrói o total de 08/11→09/11. `BETWEEN` nas duas pontas quebraria a primeira e a terceira propriedades.
 
-`GET /api/collections` (lista de coletas cruas, sem agregação) é a **exceção conhecida**: usa `collected_at >= $from AND collected_at <= $to`, inclusivo no fim, e aceita `from = to`. A diferença de um único instante na borda é pequena, mas é uma inconsistência real entre a lista e as agregações: quem comparar a lista com o ranking encontra uma linha de diferença quando existe coleta exatamente em `to`. O alinhamento do contrato (sugestão: `[from, to)` em todas as rotas) está em [#348](https://github.com/DEVassos/ecopulse-app/issues/348); até a mudança entrar em `develop`, esta seção descreve o comportamento atual da lista.
+`GET /api/collections` (lista de coletas cruas, sem agregação) também usa `[from, to)`: `collected_at >= $from AND collected_at < $to`, com `from < to`. Uma coleta exatamente em `to` fica fora, como nas agregações; a rota só consulta o histórico e não altera as coletas gravadas.
 
 ### Fórmula de cada agregação
 
@@ -89,7 +89,7 @@ O intervalo é **aberto no fim** por três razões: dois períodos consecutivos 
 | `failed` | `COUNT(c.id) FILTER (WHERE c.status <> 'ok')` | `erro` e `sem_metricas` | — |
 | `notCalculated` | `COUNT(c.id) FILTER (WHERE c.calculation_status <> 'disponivel')` | `nao_calculado` (inclui as coletas com falha) e `indisponivel` | — |
 | `energyKwh` | `SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel')` | só coleta com energia calculada | coleta sem cálculo, mesmo com `status = 'ok'` |
-| `co2eGrams` | `SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel')` | só coleta com emissão calculada | idem |
+| `co2eGrams` | `SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel')` (na série, `SUM(co2e_grams) FILTER (WHERE calculation_status = 'disponivel')`) | só coleta com emissão calculada | idem |
 | `avgCpuPercent` | `AVG(c.cpu_percent) FILTER (WHERE c.status = 'ok')` | coleta com métrica lida | coleta com falha (que não tem CPU) |
 | `avgMemoryGb`, `avgDiskGb`, `avgNetworkGb` | idem, cada coluna com o mesmo filtro | idem | idem |
 | `notCalculated` (série) | `COUNT(*) FILTER (WHERE status = 'ok' AND calculation_status <> 'disponivel')` | `nao_calculado` e `indisponivel` de coleta com métrica lida | coleta com falha, que a série já conta em `failed` |
@@ -101,9 +101,9 @@ No ranking e na comparação, as três colunas de contagem usam `COUNT(c.id)` so
 
 A soma usa `calculation_status` e a média usa `status`. Uma coleta com `status = 'ok'` e `calculation_status = 'indisponivel'` — a API de métricas respondeu e o cálculo de emissões falhou, e é o que `unavailableCalculation` grava em `backend/src/jobs/collector.ts` — entra no `avgCpuPercent`, porque a métrica existe, e fica fora do `energyKwh`. `ok` com `nao_calculado` só acontece quando o coletor roda **sem** `carbonApi` configurada; com a calculadora presente, toda coleta `ok` sem fator termina em `indisponivel`. Misturar os dois filtros somaria energia que não existe ou descartaria CPU que foi medida.
 
-`findSeries` soma `co2e_grams` **sem** `FILTER`, enquanto as outras três somam com `FILTER (WHERE calculation_status = 'disponivel')`. Hoje os dois dão o mesmo número porque a `CHECK collections_calculation_state_valid` (`database/schema.sql`) exige `co2e_grams IS NULL` nas duas situações sem cálculo: `nao_calculado` exige `carbon_intensity_gco2e_per_kwh`, `power_watts`, `energy_kwh`, `co2e_grams` e `calculation_error_message` todos `NULL`, e `indisponivel` exige `co2e_grams IS NULL` com `calculation_error_message` preenchido. Uma rotina que marcasse `nao_calculado` mantendo o valor seria recusada pelo banco antes de chegar ao gráfico: a igualdade é garantida pelo schema, não apenas pela escrita.
+`findSeries` também soma `co2e_grams` com `FILTER (WHERE calculation_status = 'disponivel')`, como as outras agregações. O filtro explicita o contrato de leitura, embora os valores não mudem hoje: a `CHECK collections_calculation_state_valid` (`database/schema.sql`) exige `co2e_grams IS NULL` nas duas situações sem cálculo. `nao_calculado` exige `carbon_intensity_gco2e_per_kwh`, `power_watts`, `energy_kwh`, `co2e_grams` e `calculation_error_message` todos `NULL`; `indisponivel` exige `co2e_grams IS NULL` com `calculation_error_message` preenchido. A igualdade atual também é garantida pelo schema, não apenas pela escrita.
 
-Em `energy_kwh` essa garantia não existe: `indisponivel` aceita `power_watts` e `energy_kwh` preenchidos (as duas colunas juntas, nunca uma só), com `co2e_grams` NULL. É exatamente por isso que o `FILTER` na soma de energia importa e a soma de `co2e_grams` da série não muda o número hoje. Acrescentar o `FILTER` na série continua sendo consistência de leitura, e está registrado em [#347](https://github.com/DEVassos/ecopulse-app/issues/347), sem efeito nos valores atuais.
+Em `energy_kwh` essa garantia não existe: `indisponivel` aceita `power_watts` e `energy_kwh` preenchidos (as duas colunas juntas, nunca uma só), com `co2e_grams` NULL. Por isso, o `FILTER` na soma de energia afeta os valores e o de CO₂e documenta explicitamente a regra, mesmo sem alterar os resultados atuais.
 
 ### Ordem do ranking
 
@@ -179,13 +179,91 @@ Execution Time: 29.838 ms
 
 Com janela estreita o planejador troca sozinho: para 30 minutos do mesmo dia ele usa `Index Scan using collections_collected_at_idx` (252 linhas, 2,9 ms). Ou seja, o índice é usado quando a seletividade justifica, e a decisão de não usá-lo é do planejador com estatística atualizada, não uma ausência de índice.
 
-**Uma correção pendente.** A consulta da última coleta por serviço (`findAllWithLastReading`, `LEFT JOIN LATERAL … ORDER BY collected_at DESC, id DESC LIMIT 1`) também não usa `collections_service_collected_at_idx`: o desempate `id DESC` não está no índice, então o plano prefere `collections_collected_at_idx` e filtra `service_id = s.id` linha a linha, com um `Incremental Sort` no caminho. Medido no compose desta entrega (PostgreSQL 16.15, 311 coletas para 8 serviços) em 13/11/2026: **12 entradas do índice percorridas e 10 descartadas** pelo `Filter: (service_id = s.id)` para devolver 1 linha por serviço.
+### Última coleta: índice com desempate por ID (#346)
 
-Com `(service_id, collected_at DESC, id DESC)` o filtro e a ordenação ficam cobertos, mas o plano **não** vira `Index Only Scan`: `findAllWithLastReading` projeta `cpu_percent`, `energy_kwh`, `co2e_grams`, `error_message`, `collection_interval_seconds`, `memory_gb`, `disk_gb`, `network_gb`, `power_watts` e `carbon_intensity_gco2e_per_kwh`, e nenhuma dessas colunas está no índice — sem elas o índice não cobre a consulta e o plano ainda precisa do heap. Com o índice criado em transação descartada (`CREATE INDEX` + `ANALYZE` + `ROLLBACK`) o nó continua sendo `Index Scan` acessando a tabela; `Index Only Scan` só aparece quando a projeção se limita às colunas do índice, que não é o caso desta consulta. Por isso este documento não atribui `Index Only Scan` nem tempos de IOS à consulta completa.
+`ServiceRepository.findAllWithLastReading()` usa `WHERE service_id = s.id ORDER BY collected_at DESC, id DESC LIMIT 1` em `LEFT JOIN LATERAL`. O índice `collections_service_collected_at_idx` passa de `(service_id, collected_at DESC)` para `(service_id, collected_at DESC, id DESC)`, mantendo o nome e a quantidade de índices. A consulta e suas colunas projetadas não mudam. O índice de `collections` não otimiza `countMonitoredByRegion`, que agrupa a tabela `services`.
 
-Também não vale prometer que o planejador troca de índice sozinho: com esse volume os dois caminhos têm estimativa de custo praticamente igual (com `LIMIT 1` o plano coberto fica em ≈1,8) e o planejador manteve `collections_collected_at_idx`. A vantagem do composto é estrutural — é o único que chega à linha por `Index Cond` sem ordenar —, mas a escolha depende de volume e de estatística. Isso é alteração de `database/schema.sql`, com `database/README.md` e `docs/arquitetura.md` § Modelo de dados no mesmo PR — está registrado em [#346](https://github.com/DEVassos/ecopulse-app/issues/346) e **não foi aplicado aqui**.
+**Medição reexecutada em 17/11/2026 (America/Sao_Paulo), sobre develop `88688cd` com o diff local da #346.** PostgreSQL 16.15 (`postgres:16-alpine`, Alpine 15.2.0), Docker no WSL2, projeto exclusivo `ecopulse-346-final-20261117`, sem portas publicadas. Foram inseridos 8 serviços e 200.000 coletas (25.000 por serviço) dentro de `BEGIN … ROLLBACK`, com CPU 10%, intervalo 30 s, memória/disco/rede 100 GB e estado inicial `nao_calculado`. Datas fixas: `2026-11-07T19:40:00Z` a `2026-11-16T11:59:30Z`. O protocolo usa `ANALYZE` e a consulta integral do repository, sem parâmetros de período e sem alterar os parâmetros do planejador (`enable_seqscan`, `enable_indexscan`, `enable_bitmapscan`, `enable_incremental_sort` permaneceram `on`).
 
-Nenhum índice foi criado ou alterado nesta tarefa: `database/schema.sql` continua com as mesmas definições, e a conferência de índices do roteiro reproduzível (`docs/arquitetura/verificacao-schema.md`) segue valendo sem alteração.
+O SQL integral e a massa estão em [`database/verification/346-last-reading.sql`](../database/verification/346-last-reading.sql). A verificação é manual: o entrypoint não percorre `verification/`. Execute somente em banco exclusivo **sem serviços**, chamado `ecopulse_346` (o script verifica isso antes de alterar o índice). Em Git Bash/WSL, na raiz de uma cópia da branch:
+
+```bash
+# Confira previamente que 5547 está livre e que este projeto/volume é exclusivo.
+export POSTGRES_DB=ecopulse_346 POSTGRES_HOST_PORT=5547
+# Não executar down -v em projeto habitual: este nome separa rede e volume.
+docker compose --env-file .env.example -p ecopulse-346-revisao-20261117 up --build -d --wait postgres
+docker compose --env-file .env.example -p ecopulse-346-revisao-20261117 exec -T postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/verification/346-last-reading.sql'
+```
+
+No ambiente desta medição foi usado um Compose local somente com PostgreSQL, sem porta publicada, montando a mesma pasta `database/` e um volume exclusivo. O comando acima usa o serviço PostgreSQL do Compose oficial para reproduzir o mesmo SQL. A massa e a substituição experimental dos índices são revertidas; valores de sequências IDENTITY podem avançar mesmo após `ROLLBACK`. O script confirma zero serviços/coletas no fim. Reexecuções podem variar estatísticas, cache e o índice escolhido no cenário antigo.
+
+**Antes, definição antiga recriada dentro da transação:**
+
+```text
+ Sort  (cost=9.95..9.97 rows=8 width=295) (actual time=0.179..0.180 rows=8 loops=1)
+   Sort Key: s.name, s.id
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=25
+   ->  Nested Loop Left Join  (cost=0.75..9.83 rows=8 width=295) (actual time=0.054..0.118 rows=8 loops=1)
+         Buffers: shared hit=25
+         ->  Seq Scan on services s  (cost=0.00..1.08 rows=8 width=153) (actual time=0.006..0.008 rows=8 loops=1)
+               Buffers: shared hit=1
+         ->  Limit  (cost=0.75..1.07 rows=1 width=150) (actual time=0.012..0.013 rows=1 loops=8)
+               Buffers: shared hit=24
+               ->  Incremental Sort  (cost=0.75..8123.36 rows=25000 width=150) (actual time=0.012..0.012 rows=1 loops=8)
+                     Sort Key: collections.collected_at DESC, collections.id DESC
+                     Presorted Key: collections.collected_at
+                     Full-sort Groups: 8  Sort Method: quicksort  Average Memory: 25kB  Peak Memory: 25kB
+                     Buffers: shared hit=24
+                     ->  Index Scan using collections_collected_at_idx on collections  (cost=0.29..7297.30 rows=25000 width=150) (actual time=0.007..0.009 rows=2 loops=8)
+                           Filter: (service_id = s.id)
+                           Rows Removed by Filter: 10
+                           Buffers: shared hit=24
+ Planning:
+   Buffers: shared hit=119 read=1
+ Planning Time: 1.971 ms
+ Execution Time: 0.272 ms
+```
+
+**Depois, mesmo nome e massa, com `id DESC`:**
+
+```text
+ Sort  (cost=8.65..8.67 rows=8 width=295) (actual time=0.290..0.292 rows=8 loops=1)
+   Sort Key: s.name, s.id
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=19 read=14
+   ->  Nested Loop Left Join  (cost=0.42..8.53 rows=8 width=295) (actual time=0.079..0.246 rows=8 loops=1)
+         Buffers: shared hit=19 read=14
+         ->  Seq Scan on services s  (cost=0.00..1.08 rows=8 width=153) (actual time=0.009..0.011 rows=8 loops=1)
+               Buffers: shared hit=1
+         ->  Limit  (cost=0.42..0.91 rows=1 width=150) (actual time=0.028..0.028 rows=1 loops=8)
+               Buffers: shared hit=18 read=14
+               ->  Index Scan using collections_service_collected_at_idx on collections  (cost=0.42..12273.78 rows=25000 width=150) (actual time=0.027..0.027 rows=1 loops=8)
+                     Index Cond: (service_id = s.id)
+                     Buffers: shared hit=18 read=14
+ Planning:
+   Buffers: shared hit=5 read=1
+ Planning Time: 0.490 ms
+ Execution Time: 0.395 ms
+```
+
+| Métrica observada | Antes | Depois |
+|---|---|---|
+| Índice em collections | `collections_collected_at_idx` | `collections_service_collected_at_idx` |
+| Acesso | `Index Scan`, filtro por serviço | `Index Scan`, `Index Cond: (service_id = s.id)` |
+| Incremental Sort | sim, pré-ordenado por collected_at | não |
+| Linhas por execução do scan | 2 devolvidas + 10 descartadas, média arredondada, loops=8 | 1 devolvida, sem descarte por filtro, loops=8 |
+| Execution Time | 0,272 ms | 0,395 ms |
+| Buffers de execução, nó raiz | shared hit=25 | shared hit=19 read=14 |
+
+A evidência é a eliminação da ordenação adicional por serviço e do filtro residual, não ganho de tempo: **esta execução não demonstra redução de duração**. São execuções únicas sequenciais, com índice novo recém-construído e cache diferente (14 leituras no segundo plano); não constituem benchmark estatístico. O `Sort` raiz por `s.name, s.id` permanece e é independente do `Incremental Sort` eliminado.
+
+A projeção completa lê CPU, energia, emissão, erros, intervalo, recursos, potência e intensidade, ausentes no índice: há acesso ao heap (`Index Scan`), sem alegação de `Index Only Scan`. Com pouca massa, outro plano pode ser legítimo; não se desabilitou seqscan, bitmapscan ou sort para obter este resultado.
+
+O script compara as respostas completas antes/depois por `EXCEPT ALL` nos dois sentidos e valida coleta única, múltiplas datas, empate de timestamp pelo maior ID e serviço sem coleta (campos de leitura `NULL`). Os quatro serviços adicionais e cinco coletas desses casos são criados **depois** das medições; as respostas completas desses casos também são comparadas com as duas definições do índice, e tudo termina em `ROLLBACK`. Resultado: `RESULTADOS_IGUAIS_E_CASOS_FUNCIONAIS_OK`.
+
+A definição nova em `schema.sql` vale para banco vazio. Banco já inicializado exige a migração transacional `002-collections-last-reading-index.sql`, com backup e janela de manutenção; `CREATE INDEX IF NOT EXISTS` sozinho não atualiza um índice antigo. Procedimento e limites no [README do banco](../database/README.md#índice-da-última-coleta-346).
 
 ## Intensidade de carbono por região
 
@@ -305,6 +383,34 @@ A justificativa é a distribuição das cinco regiões da API, não um número d
 Verificação em um comando — `curl -s https://carbon.unilaunch.org/regions | jq -r '.regions[] | "\(.code) \(.carbon_intensity_gco2e_per_kwh)"'` — precisa mostrar valores abaixo de 100 para `ca-central` e `br-sudeste`, e acima de 100 para `eu-west`, `us-east` e `jp-east` (a saída traz os valores como `40.0`, `85.0`, `295.0`, `378.0` e `465.0`). A API devolve as regiões na ordem dela, não em ordem alfabética de `code`; para ordenar, use `jq -r '.regions | sort_by(.code)[] | "\(.code) \(.carbon_intensity_gco2e_per_kwh)"'`.
 
 Sem intensidade não há selo: no caso região, região fora de `GET /api/regions`; no caso serviço, `E_período = 0`, `CO₂e_real` nulo ou região sem fator — os dois casos mostram "sem dado no período", nunca "rede limpa". No caso serviço, um período com mais de uma intensidade (cache de 1 h) usa a intensidade ponderada pela energia, `CO₂e_real ÷ E_período`, que é igual ao fator da região quando ele não mudou no período.
+
+## Agregação regional por período
+
+`RegionsSummaryRepository.summarize`, em `backend/src/modules/regions/regions-summary.repository.ts` (#320, RF13/RF14), agrupa pelo `services.region_code` atual. O `LEFT JOIN` filtra `collected_at >= $1 AND collected_at < $2`; as somas de `energy_kwh` (kWh) e `co2e_grams` (g) usam `FILTER (WHERE calculation_status = 'disponivel')`, como o resumo geral. Sem cálculo disponível, a soma é `NULL`; zero calculado continua sendo zero.
+
+O histórico de serviços removidos entra nas somas, mas não nas contagens de estado atual. `COUNT(DISTINCT s.id) FILTER (...)` evita multiplicar serviços pelo número de coletas. O pior estado é `indisponivel`, depois `sem_metricas`, depois `ativo`; com as três contagens zeradas, é `null`. Uma região só com removidos pode aparecer com histórico e estado nulo. Serviços sem região formam no máximo um grupo `code: null`; regiões sem serviço cadastrado não são inventadas.
+
+### Conferência numérica e plano regional
+
+Reexecutado em 13/11/2026 com PostgreSQL 16 e fixtures transacionais, na base `dd5fa78183486a23db235034be3b266b5288ab00`. O teste `backend/tests/regions-summary.test.ts` compara cada região com um SELECT independente e a soma regional com `GET /api/services/summary`, usando os mesmos limites e a mesma transação. Duas janelas UTC com os mesmos serviços deram:
+
+| Período [início, fim) | Energia regional = resumo = SELECT | CO₂e regional = resumo = SELECT |
+|---|---|---|
+| 01/04/2026 → 03/04/2026, 00h | 7,75 kWh | 40 g |
+| 01/04/2026 → 02/04/2026, 00h | 5,5 kWh | 17 g |
+| 01/01/2025 → 02/01/2025, 00h, sem cálculo | NULL | NULL |
+
+O helper `regionalPlan` captura o SQL real do repository e executa `EXPLAIN (ANALYZE, BUFFERS)` com `$1 = 2026-04-01T00:00:00Z` e `$2 = 2026-04-03T00:00:00Z`. A fixture acrescenta 6.000 coletas fora da janela e executa `ANALYZE collections`; não altera índices nem desabilita planos. Trechos literais da execução de 13/11:
+
+```text
+GroupAggregate  (cost=31.72..51.34 rows=200 width=288) (actual time=0.113..0.130 rows=6 loops=1)
+Seq Scan on services s  (cost=0.00..12.50 rows=250 width=72) (actual time=0.006..0.008 rows=36 loops=1)
+Index Scan using collections_collected_at_idx on collections c  (cost=0.28..8.30 rows=1 width=50) (actual time=0.013..0.017 rows=9 loops=1)
+Planning Time: 0.918 ms
+Execution Time: 0.230 ms
+```
+
+O plano completo também contém Sort e Hash Left Join. A janela seletiva favoreceu o índice de data; a tabela de serviços pequena recebeu Seq Scan. O tempo é uma observação local, não garantia de latência. Nenhuma alteração de schema foi necessária. [Evidência e reprodução regional](arquitetura/verificacao-regions-summary.md) registram a massa, o SELECT independente e os comandos para rodar com bancos descartáveis.
 
 ## Como verificar e migrar
 

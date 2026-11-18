@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import type { Region, RegionSummary } from '../services/regions.types';
-import { bubbleRadius, cleanestRegion, estimateMigration, joinRegions, sortByCleanest, worstStatus } from './regions';
+import {
+  bubbleRadius,
+  cleanestRegion,
+  CLEAN_GRID_MAX_GCO2E_PER_KWH,
+  estimateMigration,
+  gridByCode,
+  isCleanGrid,
+  joinRegions,
+  sortByCleanest,
+  worstStatus,
+} from './regions';
 
 /** Retrato da Carbon API de docs/calculos.md § Intensidade de carbono por região (11/11/2026). */
 function region(code: string, intensity: number | null, renewable: number | null, monitoredServices: number): Region {
@@ -188,5 +198,31 @@ describe('bubbleRadius', () => {
 
   it('valor desconhecido dá null, nunca uma bolha de tamanho inventado', () => {
     expect(bubbleRadius(null, 100)).toBeNull();
+  });
+});
+
+describe('isCleanGrid (docs/calculos.md § Limite de "rede limpa", caso região)', () => {
+  it('usa o limite de 100 g CO₂e/kWh do documento, inclusive o valor exato', () => {
+    expect(CLEAN_GRID_MAX_GCO2E_PER_KWH).toBe(100);
+    expect(isCleanGrid(100)).toBe(true);
+    expect(isCleanGrid(100.1)).toBe(false);
+  });
+
+  it('separa as duas regiões limpas das três sujas do retrato da Carbon API', () => {
+    expect(REGIONS.filter((item) => isCleanGrid(item.carbonIntensityGco2ePerKwh)).map((item) => item.code)).toEqual(['br-sudeste', 'ca-central']);
+  });
+
+  it('sem intensidade não há selo: falta de dado nunca vira rede limpa', () => {
+    expect(isCleanGrid(null)).toBe(false);
+    expect(isCleanGrid(Number.NaN)).toBe(false);
+  });
+});
+
+describe('gridByCode', () => {
+  it('indexa a rede de cada região pelo código, com o % renovável junto', () => {
+    const grids = gridByCode(REGIONS);
+    expect(grids.size).toBe(5);
+    expect(grids.get('br-sudeste')).toEqual({ carbonIntensityGco2ePerKwh: 85, renewableSharePercent: 83 });
+    expect(grids.get('sa-east')).toBeUndefined();
   });
 });

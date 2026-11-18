@@ -15,7 +15,7 @@ function filters(query: Record<string, unknown>): CollectionFilters {
   const serviceId = query.service_id;
   if (serviceId !== undefined && (typeof serviceId !== 'string' || !/^[1-9]\d*$/.test(serviceId))) throw new ValidationError('service_id deve ser inteiro positivo.');
   const from = date(query.from, 'from'); const to = date(query.to, 'to');
-  if (from && to && from > to) throw new ValidationError('from deve ser anterior ou igual a to.');
+  if (from && to && from >= to) throw new ValidationError('from deve ser anterior a to.');
   const limitValue = query.limit ?? '50';
   if (typeof limitValue !== 'string' || !/^[1-9]\d*$/.test(limitValue) || Number(limitValue) > 500) throw new ValidationError('limit deve ser inteiro entre 1 e 500.');
   return { serviceId: serviceId ?? null, from, to, limit: Number(limitValue) };

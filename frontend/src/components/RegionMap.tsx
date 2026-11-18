@@ -9,6 +9,7 @@ import { REGION_STATUSES } from '../services/regions.types';
 import type { RegionStatus } from '../services/regions.types';
 import { formatQuantity } from '../utils/units';
 import { bubbleDiameter, IDLE_DOT, ringPercent } from '../utils/region-map';
+import { isCleanGrid } from '../utils/regions';
 import type { ListedRegion, RegionOverview } from '../utils/region-map';
 import countries from './countries-110m.json';
 import './RegionMap.css';
@@ -68,15 +69,18 @@ function isPlaced(region: ListedRegion): region is PlacedRegion {
 }
 
 function regionLabel(region: PlacedRegion): string {
+  // Rede limpa (#324) também na bolha, em texto: o mesmo limite do selo da tabela e da lista
+  const clean = isCleanGrid(region.carbonIntensityGco2ePerKwh);
   if (region.worstStatus === null && region.co2eGrams === null) {
     const grid = region.carbonIntensityGco2ePerKwh === null ? '' : `, rede com ${region.carbonIntensityGco2ePerKwh} gCO₂e/kWh`;
-    return `${region.name}, sem serviço hoje${grid}`;
+    return `${region.name}, sem serviço hoje${grid}${clean ? ', rede limpa' : ''}`;
   }
   return [
     region.name,
     region.worstStatus === null ? null : STATE_LABEL[region.worstStatus],
     region.co2eGrams === null ? null : `${formatQuantity('co2e', region.co2eGrams)} de CO₂e`,
     region.energyKwh === null ? null : `${formatQuantity('energy', region.energyKwh)} de energia`,
+    clean ? 'rede limpa' : null,
   ].filter((part) => part !== null).join(', ');
 }
 
