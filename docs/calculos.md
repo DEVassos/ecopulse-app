@@ -179,13 +179,91 @@ Execution Time: 29.838 ms
 
 Com janela estreita o planejador troca sozinho: para 30 minutos do mesmo dia ele usa `Index Scan using collections_collected_at_idx` (252 linhas, 2,9 ms). Ou seja, o índice é usado quando a seletividade justifica, e a decisão de não usá-lo é do planejador com estatística atualizada, não uma ausência de índice.
 
-**Uma correção pendente.** A consulta da última coleta por serviço (`findAllWithLastReading`, `LEFT JOIN LATERAL … ORDER BY collected_at DESC, id DESC LIMIT 1`) também não usa `collections_service_collected_at_idx`: o desempate `id DESC` não está no índice, então o plano prefere `collections_collected_at_idx` e filtra `service_id = s.id` linha a linha, com um `Incremental Sort` no caminho. Medido no compose desta entrega (PostgreSQL 16.15, 311 coletas para 8 serviços) em 13/11/2026: **12 entradas do índice percorridas e 10 descartadas** pelo `Filter: (service_id = s.id)` para devolver 1 linha por serviço.
+### Última coleta: índice com desempate por ID (#346)
 
-Com `(service_id, collected_at DESC, id DESC)` o filtro e a ordenação ficam cobertos, mas o plano **não** vira `Index Only Scan`: `findAllWithLastReading` projeta `cpu_percent`, `energy_kwh`, `co2e_grams`, `error_message`, `collection_interval_seconds`, `memory_gb`, `disk_gb`, `network_gb`, `power_watts` e `carbon_intensity_gco2e_per_kwh`, e nenhuma dessas colunas está no índice — sem elas o índice não cobre a consulta e o plano ainda precisa do heap. Com o índice criado em transação descartada (`CREATE INDEX` + `ANALYZE` + `ROLLBACK`) o nó continua sendo `Index Scan` acessando a tabela; `Index Only Scan` só aparece quando a projeção se limita às colunas do índice, que não é o caso desta consulta. Por isso este documento não atribui `Index Only Scan` nem tempos de IOS à consulta completa.
+`ServiceRepository.findAllWithLastReading()` usa `WHERE service_id = s.id ORDER BY collected_at DESC, id DESC LIMIT 1` em `LEFT JOIN LATERAL`. O índice `collections_service_collected_at_idx` passa de `(service_id, collected_at DESC)` para `(service_id, collected_at DESC, id DESC)`, mantendo o nome e a quantidade de índices. A consulta e suas colunas projetadas não mudam. O índice de `collections` não otimiza `countMonitoredByRegion`, que agrupa a tabela `services`.
 
-Também não vale prometer que o planejador troca de índice sozinho: com esse volume os dois caminhos têm estimativa de custo praticamente igual (com `LIMIT 1` o plano coberto fica em ≈1,8) e o planejador manteve `collections_collected_at_idx`. A vantagem do composto é estrutural — é o único que chega à linha por `Index Cond` sem ordenar —, mas a escolha depende de volume e de estatística. Isso é alteração de `database/schema.sql`, com `database/README.md` e `docs/arquitetura.md` § Modelo de dados no mesmo PR — está registrado em [#346](https://github.com/DEVassos/ecopulse-app/issues/346) e **não foi aplicado aqui**.
+**Medição reexecutada em 17/11/2026 (America/Sao_Paulo), sobre develop `88688cd` com o diff local da #346.** PostgreSQL 16.15 (`postgres:16-alpine`, Alpine 15.2.0), Docker no WSL2, projeto exclusivo `ecopulse-346-final-20261117`, sem portas publicadas. Foram inseridos 8 serviços e 200.000 coletas (25.000 por serviço) dentro de `BEGIN … ROLLBACK`, com CPU 10%, intervalo 30 s, memória/disco/rede 100 GB e estado inicial `nao_calculado`. Datas fixas: `2026-11-07T19:40:00Z` a `2026-11-16T11:59:30Z`. O protocolo usa `ANALYZE` e a consulta integral do repository, sem parâmetros de período e sem alterar os parâmetros do planejador (`enable_seqscan`, `enable_indexscan`, `enable_bitmapscan`, `enable_incremental_sort` permaneceram `on`).
 
-Nenhum índice foi criado ou alterado nesta tarefa: `database/schema.sql` continua com as mesmas definições, e a conferência de índices do roteiro reproduzível (`docs/arquitetura/verificacao-schema.md`) segue valendo sem alteração.
+O SQL integral e a massa estão em [`database/verification/346-last-reading.sql`](../database/verification/346-last-reading.sql). A verificação é manual: o entrypoint não percorre `verification/`. Execute somente em banco exclusivo **sem serviços**, chamado `ecopulse_346` (o script verifica isso antes de alterar o índice). Em Git Bash/WSL, na raiz de uma cópia da branch:
+
+```bash
+# Confira previamente que 5547 está livre e que este projeto/volume é exclusivo.
+export POSTGRES_DB=ecopulse_346 POSTGRES_HOST_PORT=5547
+# Não executar down -v em projeto habitual: este nome separa rede e volume.
+docker compose --env-file .env.example -p ecopulse-346-revisao-20261117 up --build -d --wait postgres
+docker compose --env-file .env.example -p ecopulse-346-revisao-20261117 exec -T postgres \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/verification/346-last-reading.sql'
+```
+
+No ambiente desta medição foi usado um Compose local somente com PostgreSQL, sem porta publicada, montando a mesma pasta `database/` e um volume exclusivo. O comando acima usa o serviço PostgreSQL do Compose oficial para reproduzir o mesmo SQL. A massa e a substituição experimental dos índices são revertidas; valores de sequências IDENTITY podem avançar mesmo após `ROLLBACK`. O script confirma zero serviços/coletas no fim. Reexecuções podem variar estatísticas, cache e o índice escolhido no cenário antigo.
+
+**Antes, definição antiga recriada dentro da transação:**
+
+```text
+ Sort  (cost=9.95..9.97 rows=8 width=295) (actual time=0.179..0.180 rows=8 loops=1)
+   Sort Key: s.name, s.id
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=25
+   ->  Nested Loop Left Join  (cost=0.75..9.83 rows=8 width=295) (actual time=0.054..0.118 rows=8 loops=1)
+         Buffers: shared hit=25
+         ->  Seq Scan on services s  (cost=0.00..1.08 rows=8 width=153) (actual time=0.006..0.008 rows=8 loops=1)
+               Buffers: shared hit=1
+         ->  Limit  (cost=0.75..1.07 rows=1 width=150) (actual time=0.012..0.013 rows=1 loops=8)
+               Buffers: shared hit=24
+               ->  Incremental Sort  (cost=0.75..8123.36 rows=25000 width=150) (actual time=0.012..0.012 rows=1 loops=8)
+                     Sort Key: collections.collected_at DESC, collections.id DESC
+                     Presorted Key: collections.collected_at
+                     Full-sort Groups: 8  Sort Method: quicksort  Average Memory: 25kB  Peak Memory: 25kB
+                     Buffers: shared hit=24
+                     ->  Index Scan using collections_collected_at_idx on collections  (cost=0.29..7297.30 rows=25000 width=150) (actual time=0.007..0.009 rows=2 loops=8)
+                           Filter: (service_id = s.id)
+                           Rows Removed by Filter: 10
+                           Buffers: shared hit=24
+ Planning:
+   Buffers: shared hit=119 read=1
+ Planning Time: 1.971 ms
+ Execution Time: 0.272 ms
+```
+
+**Depois, mesmo nome e massa, com `id DESC`:**
+
+```text
+ Sort  (cost=8.65..8.67 rows=8 width=295) (actual time=0.290..0.292 rows=8 loops=1)
+   Sort Key: s.name, s.id
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=19 read=14
+   ->  Nested Loop Left Join  (cost=0.42..8.53 rows=8 width=295) (actual time=0.079..0.246 rows=8 loops=1)
+         Buffers: shared hit=19 read=14
+         ->  Seq Scan on services s  (cost=0.00..1.08 rows=8 width=153) (actual time=0.009..0.011 rows=8 loops=1)
+               Buffers: shared hit=1
+         ->  Limit  (cost=0.42..0.91 rows=1 width=150) (actual time=0.028..0.028 rows=1 loops=8)
+               Buffers: shared hit=18 read=14
+               ->  Index Scan using collections_service_collected_at_idx on collections  (cost=0.42..12273.78 rows=25000 width=150) (actual time=0.027..0.027 rows=1 loops=8)
+                     Index Cond: (service_id = s.id)
+                     Buffers: shared hit=18 read=14
+ Planning:
+   Buffers: shared hit=5 read=1
+ Planning Time: 0.490 ms
+ Execution Time: 0.395 ms
+```
+
+| Métrica observada | Antes | Depois |
+|---|---|---|
+| Índice em collections | `collections_collected_at_idx` | `collections_service_collected_at_idx` |
+| Acesso | `Index Scan`, filtro por serviço | `Index Scan`, `Index Cond: (service_id = s.id)` |
+| Incremental Sort | sim, pré-ordenado por collected_at | não |
+| Linhas por execução do scan | 2 devolvidas + 10 descartadas, média arredondada, loops=8 | 1 devolvida, sem descarte por filtro, loops=8 |
+| Execution Time | 0,272 ms | 0,395 ms |
+| Buffers de execução, nó raiz | shared hit=25 | shared hit=19 read=14 |
+
+A evidência é a eliminação da ordenação adicional por serviço e do filtro residual, não ganho de tempo: **esta execução não demonstra redução de duração**. São execuções únicas sequenciais, com índice novo recém-construído e cache diferente (14 leituras no segundo plano); não constituem benchmark estatístico. O `Sort` raiz por `s.name, s.id` permanece e é independente do `Incremental Sort` eliminado.
+
+A projeção completa lê CPU, energia, emissão, erros, intervalo, recursos, potência e intensidade, ausentes no índice: há acesso ao heap (`Index Scan`), sem alegação de `Index Only Scan`. Com pouca massa, outro plano pode ser legítimo; não se desabilitou seqscan, bitmapscan ou sort para obter este resultado.
+
+O script compara as respostas completas antes/depois por `EXCEPT ALL` nos dois sentidos e valida coleta única, múltiplas datas, empate de timestamp pelo maior ID e serviço sem coleta (campos de leitura `NULL`). Os quatro serviços adicionais e cinco coletas desses casos são criados **depois** das medições; as respostas completas desses casos também são comparadas com as duas definições do índice, e tudo termina em `ROLLBACK`. Resultado: `RESULTADOS_IGUAIS_E_CASOS_FUNCIONAIS_OK`.
+
+A definição nova em `schema.sql` vale para banco vazio. Banco já inicializado exige a migração transacional `002-collections-last-reading-index.sql`, com backup e janela de manutenção; `CREATE INDEX IF NOT EXISTS` sozinho não atualiza um índice antigo. Procedimento e limites no [README do banco](../database/README.md#índice-da-última-coleta-346).
 
 ## Intensidade de carbono por região
 

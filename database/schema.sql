@@ -169,7 +169,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_unique
     ON users (lower(email));
 
 CREATE INDEX IF NOT EXISTS collections_service_collected_at_idx
-    ON collections (service_id, collected_at DESC);
+    ON collections (service_id, collected_at DESC, id DESC);
 
 CREATE INDEX IF NOT EXISTS collections_collected_at_idx
     ON collections (collected_at DESC);
