@@ -9,7 +9,7 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { REGION_STATUSES } from '../services/regions.types';
 import type { RegionStatus } from '../services/regions.types';
 import { formatQuantity } from '../utils/units';
-import { bubbleDiameter, cameraTarget, fitZoom, IDLE_DOT, mapScale, REFERENCE_SIDE, ringPercent } from '../utils/region-map';
+import { bubbleCaption, bubbleDiameter, cameraTarget, co2eScaleMax, fitZoom, IDLE_DOT, mapScale, REFERENCE_SIDE, ringPercent } from '../utils/region-map';
 import { isCleanGrid } from '../utils/regions';
 import type { ListedRegion, MapDestination, RegionOverview } from '../utils/region-map';
 import countries from './countries-110m.json';
@@ -113,7 +113,8 @@ function regionLabel(region: PlacedRegion): string {
 export default function RegionMap({ overview, selectedCode, onSelect, stale = false, destination = null, presentation }: Props) {
   const monitored = useMemo(() => overview.monitored.filter(isPlaced), [overview]);
   const regions = useMemo(() => [...monitored, ...overview.idle.filter(isPlaced)], [monitored, overview]);
-  const maxCo2e = useMemo(() => Math.max(0, ...monitored.map((region) => region.co2eGrams ?? 0)), [monitored]);
+  // Com a simulação aberta, o destino entra na escala: um destino mais sujo que a maior região fica maior que ela (#326)
+  const maxCo2e = useMemo(() => co2eScaleMax(monitored, destination), [monitored, destination]);
   const maxEnergy = useMemo(() => Math.max(0, ...monitored.map((region) => region.energyKwh ?? 0)), [monitored]);
   // A câmera segue o destino simulado (#326) quando há um; voltar para a origem ou trocar de região a traz de volta
   const target = cameraTarget(selectedCode, destination, new Set(regions.map((region) => region.code)));
@@ -380,7 +381,11 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
       if (!entry) {
         const element = document.createElement('button');
         element.type = 'button';
-        element.append(document.createElement('b'), document.createElement('i'));
+        // <b> bolha, <i> anel, <span> etiqueta com o nome (só na selecionada e no destino, #326)
+        const caption = document.createElement('span');
+        caption.className = 'region-bubble__caption';
+        caption.setAttribute('aria-hidden', 'true');
+        element.append(document.createElement('b'), document.createElement('i'), caption);
         element.addEventListener('click', (event) => {
           event.stopPropagation();
           // Bolha do outro lado do globo fica invisível (opacityWhenCovered) e não responde ao clique
@@ -396,7 +401,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
       const idle = !simulated && region.worstStatus === null && region.co2eGrams === null;
       const diameter = simulated ? bubbleDiameter(destination.co2eGrams, maxCo2e, scale) : idle ? IDLE_DOT : bubbleDiameter(region.co2eGrams, maxCo2e, scale);
       const ring = idle || simulated ? null : ringPercent(region.energyKwh, maxEnergy);
-      const [bubble, ringElement] = [element.children[0] as HTMLElement, element.children[1] as HTMLElement];
+      const [bubble, ringElement, captionElement] = [element.children[0] as HTMLElement, element.children[1] as HTMLElement, element.children[2] as HTMLElement];
       marker.setLngLat([region.longitude, region.latitude]);
       // classList, e não className: o MapLibre põe no mesmo elemento as classes que o posicionam no mapa
       element.classList.add('region-bubble');
@@ -411,6 +416,10 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
       ringElement.className = 'region-bubble__ring';
       ringElement.hidden = ring === null;
       if (ring !== null) ringElement.style.setProperty('--ring', String(ring));
+      // O leitor de tela já ouve o nome no aria-label do botão; a etiqueta é para quem olha o mapa
+      const caption = bubbleCaption(region, selectedCode, destination);
+      captionElement.textContent = caption ?? '';
+      captionElement.hidden = caption === null;
       const label = simulated
         ? `${regionLabel(region)}. Destino simulado${destination.co2eGrams === null ? '' : `: ${formatQuantity('co2e', destination.co2eGrams)} de CO₂e com a mesma energia`}`
         : regionLabel(region);
