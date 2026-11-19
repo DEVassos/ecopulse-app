@@ -3,10 +3,11 @@
 import type { ServiceCollection } from '../services/collections.types';
 
 /**
- * Formato do arquivo, num lugar só. `;` com vírgula decimal é o que o Excel em português abre direto, em colunas
- * (proposta do contrato na #54); se o PO escolher `,` com ponto decimal, muda só aqui.
+ * Formato do arquivo, num lugar só: vírgula como separador e ponto decimal, o padrão internacional e o das ferramentas
+ * de BI, como pede a #24 (decisão do PO no contrato da #54, 19/11). Sem a linha `sep=,`: com ela, o Excel deixa de
+ * ler o BOM e os acentos saem errados.
  */
-export const CSV_FORMAT: { separator: ';' | ','; decimal: ',' | '.' } = { separator: ';', decimal: ',' };
+export const CSV_FORMAT: { separator: ';' | ','; decimal: ',' | '.' } = { separator: ',', decimal: '.' };
 
 /** Colunas na ordem do contrato da #54, com o campo de GET /api/collections de onde cada uma vem. */
 export const CSV_COLUMNS = [

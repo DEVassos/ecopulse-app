@@ -19,9 +19,9 @@ describe('CSV das coletas (#24)', () => {
     const csv = collectionsCsv([ERRO, OK]);
     expect(csv.startsWith('\uFEFF')).toBe(true);
     const lines = csv.slice(1).split('\r\n');
-    expect(lines[0]).toBe(CSV_COLUMNS.join(';'));
-    expect(lines[1]).toBe('2026-10-14T16:45:00-03:00;erro;;;;;;;;;nao_calculado;Timeout');
-    expect(lines[2]).toBe('2026-10-14T17:00:00-03:00;ok;42,5;1,2;10;0,3;27;0,000480452625;0,040838473125;85;disponivel;');
+    expect(lines[0]).toBe(CSV_COLUMNS.join(','));
+    expect(lines[1]).toBe('2026-10-14T16:45:00-03:00,erro,,,,,,,,,nao_calculado,Timeout');
+    expect(lines[2]).toBe('2026-10-14T17:00:00-03:00,ok,42.5,1.2,10,0.3,27,0.000480452625,0.040838473125,85,disponivel,');
     expect(lines[3]).toBe('');
   });
 
@@ -32,20 +32,21 @@ describe('CSV das coletas (#24)', () => {
   });
 
   it('números com todas as casas, sem notação científica e sem separador de milhar', () => {
-    expect(csvNumber(0.00000048)).toBe('0,00000048');
-    expect(csvNumber(12345.678)).toBe('12345,678');
+    expect(csvNumber(0.00000048)).toBe('0.00000048');
+    expect(csvNumber(12345.678)).toBe('12345.678');
     expect(String(0.00000048)).toBe('4.8e-7');
   });
 
   it('a soma das células refaz o total com a precisão da API', () => {
     const values = [0.000480452625, 0.000512, 0.0001];
-    const back = values.map(csvNumber).map((cell) => Number(cell.replace(',', '.')));
+    const back = values.map(csvNumber).map(Number);
     expect(back).toEqual(values);
   });
 
   it('texto com separador, aspas ou quebra de linha vai entre aspas; fórmula ganha apóstrofo', () => {
     expect(csvText('Timeout')).toBe('Timeout');
-    expect(csvText('HTTP 500; tente de novo')).toBe('"HTTP 500; tente de novo"');
+    expect(csvText('HTTP 500, tente de novo')).toBe('"HTTP 500, tente de novo"');
+    expect(csvText('HTTP 500; tente de novo')).toBe('HTTP 500; tente de novo');
     expect(csvText('disse "não"')).toBe('"disse ""não"""');
     expect(csvText('linha 1\nlinha 2')).toBe('"linha 1\nlinha 2"');
     expect(csvText('=HYPERLINK("x")')).toBe('"\'=HYPERLINK(""x"")"');
