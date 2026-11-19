@@ -21,6 +21,8 @@ export interface RegionOverview {
   outside: { services: number; co2eGrams: number | null };
   /** Fora do mapa: os serviços de `outside` mais os de regiões listadas sem coordenada. */
   unplacedServices: number;
+  /** Quando o backend buscou as intensidades na Carbon API (ISO 8601): a simulação mostra "intensidade de HH:MM" (#326). */
+  fetchedAt: string;
 }
 
 /** Serviços contados numa região, sem os removidos. */
@@ -59,6 +61,7 @@ export function buildRegionOverview(list: RegionsResponse, summary: RegionsSumma
     idle,
     outside: { services: outsideServices, co2eGrams: sumOrNull(unlisted.map((item) => item.co2eGrams)) },
     unplacedServices: outsideServices + withoutCoordinate,
+    fetchedAt: list.fetchedAt,
   };
 }
 
@@ -103,4 +106,33 @@ export function mapScale(width: number, height: number): number {
 export function ringPercent(energyKwh: number | null, maxEnergyKwh: number): number | null {
   if (energyKwh === null || maxEnergyKwh <= 0) return null;
   return Math.max(4, Math.round(Math.min(1, energyKwh / maxEnergyKwh) * 100));
+}
+
+/** O cache da Carbon API no backend dura 1 h: intensidade mais velha que isso indica que a API não respondeu. */
+export const INTENSITY_MAX_AGE_MS = 60 * 60 * 1000;
+
+/**
+ * Hora das intensidades usadas na simulação (#326): "14:05" e se passou de 1 h. `source: 'cache'` é o estado normal
+ * durante a hora de cache, por isso a tela sempre mostra a hora, e o aviso só aparece quando o dado passou da hora.
+ */
+export function intensityTime(fetchedAt: string, now: Date = new Date()): { time: string; stale: boolean } {
+  const at = new Date(fetchedAt);
+  return {
+    time: at.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    stale: now.getTime() - at.getTime() > INTENSITY_MAX_AGE_MS,
+  };
+}
+
+/** Percentual da simulação com 2 casas, como no exemplo de docs/calculos.md: 89.4170… → "89,42%". */
+export function formatMigrationPercent(percent: number): string {
+  return `${percent.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+}
+
+/**
+ * Linha da conta para quem verifica (#326): energia em kWh e intensidade em g/kWh, as unidades de docs/calculos.md,
+ * com 4 algarismos significativos como o `formatPrecise`. "0,118 kWh × 40 g/kWh = 4,72 g".
+ */
+export function migrationMath(energyKwh: number, intensity: number, grams: number): string {
+  const precise = (value: number) => value.toLocaleString('pt-BR', { maximumSignificantDigits: 4 });
+  return `${precise(energyKwh)} kWh × ${precise(intensity)} g/kWh = ${precise(grams)} g`;
 }
