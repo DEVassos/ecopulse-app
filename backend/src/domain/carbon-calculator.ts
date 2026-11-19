@@ -6,6 +6,37 @@ const CPU_MAX_WATTS = 100;
 const RAM_WATTS_PER_GB = 0.375;
 const DISK_WATTS_PER_GB = 0.01;
 const NETWORK_WATTS_PER_GB = 0.02;
+const POWER_DECIMALS = 6;
+
+/** Recursos de uma coleta, nas unidades da API: CPU em %, demais em GB. */
+export interface PowerResources {
+  cpuPercent: number;
+  memoryGb: number;
+  diskGb: number;
+  networkGb: number;
+}
+
+/** Parcelas da potência em W, uma por recurso. */
+export interface PowerBreakdown {
+  cpuW: number;
+  memoryW: number;
+  diskW: number;
+  networkW: number;
+}
+
+function watts(value: number): number {
+  return Number(value.toFixed(POWER_DECIMALS));
+}
+
+/** Cada parcela usa a mesma precisão da coluna de potência. */
+export function powerBreakdown(resources: PowerResources): PowerBreakdown {
+  return {
+    cpuW: watts((resources.cpuPercent / 100) * CPU_MAX_WATTS),
+    memoryW: watts(resources.memoryGb * RAM_WATTS_PER_GB),
+    diskW: watts(resources.diskGb * DISK_WATTS_PER_GB),
+    networkW: watts(resources.networkGb * NETWORK_WATTS_PER_GB),
+  };
+}
 
 function decimal(value: number, precision: number, scale: number, name: string): string {
   if (!Number.isFinite(value) || value < 0 || value >= 10 ** (precision - scale)) {
@@ -23,10 +54,8 @@ export class CarbonCalculator {
       || values.some(value => !Number.isFinite(value) || value < 0)) {
       throw new ValidationError('Métricas ou intensidade de carbono inválidas para cálculo.');
     }
-    const powerWatts = (metrics.cpuPercent / 100) * CPU_MAX_WATTS
-      + metrics.memoryGb * RAM_WATTS_PER_GB
-      + metrics.diskGb * DISK_WATTS_PER_GB
-      + metrics.networkGb * NETWORK_WATTS_PER_GB;
+    const parts = powerBreakdown(metrics);
+    const powerWatts = parts.cpuW + parts.memoryW + parts.diskW + parts.networkW;
     const energyKwh = powerWatts * metrics.collectionIntervalSeconds / 3_600_000;
     const co2eGrams = energyKwh * intensityGco2ePerKwh;
     return new EnergyEstimate({

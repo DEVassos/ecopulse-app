@@ -27,6 +27,7 @@ export interface ServicesSummaryRow { energy_kwh: string | null; co2e_grams: str
 export interface ServiceComparisonRow {
   id: DatabaseId; name: string; region: string | null;
   collections: string; failed: string; not_calculated: string;
+  /** Médias ponderadas pelo intervalo de coleta (#327): Σ(recurso × Δt) ÷ ΣΔt, não `AVG(recurso)`. */
   avg_cpu_percent: string | null; avg_memory_gb: string | null; avg_disk_gb: string | null; avg_network_gb: string | null;
   energy_kwh: string | null; co2e_grams: string | null;
 }
@@ -85,10 +86,15 @@ export class ServiceRepository {
         COUNT(c.id)::text AS collections,
         COUNT(c.id) FILTER (WHERE c.status <> 'ok')::text AS failed,
         COUNT(c.id) FILTER (WHERE c.calculation_status <> 'disponivel')::text AS not_calculated,
-        AVG(c.cpu_percent) FILTER (WHERE c.status = 'ok') AS avg_cpu_percent,
-        AVG(c.memory_gb) FILTER (WHERE c.status = 'ok') AS avg_memory_gb,
-        AVG(c.disk_gb) FILTER (WHERE c.status = 'ok') AS avg_disk_gb,
-        AVG(c.network_gb) FILTER (WHERE c.status = 'ok') AS avg_network_gb,
+        -- Médias ponderadas pelo intervalo (#327); numerador e denominador usam as mesmas coletas ok.
+        SUM(c.cpu_percent * c.collection_interval_seconds) FILTER (WHERE c.status = 'ok')
+          / SUM(c.collection_interval_seconds) FILTER (WHERE c.status = 'ok') AS avg_cpu_percent,
+        SUM(c.memory_gb * c.collection_interval_seconds) FILTER (WHERE c.status = 'ok')
+          / SUM(c.collection_interval_seconds) FILTER (WHERE c.status = 'ok') AS avg_memory_gb,
+        SUM(c.disk_gb * c.collection_interval_seconds) FILTER (WHERE c.status = 'ok')
+          / SUM(c.collection_interval_seconds) FILTER (WHERE c.status = 'ok') AS avg_disk_gb,
+        SUM(c.network_gb * c.collection_interval_seconds) FILTER (WHERE c.status = 'ok')
+          / SUM(c.collection_interval_seconds) FILTER (WHERE c.status = 'ok') AS avg_network_gb,
         SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel') AS energy_kwh,
         SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel') AS co2e_grams
       FROM services AS s

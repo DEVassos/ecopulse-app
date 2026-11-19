@@ -36,7 +36,13 @@ Resposta 200:
     "diskGb": 19.26,
     "networkGb": 0.45,
     "powerWatts": 64.06035,
-    "carbonIntensityGco2ePerKwh": 85
+    "carbonIntensityGco2ePerKwh": 85,
+    "powerBreakdown": {
+      "cpuW": 62.67,
+      "memoryW": 1.18875,
+      "diskW": 0.1926,
+      "networkW": 0.009
+    }
   }],
   "period": "última leitura (intervalo de coleta)"
 }
@@ -53,8 +59,9 @@ Campos da última coleta (#297), todos da mesma linha de `collections` que dá `
 | `memoryGb`, `diskGb`, `networkGb` | `memory_gb`, `disk_gb`, `network_gb`, em GB | número ≥ 0 ou `null` | idem |
 | `powerWatts` | `power_watts`, em W | número ≥ 0 ou `null` | cálculo não disponível |
 | `carbonIntensityGco2ePerKwh` | `carbon_intensity_gco2e_per_kwh`, o fator efetivamente usado, em gCO₂e/kWh | número ≥ 0 ou `null` | cálculo não disponível (sem região, região sem fator, API de carbono fora) |
+| `powerBreakdown` | parcelas da potência calculadas dos quatro recursos, em W, cada uma arredondada a seis casas | objeto com `cpuW`, `memoryW`, `diskW` e `networkW`, ou `null` | sem potência calculada ou sem algum recurso |
 
-Invariantes úteis na verificação: `emissionsG ≈ energyKwh × carbonIntensityGco2ePerKwh` e `powerWatts ≈ energyKwh × 3 600 000 ÷ collectionIntervalSeconds` ([`docs/calculos.md`](calculos.md)). O fator é o mesmo de `GET /api/collections?service_id=<id>&limit=1` → `collections[0].carbonIntensityGco2ePerKwh`. `energyKwh` e `emissionsG` são da última coleta, que cobre um intervalo de cerca de 30 s, e não acumulados.
+Invariantes úteis na verificação: `emissionsG ≈ energyKwh × carbonIntensityGco2ePerKwh`, `powerWatts ≈ energyKwh × 3 600 000 ÷ collectionIntervalSeconds` e a soma das quatro parcelas de `powerBreakdown` coincide com `powerWatts` à precisão de seis casas ([`docs/calculos.md`](calculos.md)). O fator é o mesmo de `GET /api/collections?service_id=<id>&limit=1` → `collections[0].carbonIntensityGco2ePerKwh`. `energyKwh` e `emissionsG` são da última coleta, que cobre um intervalo de cerca de 30 s, e não acumulados.
 
 `status` do serviço: `ativo` (última métrica válida), `indisponivel` (falha do agregador ou métrica inválida), `sem_metricas` (404 do agregador para um serviço ainda listado) ou `removido` (saiu da lista do agregador; volta a `ativo` quando reaparece).
 
@@ -242,10 +249,10 @@ Compara de 2 a 10 serviços no mesmo período. Requer autenticação; sem token 
 - `ids`: ids inteiros positivos, distintos e separados por vírgula;
 - `from` e `to`: instantes ISO 8601 obrigatórios, com intervalo `[from, to)` de até 31 dias.
 
-Resposta 200 ecoa `from` e `to` e traz, por serviço, contagens de coletas, falhas e coletas sem cálculo, médias de CPU/memória/disco/rede e somas de energia e CO₂e. Um serviço sem coleta permanece na resposta com `collections: 0` e métricas agregadas `null`; um id inexistente devolve 404. Entrada inválida devolve 400 `VALIDATION_ERROR`.
+Resposta 200 ecoa `from` e `to` e traz, por serviço, contagens de coletas, falhas e coletas sem cálculo, médias de CPU/memória/disco/rede ponderadas por `collection_interval_seconds`, a decomposição `avgPowerBreakdown` dessas médias e somas de energia e CO₂e. As médias usam as coletas com `status = 'ok'`; `avgPowerBreakdown` é `null` quando não há as quatro médias. Um serviço sem coleta permanece na resposta com `collections: 0` e métricas agregadas `null`; um id inexistente devolve 404. Entrada inválida devolve 400 `VALIDATION_ERROR`.
 
 ```json
-{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z","services":[{"id":"1","name":"Demo","region":"Sul","collections":12,"failed":0,"notCalculated":0,"avgCpuPercent":42.5,"avgMemoryGb":2.1,"avgDiskGb":10,"avgNetworkGb":0.3,"energyKwh":0.01,"co2eGrams":0.85}]}
+{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z","services":[{"id":"1","name":"Demo","region":"Sul","collections":12,"failed":0,"notCalculated":0,"avgCpuPercent":42.5,"avgMemoryGb":2.1,"avgDiskGb":10,"avgNetworkGb":0.3,"avgPowerBreakdown":{"cpuW":42.5,"memoryW":0.7875,"diskW":0.1,"networkW":0.006},"energyKwh":0.01,"co2eGrams":0.85}]}
 ```
 
 ## GET /api/services/ranking

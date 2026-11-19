@@ -194,6 +194,17 @@ classDiagram
     class CarbonCalculator {
         +calculate(metrics, intensityGco2ePerKwh) EnergyEstimate
     }
+    class PowerBreakdown {
+        <<interface>>
+        +number cpuW
+        +number memoryW
+        +number diskW
+        +number networkW
+    }
+    class CarbonCalculatorModule {
+        <<module>>
+        +powerBreakdown(resources) PowerBreakdown
+    }
     class MonitoringStatus {
         -string value
         +fromValue(value) MonitoringStatus
@@ -203,6 +214,8 @@ classDiagram
     }
     CarbonCalculator ..> EnergyEstimate : cria
     CarbonCalculator ..> Collection : recebe métricas validadas
+    CarbonCalculator ..> PowerBreakdown : soma parcelas arredondadas
+    CarbonCalculatorModule ..> PowerBreakdown : calcula as parcelas
     MonitoringStatus ..> Collection : converte o status da coleta
 ```
 
@@ -212,9 +225,10 @@ classDiagram
 | `Collection` | valida a observação (intervalo inteiro, CPU entre 0 e 100, GB não negativos) e converte nos valores das colunas de `collections` | `jobs/collector.ts` |
 | `CarbonCalculator` | valida as entradas, aplica as fórmulas de potência, energia e emissão e devolve `EnergyEstimate` | `jobs/collector.ts` |
 | `EnergyEstimate` | objeto de valor imutável com a precisão decimal das colunas | `jobs/collector.ts`, criado por `CarbonCalculator` |
+| `PowerBreakdown` | contrato das quatro parcelas da potência em W, arredondadas a seis casas; a função pura `powerBreakdown()` fornece os valores | `domain/carbon-calculator.ts`, `modules/services/services.service.ts` |
 | `MonitoringStatus` | converte `ok`, `erro` e `sem_metricas` em `ativo`, `indisponivel` e `sem_metricas`; `isAvailable()` responde a mesma pergunta | `jobs/collector.ts` e `modules/services/services.service.ts` |
 
-As três entidades — `MonitoredService`, `Collection` e `MonitoringStatus` — têm construtor privado e campos `#privados`: a criação passa por factory (`fromStored`, `fromMetrics`, `fromValue` e `fromCollection`) e as validações lançam `ValidationError`. `EnergyEstimate` é um objeto de valor imutável, com campos `readonly` e construtor público, criado por `CarbonCalculator.calculate()`. `CarbonCalculator` não guarda estado: não declara campo nem construtor, apenas o método `calculate()`. Testes: `backend/tests/domain-models.test.ts` e `backend/tests/carbon-calculator.test.ts`.
+As três entidades — `MonitoredService`, `Collection` e `MonitoringStatus` — têm construtor privado e campos `#privados`: a criação passa por factory (`fromStored`, `fromMetrics`, `fromValue` e `fromCollection`) e as validações lançam `ValidationError`. `EnergyEstimate` é um objeto de valor imutável, com campos `readonly` e construtor público, criado por `CarbonCalculator.calculate()`. `PowerBreakdown` é uma interface de resposta, não uma entidade persistida. `CarbonCalculator` não guarda estado: não declara campo nem construtor, apenas o método `calculate()`. Testes: `backend/tests/domain-models.test.ts` e `backend/tests/carbon-calculator.test.ts`.
 
 O que **não** existe no backend e por isso não aparece no diagrama: `AuthService` e `AccessEntryService`. A autenticação é feita por funções (`login` e `readToken` em `modules/usuarios/usuarios.service.ts`) e pelo middleware `middlewares/auth.ts`, com JWT e bcrypt (#20, #48); a tabela `access_entries` não tem fluxo de gravação nem de consulta. A interface `MonitoredService` de `modules/services/services.service.ts` é o contrato de resposta de `GET /api/services`, distinto da entidade de domínio do mesmo nome. SQL continua exclusivamente nos repositories parametrizados via `pg`. TP01 exige classes usadas na aplicação, não somente o diagrama.
 

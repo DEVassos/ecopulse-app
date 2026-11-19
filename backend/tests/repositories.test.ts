@@ -83,6 +83,20 @@ it('agrega indicadores por intervalo com parâmetros de data', async () => {
   expect(fake.poolQuery.mock.calls[0][1]).toEqual([from, to]);
   expect(result).toEqual(row);
 });
+it('pondera as médias de recursos pelo intervalo de coleta na comparação (#327)', async () => {
+  const from = new Date('2026-10-20T00:00:00Z');
+  const to = new Date('2026-10-21T00:00:00Z');
+  fake.poolQuery.mockResolvedValueOnce({ rows: [] });
+  await new ServiceRepository(createDatabase('postgresql://localhost/test')).compareByIds(['1', '2'], from, to);
+  const [sql, params] = fake.poolQuery.mock.calls[0] as [string, unknown[]];
+  for (const column of ['cpu_percent', 'memory_gb', 'disk_gb', 'network_gb']) {
+    expect(sql).toContain(`SUM(c.${column} * c.collection_interval_seconds)`);
+  }
+  expect(sql.match(/SUM\(c\.collection_interval_seconds\) FILTER \(WHERE c\.status = 'ok'\)/g)).toHaveLength(4);
+  expect(sql).not.toContain('AVG(');
+  expect(sql).not.toContain('${');
+  expect(params).toEqual([['1', '2'], from, to]);
+});
 it.each([
   'energy',
   'co2e',
