@@ -19,7 +19,7 @@ As métricas de entrada são as mesmas gravadas na coleta, já arredondadas à e
 
 Tempo é o intervalo positivo da API por coleta, não o polling da tela. Memória/disco/rede são GB declarados pelo contrato, sem definição decimal/binária: não presumir GiB nem converter para bytes. Rede não é reinterpretada como taxa por segundo. Snapshot regional e intensidade utilizada são preservados na coleta. JSON bruto preserva a entrada original, sem copiar manualmente os resultados/fatores. Desconhecido é NULL; zero é conhecido.
 
-## Exemplos sem arredondamento intermediário
+## Exemplo numérico e precisão
 
 CPU 50%; RAM 2 GB; disco 10 GB; rede 1 GB; 60 s; intensidade 85 gCO₂e/kWh:
 
@@ -29,7 +29,7 @@ E = 50,87 × 60 / 3.600.000 = 0,000847833333… kWh
 C = E × 85 = 0,072065833333… gCO₂e
 ```
 
-O PDF aproxima 60/3600 h para 0,0167 h, chegando a aproximadamente 0,0008495 kWh e 0,0722 g. Aqui usamos segundos exatos. Emissão deve ser calculada com intermediários completos; não usar energia arredondada para persistência nem arredondar potência intermediária antes de derivar energia.
+Cada parcela de potência é arredondada a seis casas antes de compor `P`; energia e emissão são derivadas dessa soma, e apenas seus valores persistidos são arredondados a 12 casas. Neste exemplo, a quantização das parcelas não altera `P`. O PDF aproxima 60/3600 h para 0,0167 h, chegando a aproximadamente 0,0008495 kWh e 0,0722 g; aqui usamos segundos exatos e a energia completa para calcular a emissão.
 
 OpenAPI: CPU 62,67%; RAM 3,17 GB; disco 19,26 GB; rede 0,45 GB; 27 s; fator 85. P = 64,06035 W; E = 0,000480452625 kWh; C = 0,040838473125 g.
 
@@ -57,7 +57,7 @@ A regra local pede numeric com escala definida e cita numeric(14,6) como conven�
 
 Quantização final de energia/emissão: até 0,0000000000005 na unidade por linha. Para N coletas, soma dos erros de armazenamento limitada a N × 0,0000000000005, sem considerar erros das entradas, fator/modelo ou cálculo anterior. Valores positivos abaixo de meia unidade de resolução ainda podem virar zero; valores na fronteira da faixa podem causar overflow ao arredondar. Não prometemos precisão universal nem suporte ao produto de todos os máximos possíveis de energia e intensidade.
 
-A intensidade em seis casas também pode perder valores inferiores a 0,0000005 g/kWh; os exemplos documentados 85 e 0,1 são representáveis. Potência persistida é arredondada para seis casas, mas o `CarbonCalculator` usa o intermediário completo para calcular energia e emissão: o arredondamento só acontece na persistência. Verificar limites antes de gravar; falha de precisão/faixa não é medição zero. O fator externo não possui limite universal documentado.
+A intensidade em seis casas também pode perder valores inferiores a 0,0000005 g/kWh; os exemplos documentados 85 e 0,1 são representáveis. Cada parcela de potência é arredondada para seis casas, `powerWatts` é a soma dessas parcelas e energia/emissão usam essa soma antes de persistir seus valores com 12 casas. Verificar limites antes de gravar; falha de precisão/faixa não é medição zero. O fator externo não possui limite universal documentado.
 
 ## Agregação de coletas pequenas
 
@@ -90,8 +90,8 @@ O intervalo é **aberto no fim** por três razões: dois períodos consecutivos 
 | `notCalculated` | `COUNT(c.id) FILTER (WHERE c.calculation_status <> 'disponivel')` | `nao_calculado` (inclui as coletas com falha) e `indisponivel` | — |
 | `energyKwh` | `SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel')` | só coleta com energia calculada | coleta sem cálculo, mesmo com `status = 'ok'` |
 | `co2eGrams` | `SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel')` (na série, `SUM(co2e_grams) FILTER (WHERE calculation_status = 'disponivel')`) | só coleta com emissão calculada | idem |
-| `avgCpuPercent` | `AVG(c.cpu_percent) FILTER (WHERE c.status = 'ok')` | coleta com métrica lida | coleta com falha (que não tem CPU) |
-| `avgMemoryGb`, `avgDiskGb`, `avgNetworkGb` | idem, cada coluna com o mesmo filtro | idem | idem |
+| `avgCpuPercent` | `SUM(c.cpu_percent * c.collection_interval_seconds) FILTER (WHERE c.status = 'ok') / SUM(c.collection_interval_seconds) FILTER (WHERE c.status = 'ok')` | média ponderada pelo tempo das coletas com métrica lida | coleta com falha (que não tem CPU) |
+| `avgMemoryGb`, `avgDiskGb`, `avgNetworkGb` | mesma fórmula ponderada, usando cada coluna e o mesmo filtro | idem | idem |
 | `notCalculated` (série) | `COUNT(*) FILTER (WHERE status = 'ok' AND calculation_status <> 'disponivel')` | `nao_calculado` e `indisponivel` de coleta com métrica lida | coleta com falha, que a série já conta em `failed` |
 | `carbonIntensity…` (série) | `AVG(c.carbon_intensity_gco2e_per_kwh) FILTER (WHERE c.calculation_status = 'disponivel')` | média simples da intensidade, não ponderada pela energia | coleta sem cálculo |
 
@@ -124,13 +124,13 @@ Serviço 4 (`Inventory Sync`, `region_code` `ca-central` — `Ontario` no campo 
 | coletas | 22 | todas com `status = 'ok'` e `calculation_status = 'disponivel'` |
 | `energyKwh` | 0,010455447016 | soma das 22 linhas, conferida fora do banco |
 | `co2eGrams` | 0,418217880595 | soma das 22 linhas |
-| `avgCpuPercent` | 41,1382 | média das 22 leituras |
+| `avgCpuPercent` | média ponderada por `collection_interval_seconds` | `Σ(cpu × intervalo) ÷ Σ(intervalo)` nas coletas `ok` |
 | CO₂e médio por coleta | 0,019009903663 g | 0,418217880595 ÷ 22 |
 
 Duas conferências que fecham a conta:
 
 1. **Energia × intensidade.** 0,010455447016 kWh × 40 g/kWh = 0,418217880640 g, contra 0,418217880595 g somados — diferença de 4,5 × 10⁻¹¹ g. Ela existe porque o `CarbonCalculator` multiplica a energia **não arredondada** e o `SUM` usa a energia persistida com 12 casas (ver "Precisão SQL e limites"); não é erro de agregação e não cresce com o número de linhas de forma descontrolada.
-2. **API × SQL.** `GET /api/services/compare?ids=4,1&from=2026-11-08T00:00:00-03:00&to=2026-11-08T00:20:00-03:00` devolve para o serviço 4 exatamente `collections: 22`, `avgCpuPercent: 41.13818181818182`, `energyKwh: 0.010455447016`, `co2eGrams: 0.418217880595` — os mesmos números do `SELECT` manual abaixo.
+2. **API × SQL.** `GET /api/services/compare?ids=4,1&from=2026-11-08T00:00:00-03:00&to=2026-11-08T00:20:00-03:00` devolve para o serviço 4 `collections: 22`, as quatro médias ponderadas por intervalo, `avgPowerBreakdown` derivado delas, `energyKwh: 0.010455447016` e `co2eGrams: 0.418217880595`. A fórmula das médias é `SUM(recurso × collection_interval_seconds) FILTER (WHERE status = 'ok') / SUM(collection_interval_seconds) FILTER (WHERE status = 'ok')`.
 
 ### Conferência manual do período
 
@@ -349,19 +349,25 @@ Os mesmos coeficientes da seção "Fonte e fórmula", decompostos. Exemplo do Op
 | Rede | 0,45 GB | 0,02 W/GB | 0,009 | 0,01 % |
 | **Total** | | | **64,06035** | **100,00 %** |
 
-A soma das parcelas reproduz a potência da seção principal (64,06035 W). As parcelas usam o intermediário completo; 97,83 + 1,86 + 0,30 + 0,01 fecha 100,00 apenas porque as quatro foram arredondadas juntas. A tela não soma percentuais arredondados: exibe o total em W e calcula cada percentual a partir dos watts.
+A soma das parcelas arredondadas a seis casas reproduz a potência da seção principal (64,06035 W). A soma dos percentuais exibidos fecha 100,00 após arredondar cada parcela; a tela não soma esses percentuais arredondados.
 
-### A composição de um período sai das médias existentes
+### A composição de um período usa médias ponderadas
 
-Cada parcela é **linear** no recurso, então a média da soma é a soma das médias:
+Cada parcela é **linear** no recurso, então a composição parte das médias ponderadas dos quatro recursos:
 
 ```text
-média(P) = Σ_r coef_r × média(x_r)   para r em {CPU, RAM, disco, rede}
+avgPowerBreakdown = powerBreakdown({
+  cpuPercent: avgCpuPercent,
+  memoryGb: avgMemoryGb,
+  diskGb: avgDiskGb,
+  networkGb: avgNetworkGb
+})
+avg(x) = Σ(x × collection_interval_seconds) ÷ Σ(collection_interval_seconds)
 ```
 
-`GET /api/services/compare` já devolve `avgCpuPercent`, `avgMemoryGb`, `avgDiskGb`, `avgNetworkGb` e `energyKwh`, então a composição de um período pode ser calculada na borda sobre as médias que a rota já devolve, sem coluna nova no banco. A condição é que as quatro médias venham do mesmo filtro — hoje vêm (`WHERE c.status = 'ok'` e o mesmo período); se um recurso ganhar filtro próprio, a igualdade deixa de valer.
+`GET /api/services/compare` devolve as quatro médias ponderadas pelo intervalo das coletas com `status = 'ok'` e `avgPowerBreakdown`, com uma parcela em W por recurso. A função aplica os mesmos coeficientes oficiais e arredonda cada parcela a seis casas. Não é necessária coluna ou migration.
 
-Isso garante a **soma das médias**, não a média ponderada pelo tempo. As quatro médias do `/compare` são `AVG(...)` por coleta: com intervalos diferentes, `Σ coef_r × AVG(x_r)` só coincide com `P_média` da seção de eficiência quando todos os intervalos são iguais. Por isso a tela usa a composição para as **parcelas em %** — a proporção entre os recursos não depende do intervalo — e não afirma que o total em W fecha com `P_média`. A média ponderada por recurso (`SUM(x·Δt) ÷ SUM(Δt)`) está pedida na [#327](https://github.com/DEVassos/ecopulse-app/issues/327).
+As médias de recursos usam `status = 'ok'`, enquanto `energyKwh` soma apenas as coletas com `calculation_status = 'disponivel'`. Portanto uma métrica válida cuja emissão não pôde ser calculada entra nas médias e fica fora da energia; `avgPowerBreakdown` não deve ser interpretado como potência média inferida da energia total. A rota ainda não devolve o tempo monitorado necessário para reconciliar esses conjuntos; esse ajuste fica fora da #327.
 
 Enquanto `cpu_percent = 0` for valor válido, a parcela de CPU é 0 W e a de RAM pode ser a maior: a barra não pode assumir CPU dominante.
 
