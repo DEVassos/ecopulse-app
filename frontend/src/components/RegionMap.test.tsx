@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { ListedRegion, RegionOverview } from '../utils/region-map';
 import RegionMap from './RegionMap';
+import type { PresentationStatus } from './RegionMap';
 
 // A renderização estática não roda efeitos: o globo (MapLibre, WebGL) não é montado. Os testes cobrem o que aparece sem
 // o mapa: a legenda, o título para o leitor de tela e quando o mapa não aparece.
@@ -39,6 +40,34 @@ describe('RegionMap', () => {
       <RegionMap overview={overview} selectedCode="us-east" onSelect={() => {}} destination={{ code: 'eu-north', co2eGrams: 25 }} />,
     );
     expect(html).toContain('region-map__key--destination" aria-hidden="true"></i>Destino simulado</li>');
+  });
+
+  describe('modo apresentação (#323)', () => {
+    const two: RegionOverview = { ...overview, monitored: [listed('us-east'), listed('eu-west')] };
+    const controls = (status: PresentationStatus, regions = two) =>
+      renderToStaticMarkup(
+        <RegionMap
+          overview={regions}
+          selectedCode={null}
+          onSelect={() => {}}
+          presentation={{ status, onStart: () => {}, onToggle: () => {}, onStop: () => {}, onInteract: () => {}, onArrive: () => {} }}
+        />,
+      );
+    const buttons = (html: string) => [...html.matchAll(/region-map__present">(.*?)<\/div>/g)].flatMap((match) => [...match[1].matchAll(/<button[^>]*>([^<]+)<\/button>/g)].map((item) => item[1]));
+
+    it('desligado mostra só "Apresentar": nunca liga sozinho', () => {
+      expect(buttons(controls('off'))).toEqual(['Apresentar']);
+    });
+
+    it('ligado mostra a pausa sempre visível e "Encerrar"; pausado, "Retomar"', () => {
+      expect(buttons(controls('playing'))).toEqual(['Pausar', 'Encerrar']);
+      expect(buttons(controls('paused'))).toEqual(['Retomar', 'Encerrar']);
+    });
+
+    it('não aparece com uma região só, nem sem a prop', () => {
+      expect(controls('off', overview)).not.toContain('region-map__present');
+      expect(render(two)).not.toContain('region-map__present');
+    });
   });
 
   it('apaga as bolhas quando a última busca falhou', () => {

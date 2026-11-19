@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { SyntheticEvent } from 'react';
 import type { GeoJSONSourceSpecification, Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 // O worker do MapLibre 6 é procurado ao lado do módulo, e o build do Vite não o copia: sem ele, o contorno dos países
@@ -57,6 +58,22 @@ interface Props {
   stale?: boolean;
   /** Destino da simulação de migração (#326): marcador com tamanho de bolha, e a câmera vai até ele. */
   destination?: MapDestination | null;
+  /** Modo apresentação (#323): o Dashboard controla o ciclo; o mapa mostra os botões e avisa toque e chegada. */
+  presentation?: Presentation;
+}
+
+export type PresentationStatus = 'off' | 'playing' | 'paused';
+
+export interface Presentation {
+  status: PresentationStatus;
+  onStart: () => void;
+  /** Pausar ou retomar. */
+  onToggle: () => void;
+  onStop: () => void;
+  /** Toque, clique, tecla ou foco dentro do mapa, fora dos botões da apresentação: o Dashboard pausa (WCAG 2.2.2). */
+  onInteract: () => void;
+  /** O mapa chegou na região selecionada (fim da viagem, imagens carregadas): começa a contar o tempo nela. */
+  onArrive: (code: string) => void;
 }
 
 /** Curva de aceleração das etapas da viagem: parte e chega devagar. */
@@ -94,7 +111,7 @@ function regionLabel(region: PlacedRegion): string {
  * tabela (#342): escolher uma região em qualquer um dos três leva o mapa até ela. Sem imagens de satélite, o contorno
  * dos países aparece por baixo.
  */
-export default function RegionMap({ overview, selectedCode, onSelect, stale = false, destination = null }: Props) {
+export default function RegionMap({ overview, selectedCode, onSelect, stale = false, destination = null, presentation }: Props) {
   const monitored = useMemo(() => overview.monitored.filter(isPlaced), [overview]);
   const regions = useMemo(() => [...monitored, ...overview.idle.filter(isPlaced)], [monitored, overview]);
   const maxCo2e = useMemo(() => Math.max(0, ...monitored.map((region) => region.co2eGrams ?? 0)), [monitored]);
@@ -119,6 +136,8 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
   const flightRef = useRef(0);
   const bubbleClickRef = useRef<(code: string) => void>(() => {});
   const followRef = useRef<(code: string | null) => void>(() => {});
+  /** Aviso de chegada da apresentação (#323), lido no 'idle' do MapLibre, fora do React. */
+  const arriveRef = useRef<(code: string) => void>(() => {});
   /** Região da última viagem: a seleção (ou o destino simulado) só move o mapa quando muda, nunca a cada ciclo do polling. */
   const followedRef = useRef<string | null>(null);
 
@@ -266,6 +285,11 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
     if (region) {
       setZoomed(true);
       goTo({ center: [region.longitude, region.latitude], zoom: REGION_ZOOM });
+      // Chegou quando o mapa para e as imagens carregam; uma viagem mais nova cancela o aviso desta
+      const flight = flightRef.current;
+      mapRef.current?.once('idle', () => {
+        if (flight === flightRef.current) arriveRef.current(region.code);
+      });
     } else if (followedRef.current !== null) {
       setZoomed(false);
       goTo(homeView());
@@ -321,7 +345,19 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
     zoomedRef.current = zoomed;
     bubbleClickRef.current = clickBubble;
     followRef.current = follow;
+    arriveRef.current = presentation?.onArrive ?? (() => {});
   });
+
+  /**
+   * Interação dentro do mapa pausa a apresentação. Nos botões dela, só o foco pelo teclado conta (Tab até o mapa pausa,
+   * critério 2 da #323): o clique do mouse em "Pausar" não pode pausar no foco e retomar no clique.
+   */
+  function interact(event: SyntheticEvent) {
+    if (presentation?.status !== 'playing' || !(event.target instanceof Element)) return;
+    const onControls = event.target.closest('.region-map__present') !== null;
+    if (onControls && !(event.type === 'focus' && event.target.matches(':focus-visible'))) return;
+    presentation.onInteract();
+  }
 
   // A seleção ou o destino simulado mudou, ou o mapa acabou de abrir com uma região já escolhida
   useEffect(() => {
@@ -387,10 +423,35 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
   if (monitored.length === 0) return null;
 
   return (
-    <section className={stale ? 'region-map region-map--stale' : 'region-map'} aria-labelledby="region-map-title">
+    <section
+      className={stale ? 'region-map region-map--stale' : 'region-map'}
+      aria-labelledby="region-map-title"
+      onPointerDown={interact}
+      onKeyDown={interact}
+      onFocus={interact}
+    >
       <h2 id="region-map-title" className="sr-only">Mapa das regiões</h2>
       <div className="region-map__stage">
         <div ref={containerRef} className="region-map__canvas" aria-label="Globo com uma bolha por região monitorada" />
+        {/* Modo apresentação (#323): nunca liga sozinho; enquanto ativo, a pausa fica sempre visível */}
+        {presentation && monitored.length > 1 && (
+          <div className="region-map__present">
+            {presentation.status === 'off' ? (
+              <button type="button" onClick={presentation.onStart}>
+                Apresentar
+              </button>
+            ) : (
+              <>
+                <button type="button" onClick={presentation.onToggle}>
+                  {presentation.status === 'playing' ? 'Pausar' : 'Retomar'}
+                </button>
+                <button type="button" onClick={presentation.onStop}>
+                  Encerrar
+                </button>
+              </>
+            )}
+          </div>
+        )}
         {zoomed && (
           <button type="button" className="region-map__overview" onClick={showOverview}>
             Visão geral

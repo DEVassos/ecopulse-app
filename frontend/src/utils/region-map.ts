@@ -164,3 +164,23 @@ export function mapDestination(overview: RegionOverview, originCode: string | nu
 export function cameraTarget(selectedCode: string | null, destination: MapDestination | null, placedCodes: ReadonlySet<string>): string | null {
   return destination !== null && placedCodes.has(destination.code) ? destination.code : selectedCode;
 }
+
+/** Tempo em cada região do modo apresentação (#323), contado depois que o mapa chega nela. */
+export const PRESENTATION_DWELL_MS = 6000;
+/** Se o mapa não avisar a chegada (sem WebGL, imagens sem resposta), a contagem começa assim mesmo depois disto. */
+export const PRESENTATION_ARRIVAL_TIMEOUT_MS = 8000;
+
+/**
+ * Ordem do modo apresentação (#323): as regiões com serviço e coordenada, da maior para a menor emissão, a mesma ordem
+ * da lista (`monitored` já vem assim). Região sem coordenada não tem para onde a câmera ir.
+ */
+export function presentationOrder(overview: RegionOverview): string[] {
+  return overview.monitored.filter((region) => region.latitude !== null && region.longitude !== null).map((region) => region.code);
+}
+
+/** Próxima região do ciclo; da última volta à primeira. Sem seleção, ou com uma fora da ordem, começa pela primeira. */
+export function nextPresentationCode(order: readonly string[], current: string | null): string | null {
+  if (order.length === 0) return null;
+  const index = current === null ? -1 : order.indexOf(current);
+  return order[(index + 1) % order.length];
+}

@@ -21,7 +21,15 @@ import { rankingIsStale, rankingShares, rankingSentence } from '../utils/ranking
 import SummaryPanel from '../components/SummaryPanel';
 import { summarizeStatus } from '../utils/summary';
 import { fetchRegions, fetchRegionsSummary } from '../services/regions.service';
-import { buildRegionOverview, mapDestination } from '../utils/region-map';
+import {
+  buildRegionOverview,
+  mapDestination,
+  nextPresentationCode,
+  PRESENTATION_ARRIVAL_TIMEOUT_MS,
+  PRESENTATION_DWELL_MS,
+  presentationOrder,
+} from '../utils/region-map';
+import type { PresentationStatus } from '../components/RegionMap';
 import type { RegionOverview } from '../utils/region-map';
 import { gridByCode } from '../utils/regions';
 import type { RegionGrid } from '../utils/regions';
@@ -54,6 +62,15 @@ export default function DashboardPage() {
   // Uma seleção para a lista de regiões e a tabela (#342); o mapa da #322 entra nela. Clicar de novo desfaz.
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const toggleRegion = (code: string) => setSelectedRegion((current) => (current === code ? null : code));
+  // Modo apresentação do mapa (#323): percorre as regiões da maior para a menor emissão, 6 s em cada uma depois que o
+  // mapa chega. Nunca liga sozinho, e sair do Dashboard desmonta o estado (volta desligado)
+  const [presenting, setPresenting] = useState<PresentationStatus>('off');
+  const [arrivedRegion, setArrivedRegion] = useState<string | null>(null);
+  /** Escolha feita pela pessoa (mapa, lista ou tabela): pausa a apresentação, que não passa por cima dela. */
+  const pickRegion = (code: string) => {
+    setPresenting((status) => (status === 'playing' ? 'paused' : status));
+    toggleRegion(code);
+  };
   // Destino da simulação de migração (#326), guardado com a origem: trocar a origem zera o destino sem efeito extra, e a
   // atualização periódica não mexe nele, porque fica pelo `code`
   const [simulation, setSimulation] = useState<{ origin: string; destination: string } | null>(null);
@@ -148,6 +165,28 @@ export default function DashboardPage() {
     })();
     return () => controller.abort();
   }, [updatedAt]);
+  const presentationCodes = useMemo(() => (regions ? presentationOrder(regions) : []), [regions]);
+  const presentationKey = presentationCodes.join(',');
+  // Próxima região: 6 s depois da chegada do mapa; se o mapa não avisar (sem WebGL), 6 s depois de 8 s de espera
+  useEffect(() => {
+    if (presenting !== 'playing') return;
+    const order = presentationKey === '' ? [] : presentationKey.split(',');
+    const delay = arrivedRegion === selectedRegion ? PRESENTATION_DWELL_MS : PRESENTATION_ARRIVAL_TIMEOUT_MS + PRESENTATION_DWELL_MS;
+    const timer = window.setTimeout(() => setSelectedRegion(nextPresentationCode(order, selectedRegion)), delay);
+    return () => window.clearTimeout(timer);
+  }, [presenting, selectedRegion, arrivedRegion, presentationKey]);
+  const presentation = {
+    status: presenting,
+    onStart: () => {
+      setPresenting('playing');
+      // Começa na região já selecionada, se ela estiver no ciclo; senão, na de maior emissão
+      setSelectedRegion((current) => (current !== null && presentationCodes.includes(current) ? current : nextPresentationCode(presentationCodes, null)));
+    },
+    onToggle: () => setPresenting((status) => (status === 'playing' ? 'paused' : 'playing')),
+    onStop: () => setPresenting('off'),
+    onInteract: () => setPresenting((status) => (status === 'playing' ? 'paused' : status)),
+    onArrive: setArrivedRegion,
+  };
   // Um aviso por página (#271): com a lista falhando e dados na tela, basta a faixa de falha; sem dados, o aviso grande;
   // com a lista em dia, o primeiro erro entre resumo, comparação e ranking. Nunca avisos iguais empilhados.
   const pageError = error ? (data ? '' : error) : summaryError || comparisonError || rankingError;
@@ -243,15 +282,16 @@ export default function DashboardPage() {
               <RegionMap
                 overview={regions}
                 selectedCode={selectedRegion}
-                onSelect={toggleRegion}
+                onSelect={pickRegion}
                 stale={regionsError !== '' || error !== ''}
                 destination={mapDestination(regions, selectedRegion, destinationCode)}
+                presentation={presentation}
               />
             </Suspense>
             <RegionList
               overview={regions}
               selectedCode={selectedRegion}
-              onSelect={toggleRegion}
+              onSelect={pickRegion}
               periodLabel="últimas 24 h"
               stale={regionsError !== '' || error !== ''}
             />
@@ -278,7 +318,7 @@ export default function DashboardPage() {
             shares={shares}
             sharesStale={rankingStale}
             selectedRegion={selectedRegion}
-            onSelectRegion={toggleRegion}
+            onSelectRegion={pickRegion}
             regionGrids={regionGrids}
             regionGridsStale={regionGridsFailed || error !== ''}
           />

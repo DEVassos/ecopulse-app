@@ -70,6 +70,33 @@
     color: #ffffff;
   }
 
+  /* Modo apresentação (#323) no canto superior esquerdo; o aviso "sem imagens" desce para baixo dele */
+  .region-map__present {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 2;
+    display: flex;
+    gap: 6px;
+  }
+
+  .region-map__present button {
+    min-height: 44px;
+    padding: 0 14px;
+    border: 1px solid var(--map-glass-border);
+    border-radius: 10px;
+    background: var(--map-glass);
+    color: var(--map-glass-text);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .region-map__present button:hover {
+    color: #ffffff;
+  }
+
   /* Legenda compacta no canto inferior esquerdo, um item por linha, para não cobrir o mapa */
   .region-map__legend {
     left: 10px;
@@ -238,7 +265,7 @@
 
   /* Sem imagens de satélite (sem internet ou serviço da EOX fora): o contorno dos países fica visível e o aviso, no topo */
   .region-map__notice {
-    top: 12px;
+    top: 64px;
     left: 12px;
     max-width: calc(100% - 120px);
     margin: 0;
