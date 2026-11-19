@@ -321,7 +321,7 @@ P_média (W)           = E_período (kWh) × 3 600 000 ÷ segundos monitorados
 eficiência de carbono = intensidade da região (g CO₂e/kWh), menor é melhor
 ```
 
-`P_média` é a média **ponderada pelo tempo**, não `AVG(power_watts)`: como `E = P × Δt ÷ 3 600 000`, somando as coletas `Σ P·Δt = E × 3 600 000` e `P_média = Σ P·Δt ÷ Σ Δt`. Com intervalos iguais as duas contas coincidem; com intervalos diferentes, só a ponderada está certa — e é por isso que a rota precisa devolver os segundos monitorados, coisa que nenhuma rota faz hoje.
+`P_média` é a média **ponderada pelo tempo**, não `AVG(power_watts)`: como `E = P × Δt ÷ 3 600 000`, somando as coletas `Σ P·Δt = E × 3 600 000` e `P_média = Σ P·Δt ÷ Σ Δt`. Com intervalos iguais as duas contas coincidem; com intervalos diferentes, só a ponderada está certa — e é por isso que a rota precisa devolver os segundos monitorados junto da energia: `GET /api/services/compare` e `GET /api/services/ranking` devolvem `monitoredSeconds` desde a #329 ([api.md](api.md#get-apiservicescompare)).
 
 Numerador e denominador têm de sair do **mesmo conjunto de coletas**, e o conjunto é o de `E_período` (`calculation_status = 'disponivel'`). Somar o tempo das coletas `status = 'ok'` e a energia das calculadas mistura dois conjuntos: uma coleta `ok` sem fator tem energia `NULL`, entra no tempo e não entra na energia. Com 1 h da API de carbono fora em 24 h a 20 W, a conta misturada dá 0,46 × 3 600 000 ÷ 86 400 = 19,17 W em vez de 20 W — o serviço parece mais eficiente exatamente quando a medição falhou.
 
@@ -332,6 +332,8 @@ Exemplos conferíveis à mão:
 - Eficiência de carbono, com o exemplo da seção de simulação (`us-east`, `E_período` 0,050 kWh, `CO₂e_real` 18,90 g): 18,90 ÷ 0,050 = **378 g CO₂e/kWh**, o fator da região. O mesmo serviço em `br-sudeste` daria 4,25 ÷ 0,050 = **85 g CO₂e/kWh**.
 
 `segundos monitorados = 0` (período só com coletas `erro` ou `sem_metricas`) não é potência zero: é "sem dado no período".
+
+Onde aparece na interface (#329): a coluna **"Potência média (W)"** da lista de serviços do dashboard — ordenável, com o mesmo critério de ausência das colunas de energia e CO₂e, e o selo "menor é melhor" no tooltip — e a linha **"Potência média (W)"** da Comparação, que destaca "mais eficiente" só quando há ao menos dois serviços medidos e um único menor valor.
 
 ### Por que W por % de CPU foi descartado
 
