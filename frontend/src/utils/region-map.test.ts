@@ -3,6 +3,7 @@ import type { Region, RegionsResponse, RegionsSummaryResponse, RegionSummary } f
 import {
   MIN_BUBBLE,
   MIN_SCALE,
+  bubbleCaption,
   bubbleDiameter,
   buildRegionOverview,
   cameraTarget,
@@ -185,6 +186,19 @@ describe('destino simulado no mapa (#326)', () => {
     const max = co2eScaleMax(overview.monitored, { code: 'jp-east', co2eGrams: 57.2 });
     expect(max).toBe(57.2);
     expect(bubbleDiameter(57.2, max)).toBeGreaterThan(bubbleDiameter(44.6, max));
+  });
+
+  it('bubbleCaption: nome visível só na selecionada e no destino, com o CO₂e que o tamanho representa', () => {
+    const [usEast] = overview.monitored;
+    const montreal = overview.idle.find((item) => item.code === 'ca-central');
+    if (!montreal) throw new Error('ca-central deveria estar entre as regiões sem serviço');
+    const destination = mapDestination(overview, 'us-east', 'ca-central');
+    expect(bubbleCaption(usEast, 'us-east', destination)).toBe('Ashburn · 44,6 g CO₂e');
+    expect(bubbleCaption(montreal, 'us-east', destination)).toBe('Destino simulado: Montreal · 4,72 g CO₂e');
+    expect(bubbleCaption(montreal, 'us-east', null)).toBeNull();
+    expect(bubbleCaption(usEast, null, null)).toBeNull();
+    expect(bubbleCaption(montreal, 'ca-central', null)).toBe('Montreal · sem serviço hoje');
+    expect(bubbleCaption(montreal, 'us-east', { code: 'ca-central', co2eGrams: null })).toBe('Destino simulado: Montreal');
   });
 
   it('cameraTarget: o destino com coordenada manda na câmera; sem ele, a seleção', () => {

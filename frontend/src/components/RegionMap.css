@@ -210,6 +210,29 @@
     display: none;
   }
 
+  /* Nome sob a bolha selecionada e sob o destino simulado (#326): o mapa diz onde a câmera está, também no celular,
+     onde o painel fica longe do mapa. Acompanha o marcador e não recebe clique (o clique é da bolha) */
+  .region-bubble__caption {
+    position: absolute;
+    top: calc(100% + 14px);
+    left: 50%;
+    padding: 4px 10px;
+    border: 1px solid var(--map-glass-border);
+    border-radius: 8px;
+    background: var(--map-glass);
+    color: #ffffff;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translateX(-50%);
+  }
+
+  .region-bubble__caption[hidden] {
+    display: none;
+  }
+
   /* Dados da atualização anterior: bolhas sem cor e sem pulso, como os números apagados da página (#261) */
   .region-map--stale .region-bubble b {
     filter: grayscale(1);

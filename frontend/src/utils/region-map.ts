@@ -3,6 +3,7 @@
 import type { RegionStatus, RegionsResponse, RegionsSummaryResponse } from '../services/regions.types';
 import { bubbleRadius, estimateMigration, joinRegions } from './regions';
 import type { RegionWithTotals } from './regions';
+import { formatQuantity } from './units';
 
 /** Uma região pronta para a lista (e, na #322, para o mapa). */
 export interface ListedRegion extends RegionWithTotals {
@@ -171,4 +172,17 @@ export function cameraTarget(selectedCode: string | null, destination: MapDestin
  */
 export function co2eScaleMax(monitored: readonly ListedRegion[], destination: MapDestination | null): number {
   return Math.max(0, ...monitored.map((region) => region.co2eGrams ?? 0), destination?.co2eGrams ?? 0);
+}
+
+/**
+ * Etiqueta visível sob a bolha selecionada e sob o destino simulado (#326): o mapa diz onde a câmera está, mesmo com o
+ * painel fora da tela. "Ashburn · 253 g CO₂e", "Destino simulado: Toronto · 26,8 g CO₂e". As outras bolhas: null.
+ */
+export function bubbleCaption(region: ListedRegion, selectedCode: string | null, destination: MapDestination | null): string | null {
+  if (region.code === destination?.code) {
+    return `Destino simulado: ${region.name}${destination.co2eGrams === null ? '' : ` · ${formatQuantity('co2e', destination.co2eGrams)} CO₂e`}`;
+  }
+  if (region.code !== selectedCode) return null;
+  if (region.worstStatus === null && region.co2eGrams === null) return `${region.name} · sem serviço hoje`;
+  return region.co2eGrams === null ? region.name : `${region.name} · ${formatQuantity('co2e', region.co2eGrams)} CO₂e`;
 }
