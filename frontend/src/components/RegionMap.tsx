@@ -8,7 +8,8 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { REGION_STATUSES } from '../services/regions.types';
 import type { RegionStatus } from '../services/regions.types';
 import { formatQuantity } from '../utils/units';
-import { bubbleDiameter, IDLE_DOT, ringPercent } from '../utils/region-map';
+import { bubbleDiameter, fitZoom, IDLE_DOT, mapScale, REFERENCE_SIDE, ringPercent } from '../utils/region-map';
+import { isCleanGrid } from '../utils/regions';
 import type { ListedRegion, RegionOverview } from '../utils/region-map';
 import countries from './countries-110m.json';
 import './RegionMap.css';
@@ -21,13 +22,15 @@ const SATELLITE_TILES = 'https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2025_3
 const SATELLITE_CREDIT =
   '<a href="https://cloudless.eox.at" target="_blank" rel="noopener noreferrer">EOxCloudless</a> by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2025)';
 
-/** Visão geral: o globo enquadrando as Américas, a Europa e a África. */
+/** Visão geral: o globo enquadrando as Américas, a Europa e a África. O zoom é o de um mapa de 460 px de altura. */
 const HOME = { center: [-40, 15] as [number, number], zoom: 1.7 };
+
 /** Nível de cidade: a posição é da região, não do prédio (RF13), então o mapa não chega mais perto que isso. */
 const REGION_ZOOM = 9;
 const MAX_ZOOM = 11;
-/** Altura de cruzeiro da viagem: o zoom em que o globo aparece inteiro. */
+/** Altura de cruzeiro da viagem num mapa de 460 px: o zoom em que o globo aparece inteiro. */
 const CRUISE_ZOOM = 1.9;
+
 /** Folga do anel de energia em volta da bolha, em px (a mesma do CSS). */
 const RING_GAP = 9;
 
@@ -68,15 +71,18 @@ function isPlaced(region: ListedRegion): region is PlacedRegion {
 }
 
 function regionLabel(region: PlacedRegion): string {
+  // Rede limpa (#324) também na bolha, em texto: o mesmo limite do selo da tabela e da lista
+  const clean = isCleanGrid(region.carbonIntensityGco2ePerKwh);
   if (region.worstStatus === null && region.co2eGrams === null) {
     const grid = region.carbonIntensityGco2ePerKwh === null ? '' : `, rede com ${region.carbonIntensityGco2ePerKwh} gCO₂e/kWh`;
-    return `${region.name}, sem serviço hoje${grid}`;
+    return `${region.name}, sem serviço hoje${grid}${clean ? ', rede limpa' : ''}`;
   }
   return [
     region.name,
     region.worstStatus === null ? null : STATE_LABEL[region.worstStatus],
     region.co2eGrams === null ? null : `${formatQuantity('co2e', region.co2eGrams)} de CO₂e`,
     region.energyKwh === null ? null : `${formatQuantity('energy', region.energyKwh)} de energia`,
+    clean ? 'rede limpa' : null,
   ].filter((part) => part !== null).join(', ');
 }
 
@@ -93,6 +99,10 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
   const maxEnergy = useMemo(() => Math.max(0, ...monitored.map((region) => region.energyKwh ?? 0)), [monitored]);
 
   const [zoomed, setZoomed] = useState(false);
+  /** O mesmo "zoomed", lido pelo listener de resize do MapLibre (fora do React). */
+  const zoomedRef = useRef(false);
+  /** Tamanho das bolhas diante do mapa de 460 px (no celular, menor): acompanha o globo, que também encolhe. */
+  const [scale, setScale] = useState(1);
   const [mapReady, setMapReady] = useState(false);
   const [mapFailed, setMapFailed] = useState(false);
   const [tilesFailed, setTilesFailed] = useState(false);
@@ -121,10 +131,10 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
         map = new library.Map({
           container: containerRef.current,
           center: HOME.center,
-          zoom: HOME.zoom,
+          zoom: fitZoom(HOME.zoom, containerRef.current.clientWidth, containerRef.current.clientHeight),
           maxZoom: MAX_ZOOM,
           // Crédito da EOX (ADR 0010) no modo automático do MapLibre, combinado com o Gabriel em 13/11: aberto no canto em
-          // mapas a partir de 640 px; mais estreito (celular), atrás do botão "i", para não cobrir o mapa
+          // mapas a partir de 640 px; mais estreito (celular), atrás do botão "i" (fechado desde o início: collapseCredit)
           attributionControl: {},
           style: {
             version: 8,
@@ -143,6 +153,23 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
             ],
           },
         });
+        // Girou o celular ou mudou a janela: na visão geral, o globo volta a caber no novo tamanho
+        // No celular (mapa até 640 px), o crédito da EOX começa fechado atrás do botão "i", para não cobrir as bolhas
+        // Tira também o atributo open, para o leitor de tela anunciar o "i" como fechado
+        const collapseCredit = () => {
+          const credit = containerRef.current?.querySelector('.maplibregl-compact-show');
+          credit?.classList.remove('maplibregl-compact-show');
+          credit?.removeAttribute('open');
+        };
+        map.once('idle', collapseCredit);
+        map.on('resize', () => {
+          if (!map) return;
+          const { clientWidth, clientHeight } = map.getContainer();
+          setScale(mapScale(clientWidth, clientHeight));
+          collapseCredit();
+          if (zoomedRef.current || map.isMoving()) return;
+          map.jumpTo({ zoom: fitZoom(HOME.zoom, clientWidth, clientHeight) });
+        });
         map.addControl(new library.NavigationControl({ showCompass: false }), 'top-right');
         // Globo na visão geral; ao aproximar, o MapLibre passa sozinho para o plano
         map.on('style.load', () => map?.setProjection({ type: 'globe' }));
@@ -158,6 +185,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
           if (event.sourceId === 'satellite' && event.tile !== undefined) setTilesFailed(false);
         });
         if (!navigator.onLine) setTilesFailed(true);
+        setScale(mapScale(containerRef.current.clientWidth, containerRef.current.clientHeight));
         libraryRef.current = library;
         mapRef.current = map;
         setMapReady(true);
@@ -186,7 +214,8 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
     if (!map) return;
     flightRef.current += 1;
     map.stop();
-    const landing = view.zoom > CRUISE_ZOOM + 1;
+    const cruiseZoom = fitZoom(CRUISE_ZOOM, map.getContainer().clientWidth, map.getContainer().clientHeight);
+    const landing = view.zoom > cruiseZoom + 1;
     const tilt = landing && !view.flat;
     const end = { center: view.center, zoom: view.zoom, pitch: tilt ? 50 : 0, bearing: tilt ? -12 : 0 };
     // "Reduzir movimento" ligado no sistema: salta em vez de voar
@@ -206,7 +235,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
     const distance = deltaLongitude + Math.abs(view.center[1] - from.lat);
     // Destino vizinho e câmera já perto: não sobe até o globo, mas também não desliza no zoom de cidade (as imagens não
     // carregariam a tempo e a tela ficaria preta). O flyTo afasta no meio do caminho, na medida da distância, e desce.
-    if (distance < 15 && map.getZoom() > CRUISE_ZOOM + 0.5) {
+    if (distance < 15 && map.getZoom() > cruiseZoom + 0.5) {
       map.once('moveend', () => {
         if (flight === flightRef.current) map.easeTo({ pitch: end.pitch, bearing: end.bearing, duration: 900, easing: smooth, essential: true });
       });
@@ -214,11 +243,17 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
       return;
     }
     const cruise = () =>
-      leg({ center: view.center, zoom: CRUISE_ZOOM, pitch: 0, bearing: 0, duration: Math.round(900 + Math.min(2400, distance * 18)) }, () => {
+      leg({ center: view.center, zoom: cruiseZoom, pitch: 0, bearing: 0, duration: Math.round(900 + Math.min(2400, distance * 18)) }, () => {
         if (landing) leg({ ...end, duration: 3200 });
       });
-    if (map.getZoom() <= CRUISE_ZOOM + 0.5) cruise();
-    else leg({ zoom: CRUISE_ZOOM, pitch: 0, bearing: 0, duration: 1800 }, cruise);
+    if (map.getZoom() <= cruiseZoom + 0.5) cruise();
+    else leg({ zoom: cruiseZoom, pitch: 0, bearing: 0, duration: 1800 }, cruise);
+  }
+
+  /** Visão geral no tamanho atual do mapa. */
+  function homeView(): View {
+    const container = mapRef.current?.getContainer();
+    return { center: HOME.center, zoom: fitZoom(HOME.zoom, container?.clientWidth ?? REFERENCE_SIDE, container?.clientHeight ?? REFERENCE_SIDE) };
   }
 
   /** Segue a seleção da página: viaja até a região escolhida, ou volta à visão geral quando a seleção é desfeita. */
@@ -229,7 +264,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
       goTo({ center: [region.longitude, region.latitude], zoom: REGION_ZOOM });
     } else if (followedRef.current !== null) {
       setZoomed(false);
-      goTo(HOME);
+      goTo(homeView());
     }
     followedRef.current = code;
   }
@@ -241,7 +276,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
       return;
     }
     setZoomed(false);
-    goTo(HOME);
+    goTo(homeView());
   }
 
   /**
@@ -255,7 +290,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
     const placed = regions.map((item) => ({
       region: item,
       point: map.project([item.longitude, item.latitude]),
-      radius: (item.worstStatus === null && item.co2eGrams === null ? IDLE_DOT : bubbleDiameter(item.co2eGrams, maxCo2e)) / 2 + RING_GAP,
+      radius: (item.worstStatus === null && item.co2eGrams === null ? IDLE_DOT : bubbleDiameter(item.co2eGrams, maxCo2e, scale)) / 2 + RING_GAP,
     }));
     const group = placed.filter((item) => item.region.code === code);
     for (let index = 0; index < group.length; index += 1) {
@@ -279,6 +314,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
 
   // As bolhas são elementos do MapLibre, fora da árvore do React: o clique delas chama sempre a função desta renderização
   useEffect(() => {
+    zoomedRef.current = zoomed;
     bubbleClickRef.current = clickBubble;
     followRef.current = follow;
   });
@@ -317,7 +353,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
       }
       const { element, marker } = entry;
       const idle = region.worstStatus === null && region.co2eGrams === null;
-      const diameter = idle ? IDLE_DOT : bubbleDiameter(region.co2eGrams, maxCo2e);
+      const diameter = idle ? IDLE_DOT : bubbleDiameter(region.co2eGrams, maxCo2e, scale);
       const ring = idle ? null : ringPercent(region.energyKwh, maxEnergy);
       const [bubble, ringElement] = [element.children[0] as HTMLElement, element.children[1] as HTMLElement];
       marker.setLngLat([region.longitude, region.latitude]);
@@ -337,7 +373,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
       element.setAttribute('aria-label', label);
       element.title = label;
     }
-  }, [mapReady, regions, maxCo2e, maxEnergy, selectedCode]);
+  }, [mapReady, regions, maxCo2e, maxEnergy, selectedCode, scale]);
 
   if (monitored.length === 0) return null;
 

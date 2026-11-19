@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Region, RegionsResponse, RegionsSummaryResponse, RegionSummary } from '../services/regions.types';
-import { MIN_BUBBLE, bubbleDiameter, buildRegionOverview, ringPercent, serviceCount } from './region-map';
+import { MIN_BUBBLE, MIN_SCALE, bubbleDiameter, buildRegionOverview, fitZoom, mapScale, ringPercent, serviceCount } from './region-map';
 
 function region(code: string, overrides: Partial<Region> = {}): Region {
   return { code, country: 'Estados Unidos', region: 'Virgínia', city: 'Ashburn', latitude: 39.04, longitude: -77.49, carbonIntensityGco2ePerKwh: 377, renewableSharePercent: 22, monitoredServices: 1, ...overrides };
@@ -90,5 +90,30 @@ describe('cálculos visuais do mapa', () => {
     expect(ringPercent(0.001, 2)).toBe(4);
     expect(ringPercent(null, 2)).toBeNull();
     expect(ringPercent(1, 0)).toBeNull();
+  });
+});
+
+describe('fitZoom e mapScale (mapa no celular, RNF01)', () => {
+  it('mantém o zoom base e o tamanho das bolhas num mapa de 460 px ou maior', () => {
+    expect(fitZoom(1.7, 825, 460)).toBe(1.7);
+    expect(fitZoom(1.7, 1200, 900)).toBe(1.7);
+    expect(mapScale(825, 460)).toBe(1);
+  });
+
+  it('afasta um nível quando o lado menor cai pela metade, e as bolhas encolhem na mesma proporção', () => {
+    expect(fitZoom(1.7, 358, 230)).toBeCloseTo(0.7);
+    expect(mapScale(400, 345)).toBeCloseTo(0.75);
+  });
+
+  it('não deixa as bolhas menores que MIN_SCALE, e ignora um mapa ainda sem tamanho', () => {
+    expect(mapScale(200, 150)).toBe(MIN_SCALE);
+    expect(fitZoom(1.7, 0, 0)).toBe(1.7);
+    expect(mapScale(0, 300)).toBe(1);
+  });
+
+  it('bubbleDiameter aplica a escala sem passar de MIN_BUBBLE para baixo', () => {
+    expect(bubbleDiameter(10, 10, 0.5)).toBe(44);
+    expect(bubbleDiameter(0, 10, 0.6)).toBe(MIN_BUBBLE);
+    expect(bubbleDiameter(null, 10, 0.6)).toBe(MIN_BUBBLE);
   });
 });

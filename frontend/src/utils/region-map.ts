@@ -68,12 +68,35 @@ export const MIN_BUBBLE = 22;
 export const IDLE_DOT = 10;
 
 /**
- * Diâmetro da bolha no mapa (#322), em px: `28 + 60 × raio relativo`, a escala do protótipo. O raio relativo é o
- * `bubbleRadius` da #321, com a área proporcional ao CO₂e. Sem CO₂e calculado, a bolha só marca o lugar.
+ * Diâmetro da bolha no mapa (#322), em px: `28 + 60 × raio relativo`, a escala do protótipo, vezes `scale` (mapScale).
+ * O raio relativo é o `bubbleRadius` da #321, com a área proporcional ao CO₂e. Sem CO₂e calculado, a bolha só marca o
+ * lugar. Nunca fica menor que MIN_BUBBLE, para continuar dando para tocar.
  */
-export function bubbleDiameter(co2eGrams: number | null, maxCo2eGrams: number): number {
+export function bubbleDiameter(co2eGrams: number | null, maxCo2eGrams: number, scale = 1): number {
   const radius = bubbleRadius(co2eGrams, maxCo2eGrams);
-  return radius === null ? MIN_BUBBLE : Math.round(28 + 60 * radius);
+  return radius === null ? MIN_BUBBLE : Math.max(MIN_BUBBLE, Math.round((28 + 60 * radius) * scale));
+}
+
+/** Lado menor do mapa em que o zoom da visão geral e o tamanho das bolhas foram ajustados (altura máxima no CSS). */
+export const REFERENCE_SIDE = 460;
+/** As bolhas encolhem com o mapa até esta fração, e não menos: abaixo disso as menores ficariam difíceis de tocar. */
+export const MIN_SCALE = 0.6;
+
+/**
+ * Zoom que faz o globo caber no mapa (RNF01). O globo dobra de tamanho a cada nível de zoom e o mapa encolhe no
+ * celular (300 px de altura): o zoom diminui na proporção do lado menor. Num mapa maior que o de referência, fica o base.
+ */
+export function fitZoom(baseZoom: number, width: number, height: number): number {
+  const side = Math.min(width, height);
+  if (!(side > 0)) return baseZoom;
+  return baseZoom + Math.min(0, Math.log2(side / REFERENCE_SIDE));
+}
+
+/** Fração do tamanho das bolhas no mapa atual: a mesma proporção do globo (fitZoom), de MIN_SCALE a 1. */
+export function mapScale(width: number, height: number): number {
+  const side = Math.min(width, height);
+  if (!(side > 0)) return 1;
+  return Math.min(1, Math.max(MIN_SCALE, side / REFERENCE_SIDE));
 }
 
 /** Parte preenchida do anel de energia, de 4 a 100: a energia da região diante da que mais consumiu. null: sem anel. */

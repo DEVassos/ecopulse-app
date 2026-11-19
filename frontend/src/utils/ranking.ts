@@ -5,6 +5,8 @@ import { formatNumber } from './format';
 export interface RankingShare {
   /** Posição no ranking (1 = maior); null para quem não tem CO₂e calculado no período. */
   position: number | null;
+  /** Energia do serviço no período, em kWh; null quando não calculada (#330). */
+  energyKwh: number | null;
   /** CO₂e do serviço no período, em gramas; null quando não calculado. */
   co2eGrams: number | null;
   /** Fração do total do período (0 a 1); null quando o serviço ou o total não têm cálculo. */
@@ -35,7 +37,7 @@ function roundedShares(values: number[], total: number): number[] {
 
 /**
  * Parte de cada serviço no CO₂e do período, pelo id, já arredondada a 0,1 ponto percentual: as partes exibidas somam
- * 100,0%. O total é a soma dos serviços com cálculo. Total zero (período sem emissão calculada) não divide: quem tem
+ * 100,0%. Leva também a energia e o CO₂e do período, que a tabela mostra nas colunas das 24 h (#330), sem outra busca. O total é a soma dos serviços com cálculo. Total zero (período sem emissão calculada) não divide: quem tem
  * cálculo fica com 0%, e não sem parte — "sem cálculo" é só para co2eGrams null, senão um período sem emissão pareceria
  * dado faltando.
  */
@@ -47,7 +49,7 @@ export function rankingShares(ranking: ServicesRankingResponse): Map<string, Ran
   return new Map(
     ranking.services.map((service) => [
       service.id,
-      { position: service.position, co2eGrams: service.co2eGrams, share: shareById.get(service.id) ?? null },
+      { position: service.position, energyKwh: service.energyKwh, co2eGrams: service.co2eGrams, share: shareById.get(service.id) ?? null },
     ]),
   );
 }
