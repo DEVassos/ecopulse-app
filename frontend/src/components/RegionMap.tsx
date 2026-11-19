@@ -69,7 +69,6 @@ export interface Presentation {
   onStart: () => void;
   /** Pausar ou retomar. */
   onToggle: () => void;
-  onStop: () => void;
   /** Toque, clique, tecla ou foco dentro do mapa, fora dos botões da apresentação: o Dashboard pausa (WCAG 2.2.2). */
   onInteract: () => void;
   /** O mapa chegou na região selecionada (fim da viagem, imagens carregadas): começa a contar o tempo nela. */
@@ -433,23 +432,13 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
       <h2 id="region-map-title" className="sr-only">Mapa das regiões</h2>
       <div className="region-map__stage">
         <div ref={containerRef} className="region-map__canvas" aria-label="Globo com uma bolha por região monitorada" />
-        {/* Modo apresentação (#323): nunca liga sozinho; enquanto ativo, a pausa fica sempre visível */}
+        {/* Modo apresentação (#323): nunca liga sozinho. Um botão só, que troca de rótulo (Apresentar → Pausar → Retomar):
+            enquanto o modo está ativo, a pausa fica sempre visível, e o foco do teclado continua nele a cada troca */}
         {presentation && monitored.length > 1 && (
           <div className="region-map__present">
-            {presentation.status === 'off' ? (
-              <button type="button" onClick={presentation.onStart}>
-                Apresentar
-              </button>
-            ) : (
-              <>
-                <button type="button" onClick={presentation.onToggle}>
-                  {presentation.status === 'playing' ? 'Pausar' : 'Retomar'}
-                </button>
-                <button type="button" onClick={presentation.onStop}>
-                  Encerrar
-                </button>
-              </>
-            )}
+            <button type="button" onClick={presentation.status === 'off' ? presentation.onStart : presentation.onToggle}>
+              {{ off: 'Apresentar', playing: 'Pausar', paused: 'Retomar' }[presentation.status]}
+            </button>
           </div>
         )}
         {zoomed && (

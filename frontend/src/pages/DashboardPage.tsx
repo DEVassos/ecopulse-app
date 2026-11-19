@@ -183,7 +183,6 @@ export default function DashboardPage() {
       setSelectedRegion((current) => (current !== null && presentationCodes.includes(current) ? current : nextPresentationCode(presentationCodes, null)));
     },
     onToggle: () => setPresenting((status) => (status === 'playing' ? 'paused' : 'playing')),
-    onStop: () => setPresenting('off'),
     onInteract: () => setPresenting((status) => (status === 'playing' ? 'paused' : status)),
     onArrive: setArrivedRegion,
   };

@@ -80,15 +80,17 @@
     gap: 6px;
   }
 
+  /* Compactos, para cobrir pouco do globo: 30 px de altura, a dos botões de zoom do MapLibre, acima dos 24 px
+     mínimos de alvo de toque (docs/identidade-visual.md, #262) */
   .region-map__present button {
-    min-height: 44px;
-    padding: 0 14px;
+    min-height: 30px;
+    padding: 0 10px;
     border: 1px solid var(--map-glass-border);
-    border-radius: 10px;
+    border-radius: 8px;
     background: var(--map-glass);
     color: var(--map-glass-text);
     font-family: inherit;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
   }
@@ -265,7 +267,7 @@
 
   /* Sem imagens de satélite (sem internet ou serviço da EOX fora): o contorno dos países fica visível e o aviso, no topo */
   .region-map__notice {
-    top: 64px;
+    top: 50px;
     left: 12px;
     max-width: calc(100% - 120px);
     margin: 0;

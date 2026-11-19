@@ -50,7 +50,7 @@ describe('RegionMap', () => {
           overview={regions}
           selectedCode={null}
           onSelect={() => {}}
-          presentation={{ status, onStart: () => {}, onToggle: () => {}, onStop: () => {}, onInteract: () => {}, onArrive: () => {} }}
+          presentation={{ status, onStart: () => {}, onToggle: () => {}, onInteract: () => {}, onArrive: () => {} }}
         />,
       );
     const buttons = (html: string) => [...html.matchAll(/region-map__present">(.*?)<\/div>/g)].flatMap((match) => [...match[1].matchAll(/<button[^>]*>([^<]+)<\/button>/g)].map((item) => item[1]));
@@ -59,9 +59,9 @@ describe('RegionMap', () => {
       expect(buttons(controls('off'))).toEqual(['Apresentar']);
     });
 
-    it('ligado mostra a pausa sempre visível e "Encerrar"; pausado, "Retomar"', () => {
-      expect(buttons(controls('playing'))).toEqual(['Pausar', 'Encerrar']);
-      expect(buttons(controls('paused'))).toEqual(['Retomar', 'Encerrar']);
+    it('um botão só: ligado, a pausa sempre visível; pausado, "Retomar"', () => {
+      expect(buttons(controls('playing'))).toEqual(['Pausar']);
+      expect(buttons(controls('paused'))).toEqual(['Retomar']);
     });
 
     it('não aparece com uma região só, nem sem a prop', () => {
