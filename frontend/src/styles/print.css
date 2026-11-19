@@ -1,0 +1,188 @@
+/*
+ * Relatório do período impresso / em PDF (#13, US13 #54): a página Emissões vira um relatório A4. O tema claro na
+ * impressão vem do usePrintLightTheme (troca o data-theme), então aqui só entram layout e o que some no papel.
+ * Fora da impressão, só o .print-only (cabeçalho e tabela do relatório) fica escondido.
+ */
+@layer components {
+  .print-only {
+    display: none;
+  }
+
+  @media print {
+    @page {
+      size: A4 portrait;
+      margin: 14mm 12mm 16mm;
+
+      /* As margens da página não herdam a fonte do app: sem isto, o rodapé sai em fonte serifada */
+      @bottom-left {
+        content: 'EcoPulse — relatório de emissões (estimativa)';
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        font-size: 8pt;
+        color: #526072;
+      }
+
+      @bottom-right {
+        content: 'Página ' counter(page) ' de ' counter(pages);
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        font-size: 8pt;
+        color: #526072;
+      }
+    }
+
+    * {
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
+    }
+
+    body {
+      background: #ffffff;
+    }
+
+    .print-only {
+      display: block;
+    }
+
+    /* O que é da tela, não do relatório: menu, filtros, botões, selo de atualização, rodapé e tooltip */
+    .topbar,
+    .skip-link,
+    .emissions__filters,
+    .emissions__export,
+    .emissions__chart-bar,
+    .emissions__header,
+    .last-updated,
+    .page-footer,
+    .tooltip {
+      display: none !important;
+    }
+
+    .emissions__card {
+      border: 0;
+      box-shadow: none;
+      padding: 0;
+    }
+
+    .emissions__stats > div,
+    .emissions__chart {
+      break-inside: avoid;
+    }
+
+    /* O gráfico é redesenhado na largura da folha no beforeprint (EmissionsChart); se o navegador imprimir sem o aviso,
+       o viewBox faz o desenho encolher inteiro até a folha em vez de sair cortado */
+    .emissions__chart {
+      height: auto;
+    }
+
+    .emissions__chart svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .print-report__header {
+      margin-bottom: 10pt;
+      padding-bottom: 8pt;
+      border-bottom: 1.5pt solid var(--accent);
+    }
+
+    .print-report__brand {
+      margin: 0;
+      font-size: 9pt;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .print-report__title {
+      margin: 2pt 0 6pt;
+      font-family: var(--display);
+      font-size: 18pt;
+    }
+
+    .print-report__title small {
+      margin-left: 6pt;
+      padding: 1pt 6pt;
+      border: 0.75pt solid var(--border);
+      border-radius: 999px;
+      font-family: var(--sans);
+      font-size: 8pt;
+      font-weight: 500;
+      color: var(--muted);
+      vertical-align: middle;
+    }
+
+    .print-report__meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4pt 18pt;
+      margin: 0;
+      font-size: 9pt;
+    }
+
+    .print-report__meta div {
+      display: flex;
+      gap: 4pt;
+    }
+
+    .print-report__meta dt {
+      color: var(--muted);
+    }
+
+    .print-report__meta dd {
+      margin: 0;
+    }
+
+    .print-report__body {
+      margin-top: 12pt;
+    }
+
+    .print-report__table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 9pt;
+    }
+
+    .print-report__table caption {
+      padding-bottom: 4pt;
+      font-weight: 600;
+      text-align: left;
+    }
+
+    /* Cabeçalho repetido em cada página e nenhuma linha partida entre duas páginas */
+    .print-report__table thead {
+      display: table-header-group;
+    }
+
+    .print-report__table tr {
+      break-inside: avoid;
+    }
+
+    /* O total só no fim: como table-footer-group, o Chrome o repetiria no pé de cada página */
+    .print-report__table tfoot {
+      display: table-row-group;
+    }
+
+    .print-report__table th,
+    .print-report__table td {
+      padding: 2pt 6pt;
+      border-bottom: 0.5pt solid var(--border);
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
+    .print-report__table th:first-child {
+      text-align: left;
+    }
+
+    .print-report__table tfoot th,
+    .print-report__table tfoot td {
+      border-top: 1pt solid var(--text);
+      font-weight: 600;
+    }
+
+    .print-report__note {
+      margin: 8pt 0 0;
+      font-size: 8pt;
+      color: var(--muted);
+    }
+  }
+}

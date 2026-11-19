@@ -10,8 +10,10 @@ import ExportButtons from '../components/ExportButtons';
 import LastUpdated from '../components/LastUpdated';
 import LoadingState from '../components/LoadingState';
 import PeriodPicker from '../components/PeriodPicker';
+import { PrintHeader, PrintTable } from '../components/PrintReport';
 import { useEmissions } from '../hooks/useEmissions';
 import { useMonitoring } from '../hooks/useMonitoring';
+import { usePrintLightTheme } from '../hooks/usePrintLightTheme';
 import { useServices } from '../hooks/useServices';
 import type { EmissionsBucket } from '../services/emissions.types';
 import { isDemoMode } from '../services/services.service';
@@ -43,6 +45,7 @@ import {
 } from '../utils/emissions';
 import { formatDayTime } from '../utils/format';
 import './EmissionsPage.css';
+import '../styles/print.css';
 
 /** Mensagem de erro do período, ligada aos dois campos de data por aria-describedby (#262). */
 const FORM_ERROR_ID = 'emissoes-erro-periodo';
@@ -61,6 +64,8 @@ function locationOf(service: MonitoredService): string {
 export default function EmissionsPage() {
   const { data: servicesData, loading: servicesLoading, error: servicesError, refresh: refreshServices } = useServices();
   const { refreshIntervalMs } = useMonitoring();
+  // Relatório impresso / PDF (#13): papel sempre no tema claro
+  usePrintLightTheme();
   const [params, setParams] = useSearchParams();
   const today = todayInput();
   const services = useMemo(() => servicesData?.services ?? [], [servicesData]);
@@ -224,6 +229,13 @@ export default function EmissionsPage() {
               )}
             </div>
 
+            <PrintHeader
+              serviceName={service.name}
+              location={locationOf(service)}
+              periodLabel={`${periodLabel} (${timeZoneLabel(start)})`}
+              bucketLabel={data ? BUCKET_LABEL[data.bucket] : null}
+              updatedAt={updatedAt}
+            />
             <div className="emissions__card panel">
               <header className="emissions__header">
                 <div>
@@ -382,6 +394,9 @@ export default function EmissionsPage() {
                 </p>
               )}
             </div>
+            {data !== null && points.length > 0 && (
+              <PrintTable points={points} bucket={data.bucket} bucketLabel={BUCKET_LABEL[data.bucket]} multiDay={multiDay} />
+            )}
           </section>
         )}
       </main>
