@@ -53,15 +53,16 @@
     color: var(--map-glass-text);
   }
 
-  /* Ao lado dos botões de zoom do MapLibre, que ficam no canto superior direito */
+  /* Ao lado dos botões de zoom do MapLibre, que ficam no canto superior direito; mesmo tamanho compacto do botão da
+     apresentação (30 px, acima dos 24 px mínimos de alvo de toque, #262) */
   .region-map__overview {
     top: 10px;
     right: 52px;
-    min-height: 44px;
-    padding: 0 14px;
-    border-radius: 10px;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 8px;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
   }
