@@ -1,5 +1,7 @@
 import type { EmissionPoint, EmissionsBucket } from '../services/emissions.types';
+import type { TimeSpan } from '../utils/emissions';
 import { printTable } from '../utils/print-report';
+import Brand from './Brand';
 
 interface HeaderProps {
   serviceName: string;
@@ -12,14 +14,17 @@ interface HeaderProps {
 
 /**
  * Cabeçalho do relatório impresso (#13): só aparece na impressão, no lugar do título do card (que some no papel), com o
- * serviço, o período, a região, o agrupamento e a hora dos dados.
+ * logo, o serviço, o período, a região, o agrupamento e a hora da última atualização dos dados.
  */
 export function PrintHeader({ serviceName, location, periodLabel, bucketLabel, updatedAt }: HeaderProps) {
-  // Hora dos dados, e não da impressão: é a do selo "Última atualização" da tela
+  // Hora da consulta, com o termo do selo da tela: "Dados de 19/11" num relatório de 16/11 parecia contradição
   const at = updatedAt === null ? null : new Date(updatedAt);
   return (
     <header className="print-only print-report__header">
-      <p className="print-report__brand">EcoPulse — Relatório de emissões</p>
+      <div className="print-report__brand">
+        <Brand />
+        <p>Relatório de emissões · DEVassos</p>
+      </div>
       <h1 className="print-report__title">
         {serviceName} <small>estimativa</small>
       </h1>
@@ -42,7 +47,7 @@ export function PrintHeader({ serviceName, location, periodLabel, bucketLabel, u
         )}
         {at && (
           <div>
-            <dt>Dados de</dt>
+            <dt>Última atualização</dt>
             <dd>
               {at.toLocaleDateString('pt-BR')} às {at.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
             </dd>
@@ -59,14 +64,16 @@ interface TableProps {
   /** Nome do agrupamento, como na tela ("15 min", "1 hora"). */
   bucketLabel: string;
   multiDay: boolean;
+  /** Trechos sem coleta, os mesmos do gráfico e do card Coletas (#272): viram linhas em cinza na tabela. */
+  missing: readonly TimeSpan[];
 }
 
 /**
  * Tabela por intervalo do gráfico e nota do método (#13): só na impressão, abaixo do card. O cabeçalho da tabela se
  * repete em cada página e nenhuma linha quebra entre duas páginas (CSS de impressão).
  */
-export function PrintTable({ points, bucket, bucketLabel, multiDay }: TableProps) {
-  const table = printTable(points, bucket, multiDay);
+export function PrintTable({ points, bucket, bucketLabel, multiDay, missing }: TableProps) {
+  const table = printTable(points, bucket, multiDay, missing);
   return (
     <section className="print-only print-report__body">
       {table === null ? (
@@ -74,6 +81,12 @@ export function PrintTable({ points, bucket, bucketLabel, multiDay }: TableProps
       ) : (
         <table className="print-report__table">
           <caption>Emissão por intervalo de {bucketLabel}</caption>
+          <colgroup>
+            <col />
+            <col className="print-report__num" />
+            <col className="print-report__num" />
+            <col className="print-report__num" />
+          </colgroup>
           <thead>
             <tr>
               <th scope="col">Início</th>
@@ -83,14 +96,22 @@ export function PrintTable({ points, bucket, bucketLabel, multiDay }: TableProps
             </tr>
           </thead>
           <tbody>
-            {table.rows.map((row) => (
-              <tr key={row.label}>
-                <th scope="row">{row.label}</th>
-                <td>{row.collections.toLocaleString('pt-BR')}</td>
-                <td>{row.energy}</td>
-                <td>{row.co2e}</td>
-              </tr>
-            ))}
+            {table.rows.map((row) =>
+              row.kind === 'sem-coleta' ? (
+                <tr key={`gap-${row.label}`} className="print-report__gap">
+                  <th scope="row" colSpan={4}>
+                    {row.label} · sem coleta ({row.duration})
+                  </th>
+                </tr>
+              ) : (
+                <tr key={row.label}>
+                  <th scope="row">{row.label}</th>
+                  <td>{row.collections.toLocaleString('pt-BR')}</td>
+                  <td>{row.energy}</td>
+                  <td>{row.co2e}</td>
+                </tr>
+              ),
+            )}
           </tbody>
           <tfoot>
             <tr>
@@ -104,7 +125,8 @@ export function PrintTable({ points, bucket, bucketLabel, multiDay }: TableProps
       )}
       <p className="print-report__note">
         Estimativa: potência estimada pelas métricas × intervalo de coleta × intensidade de carbono da região, somada por
-        intervalo. Método e fatores em docs/calculos.md. Valores sem cálculo aparecem como "—", nunca como zero.
+        intervalo. Método e fatores em docs/calculos.md. Valores sem cálculo aparecem como "—", nunca como zero; trechos
+        sem nenhuma coleta aparecem em cinza e não entram no total.
       </p>
     </section>
   );

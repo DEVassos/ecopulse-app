@@ -1,7 +1,10 @@
 /*
  * Relatório do período impresso / em PDF (#13, US13 #54): a página Emissões vira um relatório A4. O tema claro na
- * impressão vem do usePrintLightTheme (troca o data-theme), então aqui só entram layout e o que some no papel.
- * Fora da impressão, só o .print-only (cabeçalho e tabela do relatório) fica escondido.
+ * impressão vem do usePrintReport (troca o data-theme), então aqui só entram layout e o que some no papel.
+ * Este arquivo entra no CSS do app inteiro: cada regra de impressão começa por .has-print-report, a classe que o
+ * usePrintReport põe no <html> só enquanto a página Emissões está aberta, e a folha A4 com rodapé é uma página nomeada
+ * (relatorio). Nas outras páginas, o Ctrl+P continua como antes. Fora da impressão, só o .print-only (cabeçalho e
+ * tabela do relatório) fica escondido.
  */
 @layer components {
   .print-only {
@@ -9,13 +12,13 @@
   }
 
   @media print {
-    @page {
+    @page relatorio {
       size: A4 portrait;
       margin: 14mm 12mm 16mm;
 
       /* As margens da página não herdam a fonte do app: sem isto, o rodapé sai em fonte serifada */
       @bottom-left {
-        content: 'EcoPulse — relatório de emissões (estimativa)';
+        content: 'EcoPulse · DEVassos — relatório de emissões (estimativa)';
         font-family: 'IBM Plex Sans', system-ui, sans-serif;
         font-size: 8pt;
         color: #526072;
@@ -29,61 +32,93 @@
       }
     }
 
-    * {
+    .has-print-report .page {
+      page: relatorio;
+    }
+
+    .has-print-report * {
       print-color-adjust: exact;
       -webkit-print-color-adjust: exact;
     }
 
-    body {
+    .has-print-report body {
       background: #ffffff;
     }
 
-    .print-only {
+    .has-print-report .print-only {
       display: block;
     }
 
     /* O que é da tela, não do relatório: menu, filtros, botões, selo de atualização, rodapé e tooltip */
-    .topbar,
-    .skip-link,
-    .emissions__filters,
-    .emissions__export,
-    .emissions__chart-bar,
-    .emissions__header,
-    .last-updated,
-    .page-footer,
-    .tooltip {
+    .has-print-report .topbar,
+    .has-print-report .skip-link,
+    .has-print-report .emissions__filters,
+    .has-print-report .emissions__export,
+    .has-print-report .emissions__chart-bar,
+    .has-print-report .emissions__header,
+    .has-print-report .last-updated,
+    .has-print-report .page-footer,
+    .has-print-report .tooltip {
       display: none !important;
     }
 
-    .emissions__card {
+    .has-print-report .emissions__card {
       border: 0;
       box-shadow: none;
       padding: 0;
     }
 
-    .emissions__stats > div,
-    .emissions__chart {
+    .has-print-report .emissions__stats > div,
+    .has-print-report .emissions__chart {
       break-inside: avoid;
+    }
+
+    /* KPIs no papel: duas linhas de 3 (com o auto-fit da tela, 700 px davam 4 + 2), sem o fundo cinza e sem a sombra
+       do pico, que gastam tinta e parecem tela */
+    .has-print-report .emissions__stats {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .has-print-report .emissions__stats > div {
+      background: none;
+      box-shadow: none;
     }
 
     /* O gráfico é redesenhado na largura da folha no beforeprint (EmissionsChart); se o navegador imprimir sem o aviso,
        o viewBox faz o desenho encolher inteiro até a folha em vez de sair cortado */
-    .emissions__chart {
+    .has-print-report .emissions__chart {
       height: auto;
     }
 
-    .emissions__chart svg {
+    .has-print-report .emissions__chart svg {
       max-width: 100%;
       height: auto;
     }
 
-    .print-report__header {
+    .has-print-report .print-report__header {
       margin-bottom: 10pt;
       padding-bottom: 8pt;
       border-bottom: 1.5pt solid var(--accent);
     }
 
-    .print-report__brand {
+    /* Cabeçalho corporativo (critério 2 da #24): o logo do app, menor, e o nome do time */
+    .has-print-report .print-report__brand {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12pt;
+    }
+
+    .has-print-report .print-report__brand svg {
+      width: 20pt;
+      height: 20pt;
+    }
+
+    .has-print-report .print-report__brand .brand-name {
+      font-size: 16pt;
+    }
+
+    .has-print-report .print-report__brand p {
       margin: 0;
       font-size: 9pt;
       font-weight: 600;
@@ -92,13 +127,13 @@
       color: var(--accent);
     }
 
-    .print-report__title {
+    .has-print-report .print-report__title {
       margin: 2pt 0 6pt;
       font-family: var(--display);
       font-size: 18pt;
     }
 
-    .print-report__title small {
+    .has-print-report .print-report__title small {
       margin-left: 6pt;
       padding: 1pt 6pt;
       border: 0.75pt solid var(--border);
@@ -110,7 +145,7 @@
       vertical-align: middle;
     }
 
-    .print-report__meta {
+    .has-print-report .print-report__meta {
       display: flex;
       flex-wrap: wrap;
       gap: 4pt 18pt;
@@ -118,68 +153,90 @@
       font-size: 9pt;
     }
 
-    .print-report__meta div {
+    .has-print-report .print-report__meta div {
       display: flex;
       gap: 4pt;
     }
 
-    .print-report__meta dt {
+    .has-print-report .print-report__meta dt {
       color: var(--muted);
     }
 
-    .print-report__meta dd {
+    .has-print-report .print-report__meta dd {
       margin: 0;
     }
 
-    .print-report__body {
+    .has-print-report .print-report__body {
       margin-top: 12pt;
     }
 
-    .print-report__table {
-      width: 100%;
+    /* Largura fixa (126 mm dos 186 mm da folha): com 100%, as colunas se espalhavam e Coletas ficava longe de Início */
+    .has-print-report .print-report__table {
+      width: 126mm;
+      table-layout: fixed;
       border-collapse: collapse;
       font-size: 9pt;
     }
 
-    .print-report__table caption {
+    .has-print-report .print-report__table caption {
       padding-bottom: 4pt;
       font-weight: 600;
       text-align: left;
     }
 
     /* Cabeçalho repetido em cada página e nenhuma linha partida entre duas páginas */
-    .print-report__table thead {
+    .has-print-report .print-report__table thead {
       display: table-header-group;
     }
 
-    .print-report__table tr {
+    .has-print-report .print-report__table tr {
       break-inside: avoid;
     }
 
     /* O total só no fim: como table-footer-group, o Chrome o repetiria no pé de cada página */
-    .print-report__table tfoot {
+    .has-print-report .print-report__table tfoot {
       display: table-row-group;
     }
 
-    .print-report__table th,
-    .print-report__table td {
+    .has-print-report .print-report__table th,
+    .has-print-report .print-report__table td {
       padding: 2pt 6pt;
       border-bottom: 0.5pt solid var(--border);
       font-variant-numeric: tabular-nums;
       text-align: right;
     }
 
-    .print-report__table th:first-child {
+    .has-print-report .print-report__table th:first-child {
       text-align: left;
     }
 
-    .print-report__table tfoot th,
-    .print-report__table tfoot td {
+    .has-print-report .print-report__table colgroup col:first-child {
+      width: 36mm;
+    }
+
+    .has-print-report .print-report__num {
+      width: 30mm;
+    }
+
+    /* Só o Total em negrito: o horário de cada linha fica com peso normal */
+    .has-print-report .print-report__table tbody th {
+      font-weight: 400;
+    }
+
+    /* Trecho sem coleta (#272): uma linha em cinza ocupando a tabela, fora do total */
+    .has-print-report .print-report__gap th {
+      font-style: italic;
+      color: var(--muted);
+      background: #f1f3f5;
+    }
+
+    .has-print-report .print-report__table tfoot th,
+    .has-print-report .print-report__table tfoot td {
       border-top: 1pt solid var(--text);
       font-weight: 600;
     }
 
-    .print-report__note {
+    .has-print-report .print-report__note {
       margin: 8pt 0 0;
       font-size: 8pt;
       color: var(--muted);
