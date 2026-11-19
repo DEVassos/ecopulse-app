@@ -294,4 +294,17 @@ describe('ServicesTable', () => {
     expect(html).toMatch(/▲<\/span><span class="sr-only">subiu: <\/span>50%/);
     expect(html).toMatch(/▼<\/span><span class="sr-only">desceu: <\/span>377/);
   });
+
+  it('esconde as setas quando a última busca falhou: o número não é atual (#331)', () => {
+    const html = renderToStaticMarkup(
+      <ServicesTable
+        services={[service('igual', 'ativo', 1)]}
+        onSelect={() => undefined}
+        stale
+        trends={new Map([['igual', { cpuPercent: 'up', carbonIntensityGco2ePerKwh: 'down' }]])}
+      />,
+    );
+    expect(html).not.toMatch(/[▲▼]|subiu|desceu/);
+    expect(html).toContain('50%');
+  });
 });

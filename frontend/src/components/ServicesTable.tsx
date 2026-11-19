@@ -83,7 +83,10 @@ interface Props {
   regionGridsStale?: boolean;
   /** Serviços que mudaram de estado na última atualização (#331): a linha ganha um destaque breve. */
   changedIds?: ReadonlySet<string>;
-  /** CPU e fator que subiram ou desceram desde a atualização anterior (#331): seta ▲/▼ antes do valor. */
+  /**
+   * CPU e fator que subiram ou desceram desde a atualização anterior (#331): seta ▲/▼ antes do valor. Com `stale`, as
+   * setas somem: o número é da atualização anterior e não "acabou de subir".
+   */
   trends?: ReadonlyMap<string, ValueTrends>;
 }
 
@@ -320,7 +323,7 @@ export default function ServicesTable({
               const inRegion = selectedRegion !== null && service.regionCode === selectedRegion;
               // Rede da região agora (#324): o selo segue GET /api/regions, não o fator gravado na última leitura
               const grid = service.regionCode === null ? undefined : regionGrids?.get(service.regionCode);
-              const trend = trends?.get(service.id);
+              const trend = stale ? undefined : trends?.get(service.id);
               return (
                 // O clique vale para a linha toda; o botão do nome dá o mesmo acesso pelo teclado (o clique dele sobe até aqui).
                 // Focar o botão antes de abrir faz o foco voltar para ele ao fechar, mesmo com clique fora do nome.
