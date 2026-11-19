@@ -1,5 +1,5 @@
 import { apiRequest, unexpectedFormat } from './api';
-import { count, readAmountOrNull, readId, readInstant, readList, readOneOf, readRecord, readText, readTextOrNull } from './contract';
+import { count, readAmountOrNull, readId, readInstant, readList, readOneOf, readRecord, readSecondsOrNull, readText, readTextOrNull } from './contract';
 import { demoServices } from './demo-data';
 import { RANKING_METRICS } from './ranking.types';
 import type { RankedService, RankingMetric, ServicesRankingResponse } from './ranking.types';
@@ -30,6 +30,7 @@ function parseRankedService(value: unknown, at: string): RankedService {
     status: readOneOf(item.status, SERVICE_STATUSES, `${at}.status`),
     energyKwh: readAmountOrNull(item.energyKwh, `${at}.energyKwh`),
     co2eGrams: readAmountOrNull(item.co2eGrams, `${at}.co2eGrams`),
+    monitoredSeconds: readSecondsOrNull(item.monitoredSeconds, `${at}.monitoredSeconds`),
     collections: readCount(item.collections, `${at}.collections`),
     failed: readCount(item.failed, `${at}.failed`),
     notCalculated: readCount(item.notCalculated, `${at}.notCalculated`),
@@ -81,6 +82,8 @@ function demoRanking(metric: RankingMetric, from: string, to: string): ServicesR
     status: service.status,
     energyKwh: service.energyKwh === null ? null : service.energyKwh * readingsPerPeriod,
     co2eGrams: service.emissionsG === null ? null : service.emissionsG * readingsPerPeriod,
+    // O demo estima uma coleta calculada a cada 30 s: o tempo monitorado é o do período, em segundos (#329)
+    monitoredSeconds: service.energyKwh === null ? null : readingsPerPeriod * (30_000 / 1000),
     collections: service.lastReadingAt === null ? 0 : readingsPerPeriod,
     failed: 0,
     notCalculated: 0,

@@ -15,7 +15,7 @@ import CompactValue from './CompactValue';
 import MissingValue from './MissingValue';
 import StatusBadge from './StatusBadge';
 
-type SortKey = 'name' | 'status' | 'energy24h' | 'co2e24h' | 'share' | 'cpuPercent' | 'carbonIntensityGco2ePerKwh' | 'lastReadingAt' | 'location';
+type SortKey = 'name' | 'status' | 'energy24h' | 'co2e24h' | 'share' | 'averageWatts' | 'cpuPercent' | 'carbonIntensityGco2ePerKwh' | 'lastReadingAt' | 'location';
 
 interface Column {
   key: SortKey;
@@ -37,6 +37,8 @@ const COLUMNS: Column[] = [
   { key: 'energy24h', label: 'Energia 24 h', numeric: true, quantity: 'energy' },
   { key: 'co2e24h', label: 'CO₂e 24 h', numeric: true, quantity: 'co2e' },
   { key: 'share', label: 'Parte do CO₂e (24 h)', numeric: true },
+  // Potência média das mesmas 24 h (#329): energia ÷ segundos monitorados, a eficiência energética de docs/calculos.md
+  { key: 'averageWatts', label: 'Potência média (W)', numeric: true },
   // A leitura mais recente fica junta: CPU, o fator que ela usou e o horário dela. A energia e o CO₂e dessa leitura
   // (Wh e mg) estão na janela de detalhes (#330)
   { key: 'cpuPercent', label: 'CPU', numeric: true },
@@ -91,6 +93,7 @@ type Shares = Map<string, RankingShare> | null | undefined;
 function sortValue(service: MonitoredService, key: SortKey, shares: Shares): string | number | null {
   if (key === 'share' || key === 'co2e24h') return shares ? (shares.get(service.id)?.co2eGrams ?? null) : service.emissionsG;
   if (key === 'energy24h') return shares ? (shares.get(service.id)?.energyKwh ?? null) : service.energyKwh;
+  if (key === 'averageWatts') return shares?.get(service.id)?.averageWatts ?? null;
   if (key === 'location') return [service.regionCode, service.region, service.country, service.city].filter(Boolean).join(' ') || null;
   if (key === 'status') return STATUS_ORDER[service.status];
   return service[key];
@@ -180,6 +183,34 @@ function ShareCell({
   );
 }
 
+/**
+ * Tooltip da potência média (#329): a definição oficial de `docs/calculos.md` § Eficiência energética e de carbono. O
+ * número não é a média de `power_watts` (outro conjunto de coletas) nem carrega a carga de trabalho do serviço.
+ */
+const POWER_TOOLTIP =
+  'Potência média das 24 h: energia do período ÷ segundos monitorados das mesmas coletas calculadas. '
+  + 'Menor é melhor; não é a média de power_watts nem a carga de trabalho do serviço. Definição em docs/calculos.md.';
+
+/**
+ * Potência média do período em W (#329), a eficiência energética de docs/calculos.md § Eficiência energética e de
+ * carbono. As ausências são as mesmas das outras colunas do período, mais uma: energia calculada sem segundos
+ * monitorados (denominador zero) também não vira potência, e nenhuma delas aparece como 0 W.
+ */
+function PowerCell({ share, ranked }: { share: RankingShare | undefined; ranked: boolean }) {
+  const value = share?.averageWatts ?? null;
+  // Energia calculada sem segundos monitorados (denominador zero): falta o tempo, não o cálculo do período
+  const noSeconds = share !== undefined && share.energyKwh !== null && value === null;
+  const missing = noSeconds
+    ? { label: 'sem tempo monitorado', title: 'Energia no período sem segundos monitorados: não há potência média a calcular' }
+    : periodMissing(share, ranked, value);
+  if (missing || value === null) return <MissingValue {...missing} />;
+  return (
+    <span data-tooltip={POWER_TOOLTIP} data-tooltip-value={`${formatNumber(value, 1)} W`}>
+      {formatNumber(value, 1)} W
+    </span>
+  );
+}
+
 /** Tabela operacional dos serviços monitorados (RF09, RF12, RF14): busca por nome, ordenação por coluna e clique para os detalhes. */
 export default function ServicesTable({
   services,
@@ -258,9 +289,9 @@ export default function ServicesTable({
       {/* scroll-edge: sombra na borda direita enquanto há colunas escondidas (#263) */}
       <div className={hasMoreColumns ? 'scroll-edge scroll-edge--more' : 'scroll-edge'}>
       <div ref={scrollRef} className="relative overflow-x-auto">
-        <table className="w-full min-w-[880px] border-collapse text-sm">
+        <table className="w-full min-w-[960px] border-collapse text-sm">
           <thead>
-            {/* Cabeçalhos quebram em duas linhas (#298): com nove colunas, títulos numa linha só não cabem em 1366 px */}
+            {/* Cabeçalhos quebram em duas linhas (#298): com dez colunas, títulos numa linha só não cabem em 1366 px */}
             <tr className="align-bottom text-left text-xs leading-tight text-muted">
               {COLUMNS.map((column) => (
                 <th
@@ -359,6 +390,9 @@ export default function ServicesTable({
                   </td>
                   <td className="px-5 py-2 text-right font-data">
                     <ShareCell share={share} ranked={ranked} leaderShare={leaderShare} stale={sharesStale} />
+                  </td>
+                  <td className={`px-5 py-2 text-right font-data${dimPeriod}`}>
+                    <PowerCell share={share} ranked={ranked} />
                   </td>
                   {/* Potência em destaque e recursos no tooltip (#298); o atributo fica antes de className porque os testes
                       casam a classe colada ao valor. Quem usa teclado vê os mesmos dados na janela de detalhes */}

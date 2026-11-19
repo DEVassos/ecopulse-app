@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { MonitoredService, ServiceStatus } from '../services/services.types';
 import ServicesTable from './ServicesTable';
+import { averagePowerFromEnergy } from '../utils/efficiency';
 import type { RankingShare } from '../utils/ranking';
 
 function service(id: string, status: ServiceStatus, emissionsG: number, lastReadingAt = new Date().toISOString()): MonitoredService {
@@ -34,6 +35,12 @@ const dimmed = (value: string) => new RegExp(`font-[a-z]+ text-muted">${value}`)
 /** Nomes dos serviços na ordem das linhas da tabela. */
 function rowOrder(html: string): string[] {
   return [...html.matchAll(/aria-haspopup="dialog"[^>]*>([^<]+)</g)].map((match) => match[1]);
+}
+
+/** RankingShare da tabela: `rankingShares` deriva o tempo monitorado e a potência média da energia (#329). */
+function shareOf(position: number | null, energyKwh: number | null, co2eGrams: number | null, share: number | null): RankingShare {
+  const monitoredSeconds = energyKwh === null ? null : 86_400;
+  return { position, energyKwh, co2eGrams, share, monitoredSeconds, averageWatts: averagePowerFromEnergy(energyKwh, monitoredSeconds) };
 }
 
 describe('ServicesTable', () => {
@@ -88,8 +95,8 @@ describe('ServicesTable', () => {
 
   it('ordena os ativos pela parte no período, e não pela emissão instantânea (#260)', () => {
     const shares = new Map<string, RankingShare>([
-      ['ativo-baixo', { position: 1, energyKwh: 1.75, co2eGrams: 700, share: 0.7 }],
-      ['ativo-alto', { position: 2, energyKwh: 0.75, co2eGrams: 300, share: 0.3 }],
+      ['ativo-baixo', shareOf(1, 1.75, 700, 0.7)],
+      ['ativo-alto', shareOf(2, 0.75, 300, 0.3)],
     ]);
     const html = renderToStaticMarkup(
       <ServicesTable
@@ -102,7 +109,7 @@ describe('ServicesTable', () => {
   });
 
   it('marca o 1º do período com a parte, e não só com a cor', () => {
-    const shares = new Map<string, RankingShare>([['ativo', { position: 1, energyKwh: 1.75, co2eGrams: 700, share: 0.7 }]]);
+    const shares = new Map<string, RankingShare>([['ativo', shareOf(1, 1.75, 700, 0.7)]]);
     const html = renderToStaticMarkup(<ServicesTable services={[service('ativo', 'ativo', 1)]} onSelect={() => undefined} shares={shares} />);
     expect(html).toMatch(/>1º</);
     expect(html).toMatch(/70,0%/);
@@ -110,8 +117,8 @@ describe('ServicesTable', () => {
 
   it('com total zero no período, não marca 1º nem acende o neon numa barra vazia (#260)', () => {
     const shares = new Map<string, RankingShare>([
-      ['a', { position: 1, energyKwh: 0, co2eGrams: 0, share: 0 }],
-      ['b', { position: 2, energyKwh: 0, co2eGrams: 0, share: 0 }],
+      ['a', shareOf(1, 0, 0, 0)],
+      ['b', shareOf(2, 0, 0, 0)],
     ]);
     const html = renderToStaticMarkup(
       <ServicesTable services={[service('a', 'ativo', 1), service('b', 'ativo', 1)]} onSelect={() => undefined} shares={shares} />,
@@ -122,7 +129,7 @@ describe('ServicesTable', () => {
   });
 
   it('apaga o 1º e a barra quando a parte está desatualizada', () => {
-    const shares = new Map<string, RankingShare>([['ativo', { position: 1, energyKwh: 1.75, co2eGrams: 700, share: 1 }]]);
+    const shares = new Map<string, RankingShare>([['ativo', shareOf(1, 1.75, 700, 1)]]);
     const html = renderToStaticMarkup(
       <ServicesTable services={[service('ativo', 'ativo', 1)]} onSelect={() => undefined} shares={shares} sharesStale />,
     );
@@ -177,7 +184,7 @@ describe('ServicesTable', () => {
       <ServicesTable
         services={[service('ativo', 'ativo', 1)]}
         onSelect={() => undefined}
-        shares={new Map([['ativo', { position: null, energyKwh: null, co2eGrams: null, share: null }]])}
+        shares={new Map([['ativo', shareOf(null, null, null, null)]])}
       />,
     );
     expect(withoutCalculation).toMatch(/sem cálculo no período/);
@@ -222,9 +229,9 @@ describe('ServicesTable', () => {
 
   it('abre ordenada pelo CO₂e das 24 h, do maior para o menor, com o maior emissor na primeira linha (#330)', () => {
     const shares = new Map<string, RankingShare>([
-      ['meio', { position: 2, energyKwh: 0.75, co2eGrams: 300, share: 0.3 }],
-      ['maior', { position: 1, energyKwh: 1.5, co2eGrams: 600, share: 0.6 }],
-      ['menor', { position: 3, energyKwh: 0.25, co2eGrams: 100, share: 0.1 }],
+      ['meio', shareOf(2, 0.75, 300, 0.3)],
+      ['maior', shareOf(1, 1.5, 600, 0.6)],
+      ['menor', shareOf(3, 0.25, 100, 0.1)],
     ]);
     const html = renderToStaticMarkup(
       <ServicesTable
@@ -239,8 +246,8 @@ describe('ServicesTable', () => {
 
   it('mostra energia e CO₂e das 24 h vindos do ranking, na unidade do maior valor, e nunca a última leitura (#330)', () => {
     const shares = new Map<string, RankingShare>([
-      ['a', { position: 1, energyKwh: 2.5, co2eGrams: 1200, share: 0.8 }],
-      ['b', { position: 2, energyKwh: 0.5, co2eGrams: 300, share: 0.2 }],
+      ['a', shareOf(1, 2.5, 1200, 0.8)],
+      ['b', shareOf(2, 0.5, 300, 0.2)],
     ]);
     const html = renderToStaticMarkup(
       <ServicesTable services={[service('a', 'ativo', 0.4), service('b', 'ativo', 0.1)]} onSelect={() => undefined} shares={shares} />,
@@ -257,27 +264,55 @@ describe('ServicesTable', () => {
   });
 
   it('apaga só as colunas das 24 h quando o ranking falhou, e mantém a última leitura acesa (#330)', () => {
-    const shares = new Map<string, RankingShare>([['ativo', { position: 1, energyKwh: 1.75, co2eGrams: 700, share: 1 }]]);
+    const shares = new Map<string, RankingShare>([['ativo', shareOf(1, 1.75, 700, 1)]]);
     const html = renderToStaticMarkup(
       <ServicesTable services={[service('ativo', 'ativo', 1)]} onSelect={() => undefined} shares={shares} sharesStale />,
     );
     expect(html).toMatch(/font-data text-muted"><span data-tooltip="Energia nas últimas 24 h"/);
     expect(html).toMatch(/font-data text-muted"><span data-tooltip="CO₂e nas últimas 24 h"/);
+    // A potência média sai das mesmas 24 h do ranking (#329): também apaga e volta na próxima atualização
+    expect(html).toMatch(/font-data text-muted"><span data-tooltip="Potência média das 24 h/);
     expect(html).not.toMatch(dimmed('50%'));
   });
 
-  it('nas colunas das 24 h, mostra o motivo no lugar de zero quando falta o ranking ou o cálculo (#330)', () => {
+  it('nas colunas do período, mostra o motivo no lugar de zero quando falta o ranking ou o cálculo (#330, #329)', () => {
     const noRanking = renderToStaticMarkup(<ServicesTable services={[service('ativo', 'ativo', 1)]} onSelect={() => undefined} />);
-    expect(noRanking.match(/ranking do período indisponível/g)).toHaveLength(4);
+    expect(noRanking.match(/ranking do período indisponível/g)).toHaveLength(5);
     expect(noRanking).not.toMatch(/>0<|>0,00</);
 
     const withoutCalculation = renderToStaticMarkup(
       <ServicesTable
         services={[service('ativo', 'ativo', 1)]}
         onSelect={() => undefined}
-        shares={new Map([['ativo', { position: null, energyKwh: null, co2eGrams: null, share: null }]])}
+        shares={new Map([['ativo', shareOf(null, null, null, null)]])}
       />,
     );
-    expect(withoutCalculation.match(/sem cálculo no período/g)).toHaveLength(4);
+    expect(withoutCalculation.match(/sem cálculo no período/g)).toHaveLength(5);
+  });
+  it('mostra a potência média das 24 h a partir da energia e dos segundos monitorados (#329)', () => {
+    const shares = new Map<string, RankingShare>([
+      ['a', shareOf(1, 0.48, 500, 0.67)],
+      ['b', shareOf(2, 0.24, 250, 0.33)],
+    ]);
+    const html = renderToStaticMarkup(
+      <ServicesTable services={[service('a', 'ativo', 1), service('b', 'ativo', 1)]} onSelect={() => undefined} shares={shares} />,
+    );
+    expect(html).toContain('Potência média (W)');
+    // 0,48 kWh em 86 400 s = 20 W (exemplo de docs/calculos.md), e não a média de power_watts da última leitura
+    expect(html).toContain('data-tooltip-value="20,0 W">20,0 W');
+    expect(html).toContain('data-tooltip-value="10,0 W">10,0 W');
+    expect(html).toContain('não é a média de power_watts');
+  });
+
+  it('diz que falta o tempo monitorado quando há energia no período sem segundos para dividir (#329)', () => {
+    const html = renderToStaticMarkup(
+      <ServicesTable
+        services={[service('ativo', 'ativo', 1)]}
+        onSelect={() => undefined}
+        shares={new Map([['ativo', { position: 1, energyKwh: 1.2, co2eGrams: 400, share: 1, monitoredSeconds: null, averageWatts: null }]])}
+      />,
+    );
+    expect(html).toContain('sem tempo monitorado');
+    expect(html).not.toContain('>0,0 W');
   });
 });
