@@ -7,7 +7,10 @@ import {
   estimateMigration,
   gridByCode,
   isCleanGrid,
+  isCleanestOrigin,
   joinRegions,
+  migrationChange,
+  migrationRows,
   sortByCleanest,
   worstStatus,
 } from './regions';
@@ -103,6 +106,75 @@ describe('worstStatus', () => {
   it('removido não entra: região só com removidos não tem estado', () => {
     expect(worstStatus({ ativo: 0, indisponivel: 0, sem_metricas: 0, removido: 2 })).toBeNull();
     expect(worstStatus({ ativo: 1, removido: 4 })).toBe('ativo');
+  });
+});
+
+describe('migrationRows (#326)', () => {
+  it('critério 1: us-east com 0,118 kWh e 44,6 g; Montreal a 40 g/kWh dá 4,72 g e 89,42% menos', () => {
+    const rows = migrationRows(REGIONS, 'us-east', 0.118, 44.6);
+    const [first] = rows;
+    expect(first.region.code).toBe('ca-central');
+    expect(first.cleanest).toBe(true);
+    expect(first.estimate?.grams).toBeCloseTo(4.72, 10);
+    expect(first.estimate?.savedGrams).toBeCloseTo(39.88, 10);
+    expect(first.estimate?.savedPercent?.toFixed(2)).toBe('89.42');
+  });
+
+  it('lista todas as regiões menos a origem, da mais limpa para a mais suja, com só uma em destaque', () => {
+    const rows = migrationRows(REGIONS, 'us-east', 0.118, 44.6);
+    expect(rows.map((row) => row.region.code)).toEqual(['ca-central', 'br-sudeste', 'eu-west', 'jp-east']);
+    expect(rows.filter((row) => row.cleanest)).toHaveLength(1);
+  });
+
+  it('critério 3: cada linha refaz a conta com a intensidade dela; destino mais sujo sai com redução negativa', () => {
+    const jp = migrationRows(REGIONS, 'us-east', 0.118, 44.6).find((row) => row.region.code === 'jp-east');
+    expect(jp?.estimate?.grams).toBeCloseTo(0.118 * 465, 10);
+    expect(jp?.estimate?.savedGrams).toBeLessThan(0);
+  });
+
+  it('região sem intensidade vai para o fim, indisponível, sem conta e nunca em destaque', () => {
+    const rows = migrationRows([...REGIONS, region('sa-east', null, null, 0)], 'us-east', 0.118, 44.6);
+    const last = rows[rows.length - 1];
+    expect(last).toMatchObject({ available: false, cleanest: false, estimate: null });
+    expect(last.region.code).toBe('sa-east');
+  });
+
+  it('sem energia ou CO₂e no período, as linhas continuam (para escolher), mas sem número', () => {
+    const rows = migrationRows(REGIONS, 'us-east', null, null);
+    expect(rows).toHaveLength(4);
+    expect(rows.every((row) => row.estimate === null)).toBe(true);
+    expect(rows[0].available).toBe(true);
+  });
+});
+
+describe('isCleanestOrigin (#326)', () => {
+  it('critério 2: a região de menor intensidade já é a mais limpa', () => {
+    expect(isCleanestOrigin(REGIONS, 'ca-central')).toBe(true);
+    expect(isCleanestOrigin(REGIONS, 'us-east')).toBe(false);
+  });
+
+  it('empate de intensidade conta como "já é a mais limpa", embora cleanestRegion aponte a empatada', () => {
+    const tied = [...REGIONS, region('ca-east', 40, 90, 0)];
+    expect(cleanestRegion(tied, 'ca-central')?.code).toBe('ca-east');
+    expect(isCleanestOrigin(tied, 'ca-central')).toBe(true);
+    expect(isCleanestOrigin(tied, 'ca-east')).toBe(true);
+  });
+
+  it('ignora destinos sem intensidade; origem sem intensidade nunca é "a mais limpa"', () => {
+    expect(isCleanestOrigin([...REGIONS, region('sa-east', null, null, 0)], 'ca-central')).toBe(true);
+    expect(isCleanestOrigin([...REGIONS, region('sa-east', null, null, 1)], 'sa-east')).toBe(false);
+  });
+});
+
+describe('migrationChange (#326)', () => {
+  it('redução, aumento e igual com números sem sinal (docs/calculos.md: nunca "redução negativa")', () => {
+    expect(migrationChange({ grams: 2, savedGrams: 16.9, savedPercent: 89.42 })).toEqual({ kind: 'reducao', grams: 16.9, percent: 89.42 });
+    expect(migrationChange({ grams: 23.25, savedGrams: -4.35, savedPercent: -23.02 })).toEqual({ kind: 'aumento', grams: 4.35, percent: 23.02 });
+    expect(migrationChange({ grams: 5, savedGrams: 0, savedPercent: 0 })).toEqual({ kind: 'igual', grams: 0, percent: 0 });
+  });
+
+  it('CO₂e de origem 0: gramas sem percentual', () => {
+    expect(migrationChange({ grams: 1, savedGrams: -1, savedPercent: null })).toEqual({ kind: 'aumento', grams: 1, percent: null });
   });
 });
 

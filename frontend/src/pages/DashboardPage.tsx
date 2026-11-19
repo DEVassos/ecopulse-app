@@ -5,6 +5,7 @@ import ErrorState from '../components/ErrorState';
 import KpiPanel from '../components/KpiPanel';
 import LastUpdated from '../components/LastUpdated';
 import LoadingState from '../components/LoadingState';
+import RegionDetail from '../components/RegionDetail';
 import RegionList from '../components/RegionList';
 import ServiceDetailsDialog from '../components/ServiceDetailsDialog';
 import ServicesTable from '../components/ServicesTable';
@@ -53,6 +54,12 @@ export default function DashboardPage() {
   // Uma seleção para a lista de regiões e a tabela (#342); o mapa da #322 entra nela. Clicar de novo desfaz.
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const toggleRegion = (code: string) => setSelectedRegion((current) => (current === code ? null : code));
+  // Destino da simulação de migração (#326), guardado com a origem: trocar a origem zera o destino sem efeito extra, e a
+  // atualização periódica não mexe nele, porque fica pelo `code`
+  const [simulation, setSimulation] = useState<{ origin: string; destination: string } | null>(null);
+  const destinationCode = simulation !== null && simulation.origin === selectedRegion ? simulation.destination : null;
+  const chooseDestination = (code: string | null) =>
+    setSimulation(code === null || selectedRegion === null ? null : { origin: selectedRegion, destination: code });
   // Como o ranking e as regiões, espera a primeira lista: antes, a busca do primeiro render era cancelada logo em seguida
   useEffect(() => {
     if (isDemoMode || updatedAt === null) return;
@@ -232,6 +239,18 @@ export default function DashboardPage() {
               stale={regionsError !== '' || error !== ''}
             />
           </div>
+        )}
+        {/* Simulação de migração da região selecionada (#326, RF15): abaixo do mapa e da lista, com o último dado em cinza
+            depois de uma falha; região sem serviço não tem o que migrar e não abre o painel */}
+        {data && data.services.length > 0 && regions && selectedRegion !== null && (
+          <RegionDetail
+            overview={regions}
+            originCode={selectedRegion}
+            destinationCode={destinationCode}
+            onDestination={chooseDestination}
+            periodLabel="últimas 24 h"
+            stale={regionsError !== '' || error !== ''}
+          />
         )}
 
         {data && data.services.length > 0 && (
