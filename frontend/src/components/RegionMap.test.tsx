@@ -20,7 +20,7 @@ function render(overview: RegionOverview, stale = false): string {
 }
 
 describe('RegionMap', () => {
-  const overview: RegionOverview = { monitored: [listed('us-east')], idle: [listed('eu-north', { worstStatus: null, co2eGrams: null })], outside: NONE, unplacedServices: 0 };
+  const overview: RegionOverview = { monitored: [listed('us-east')], idle: [listed('eu-north', { worstStatus: null, co2eGrams: null })], outside: NONE, unplacedServices: 0, fetchedAt: '2026-11-13T13:00:00.000Z' };
 
   it('traz a legenda com os três estados, o ponto sem serviço, o tamanho e o anel', () => {
     const html = render(overview);

@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import type { Region, RegionsResponse, RegionsSummaryResponse, RegionSummary } from '../services/regions.types';
-import { MIN_BUBBLE, MIN_SCALE, bubbleDiameter, buildRegionOverview, fitZoom, mapScale, ringPercent, serviceCount } from './region-map';
+import {
+  MIN_BUBBLE,
+  MIN_SCALE,
+  bubbleDiameter,
+  buildRegionOverview,
+  fitZoom,
+  formatMigrationPercent,
+  intensityTime,
+  mapScale,
+  migrationMath,
+  ringPercent,
+  serviceCount,
+} from './region-map';
 
 function region(code: string, overrides: Partial<Region> = {}): Region {
   return { code, country: 'Estados Unidos', region: 'Virgínia', city: 'Ashburn', latitude: 39.04, longitude: -77.49, carbonIntensityGco2ePerKwh: 377, renewableSharePercent: 22, monitoredServices: 1, ...overrides };
@@ -115,5 +127,28 @@ describe('fitZoom e mapScale (mapa no celular, RNF01)', () => {
     expect(bubbleDiameter(10, 10, 0.5)).toBe(44);
     expect(bubbleDiameter(0, 10, 0.6)).toBe(MIN_BUBBLE);
     expect(bubbleDiameter(null, 10, 0.6)).toBe(MIN_BUBBLE);
+  });
+});
+
+describe('simulação de migração na tela (#326)', () => {
+  it('buildRegionOverview guarda a hora das intensidades', () => {
+    expect(buildRegionOverview(list(region('us-east')), summary(totals('us-east'))).fetchedAt).toBe('2026-11-13T13:00:00.000Z');
+  });
+
+  it('intensityTime: hora curta sempre; aviso só com mais de 1 h (cache é o estado normal)', () => {
+    const fetchedAt = new Date(2026, 10, 19, 14, 5).toISOString();
+    expect(intensityTime(fetchedAt, new Date(2026, 10, 19, 14, 50))).toEqual({ time: '14:05', stale: false });
+    expect(intensityTime(fetchedAt, new Date(2026, 10, 19, 15, 5))).toEqual({ time: '14:05', stale: false });
+    expect(intensityTime(fetchedAt, new Date(2026, 10, 19, 15, 6))).toEqual({ time: '14:05', stale: true });
+  });
+
+  it('percentual com 2 casas, como no docs/calculos.md', () => {
+    expect(formatMigrationPercent((100 * 39.88) / 44.6)).toBe('89,42%');
+    expect(formatMigrationPercent(23.015873)).toBe('23,02%');
+  });
+
+  it('linha da conta em kWh e g/kWh (critério 1: 0,118 kWh × 40 g/kWh = 4,72 g)', () => {
+    expect(migrationMath(0.118, 40, 0.118 * 40)).toBe('0,118 kWh × 40 g/kWh = 4,72 g');
+    expect(migrationMath(0.00123456, 465, 0.00123456 * 465)).toBe('0,001235 kWh × 465 g/kWh = 0,5741 g');
   });
 });
