@@ -152,6 +152,12 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Dashboard com o backend real (`docker compose`) em 17/11/2026, 23h48, em 1440 px, com cerca de 13 h de coletas: Ashburn (`us-east`) emitiu mais (150 g) com dois serviços e a intensidade de 378 g CO₂e/kWh; Sao Paulo (`br-sudeste`, 85 g/kWh) tem o selo **Rede limpa**. O crédito das imagens da EOX fica no canto do mapa (#351)._
 
+- **RNF05 — Exportação do período em CSV e PDF (US13 #54; #24; #13):** na página Emissões, **Baixar CSV** entrega todas as coletas do serviço no período escolhido, uma por linha (horário de Brasília, status, CPU, memória, disco, rede, intervalo, energia, CO₂e, fator da região, cálculo e erro), em UTF-8, com vírgula como separador e ponto decimal, o padrão das ferramentas de BI (no Excel em português, pelo menu Dados → De Texto/CSV); valor ausente fica vazio, nunca 0, e a soma das colunas bate com os cards. As coletas vêm em partes de `GET /api/collections`, com progresso e **Cancelar**, e uma falha no meio não entrega arquivo pela metade. **Baixar PDF** abre a impressão do navegador com um relatório A4 no tema claro: cabeçalho com serviço, período, região e agrupamento, os KPIs, o gráfico e a tabela por intervalo com o total, repetindo o cabeçalho da tabela em cada página ([detalhes](frontend/README.md#exportação-do-período-us13-54-24)).
+
+  ![Relatório de emissões do período na prévia de impressão](docs/img/sprint-3-relatorio-pdf.png)
+
+  _Prévia de impressão com o backend real (`docker compose up --build`) em 19/11/2026, 12h01, em largura A4: Audit Stream (`jp-east`) em 18/11, com 1.511 coletas, 405 g de CO₂e e 870 Wh; a tabela segue com 96 intervalos de 15 min nas páginas seguintes, com o total (404,54 g) no fim. O CSV do mesmo dia tem 1.511 linhas, e a soma da coluna `co2e_g` dá 404,54 g._
+
 - **RF09, RNF01 — Eixo de Emissões ajustado ao trecho com dados (#332, PR #344):** quando o monitoramento de um serviço começa depois de 20% do período escolhido, o gráfico de Emissões marca o início ("monitoramento começou entre 19:30 e 19:45") e oferece **Ajustar ao trecho com dados**, que encurta o eixo; KPIs e totais continuam sendo do período inteiro, e o texto sob o título avisa isso ([detalhes](frontend/README.md#página-emissões-190)).
 
   ![Emissões de ontem com a marca do início do monitoramento](docs/img/sprint-3-emissoes-eixo.png)
@@ -188,7 +194,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 - **Dashboard em três níveis:** visão executiva (kWh total, gCO₂e, serviços ativos e indisponíveis, com atualização sem recarregar), análise comparativa (ranking e distribuição geográfica) e investigação detalhada (histórico por serviço).
 - **Prioridade apontada pelo cliente na review da Sprint 1:** comparar serviços e analisar os dados já coletados, para ver o que compensa fazer ([#159](https://github.com/DEVassos/ecopulse-app/issues/159)).
-- **Diferenciais em estudo:** simulação de migração para regiões com matriz mais limpa ([US12, #53](https://github.com/DEVassos/ecopulse-app/issues/53)) e exportação de relatórios em PDF/CSV ([US13, #54](https://github.com/DEVassos/ecopulse-app/issues/54)), previstas para a Sprint 3.
+- **Diferencial em estudo:** simulação de migração para regiões com matriz mais limpa ([US12, #53](https://github.com/DEVassos/ecopulse-app/issues/53)), prevista para a Sprint 3. A exportação de relatórios em PDF/CSV (US13) entrou na Sprint 3 (§ 3, RNF05).
 
 ## 5. Tecnologias
 
