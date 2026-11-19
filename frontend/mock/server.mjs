@@ -44,8 +44,10 @@ async function readJson(req) {
  *   MOCK_SERVICES=ranking-instavel: a 1ª chamada de GET /services/ranking responde e as seguintes dão 500, para ver a
  *   parte já calculada em cinza no ciclo seguinte sem reiniciar o mock, o que invalidaria o token (#257, #260)
  *   MOCK_SERVICES=ranking-falha: toda chamada de GET /services/ranking responde 500, para ver a coluna sem ranking (#260)
+ *   MOCK_REGIONS=falha: GET /regions responde 502, como a Carbon API fora do ar sem cache (#319, #322)
  */
 const SERVICES_SCENARIO = process.env.MOCK_SERVICES ?? 'normal';
+const REGIONS_SCENARIO = process.env.MOCK_REGIONS ?? 'normal';
 
 /** Chamadas de GET /services/ranking desde que o mock subiu (cenário MOCK_SERVICES=ranking-instavel). */
 let rankingCalls = 0;
@@ -59,6 +61,16 @@ const SERVICES = [
   { id: 'reporting-batch', name: 'Reporting Batch', country: 'Canadá', regionCode: 'ca-central', region: 'Quebec', city: 'Montreal', cpu: 52, kwh: 0.0726, gramsPerKwh: 40, memoryGb: 4.5, diskGb: 120.4, networkGb: 2.1, status: 'ativo' },
   { id: 'email-dispatcher', name: 'Email Dispatcher', country: 'Brasil', regionCode: 'br-sudeste', region: 'Sudeste', city: 'São Paulo', status: 'indisponivel', reason: 'Serviço indisponível (HTTP 500).' },
   { id: 'inventory-sync', name: 'Inventory Sync', country: 'Canadá', regionCode: null, region: 'Ontario', city: null, status: 'sem_metricas' },
+];
+
+/** Regiões da Carbon API no backend falso (#319), com coordenadas aproximadas da cidade. */
+const REGIONS = [
+  { code: 'us-east', country: 'Estados Unidos', region: 'Virgínia', city: 'Ashburn', latitude: 39.04, longitude: -77.49, carbonIntensityGco2ePerKwh: 377, renewableSharePercent: 22 },
+  { code: 'eu-west', country: 'Irlanda', region: 'Leinster', city: 'Dublin', latitude: 53.35, longitude: -6.26, carbonIntensityGco2ePerKwh: 295, renewableSharePercent: 41 },
+  { code: 'jp-east', country: 'Japão', region: 'Kanto', city: 'Tóquio', latitude: 35.69, longitude: 139.69, carbonIntensityGco2ePerKwh: 465, renewableSharePercent: 20 },
+  { code: 'ca-central', country: 'Canadá', region: 'Quebec', city: 'Montreal', latitude: 45.5, longitude: -73.57, carbonIntensityGco2ePerKwh: 40, renewableSharePercent: 94 },
+  { code: 'br-sudeste', country: 'Brasil', region: 'Sudeste', city: 'São Paulo', latitude: -23.55, longitude: -46.63, carbonIntensityGco2ePerKwh: 94, renewableSharePercent: 83 },
+  { code: 'eu-north', country: 'Suécia', region: 'Estocolmo', city: 'Estocolmo', latitude: 59.33, longitude: 18.07, carbonIntensityGco2ePerKwh: 25, renewableSharePercent: 98 },
 ];
 
 /** Intervalo da leitura do backend falso: a energia de cada serviço é de uma hora, então a potência sai em dezenas de W. */
@@ -210,7 +222,7 @@ let monitoringSettings = {
 const UNAUTHORIZED = { error: { code: 'UNAUTHORIZED', message: 'Token ausente, inválido ou expirado.' } };
 
 /** Rotas de dados que, como no backend real (#257), só respondem com token válido. */
-const PROTECTED = new Set(['GET /services', 'GET /services/summary', 'GET /services/compare', 'GET /services/ranking', 'GET /collections', 'GET /collections/series']);
+const PROTECTED = new Set(['GET /services', 'GET /services/summary', 'GET /services/compare', 'GET /services/ranking', 'GET /collections', 'GET /collections/series', 'GET /regions', 'GET /regions/summary']);
 
 function hasValidToken(req) {
   const token = bearerToken(req);
@@ -439,6 +451,46 @@ const routes = {
     if (SERVICES_SCENARIO === 'comparacao-sem-id') delete comparison.services[0].id;
     return send(res, 200, comparison);
   },
+  // Regiões da Carbon API (#319): coordenadas aproximadas da cidade; a eu-north não tem serviço (destino possível)
+  'GET /regions': async (_req, res) => {
+    if (REGIONS_SCENARIO === 'falha') return send(res, 502, { error: { code: 'EXTERNAL_API_ERROR', message: 'Não foi possível consultar a API de intensidade de carbono.' } });
+    const listed = listedServices().filter((service) => service.status !== 'removido');
+    const regions = REGIONS.map((region) => ({ ...region, monitoredServices: listed.filter((service) => service.regionCode === region.code).length }));
+    return send(res, 200, { regions, source: 'api', fetchedAt: new Date().toISOString() });
+  },
+
+  // Totais por região no período (#320): a mesma regra do ranking, com o pior estado entre os serviços não removidos
+  'GET /regions/summary': async (req, res) => {
+    if (SERVICES_SCENARIO === 'erro') return simulatedFailure(res);
+    const query = new URL(req.url ?? '/', `http://localhost:${PORT}`).searchParams;
+    if (query.has('from') !== query.has('to')) return validationError(res, 'Informe from e to juntos, ou nenhum dos dois.');
+    const to = query.has('to') ? parseInstant(query.get('to')) : Date.now();
+    const from = query.has('from') ? parseInstant(query.get('from')) : to - DAY_MS;
+    if (from === null || to === null || from >= to || to - from > MAX_SPAN_MS) {
+      return validationError(res, 'Informe from e to com data e hora (ISO 8601), from antes de to e até 31 dias.');
+    }
+    const groups = new Map();
+    for (const service of listedServices().filter((item) => item.status !== 'removido')) {
+      groups.set(service.regionCode, [...(groups.get(service.regionCode) ?? []), service]);
+    }
+    const regions = [...groups].map(([code, services]) => {
+      const collections = services.flatMap((service) => collectionsBetween(service, from, to));
+      const count = (status) => services.filter((service) => service.status === status).length;
+      const counts = { ativo: count('ativo'), indisponivel: count('indisponivel'), sem_metricas: count('sem_metricas') };
+      const worstStatus = counts.indisponivel > 0 ? 'indisponivel' : counts.sem_metricas > 0 ? 'sem_metricas' : counts.ativo > 0 ? 'ativo' : null;
+      return {
+        code,
+        energyKwh: sumOrNull(collections, 'energyKwh'),
+        co2eGrams: sumOrNull(collections, 'co2eGrams'),
+        collections: collections.length,
+        failed: collections.filter((item) => item.status !== 'ok').length,
+        notCalculated: collections.filter((item) => item.calculationStatus !== 'disponivel').length,
+        services: counts,
+        worstStatus,
+      };
+    });
+    return send(res, 200, { from: new Date(from).toISOString(), to: new Date(to).toISOString(), regions });
+  },
 };
 
 createServer(async (req, res) => {
@@ -459,6 +511,7 @@ createServer(async (req, res) => {
 }).listen(PORT, () => {
   console.log(`Backend falso em http://localhost:${PORT}`);
   console.log(`GET /services: cenário "${SERVICES_SCENARIO}" (MOCK_SERVICES=normal|vazio|erro|sem-id|cpu-texto|resumo-texto|comparacao-sem-id|ranking-texto|ranking-instavel|ranking-falha)`);
+  console.log(`GET /regions: cenário "${REGIONS_SCENARIO}" (MOCK_REGIONS=normal|falha)`);
   console.log(`Login: ${ADMIN.email} / ${ADMIN.password} (exigido nas rotas de dados, #257; reiniciar o mock invalida os tokens)`);
   console.log(`GET /monitoring-settings: intervalo inicial ${monitoringSettings.refreshIntervalSeconds} s (MOCK_REFRESH_INTERVAL_SECONDS)`);
 });

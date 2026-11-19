@@ -36,7 +36,13 @@ Resposta 200:
     "diskGb": 19.26,
     "networkGb": 0.45,
     "powerWatts": 64.06035,
-    "carbonIntensityGco2ePerKwh": 85
+    "carbonIntensityGco2ePerKwh": 85,
+    "powerBreakdown": {
+      "cpuW": 62.67,
+      "memoryW": 1.18875,
+      "diskW": 0.1926,
+      "networkW": 0.009
+    }
   }],
   "period": "última leitura (intervalo de coleta)"
 }
@@ -53,8 +59,9 @@ Campos da última coleta (#297), todos da mesma linha de `collections` que dá `
 | `memoryGb`, `diskGb`, `networkGb` | `memory_gb`, `disk_gb`, `network_gb`, em GB | número ≥ 0 ou `null` | idem |
 | `powerWatts` | `power_watts`, em W | número ≥ 0 ou `null` | cálculo não disponível |
 | `carbonIntensityGco2ePerKwh` | `carbon_intensity_gco2e_per_kwh`, o fator efetivamente usado, em gCO₂e/kWh | número ≥ 0 ou `null` | cálculo não disponível (sem região, região sem fator, API de carbono fora) |
+| `powerBreakdown` | parcelas da potência calculadas dos quatro recursos, em W, cada uma arredondada a seis casas | objeto com `cpuW`, `memoryW`, `diskW` e `networkW`, ou `null` | sem potência calculada ou sem algum recurso |
 
-Invariantes úteis na verificação: `emissionsG ≈ energyKwh × carbonIntensityGco2ePerKwh` e `powerWatts ≈ energyKwh × 3 600 000 ÷ collectionIntervalSeconds` ([`docs/calculos.md`](calculos.md)). O fator é o mesmo de `GET /api/collections?service_id=<id>&limit=1` → `collections[0].carbonIntensityGco2ePerKwh`. `energyKwh` e `emissionsG` são da última coleta, que cobre um intervalo de cerca de 30 s, e não acumulados.
+Invariantes úteis na verificação: `emissionsG ≈ energyKwh × carbonIntensityGco2ePerKwh`, `powerWatts ≈ energyKwh × 3 600 000 ÷ collectionIntervalSeconds` e a soma das quatro parcelas de `powerBreakdown` coincide com `powerWatts` à precisão de seis casas ([`docs/calculos.md`](calculos.md)). O fator é o mesmo de `GET /api/collections?service_id=<id>&limit=1` → `collections[0].carbonIntensityGco2ePerKwh`. `energyKwh` e `emissionsG` são da última coleta, que cobre um intervalo de cerca de 30 s, e não acumulados.
 
 `status` do serviço: `ativo` (última métrica válida), `indisponivel` (falha do agregador ou métrica inválida), `sem_metricas` (404 do agregador para um serviço ainda listado) ou `removido` (saiu da lista do agregador; volta a `ativo` quando reaparece).
 
@@ -99,6 +106,24 @@ Somente números inteiros 15, 30 ou 60 são aceitos. Campo ausente, string, bool
 | 500 | `DATABASE_ERROR` | Falha no banco, inclusive migração não aplicada |
 
 Erros seguem `{"error":{"code":"VALIDATION_ERROR","message":"refreshIntervalSeconds deve ser 15, 30 ou 60."}}`; respostas não expõem SQL ou stack. Aplicação em volumes existentes: [migração do banco](../database/README.md#configuração-de-monitoramento-250).
+
+## GET /api/regions
+
+Lista as regiões fornecidas pela Carbon API para o mapa (RF13, #319). Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`.
+
+`GET /api/regions`
+
+Cada região sempre traz coordenadas, intensidade de carbono e percentual renovável válidos. `monitoredServices` é a quantidade atual de serviços com o mesmo `code` e estado diferente de `removido`; uma região sem serviço monitorado aparece com `0`. `source: "cache"` informa que a Carbon API falhou e a resposta veio do último cache disponível; por uma hora ele é usado sem nova requisição e, vencido, ainda é a alternativa segura se a atualização falhar.
+
+```json
+{"regions":[{"code":"us-east","country":"United States","region":"Virginia","city":"Ashburn","latitude":39.04,"longitude":-77.49,"carbonIntensityGco2ePerKwh":378,"renewableSharePercent":22,"monitoredServices":2}],"source":"api","fetchedAt":"2026-11-12T13:00:00.000Z"}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 401 | `UNAUTHORIZED` | JWT ausente, inválido ou expirado |
+| 502 | `EXTERNAL_API_ERROR` | Carbon API indisponível ou resposta fora do contrato e não há cache válido/anterior |
+| 500 | `DATABASE_ERROR` | falha ao contar os serviços monitorados |
 
 ## GET /api/services/summary
 
@@ -149,7 +174,7 @@ O formato desta rota (`period{}` e `services{}`) é diferente do de `GET /api/co
 Histórico de coletas. Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`. Não recebe corpo. Parâmetros opcionais:
 
 - `service_id`: inteiro positivo;
-- `from` e `to`: data **com hora** em ISO 8601, como `2026-10-18T00:00:00Z` ou `2026-10-18T00:00:00-03:00`. Só a data (`2026-10-18`) devolve 400, e `from` precisa ser anterior ou igual a `to`;
+- `from` e `to`: data **com hora** em ISO 8601, como `2026-10-18T00:00:00Z` ou `2026-10-18T00:00:00-03:00`. Só a data (`2026-10-18`) devolve 400, e `from` precisa ser anterior a `to`;
 - `limit`: de 1 a 500, padrão 50.
 
 A lista sai sempre da coleta mais recente para a mais antiga. `status` da coleta: `ok`, `erro` (falha do agregador ou métrica inválida, com `errorMessage`) ou `sem_metricas`.
@@ -167,10 +192,10 @@ Cada coleta traz o resultado do cálculo de energia e CO₂e ([fórmulas](calcul
 `collectionIntervalSeconds` é o intervalo informado pela API de métricas naquela coleta, em segundos; é `null` quando a coleta não trouxe métricas (`erro` ou `sem_metricas`). O dashboard usa esse valor para distinguir o intervalo normal entre coletas de um período sem nenhum registro.
 
 ```json
-{"collections":[{"id":"2","serviceId":"1","collectedAt":"2026-10-14T20:00:00.000Z","status":"ok","collectionIntervalSeconds":27,"cpuPercent":42.5,"memoryGb":1.2,"diskGb":10,"networkGb":0.3,"errorMessage":null,"calculationStatus":"disponivel","energyKwh":0.000480452625,"co2eGrams":0.040838473125,"carbonIntensityGco2ePerKwh":85},{"id":"1","serviceId":"1","collectedAt":"2026-10-14T19:45:00.000Z","status":"erro","collectionIntervalSeconds":null,"cpuPercent":null,"memoryGb":null,"diskGb":null,"networkGb":null,"errorMessage":"Timeout","calculationStatus":"nao_calculado","energyKwh":null,"co2eGrams":null,"carbonIntensityGco2ePerKwh":null}],"period":{"from":"2026-10-14T00:00:00.000Z","to":"2026-10-14T23:59:59.999Z"}}
+{"collections":[{"id":"2","serviceId":"1","collectedAt":"2026-10-14T20:00:00.000Z","status":"ok","collectionIntervalSeconds":27,"cpuPercent":42.5,"memoryGb":1.2,"diskGb":10,"networkGb":0.3,"errorMessage":null,"calculationStatus":"disponivel","energyKwh":0.000480452625,"co2eGrams":0.040838473125,"carbonIntensityGco2ePerKwh":85},{"id":"1","serviceId":"1","collectedAt":"2026-10-14T19:45:00.000Z","status":"erro","collectionIntervalSeconds":null,"cpuPercent":null,"memoryGb":null,"diskGb":null,"networkGb":null,"errorMessage":"Timeout","calculationStatus":"nao_calculado","energyKwh":null,"co2eGrams":null,"carbonIntensityGco2ePerKwh":null}],"period":{"from":"2026-10-14T00:00:00.000Z","to":"2026-10-15T00:00:00.000Z"}}
 ```
 
-O limite `to` é **inclusivo** (`collected_at <= to`): quem precisa de um período com fim aberto deve recuar 1 ms no parâmetro.
+O período é fechado no início e aberto no fim (`collected_at >= from AND collected_at < to`), igual às agregações. Uma coleta exatamente em `to` não aparece; `from` precisa ser anterior a `to`.
 
 Parâmetro inválido devolve 400 `VALIDATION_ERROR`; `service_id` inexistente devolve 404 `NOT_FOUND`; falha de banco devolve 500 no envelope global, sem stack ou SQL.
 
@@ -224,10 +249,10 @@ Compara de 2 a 10 serviços no mesmo período. Requer autenticação; sem token 
 - `ids`: ids inteiros positivos, distintos e separados por vírgula;
 - `from` e `to`: instantes ISO 8601 obrigatórios, com intervalo `[from, to)` de até 31 dias.
 
-Resposta 200 ecoa `from` e `to` e traz, por serviço, contagens de coletas, falhas e coletas sem cálculo, médias de CPU/memória/disco/rede e somas de energia e CO₂e. Um serviço sem coleta permanece na resposta com `collections: 0` e métricas agregadas `null`; um id inexistente devolve 404. Entrada inválida devolve 400 `VALIDATION_ERROR`.
+Resposta 200 ecoa `from` e `to` e traz, por serviço, contagens de coletas, falhas e coletas sem cálculo, médias de CPU/memória/disco/rede ponderadas por `collection_interval_seconds`, a decomposição `avgPowerBreakdown` dessas médias e somas de energia e CO₂e. As médias usam as coletas com `status = 'ok'`; `avgPowerBreakdown` é `null` quando não há as quatro médias. Um serviço sem coleta permanece na resposta com `collections: 0` e métricas agregadas `null`; um id inexistente devolve 404. Entrada inválida devolve 400 `VALIDATION_ERROR`.
 
 ```json
-{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z","services":[{"id":"1","name":"Demo","region":"Sul","collections":12,"failed":0,"notCalculated":0,"avgCpuPercent":42.5,"avgMemoryGb":2.1,"avgDiskGb":10,"avgNetworkGb":0.3,"energyKwh":0.01,"co2eGrams":0.85}]}
+{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z","services":[{"id":"1","name":"Demo","region":"Sul","collections":12,"failed":0,"notCalculated":0,"avgCpuPercent":42.5,"avgMemoryGb":2.1,"avgDiskGb":10,"avgNetworkGb":0.3,"avgPowerBreakdown":{"cpuW":42.5,"memoryW":0.7875,"diskW":0.1,"networkW":0.006},"energyKwh":0.01,"co2eGrams":0.85}]}
 ```
 
 ## GET /api/services/ranking
@@ -267,6 +292,32 @@ A ordenação usa a métrica escolhida em ordem decrescente, com desempate por `
 | 500 | `DATABASE_ERROR` | falha de conexão ou consulta no PostgreSQL |
 
 Exemplo de erro de validação: `{"error":{"code":"VALIDATION_ERROR","message":"metric deve ser energy ou co2e."}}`.
+
+## GET /api/regions/summary
+
+Resumo ambiental regional da #320. Exige `Authorization: Bearer <JWT>`. Não consulta a Carbon API nem depende da lista de regiões da #319.
+
+| Parâmetro | Obrigatório | Regra |
+|---|---|---|
+| `from`, `to` | juntos, ou ambos ausentes | ISO 8601 com hora, `from < to`, até 31 dias; sem ambos, últimas 24 horas |
+
+O período `[from,to)` é ecoado em UTC. Agrupa por **services.region_code atual**, incluindo o histórico de removidos nas somas, como `/api/services/summary`. Só `calculation_status = 'disponivel'` entra em `energyKwh` (kWh) e `co2eGrams` (g); ausência de cálculo é `null`, zero calculado é `0`. `collections` conta todas as coletas da janela; `failed` conta `status <> 'ok'`; `notCalculated` conta `calculation_status <> 'disponivel'` (as contagens podem se sobrepor).
+
+Contagens de serviços são distintas e consideram o estado **atual**, sem removidos. Precedência: `indisponivel > sem_metricas > ativo`; sem serviços nesses estados, `worstStatus: null`. Região só com removidos pode aparecer, com contagens zeradas e histórico preservado. Um único grupo `code: null` reúne serviços sem região. Região com serviço mas sem coletas tem somas nulas e contagens de coletas zero; região sem serviço cadastrado não é inventada. Sem serviços, `regions: []`. Ordem por `code` crescente, com `null` ao final.
+
+Exemplo 200 (ilustrativo):
+
+```json
+{"from":"2026-04-01T00:00:00.000Z","to":"2026-04-03T00:00:00.000Z","regions":[{"code":"us-east","energyKwh":7,"co2eGrams":35,"collections":4,"failed":0,"notCalculated":1,"services":{"ativo":1,"indisponivel":1,"sem_metricas":0},"worstStatus":"indisponivel"}]}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | limite ausente, data inválida/sem hora, início igual/posterior ao fim ou janela maior que 31 dias |
+| 401 | `UNAUTHORIZED` | JWT ausente, inválido ou expirado |
+| 500 | `DATABASE_ERROR` | falha de consulta ou conexão PostgreSQL |
+
+Erros seguem o envelope global `{"error":{"code":"VALIDATION_ERROR","message":"from deve ser anterior a to."}}`. A soma regional e o resumo geral devem ser comparados com **os mesmos instantes** e dados estáveis, incluindo NULL quando não há cálculo; snapshots de requisições durante a coleta podem diferir. Testes, SQL independente e EXPLAIN: [verificação da #320](arquitetura/verificacao-regions-summary.md).
 
 ## POST /api/auth/login
 

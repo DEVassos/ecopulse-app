@@ -286,6 +286,45 @@ export function describePeriod(points: EmissionPoint[], stats: SeriesStats, buck
   return [describePeak(points, stats, bucket), describeMissing(missingMs)].filter((line): line is string => line !== null);
 }
 
+// ── Início tardio do monitoramento (#332) ───────────────────────────────────
+
+/** Parte do período sem coleta antes da primeira acima da qual o gráfico oferece encurtar o eixo. */
+export const LATE_START_RATIO = 0.2;
+
+/**
+ * Início do primeiro ponto com coleta quando mais de 20% do período passou antes dele (o monitoramento começou depois
+ * do início do período escolhido); null quando não há coleta ou o começo ficou dentro dos 20%. No agrupado, é o
+ * início do intervalo em que a primeira coleta caiu.
+ */
+export function lateStartMs(points: EmissionPoint[], fromMs: number, toMs: number): number | null {
+  const first = points.find((point) => point.collections > 0);
+  if (!first || toMs <= fromMs) return null;
+  return first.t - fromMs > (toMs - fromMs) * LATE_START_RATIO ? first.t : null;
+}
+
+/**
+ * Início do eixo ajustado ao trecho com dados: o primeiro ponto, mas sempre com pelo menos um intervalo do
+ * agrupamento até o fim do período, para o gráfico não virar uma linha. Só o eixo muda; totais e KPIs não.
+ */
+export function fittedAxisStart(startMs: number, fromMs: number, toMs: number, bucket: EmissionsBucket): number {
+  return Math.max(fromMs, Math.min(startMs, toMs - BUCKET_MS[bucket]));
+}
+
+/** "18:40", ou "06/11 18:40" quando o período tem mais de um dia. */
+export function formatClock(t: number, withDay: boolean): string {
+  return withDay ? formatPointTime(t, false) : new Date(t).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * A marca do início, com a precisão que o agrupamento permite: "monitoramento começou às 18:40" por coleta, ou
+ * "monitoramento começou entre 18:30 e 18:45" quando o ponto é um intervalo.
+ */
+export function describeLateStart(startMs: number, bucket: EmissionsBucket, withDay: boolean): string {
+  if (bucket === 'coleta') return `monitoramento começou ${withDay ? 'em ' : 'às '}${formatClock(startMs, withDay)}`;
+  const end = new Date(startMs + BUCKET_MS[bucket]).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return `monitoramento começou entre ${formatClock(startMs, withDay)} e ${end}`;
+}
+
 // ── Gráfico ─────────────────────────────────────────────────────────────────
 
 /** Soma acumulada ao longo do período; trechos sem cálculo não somam nada e ficam null. */

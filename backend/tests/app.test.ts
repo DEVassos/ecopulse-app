@@ -8,6 +8,7 @@ import { errorHandler } from '../src/middlewares/error-handler';
 import { CollectionRepository } from '../src/modules/collections/collections.repository';
 import { ServiceRepository } from '../src/modules/services/services.repository';
 import { UserRepository } from '../src/modules/usuarios/usuarios.repository';
+import type { CarbonApi } from '../src/integrations/carbon-api';
 import type { AuthConfig } from '../src/modules/usuarios/usuarios.service';
 import { DatabaseError, ExternalApiError } from '../src/shared/errors';
 
@@ -25,9 +26,9 @@ function repositories(collectionRows: unknown[] = [], serviceRows: unknown[] = [
 }
 
 function createApp(verify: () => Promise<void>, collections: CollectionRepository, services: ServiceRepository,
-  corsOrigins: readonly string[] = []) {
+  corsOrigins: readonly string[] = [], carbonApi?: CarbonApi) {
   const users = new UserRepository({ query: vi.fn().mockResolvedValue({ rows: [] }) });
-  return buildApp(verify, collections, services, corsOrigins, users, authConfig);
+  return buildApp(verify, collections, services, corsOrigins, users, authConfig, undefined, carbonApi);
 }
 
 function authenticatedRequest(url: string, init?: RequestInit): Promise<Response> {
@@ -57,6 +58,7 @@ describe('HTTP', () => {
     '/api/services/compare',
     '/api/collections',
     '/api/collections/series',
+    '/api/regions',
   ])('exige autenticação em %s', async path => {
     const { collections, services } = repositories();
     const url = await serve(createApp(async () => {}, collections, services));
@@ -69,6 +71,39 @@ describe('HTTP', () => {
         error: { code: 'UNAUTHORIZED', message: 'Token ausente, inválido ou expirado.' },
       });
     }
+  });
+
+  it('lista regiões autenticadas com a quantidade de serviços monitorados (#319)', async () => {
+    const { collections, services } = repositories([], [
+      { region_code: 'br-sudeste', monitored_services: '2' },
+      { region_code: 'us-east', monitored_services: '1' },
+    ]);
+    const carbonApi: CarbonApi = {
+      getIntensity: vi.fn(),
+      listRegions: vi.fn().mockResolvedValue({
+        source: 'api', fetchedAt: Date.parse('2026-11-12T13:00:00.000Z'),
+        regions: [{ code: 'br-sudeste', country: 'Brazil', region: 'Sudeste', city: 'Sao Paulo', latitude: -23.5505,
+          longitude: -46.6333, intensityGco2ePerKwh: 85, renewableSharePercent: 83 }],
+      }),
+    };
+    const url = await serve(createApp(async () => {}, collections, services, [], carbonApi));
+    const response = await authenticatedRequest(`${url}/api/regions`);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      source: 'api', fetchedAt: '2026-11-12T13:00:00.000Z',
+      regions: [{ code: 'br-sudeste', country: 'Brazil', region: 'Sudeste', city: 'Sao Paulo', latitude: -23.5505,
+        longitude: -46.6333, carbonIntensityGco2ePerKwh: 85, renewableSharePercent: 83, monitoredServices: 2 }],
+    });
+  });
+  it('expõe EXTERNAL_API_ERROR sem detalhes internos ao listar regiões', async () => {
+    const { collections, services } = repositories();
+    const carbonApi: CarbonApi = {
+      getIntensity: vi.fn(),
+      listRegions: vi.fn().mockRejectedValue(new ExternalApiError('Falha externa interna.')),
+    };
+    const response = await authenticatedRequest(`${await serve(createApp(async () => {}, collections, services, [], carbonApi))}/api/regions`);
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ error: { code: 'EXTERNAL_API_ERROR', message: 'Falha externa interna.' } });
   });
 
   it('verifica em cada chamada, informa falha e recupera', async () => {
@@ -86,23 +121,27 @@ describe('HTTP', () => {
     expect((await fetch(url + '/missing')).status).toBe(404);
   });
   it('lista serviços com a última leitura, inclusive região, intervalo, recursos, potência e fator (#297)', async () => {
-    const { collections, services } = repositories([], [{ id: '1', name: 'Demo', status: 'ativo', country: 'BR', region: 'Sul', city: null, region_code: 'br-sul', last_reading_at: new Date('2026-10-14T20:00:00.000Z'), cpu_percent: '51.25', energy_kwh: '0.000480452625', co2e_grams: '0.040838473125',
+    const { collections, services } = repositories([], [{ id: '1', name: 'Demo', status: 'ativo', country: 'BR', region: 'Sul', city: null, region_code: 'br-sul', last_reading_at: new Date('2026-10-14T20:00:00.000Z'), cpu_percent: '62.670000000', energy_kwh: '0.000480452625', co2e_grams: '0.040838473125',
       collection_interval_seconds: 27, memory_gb: '3.170000000', disk_gb: '19.260000000', network_gb: '0.450000000', power_watts: '64.060350', carbon_intensity_gco2e_per_kwh: '85.000000' }]);
     const response = await authenticatedRequest(await serve(createApp(async () => {}, collections, services)) + '/api/services');
     expect(response.status).toBe(200);
     const [service] = (await response.json()).services;
-    expect(service).toMatchObject({ id: '1', cpuPercent: 51.25, energyKwh: 0.000480452625, emissionsG: 0.040838473125 });
+    expect(service).toMatchObject({ id: '1', cpuPercent: 62.67, energyKwh: 0.000480452625, emissionsG: 0.040838473125 });
     // toEqual nos campos novos: Number(undefined) viraria NaN e sairia como null no JSON, escondendo um mapeamento errado
     expect({ regionCode: service.regionCode, collectionIntervalSeconds: service.collectionIntervalSeconds, memoryGb: service.memoryGb, diskGb: service.diskGb,
-      networkGb: service.networkGb, powerWatts: service.powerWatts, carbonIntensityGco2ePerKwh: service.carbonIntensityGco2ePerKwh })
-      .toEqual({ regionCode: 'br-sul', collectionIntervalSeconds: 27, memoryGb: 3.17, diskGb: 19.26, networkGb: 0.45, powerWatts: 64.06035, carbonIntensityGco2ePerKwh: 85 });
+      networkGb: service.networkGb, powerWatts: service.powerWatts, carbonIntensityGco2ePerKwh: service.carbonIntensityGco2ePerKwh,
+      powerBreakdown: service.powerBreakdown })
+      .toEqual({ regionCode: 'br-sul', collectionIntervalSeconds: 27, memoryGb: 3.17, diskGb: 19.26, networkGb: 0.45, powerWatts: 64.06035,
+        carbonIntensityGco2ePerKwh: 85, powerBreakdown: { cpuW: 62.67, memoryW: 1.18875, diskW: 0.1926, networkW: 0.009 } });
+    expect(service.powerBreakdown.cpuW + service.powerBreakdown.memoryW + service.powerBreakdown.diskW + service.powerBreakdown.networkW)
+      .toBe(service.powerWatts);
   });
   it('serviço sem coleta devolve null nos campos da leitura e mantém o código da região (#297)', async () => {
     const { collections, services } = repositories([], [{ id: '2', name: 'Vazio', status: 'sem_metricas', country: null, region: null, city: null, region_code: 'ca-central', last_reading_at: null, cpu_percent: null, energy_kwh: null, co2e_grams: null,
       collection_interval_seconds: null, memory_gb: null, disk_gb: null, network_gb: null, power_watts: null, carbon_intensity_gco2e_per_kwh: null }]);
     const [service] = (await (await authenticatedRequest(await serve(createApp(async () => {}, collections, services)) + '/api/services')).json()).services;
     expect(service).toEqual(expect.objectContaining({ regionCode: 'ca-central', lastReadingAt: null, cpuPercent: null, collectionIntervalSeconds: null, memoryGb: null,
-      diskGb: null, networkGb: null, powerWatts: null, carbonIntensityGco2ePerKwh: null }));
+      diskGb: null, networkGb: null, powerWatts: null, carbonIntensityGco2ePerKwh: null, powerBreakdown: null }));
   });
   it('retorna os indicadores agregados para o período solicitado', async () => {
     const summary = { energy_kwh: '1.2500', co2e_grams: '85.5000', active: '3', unavailable: '1', without_metrics: '2', removed: '0' };
@@ -167,8 +206,9 @@ describe('HTTP', () => {
     const response = await authenticatedRequest(base + '/api/services/compare?ids=1,2&from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z');
     expect(response.status).toBe(200);
     expect((await response.json()).services).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: '1', collections: 2, avgCpuPercent: 20, energyKwh: 0.02, co2eGrams: 1.7 }),
-      expect.objectContaining({ id: '2', collections: 0, avgCpuPercent: null, energyKwh: null }),
+      expect.objectContaining({ id: '1', collections: 2, avgCpuPercent: 20,
+        avgPowerBreakdown: { cpuW: 20, memoryW: 0.5625, diskW: 0.02, networkW: 0.006 }, energyKwh: 0.02, co2eGrams: 1.7 }),
+      expect.objectContaining({ id: '2', collections: 0, avgCpuPercent: null, avgPowerBreakdown: null, energyKwh: null }),
     ]));
   });
   it('valida a comparação antes de consultar o banco', async () => {
@@ -182,6 +222,13 @@ describe('HTTP', () => {
     const response = await authenticatedRequest(await serve(createApp(async () => {}, collections, services)) + '/api/collections?limit=abc');
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'limit deve ser inteiro entre 1 e 500.' } });
+  });
+  it('rejeita intervalo vazio em collections', async () => {
+    const { collections, services } = repositories();
+    const base = await serve(createApp(async () => {}, collections, services));
+    const response = await authenticatedRequest(base + '/api/collections?from=2026-10-20T00:00:00Z&to=2026-10-20T00:00:00Z');
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: { code: 'VALIDATION_ERROR', message: 'from deve ser anterior a to.' } });
   });
   it('retorna 404 para service_id inexistente', async () => {
     const { collections, services } = repositories([], []);

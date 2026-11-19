@@ -17,6 +17,7 @@ Decisões técnicas e de processo que afetam o repositório inteiro são registr
 | [0007](0007-typescript-6-eslint-frontend.md) | TypeScript 6.0 no frontend para o lint com ESLint | aceito (PR #230) | 2026-10-28 | #160 · RP01 · DW01, TP02 |
 | [0008](0008-conferencia-respostas-fronteiras-api.md) | Conferência das respostas nas fronteiras de API | proposto | 2026-10-30 | #236 · RNF04 · TP02, TP03, DW02 |
 | [0009](0009-aplicacao-inteira-com-login.md) | Aplicação inteira com login | proposto | 2026-11-04 | #257 · RP06, RNF05 · DW06 |
+| [0010](0010-mapa-maplibre.md) | Mapa com MapLibre GL JS e imagens de satélite da EOX | aceito | 2026-11-11 | #318 · [#51](https://github.com/DEVassos/ecopulse-app/issues/51) · RF13 · DW04, ES08 |
 
 ## Como criar um ADR
 

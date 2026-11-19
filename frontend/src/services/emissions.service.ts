@@ -85,19 +85,33 @@ export interface ParsedCollection {
   intensity: number | null;
 }
 
+/** Uma página de GET /api/collections depois da conferência. */
+export interface CollectionsPage {
+  collections: ParsedCollection[];
+  discarded: number;
+  /** Quantas o servidor mandou, válidas ou não: decide se há próxima página. */
+  received: number;
+  /**
+   * `collectedAt` da última coleta recebida (a mais antiga, pela ordem da rota), mesmo que ela tenha ficado de fora:
+   * a próxima página começa logo antes dela (#256). `null` com a página vazia ou quando nem a data dela é legível.
+   */
+  oldestReceived: number | null;
+}
+
 /**
  * Confere uma página de GET /api/collections. Envelope fora do formato recusa a página inteira (ApiError);
- * coleta fora do formato fica de fora e é contada em `discarded`. `received` é quantas o servidor mandou,
- * que decide a paginação.
+ * coleta fora do formato fica de fora e é contada em `discarded`.
  */
-export function parseCollectionsPage(body: unknown): { collections: ParsedCollection[]; discarded: number; received: number } {
+export function parseCollectionsPage(body: unknown): CollectionsPage {
   if (!isRecord(body) || !Array.isArray(body.collections)) throw unexpectedFormat();
   const collections: ParsedCollection[] = [];
   for (const raw of body.collections) {
     const parsed = parseCollection(raw);
     if (parsed) collections.push(parsed);
   }
-  return { collections, discarded: body.collections.length - collections.length, received: body.collections.length };
+  const last: unknown = body.collections[body.collections.length - 1];
+  const oldestReceived = isRecord(last) ? (instant(last.collectedAt) ?? null) : null;
+  return { collections, discarded: body.collections.length - collections.length, received: body.collections.length, oldestReceived };
 }
 
 /**
@@ -122,7 +136,8 @@ export function parseSeriesResponse(body: unknown, bucket: EmissionsSeries['buck
 
 /**
  * Cada coleta do período (GET /api/collections). A rota devolve da mais recente para a mais antiga, no máximo
- * 500 por vez; quando a página vem cheia, pede a próxima com `to` logo antes da coleta mais antiga recebida.
+ * 500 por vez; quando a página vem cheia, pede a próxima com `to` logo antes da coleta mais antiga recebida,
+ * válida ou não.
  */
 async function fetchEachCollection(query: EmissionsQuery, signal?: AbortSignal): Promise<EmissionsSeries> {
   const from = Date.parse(query.from);
@@ -140,26 +155,27 @@ async function fetchEachCollection(query: EmissionsQuery, signal?: AbortSignal):
     const batch = parseCollectionsPage(await apiRequest<unknown>(`/collections?${params}`, { signal }));
     discarded += batch.discarded;
 
-    let oldest: number | null = null;
     for (const parsed of batch.collections) {
       points.push(parsed.point);
       if (parsed.intensity !== null) {
         intensitySum += parsed.intensity;
         intensityCount += 1;
       }
-      oldest = parsed.point.t;
     }
 
-    // A paginação olha o que o servidor mandou, não só o que passou na conferência
-    if (batch.received < PAGE_SIZE || oldest === null) {
+    // A paginação olha o que o servidor mandou, não só o que passou na conferência: começar logo antes da última
+    // coleta válida pediria de novo as inválidas que vieram depois dela e as contaria duas vezes (#256)
+    if (batch.received < PAGE_SIZE) {
       truncated = false;
       break;
     }
-    if (oldest - 1 < from) {
+    // Página cheia sem data legível no fim: não dá para saber onde continuar, então para e a tela avisa que faltou
+    if (batch.oldestReceived === null) break;
+    if (batch.oldestReceived - 1 < from) {
       truncated = false;
       break;
     }
-    to = new Date(oldest - 1).toISOString();
+    to = new Date(batch.oldestReceived - 1).toISOString();
   }
 
   points.reverse();

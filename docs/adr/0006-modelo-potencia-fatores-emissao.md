@@ -46,7 +46,7 @@ E (kWh) = P × collection_interval_seconds / 3.600.000
 C (g CO₂e) = E × carbon_intensity_gco2e_per_kwh
 ```
 
-- `collection_interval_seconds` é o intervalo da coleta informado pelo agregador (`GET /metrics/{id}`), não o `POLLING_INTERVAL_MS` da tela. Sem arredondar intermediários: quantiza-se só na persistência (potência e intensidade em 6 casas; energia e emissão em 12 casas).
+- `collection_interval_seconds` é o intervalo da coleta informado pelo agregador (`GET /metrics/{id}`), não o `POLLING_INTERVAL_MS` da tela. Cada parcela da potência é arredondada a 6 casas e `powerWatts` é a soma dessas parcelas; energia e emissão usam essa soma antes de serem persistidas com 12 casas. A intensidade persistida usa 6 casas.
 
 **Origem do fator** — `GET /regions/{code}/carbon-intensity` da Carbon Intensity API (OpenAPI v0.1.0), casado pelo `region_code` de `services` (mesmo valor gravado em `collections.region_code`). Em `GET /regions` (consultado em 16/10/2026) os códigos listados são exatamente os cinco usados pelo agregador, um para um:
 

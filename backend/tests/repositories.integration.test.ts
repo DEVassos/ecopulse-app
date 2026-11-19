@@ -8,7 +8,7 @@ import { UserRepository } from '../src/modules/usuarios/usuarios.repository';
 import type { DiscoveredService, NewCollection } from '../src/shared/persistence.types';
 import { DatabaseError } from '../src/shared/errors';
 import { prepare } from './repositories-test.repository';
-import { getServices } from '../src/modules/services/services.service';
+import { getServiceComparison, getServices } from '../src/modules/services/services.service';
 
 // URL exclusiva de teste; schema aplicado antes em banco descartável vazio, fixture no beforeAll.
 const url = process.env.REPOSITORY_TEST_DATABASE_URL;
@@ -99,6 +99,16 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
       disk_gb: null, network_gb: null, metrics: {}, error_message: status === 'erro' ? 'Timeout' : null, ...notCalculated });
     expect(result).toMatchObject({ status, calculation_status: 'nao_calculado', cpu_percent: null, co2e_grams: null });
   });
+  it('lista coletas no intervalo [from, to), excluindo a coleta exatamente em to', async () => {
+    const saved = await services.upsert(service(`history-boundary-${randomUUID()}`), first);
+    const from = new Date('2026-10-11T00:00:00Z');
+    const to = new Date('2026-10-12T00:00:00Z');
+    await collections.insert({ ...reading(saved.id), collected_at: from });
+    await collections.insert({ ...reading(saved.id), collected_at: to });
+
+    const rows = await collections.findAll({ serviceId: saved.id, from, to, limit: 10 });
+    expect(rows.map(row => row.collected_at.toISOString())).toEqual([from.toISOString()]);
+  });
   it('resumo soma só coletas calculadas em [from, to) e conta cada serviço uma vez no estado atual', async () => {
     // Janela própria: as outras coletas desta suíte são de 11/10 e não entram nos totais
     const from = new Date('2026-09-01T10:00:00Z');
@@ -125,6 +135,24 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
     expect(Number(row.removed)).toBeGreaterThanOrEqual(1);
     const empty = await services.findSummary(new Date('2026-08-01T00:00:00Z'), new Date('2026-08-02T00:00:00Z'));
     expect(empty).toMatchObject({ energy_kwh: null, co2e_grams: null });
+  });
+  it('série e ranking ignoram emissão de coleta indisponível', async () => {
+    const from = new Date('2026-09-05T00:00:00Z');
+    const to = new Date('2026-09-06T00:00:00Z');
+    const saved = await services.upsert(service(`series-filter-${randomUUID()}`), first);
+    await collections.insert({ ...reading(saved.id), collected_at: from, calculation_status: 'disponivel',
+      carbon_intensity_gco2e_per_kwh: '100', power_watts: '10', energy_kwh: '0.0005',
+      co2e_grams: '0.05', calculation_error_message: null });
+    await collections.insert({ ...reading(saved.id), collected_at: new Date(from.getTime() + 60_000),
+      calculation_status: 'indisponivel', power_watts: '10', energy_kwh: '5',
+      co2e_grams: null, calculation_error_message: 'Fator indisponível' });
+
+    const series = await collections.findSeries({ serviceId: saved.id, from, to, bucket: '1d' });
+    const total = series.find(row => row.bucket_start === null);
+    const ranked = (await services.rankByPeriod('co2e', from, to)).find(row => row.id === saved.id);
+    expect(Number(total?.co2e_grams)).toBe(0.05);
+    expect(Number(total?.energy_kwh)).toBe(0.0005);
+    expect(Number(ranked?.co2e_grams)).toBe(Number(total?.co2e_grams));
   });
   it('ranqueia no PostgreSQL por métrica, preserva null/zero e inclui removidos com histórico', async () => {
     const from = new Date('2026-09-10T00:00:00Z');
@@ -261,17 +289,32 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
   it('expõe região, intervalo, recursos, potência e fator da última coleta (#297)', async () => {
     const a = await services.upsert(service('reading-fields'), first);
     const current = async () => (await getServices(services)).services.find(item => item.id === a.id)!;
-    const none = { collectionIntervalSeconds: null, memoryGb: null, diskGb: null, networkGb: null, powerWatts: null, carbonIntensityGco2ePerKwh: null };
+    const none = { collectionIntervalSeconds: null, memoryGb: null, diskGb: null, networkGb: null, powerWatts: null, carbonIntensityGco2ePerKwh: null, powerBreakdown: null };
     expect(await current()).toEqual(expect.objectContaining({ regionCode: 'br-sudeste', lastReadingAt: null, ...none }));
     await collections.insert({ ...reading(a.id), calculation_status: 'disponivel', carbon_intensity_gco2e_per_kwh: '85',
       power_watts: '64.06035', energy_kwh: '0.000480452625', co2e_grams: '0.040838473125' });
     expect(await current()).toEqual(expect.objectContaining({ regionCode: 'br-sudeste', collectionIntervalSeconds: 27, memoryGb: 3.17, diskGb: 19.26,
-      networkGb: 0.45, powerWatts: 64.06035, carbonIntensityGco2ePerKwh: 85, energyKwh: 0.000480452625 }));
+      networkGb: 0.45, powerWatts: 64.06035, carbonIntensityGco2ePerKwh: 85, energyKwh: 0.000480452625,
+      powerBreakdown: { cpuW: 62.67, memoryW: 1.18875, diskW: 0.1926, networkW: 0.009 } }));
     // Uma coleta com erro mais recente: os campos da leitura caem para null e a região do cadastro continua
     await collections.insert({ ...reading(a.id), collected_at: second, status: 'erro', collection_interval_seconds: null, cpu_percent: null,
       memory_gb: null, disk_gb: null, network_gb: null, error_message: 'Timeout' });
     expect(await current()).toEqual(expect.objectContaining({ regionCode: 'br-sudeste', cpuPercent: null, ...none }));
     const noRegion = await services.upsert({ ...service('reading-no-region'), region_code: null }, first);
     expect((await getServices(services)).services.find(item => item.id === noRegion.id)?.regionCode).toBeNull();
+  });
+  it('pondera as médias dos recursos pelo intervalo de coleta na comparação (#327)', async () => {
+    const a = await services.upsert(service('compare-weighted'), first);
+    const ok = (interval: number, cpu: string, memory: string, disk: string, network: string): NewCollection => ({ ...reading(a.id),
+      collection_interval_seconds: interval, cpu_percent: cpu, memory_gb: memory, disk_gb: disk, network_gb: network,
+      metrics: { collection_interval_seconds: interval, metrics: { cpu_percent: Number(cpu), memory_gb: Number(memory),
+        disk_gb: Number(disk), network_gb: Number(network) } } });
+    await collections.insert(ok(60, '10', '1', '5', '0.5'));
+    await collections.insert({ ...ok(20, '70', '3', '11', '2'), collected_at: second });
+    const [compared] = (await getServiceComparison(services, {
+      ids: [a.id], from: first, to: new Date(second.getTime() + 1000),
+    })).services;
+    expect(compared).toMatchObject({ collections: 2, avgCpuPercent: 25, avgMemoryGb: 1.5, avgDiskGb: 6.5, avgNetworkGb: 0.875 });
+    expect(compared.avgPowerBreakdown).toEqual({ cpuW: 25, memoryW: 0.5625, diskW: 0.065, networkW: 0.0175 });
   });
 });

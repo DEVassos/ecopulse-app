@@ -43,4 +43,37 @@
     border-left-color: var(--border);
     color: var(--muted);
   }
+
+  /* Falha só das regiões (#342): a Carbon API fora do ar não derruba o Dashboard; o aviso fica no lugar da lista */
+  .region-list-error {
+    margin: 0;
+    padding: 10px 14px;
+    border-left: 2px solid var(--warning);
+    border-radius: 0 8px 8px 0;
+    background: var(--surface-2);
+    font-size: 14px;
+    color: var(--text-2);
+  }
+
+  /* Mapa e lista de regiões (#322): lado a lado a partir de 1100 px, com a lista rolando na altura do mapa */
+  .region-area {
+    display: grid;
+    gap: 16px;
+  }
+
+  @media (min-width: 1100px) {
+    .region-area {
+      grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+      align-items: start;
+    }
+
+    .region-area .region-list {
+      max-height: 460px;
+      overflow-y: auto;
+    }
+
+    .region-area .region-list .region-list__list {
+      grid-template-columns: 1fr;
+    }
+  }
 }

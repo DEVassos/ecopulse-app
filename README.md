@@ -58,11 +58,15 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 **Vídeo da Sprint 2:** [EcoPulse — Sprint 2 | DEVassos (FATEC Jacareí) — De Monitoramento a Investigação de Emissões](https://youtu.be/an9g07c_nIs), com o produto como foi entregue na Sprint 2 (`release/sprint-2`).
 
-- **RF09, RF12 — Tabela operacional de serviços (#69):** dashboard com cada serviço monitorado, CPU, energia, emissão, última leitura, localização (código da região na célula; cidade, país e nome da região ao passar o mouse) e status (ativo, indisponível, sem métricas ou removido, quando o serviço sai da lista do agregador), com busca por nome e ordenação por coluna. A coluna **Fator da região (gCO₂e/kWh)** mostra a intensidade de carbono usada na última coleta, que explica por que CPU alta em região limpa emite menos que CPU baixa em região suja; potência estimada, RAM, disco e rede ficam no tooltip da CPU, o intervalo no da última leitura, e a janela de detalhes repete tudo (#298). Só o problema ganha cor: o selo Ativo e o card Ativos ficam neutros, e a linha indisponível ou sem métricas tem o botão **Ver histórico** ao lado do status (#272). A tela consome `GET /api/services` (#115) pela base definida em `VITE_API_URL`; sem ela (variável vazia), o frontend sobe em modo demonstração com dados ilustrativos (`npm run mock`) — como executar em [frontend/README.md](frontend/README.md).
+- **RF09, RF12 — Tabela operacional de serviços (#69):** dashboard com cada serviço monitorado, energia e CO₂e das últimas 24 h (#330), CPU, última leitura, localização (código da região na célula; cidade, país e nome da região ao passar o mouse) e status (ativo, indisponível, sem métricas ou removido, quando o serviço sai da lista do agregador), com busca por nome e ordenação por coluna. A coluna **Fator da região (gCO₂e/kWh)** mostra a intensidade de carbono usada na última coleta, que explica por que CPU alta em região limpa emite menos que CPU baixa em região suja; potência estimada, RAM, disco e rede ficam no tooltip da CPU, o intervalo no da última leitura, e a janela de detalhes repete tudo (#298). Só o problema ganha cor: o selo Ativo e o card Ativos ficam neutros, e a linha indisponível ou sem métricas tem o botão **Ver histórico** ao lado do status (#272). A tela consome `GET /api/services` (#115) pela base definida em `VITE_API_URL`; sem ela (variável vazia), o frontend sobe em modo demonstração com dados ilustrativos (`npm run mock`) — como executar em [frontend/README.md](frontend/README.md). Ao lado do código da região, o selo **Rede limpa** (folha e texto) marca os serviços de regiões com intensidade de agora em até 100 g CO₂e/kWh, o limite de [docs/calculos.md](docs/calculos.md#limite-de-rede-limpa), lida de `GET /api/regions`; o tooltip mostra a intensidade e o % renovável, e sem intensidade conhecida não há selo (RF12, RF13, #324, PR #367). O mesmo selo aparece na lista de regiões e no rótulo das bolhas do mapa ([detalhes](frontend/README.md#selo-de-rede-limpa-rf12-rf13-324)).
 
   ![Tabela de serviços com a coluna Fator da região e a localização pelo código](docs/img/sprint-2-tabela-fator.png)
 
   _Tabela ligada ao backend real (`docker compose`) em 07/11/2026, 17h08, num banco novo com poucos minutos de coletas, em 1366 px: a coluna **Fator da região (gCO₂e/kWh)** vai de 40 (ca-central) a 465 (jp-east), e é ela que explica a emissão: o Audit Stream, com 64% de CPU, emite mais que o Recommendation AI, com 86%, porque a região dele tem fator maior. Os cabeçalhos quebram em duas linhas para as nove colunas caberem sem rolagem (#298)._
+
+  ![Tabela de serviços com o selo Rede limpa ao lado das regiões br-sudeste e ca-central](docs/img/sprint-3-selo-rede-limpa.png)
+
+  _Selo **Rede limpa** com o backend real (`docker compose`) em 17/11/2026, 14h24, em 1440 px: só os quatro serviços de `br-sudeste` (85 g CO₂e/kWh, 83% renovável) e `ca-central` (40 g, 89%) têm o selo; `us-east` (378), `eu-west` (295) e `jp-east` (465) ficam acima do limite de 100 (#324)._
 
   ![Tabela de serviços monitorados com o backend real](docs/img/sprint-2-dashboard-backend-real.png)
 
@@ -80,7 +84,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Dashboard com o backend real (`docker compose`) em 06/11/2026, 10h02: 1,05 kWh e 258 g CO₂e nas últimas 24 h, na unidade que o valor pede, com "▼ 21,4%" e "▼ 22,1%" em verde, porque energia e CO₂e caíram em relação às 24 h anteriores (#271)._
 
-- **RF14 — Quem pesa mais no CO₂e (#260):** a tabela de serviços mostra a parte de cada serviço no CO₂e das últimas 24 h, com barra (o 1º lugar em neon e com o rótulo "1º"), e a frase acima dela diz quem respondeu por mais. Dentro de cada estado, a ordem segue o período e não muda a cada leitura. As partes exibidas somam 100,0%, e a coluna e a frase ficam em cinza quando a última busca falha. A API é `GET /api/services/ranking?metric=co2e&from=&to=`, com o contrato aprovado na #50 e implementada na #287 (PR #291).
+- **RF14 — Quem pesa mais no CO₂e (#260):** a tabela de serviços mostra a parte de cada serviço no CO₂e das últimas 24 h, com barra (o 1º lugar em neon e com o rótulo "1º"), e a frase acima dela diz quem respondeu por mais. A ordem inicial segue o período (maior CO₂e das 24 h primeiro, #330) e não muda a cada leitura. As partes exibidas somam 100,0%, e a coluna e a frase ficam em cinza quando a última busca falha. A API é `GET /api/services/ranking?metric=co2e&from=&to=`, com o contrato aprovado na #50 e implementada na #287 (PR #291).
 
   ![Coluna Parte do CO₂e e frase "Quem pesa mais" no dashboard](docs/img/sprint-2-ranking-co2e.png)
 
@@ -108,7 +112,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 - **RF10 — API dos serviços e histórico de coletas (#115, #116, #119):** `GET /api/services` devolve os serviços monitorados com a última leitura, e `GET /api/collections?service_id=&from=&to=&limit=` devolve o histórico de coletas (com `limit` de 1 a 500), com CORS liberado para o dashboard. `GET /api/collections/series?service_id=&from=&to=&bucket=` (#207) agrupa as coletas de um serviço em intervalos de 15 min, 1 h ou 1 dia, com contagem, energia e CO₂e por intervalo e o total do período. Contrato completo em [docs/api.md](docs/api.md).
 
-- **RF09, RF10 — Detalhes e histórico do serviço (#135):** clicar num serviço da tabela abre uma janela com status, localização, última leitura, CPU e até 100 coletas mais recentes do serviço (`GET /api/collections`), com o período exibido na legenda. Acima da tabela, um gráfico de linha mostra a evolução da CPU nessas coletas, interrompido nas coletas com erro ou sem métricas (#132, PR #201). O histórico se atualiza no mesmo intervalo do dashboard; se uma busca falha, as coletas continuam na tela com "Desatualizado desde …". Como verificar em [frontend/README.md](frontend/README.md). Buracos maiores que o intervalo normal aparecem como “Sem coleta por …”, indicando ausência de registro — não prova de indisponibilidade. A janela exibe até 100 coletas recentes.
+- **RF09, RF10 — Detalhes e histórico do serviço (#135):** clicar num serviço da tabela abre uma janela com status, localização, última leitura, CPU, energia e CO₂e da última leitura (#330) e até 100 coletas mais recentes do serviço (`GET /api/collections`), com o período exibido na legenda. Acima da tabela, um gráfico de linha mostra a evolução da CPU nessas coletas, interrompido nas coletas com erro ou sem métricas (#132, PR #201). O histórico se atualiza no mesmo intervalo do dashboard; se uma busca falha, as coletas continuam na tela com "Desatualizado desde …". Como verificar em [frontend/README.md](frontend/README.md). Buracos maiores que o intervalo normal aparecem como “Sem coleta por …”, indicando ausência de registro — não prova de indisponibilidade. A janela exibe até 100 coletas recentes.
 
   ![Janela de detalhes de um serviço com o gráfico da CPU e o histórico de coletas](docs/img/sprint-2-detalhe-servico.png)
 
@@ -126,11 +130,39 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 - **RF07 — Cálculo socioambiental por coleta (#133, PR #139):** métricas válidas são convertidas em potência, energia e emissão de CO₂e com o fator regional da API de carbono. Se o fator não estiver disponível, a métrica continua registrada e o cálculo fica indisponível, sem criar valor estimado. As colunas "Energia" e "Emissão" da tabela mostram o resultado da última coleta, com cerca de 30 s de operação, numa unidade só por coluna, a do maior valor, indicada no cabeçalho: uma energia de 0,00091 kWh aparece como 0,91 na coluna "Energia (Wh)", e um valor positivo pequeno demais aparece como "< 0,01", nunca como zero (#203, #271) ([detalhes](frontend/README.md#energia-e-emissão-na-tabela)).
 
-- **RNF01 — Dashboard no celular sem esconder energia e CO₂e (#263):** abaixo de 600 px, a emissão da última leitura aparece também sob o nome de cada serviço, e a tabela de serviços e a matriz da Comparação mostram uma sombra na borda direita enquanto há colunas escondidas. O menu rola até o item da página aberta, e o selo de atualização não quebra o horário nem o intervalo no meio.
+- **RNF01 — Dashboard no celular sem esconder energia e CO₂e (#263):** abaixo de 600 px, o CO₂e das últimas 24 h (desde a #330; antes, a emissão da última leitura) aparece também sob o nome de cada serviço, e a tabela de serviços e a matriz da Comparação mostram uma sombra na borda direita enquanto há colunas escondidas. O menu rola até o item da página aberta, e o selo de atualização não quebra o horário nem o intervalo no meio.
 
-  ![Dashboard no celular com a emissão sob o nome de cada serviço](docs/img/sprint-3-dashboard-celular.png)
+  ![Dashboard no celular com o CO₂e das 24 h sob o nome de cada serviço](docs/img/sprint-3-dashboard-celular.png)
 
-  _Dashboard com o backend real (`docker compose`) em 06/11/2026, numa tela de 390 px e com a sessão aberta: o botão **Menu** e o **Sair** na linha da marca (#274) e, em cada serviço, a emissão da última leitura sob o nome (Checkout Worker, 525 mg CO₂e) (#263). O Fraud Detector, que saiu da lista do agregador, aparece como Removido, no fim da tabela e com os números apagados (#261)._
+  _Dashboard com o backend real (`docker compose`) em 17/11/2026, numa tela de 390 px e com a sessão aberta: sob o nome de cada serviço, o CO₂e das últimas 24 h (Fraud Detector, 294 g), na ordem do período, e as colunas das 24 h a uma rolagem de distância (#263, #330)._
+
+- **RF09, RF14 — Tabela com energia e CO₂e das 24 h (#330, PR #368):** as colunas da tabela de serviços passam a ser os totais de cada serviço nas mesmas 24 h dos cards do topo (a soma da coluna **CO₂e 24 h** é igual ao card **Emissões no período**), vindos do `GET /api/services/ranking` já buscado a cada ciclo, sem requisição nova; a tabela abre pelo maior emissor e as colunas ficam em cinza, nunca zero, quando o ranking falha. A energia e o CO₂e da última leitura (~30 s) foram para a janela de detalhes ([detalhes](frontend/README.md#energia-e-emissão-na-tabela)).
+
+  ![Tabela de serviços com energia, CO₂e e parte das últimas 24 h](docs/img/sprint-3-dashboard-24h.png)
+
+  _Tabela ligada ao backend real (`docker compose`) em 17/11/2026, 16h54, em 1366 px: **Energia 24 h (Wh)**, **CO₂e 24 h (g)** e **Parte do CO₂e (24 h)** logo depois do Status, ordem pelo CO₂e do período (Fraud Detector, 294 g, 24,9%), e a leitura mais recente agrupada em CPU, fator e horário (#330)._
+
+  ![Janela de detalhes com a energia e o CO₂e da última leitura](docs/img/sprint-3-detalhe-ultima-leitura.png)
+
+  _Janela de detalhes do Fraud Detector na mesma data: **Energia na última leitura** (1,00 Wh) e **CO₂e na última leitura** (379 mg) ao lado da CPU, com o fator, a potência e os recursos da mesma coleta (#330)._
+
+- **RF12, RF13 — Regiões por CO₂e e mapa de bolhas com o backend real (#342, #322, #351, PR #373):** entre a frase **Quem pesa mais** e a tabela, o dashboard mostra um globo com uma bolha por região e, ao lado, a lista **Regiões por CO₂e** das últimas 24 h, as mesmas dos cards do topo: a soma da lista é igual ao card **Emissões no período**. O tamanho da bolha cresce com o CO₂e, o anel pela energia e a cor do pior estado dos serviços da região; regiões sem serviço hoje viram um ponto neutro. Escolher uma região no mapa, na lista ou na tabela destaca a mesma região nos três lugares e leva o mapa até ela. Os dados vêm de `GET /api/regions` (coordenadas, intensidade e % renovável, #319) e `GET /api/regions/summary` (energia, CO₂e e estados por região no período, #320); se só essas rotas falham, o lugar da lista mostra "Regiões indisponíveis" com a mensagem do erro, ou "Regiões desatualizadas" com o último dado em cinza. No celular, o mapa fica em cima da lista e o globo e as bolhas encolhem para caber ([detalhes](frontend/README.md#mapa-das-regiões-rf13-322)).
+
+  ![Globo com as bolhas das regiões e a lista Regiões por CO₂e ao lado](docs/img/sprint-3-dashboard-regioes.png)
+
+  _Dashboard com o backend real (`docker compose`) em 17/11/2026, 23h48, em 1440 px, com cerca de 13 h de coletas: Ashburn (`us-east`) emitiu mais (150 g) com dois serviços e a intensidade de 378 g CO₂e/kWh; Sao Paulo (`br-sudeste`, 85 g/kWh) tem o selo **Rede limpa**. O crédito das imagens da EOX fica no canto do mapa (#351)._
+
+- **RF09, RNF01 — Eixo de Emissões ajustado ao trecho com dados (#332, PR #344):** quando o monitoramento de um serviço começa depois de 20% do período escolhido, o gráfico de Emissões marca o início ("monitoramento começou entre 19:30 e 19:45") e oferece **Ajustar ao trecho com dados**, que encurta o eixo; KPIs e totais continuam sendo do período inteiro, e o texto sob o título avisa isso ([detalhes](frontend/README.md#página-emissões-190)).
+
+  ![Emissões de ontem com a marca do início do monitoramento](docs/img/sprint-3-emissoes-eixo.png)
+
+  _Página Emissões com o backend real (`docker compose`) em 12/11/2026, em 1280 px, com o período "Ontem" (11/11) do Audit Stream: o monitoramento começou entre 19:30 e 19:45, e a linha tracejada marca o início; à esquerda dela, quase todo o dia ficou sem dados. O botão **Ajustar ao trecho com dados** fica acima do gráfico._
+
+- **RF07, DW05 — Equivalências do CO₂e no card de emissões (#333, PR #350):** abaixo do total de **Emissões no período**, o dashboard mostra a mesma conta em duas unidades do dia a dia — quilômetros de carro a gasolina e cargas de celular — com a etiqueta **ordem de grandeza** e os dois fatores, a fonte e a data de consulta no tooltip da linha. São dois algarismos significativos no padrão brasileiro; abaixo de 0,01 a unidade vira "< 0,01", nunca zero, e sem CO₂e calculado a linha não aparece. A conta é só de apresentação e não é gravada ([fatores, contas e exemplo em docs/calculos.md](docs/calculos.md#equivalências); [detalhes em frontend/README.md](frontend/README.md#indicadores-agregados-rf08)).
+
+  ![Emissões no período com a linha de equivalência abaixo do valor](docs/img/sprint-3-equivalencias.png)
+
+  _Dashboard com o backend falso (`npm run mock`) em 13/11/2026, em 1280 px: 2,13 kg CO₂e no período e, abaixo, "≈ 8,7 km de carro a gasolina · ≈ 170 cargas de celular (ordem de grandeza)". A fonte dos dois fatores aparece no tooltip da linha ([segundo print](docs/img/sprint-3-equivalencias-fonte.png))._
 
 - **RNF01 — Fundo azul, verde nos destaques e logo pulsante (#180, PR #184):** a base da paleta voltou ao azul-escuro e o verde ficou só em ações e destaques (botão vazado nas ações secundárias, item ativo do menu, neon no que pede atenção), em resposta ao feedback da Sprint Review 1. O logo pulsa uma vez a cada atualização bem-sucedida dos dados, como sinal de "ao vivo", e fica parado em falha ou com "reduzir movimento". Regras e contrastes em [docs/identidade-visual.md](docs/identidade-visual.md).
 
@@ -167,6 +199,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 | Banco de dados | PostgreSQL com DDL e DML explícitos via driver `pg`, sem ORM |
 | Segurança | Login JWT no backend e bcrypt para senhas ([#20](https://github.com/DEVassos/ecopulse-app/issues/20), PR #208); tela de login no frontend ([#25](https://github.com/DEVassos/ecopulse-app/issues/25), PR #243); `PUT /api/monitoring-settings` protegido ([#250](https://github.com/DEVassos/ecopulse-app/issues/250), PR #253); todas as páginas e as rotas de dados exigem login ([#257](https://github.com/DEVassos/ecopulse-app/issues/257)) |
 | Execução | Docker Compose (frontend, backend e PostgreSQL com volume persistente) |
+| Mapa | MapLibre GL JS 6.16.0, carregado só quando o mapa abre ([ADR 0010](docs/adr/0010-mapa-maplibre.md)). Imagens de satélite EOX Sentinel-2 cloudless 2025 sob CC BY-NC-SA 4.0, com o crédito no canto do mapa. **Aviso de uso comercial:** a licença das imagens é só para uso não comercial; uso comercial do EcoPulse exige a licença paga da EOX ou outra fonte de imagens |
 
 ## 6. Equipe (DEVassos)
 

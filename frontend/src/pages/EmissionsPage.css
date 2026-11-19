@@ -169,12 +169,19 @@
   /* Forma de exibir o gráfico, no card e à direita, logo acima dele (#267) */
   .emissions__chart-bar {
     display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
     justify-content: flex-end;
   }
 
   .emissions__segmented {
     display: inline-flex;
     gap: 0;
+  }
+
+  /* Ajuste do eixo ao trecho com dados (#332): à esquerda, longe da forma de exibir, que fica à direita */
+  .emissions__fit {
+    margin-right: auto;
   }
 
   .emissions__segmented .emissions__btn {
@@ -238,6 +245,11 @@
     margin: 2px 0 0;
     font-size: 13px;
     color: var(--muted);
+  }
+
+  /* Aviso do eixo ajustado (#332): os KPIs acima seguem o período inteiro */
+  .emissions__subtitle--fit {
+    color: var(--text-2);
   }
 
   .emissions__spinner {

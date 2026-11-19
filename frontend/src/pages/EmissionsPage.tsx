@@ -19,6 +19,9 @@ import {
   BUCKET_LABEL,
   MAX_SPAN_DAYS,
   autoBucket,
+  describeLateStart,
+  fittedAxisStart,
+  formatClock,
   formatDurationMilliseconds,
   formatGrams,
   formatInputDate,
@@ -26,6 +29,7 @@ import {
   formatPeakTime,
   formatRatio,
   formatShort,
+  lateStartMs,
   missingSpans,
   peakRatio,
   seriesStats,
@@ -68,6 +72,9 @@ export default function EmissionsPage() {
   const [bucket, setBucket] = useState<EmissionsBucket | null>(null);
   const [mode, setMode] = useState<EmissionsChartMode>('intervalo');
   const [formError, setFormError] = useState('');
+  // Eixo ajustado ao trecho com dados (#332): vale só para o serviço e o período em que foi pedido
+  const viewKey = `${service?.id ?? ''}|${start}|${end}`;
+  const [fitKey, setFitKey] = useState<string | null>(null);
 
   const { data, period, loading, error, updatedAt, refresh } = useEmissions({
     serviceId: service?.id ?? null,
@@ -92,6 +99,14 @@ export default function EmissionsPage() {
   const peakPoint = stats && stats.peakIndex !== null && data ? data.points[stats.peakIndex] : null;
   const grouped = data ? data.bucket !== 'coleta' : false;
   const totals = data?.totals ?? null;
+  // Monitoramento que começou depois de 20% do período (#332): a marca no gráfico e o ajuste do eixo; KPIs e totais
+  // continuam sendo do período inteiro
+  const lateStart = data && period ? lateStartMs(data.points, period.fromMs, period.toMs) : null;
+  const fitted = lateStart !== null && fitKey === viewKey;
+  const multiDay = start !== end;
+  const axisFromMs =
+    data && period && lateStart !== null && fitted ? fittedAxisStart(lateStart, period.fromMs, period.toMs, data.bucket) : period?.fromMs;
+  const startMark = data && lateStart !== null && !fitted ? { t: lateStart, label: describeLateStart(lateStart, data.bucket, multiDay) } : undefined;
   const range = periodMs(start, end);
   const autoLabel = BUCKET_LABEL[autoBucket(range.fromMs, range.toMs)];
 
@@ -223,6 +238,12 @@ export default function EmissionsPage() {
                     {locationOf(service) && ` · ${locationOf(service)}`}
                     {data && ` · ${BUCKET_LABEL[data.bucket].toLowerCase()}`}
                   </p>
+                  {fitted && axisFromMs !== undefined && (
+                    <p className="emissions__subtitle emissions__subtitle--fit">
+                      Gráfico a partir de {formatClock(axisFromMs, multiDay)}, quando começam os dados; os totais são do
+                      período inteiro.
+                    </p>
+                  )}
                 </div>
                 <LastUpdated
                   updatedAt={updatedAt}
@@ -299,6 +320,11 @@ export default function EmissionsPage() {
 
               {/* Forma de exibir o gráfico: fica no card, junto do gráfico em que age (#267) */}
               <div className="emissions__chart-bar">
+                {lateStart !== null && points.length > 0 && (
+                  <button type="button" className="emissions__btn emissions__fit" onClick={() => setFitKey(fitted ? null : viewKey)}>
+                    {fitted ? 'Mostrar o período inteiro' : 'Ajustar ao trecho com dados'}
+                  </button>
+                )}
                 <div className="emissions__segmented" role="group" aria-label="Forma de exibir o gráfico">
                   <button type="button" className="emissions__btn" aria-pressed={mode === 'intervalo'} onClick={() => setMode('intervalo')}>
                     {data?.bucket === 'coleta' ? 'Por coleta' : 'Por intervalo'}
@@ -318,10 +344,11 @@ export default function EmissionsPage() {
                     points={points}
                     bucket={data.bucket}
                     mode={mode}
-                    fromMs={period.fromMs}
+                    fromMs={axisFromMs ?? period.fromMs}
                     toMs={period.toMs}
                     missing={missing}
                     stale={stale}
+                    startMark={startMark}
                   />
                 )}
               </div>

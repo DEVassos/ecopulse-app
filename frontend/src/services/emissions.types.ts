@@ -49,7 +49,10 @@ export interface EmissionsSeries {
   bucket: EmissionsBucket;
   points: EmissionPoint[];
   totals: EmissionsTotals;
-  /** A busca por coleta parou no teto de páginas: o início do período pode estar faltando. */
+  /**
+   * A busca por coleta parou antes do início do período: no teto de páginas ou numa página cheia sem data legível
+   * no fim (#256). O início do período pode estar faltando.
+   */
   truncated: boolean;
   /** Itens recebidos fora do formato de docs/api.md, deixados de fora do gráfico e dos totais. */
   discarded: number;

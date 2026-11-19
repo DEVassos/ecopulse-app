@@ -45,6 +45,7 @@ it('agrupa a série por intervalo e devolve o total do período na mesma consult
   expect(sql).toContain("COUNT(*) FILTER (WHERE status <> 'ok') AS failed");
   expect(sql).toContain("COUNT(*) FILTER (WHERE status = 'ok' AND calculation_status <> 'disponivel') AS not_calculated");
   expect(sql).toContain("SUM(energy_kwh) FILTER (WHERE calculation_status = 'disponivel') AS energy_kwh");
+  expect(sql).toContain("SUM(co2e_grams) FILTER (WHERE calculation_status = 'disponivel') AS co2e_grams");
   expect(sql).toContain("AVG(carbon_intensity_gco2e_per_kwh) FILTER (WHERE calculation_status = 'disponivel')");
   expect(sql).toContain('ORDER BY bucket_start');
   expect(sql).not.toContain('15 minutes');
@@ -82,6 +83,20 @@ it('agrega indicadores por intervalo com parâmetros de data', async () => {
   expect(fake.poolQuery.mock.calls[0][1]).toEqual([from, to]);
   expect(result).toEqual(row);
 });
+it('pondera as médias de recursos pelo intervalo de coleta na comparação (#327)', async () => {
+  const from = new Date('2026-10-20T00:00:00Z');
+  const to = new Date('2026-10-21T00:00:00Z');
+  fake.poolQuery.mockResolvedValueOnce({ rows: [] });
+  await new ServiceRepository(createDatabase('postgresql://localhost/test')).compareByIds(['1', '2'], from, to);
+  const [sql, params] = fake.poolQuery.mock.calls[0] as [string, unknown[]];
+  for (const column of ['cpu_percent', 'memory_gb', 'disk_gb', 'network_gb']) {
+    expect(sql).toContain(`SUM(c.${column} * c.collection_interval_seconds)`);
+  }
+  expect(sql.match(/SUM\(c\.collection_interval_seconds\) FILTER \(WHERE c\.status = 'ok'\)/g)).toHaveLength(4);
+  expect(sql).not.toContain('AVG(');
+  expect(sql).not.toContain('${');
+  expect(params).toEqual([['1', '2'], from, to]);
+});
 it.each([
   'energy',
   'co2e',
@@ -106,13 +121,18 @@ it.each([
 });
 it('traz os campos de cálculo na listagem de coletas', async () => {
   fake.poolQuery.mockResolvedValueOnce({ rows: [] });
+  const from = new Date('2026-10-23T00:00:00.000Z');
+  const to = new Date('2026-10-24T00:00:00.000Z');
   await new CollectionRepository(createDatabase('postgresql://localhost/test'))
-    .findAll({ serviceId: null, from: null, to: null, limit: 50 });
+    .findAll({ serviceId: '1', from, to, limit: 50 });
   const sql = fake.poolQuery.mock.calls[0][0] as string;
   for (const column of ['calculation_status', 'carbon_intensity_gco2e_per_kwh', 'energy_kwh', 'co2e_grams']) {
     expect(sql).toContain(column);
   }
-  expect(fake.poolQuery.mock.calls[0][1]).toEqual([null, null, null, 50]);
+  expect(sql).toContain('collected_at >= $2');
+  expect(sql).toContain('collected_at < $3');
+  expect(sql).not.toContain('collected_at <= $3');
+  expect(fake.poolQuery.mock.calls[0][1]).toEqual(['1', from, to, 50]);
 });
 it.each(['BEGIN', 'consulta', 'COMMIT', 'ROLLBACK'])('libera conexão após falha em %s', async stage => {
   const original = new Error('falha controlada');
