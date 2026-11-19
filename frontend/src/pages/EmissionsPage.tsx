@@ -6,6 +6,7 @@ import type { EmissionsChartMode } from '../components/EmissionsChart';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import EstimateTag from '../components/EstimateTag';
+import ExportButtons from '../components/ExportButtons';
 import LastUpdated from '../components/LastUpdated';
 import LoadingState from '../components/LoadingState';
 import PeriodPicker from '../components/PeriodPicker';
@@ -253,6 +254,16 @@ export default function EmissionsPage() {
                   {loading && <span className="emissions__spinner" aria-hidden="true" />}
                 </LastUpdated>
               </header>
+
+              {/* Exportação do período (#24, US13 #54): CSV com todas as coletas e PDF pela impressão do navegador */}
+              <ExportButtons
+                serviceId={service.id}
+                serviceName={service.name}
+                start={start}
+                end={end}
+                fromMs={range.fromMs}
+                toMs={range.toMs}
+              />
 
               {error && <ErrorState message={error} onRetry={refresh} />}
 
