@@ -292,6 +292,12 @@
     outline-offset: 3px;
   }
 
+  /* Simulação, não leitura: sem o pulso "ao vivo" das regiões ativas, mesmo quando o destino tem serviço. Duas classes
+     para vencer `.region-bubble--ativo:not(.region-bubble--selected) b`, que vem antes e tem a mesma especificidade */
+  .region-bubble.region-bubble--destination b {
+    animation: none;
+  }
+
   .region-map__key--destination {
     border-color: var(--bubble-destination);
     background: var(--bubble-destination-fill);
