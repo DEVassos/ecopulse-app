@@ -1,7 +1,7 @@
 // Lista de regiões do Dashboard (#342, RF13): o que cada linha mostra, em cálculo puro, sem React. A junção das duas
 // respostas e o pior estado vêm da #321 (`utils/regions.ts`); aqui ficam só o nome, o lugar e a ordem da tela.
 import type { RegionStatus, RegionsResponse, RegionsSummaryResponse } from '../services/regions.types';
-import { bubbleRadius, joinRegions } from './regions';
+import { bubbleRadius, estimateMigration, joinRegions } from './regions';
 import type { RegionWithTotals } from './regions';
 
 /** Uma região pronta para a lista (e, na #322, para o mapa). */
@@ -135,4 +135,32 @@ export function formatMigrationPercent(percent: number): string {
 export function migrationMath(energyKwh: number, intensity: number, grams: number): string {
   const precise = (value: number) => value.toLocaleString('pt-BR', { maximumSignificantDigits: 4 });
   return `${precise(energyKwh)} kWh × ${precise(intensity)} g/kWh = ${precise(grams)} g`;
+}
+
+/** Destino da simulação no mapa (#326): a região escolhida e o CO₂e que a energia da origem emitiria nela. */
+export interface MapDestination {
+  code: string;
+  /** CO₂e simulado em gramas, que dá o tamanho do marcador na mesma escala das bolhas; null sem conta possível. */
+  co2eGrams: number | null;
+}
+
+/**
+ * Destino escolhido no painel, pronto para o mapa: só quando a origem é uma região com serviço e o destino está na lista
+ * da Carbon API. O CO₂e é a conta de `estimateMigration`, a mesma do painel.
+ */
+export function mapDestination(overview: RegionOverview, originCode: string | null, destinationCode: string | null): MapDestination | null {
+  if (originCode === null || destinationCode === null || originCode === destinationCode) return null;
+  const origin = overview.monitored.find((region) => region.code === originCode);
+  const destination = [...overview.monitored, ...overview.idle].find((region) => region.code === destinationCode);
+  if (!origin || !destination) return null;
+  const estimate = estimateMigration(origin.energyKwh, origin.co2eGrams, destination.carbonIntensityGco2ePerKwh);
+  return { code: destination.code, co2eGrams: estimate?.grams ?? null };
+}
+
+/**
+ * Para onde a câmera vai (#326): o destino simulado quando há um com coordenada; senão, a região selecionada. A câmera só
+ * se move quando este código muda, então a atualização periódica não a mexe.
+ */
+export function cameraTarget(selectedCode: string | null, destination: MapDestination | null, placedCodes: ReadonlySet<string>): string | null {
+  return destination !== null && placedCodes.has(destination.code) ? destination.code : selectedCode;
 }

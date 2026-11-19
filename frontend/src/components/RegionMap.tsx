@@ -8,9 +8,9 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { REGION_STATUSES } from '../services/regions.types';
 import type { RegionStatus } from '../services/regions.types';
 import { formatQuantity } from '../utils/units';
-import { bubbleDiameter, fitZoom, IDLE_DOT, mapScale, REFERENCE_SIDE, ringPercent } from '../utils/region-map';
+import { bubbleDiameter, cameraTarget, fitZoom, IDLE_DOT, mapScale, REFERENCE_SIDE, ringPercent } from '../utils/region-map';
 import { isCleanGrid } from '../utils/regions';
-import type { ListedRegion, RegionOverview } from '../utils/region-map';
+import type { ListedRegion, MapDestination, RegionOverview } from '../utils/region-map';
 import countries from './countries-110m.json';
 import './RegionMap.css';
 
@@ -55,6 +55,8 @@ interface Props {
   onSelect: (code: string) => void;
   /** A última busca falhou: os números são da atualização anterior (#261). */
   stale?: boolean;
+  /** Destino da simulação de migração (#326): marcador com tamanho de bolha, e a câmera vai até ele. */
+  destination?: MapDestination | null;
 }
 
 /** Curva de aceleração das etapas da viagem: parte e chega devagar. */
@@ -92,11 +94,13 @@ function regionLabel(region: PlacedRegion): string {
  * tabela (#342): escolher uma região em qualquer um dos três leva o mapa até ela. Sem imagens de satélite, o contorno
  * dos países aparece por baixo.
  */
-export default function RegionMap({ overview, selectedCode, onSelect, stale = false }: Props) {
+export default function RegionMap({ overview, selectedCode, onSelect, stale = false, destination = null }: Props) {
   const monitored = useMemo(() => overview.monitored.filter(isPlaced), [overview]);
   const regions = useMemo(() => [...monitored, ...overview.idle.filter(isPlaced)], [monitored, overview]);
   const maxCo2e = useMemo(() => Math.max(0, ...monitored.map((region) => region.co2eGrams ?? 0)), [monitored]);
   const maxEnergy = useMemo(() => Math.max(0, ...monitored.map((region) => region.energyKwh ?? 0)), [monitored]);
+  // A câmera segue o destino simulado (#326) quando há um; voltar para a origem ou trocar de região a traz de volta
+  const target = cameraTarget(selectedCode, destination, new Set(regions.map((region) => region.code)));
 
   const [zoomed, setZoomed] = useState(false);
   /** O mesmo "zoomed", lido pelo listener de resize do MapLibre (fora do React). */
@@ -115,7 +119,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
   const flightRef = useRef(0);
   const bubbleClickRef = useRef<(code: string) => void>(() => {});
   const followRef = useRef<(code: string | null) => void>(() => {});
-  /** Região da última viagem: a seleção só move o mapa quando muda, nunca a cada ciclo do polling. */
+  /** Região da última viagem: a seleção (ou o destino simulado) só move o mapa quando muda, nunca a cada ciclo do polling. */
   const followedRef = useRef<string | null>(null);
 
   // O mapa nasce uma vez. A biblioteca vem por import dinâmico e o componente inteiro por React.lazy (Dashboard).
@@ -319,10 +323,10 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
     followRef.current = follow;
   });
 
-  // A seleção mudou (na lista, na tabela ou numa bolha), ou o mapa acabou de abrir com uma região já escolhida
+  // A seleção ou o destino simulado mudou, ou o mapa acabou de abrir com uma região já escolhida
   useEffect(() => {
-    if (mapReady && selectedCode !== followedRef.current) followRef.current(selectedCode);
-  }, [mapReady, selectedCode]);
+    if (mapReady && target !== followedRef.current) followRef.current(target);
+  }, [mapReady, target]);
 
   // Bolhas em dia com os dados a cada ciclo, sem recriar o mapa: cria as que faltam, atualiza as outras, tira as que saíram
   useEffect(() => {
@@ -352,9 +356,11 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
         markers.set(region.code, entry);
       }
       const { element, marker } = entry;
-      const idle = region.worstStatus === null && region.co2eGrams === null;
-      const diameter = idle ? IDLE_DOT : bubbleDiameter(region.co2eGrams, maxCo2e, scale);
-      const ring = idle ? null : ringPercent(region.energyKwh, maxEnergy);
+      // Destino simulado (#326): tamanho de bolha pelo CO₂e simulado, na mesma escala das outras, mesmo sem serviço
+      const simulated = region.code === destination?.code;
+      const idle = !simulated && region.worstStatus === null && region.co2eGrams === null;
+      const diameter = simulated ? bubbleDiameter(destination.co2eGrams, maxCo2e, scale) : idle ? IDLE_DOT : bubbleDiameter(region.co2eGrams, maxCo2e, scale);
+      const ring = idle || simulated ? null : ringPercent(region.energyKwh, maxEnergy);
       const [bubble, ringElement] = [element.children[0] as HTMLElement, element.children[1] as HTMLElement];
       marker.setLngLat([region.longitude, region.latitude]);
       // classList, e não className: o MapLibre põe no mesmo elemento as classes que o posicionam no mapa
@@ -362,6 +368,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
       element.classList.toggle('region-bubble--idle', idle);
       for (const state of REGION_STATUSES) element.classList.toggle(`region-bubble--${state}`, state === region.worstStatus);
       element.classList.toggle('region-bubble--selected', region.code === selectedCode);
+      element.classList.toggle('region-bubble--destination', simulated);
       element.setAttribute('aria-pressed', String(region.code === selectedCode));
       // As menores por cima, para continuarem clicáveis quando encostam numa maior
       element.style.zIndex = String(200 - diameter);
@@ -369,11 +376,13 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
       ringElement.className = 'region-bubble__ring';
       ringElement.hidden = ring === null;
       if (ring !== null) ringElement.style.setProperty('--ring', String(ring));
-      const label = regionLabel(region);
+      const label = simulated
+        ? `${regionLabel(region)}. Destino simulado${destination.co2eGrams === null ? '' : `: ${formatQuantity('co2e', destination.co2eGrams)} de CO₂e com a mesma energia`}`
+        : regionLabel(region);
       element.setAttribute('aria-label', label);
       element.title = label;
     }
-  }, [mapReady, regions, maxCo2e, maxEnergy, selectedCode, scale]);
+  }, [mapReady, regions, maxCo2e, maxEnergy, selectedCode, scale, destination]);
 
   if (monitored.length === 0) return null;
 
@@ -400,6 +409,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
         <li><i className="region-map__key region-map__key--idle" aria-hidden="true" />Sem serviço hoje</li>
         <li><i className="region-map__key region-map__key--size" aria-hidden="true" />Tamanho: CO₂e</li>
         <li><i className="region-map__key region-map__key--ring" aria-hidden="true" />Anel: energia</li>
+        {destination && <li><i className="region-map__key region-map__key--destination" aria-hidden="true" />Destino simulado</li>}
       </ul>
     </section>
   );
