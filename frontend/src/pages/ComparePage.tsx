@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import AppHeader from '../components/AppHeader';
@@ -10,13 +10,16 @@ import LoadingState from '../components/LoadingState';
 import CompactValue from '../components/CompactValue';
 import MissingValue from '../components/MissingValue';
 import PeriodPicker from '../components/PeriodPicker';
+import PowerBreakdownChart from '../components/PowerBreakdownChart';
 import { useComparison } from '../hooks/useComparison';
 import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow';
 import { useServices } from '../hooks/useServices';
 import type { ComparedService } from '../services/compare.types';
 import { isDemoMode } from '../services/services.service';
+import { CAUSE_LABEL, carbonIntensity, lowestCo2eCause } from '../utils/comparison';
+import type { ResourceKey } from '../utils/comparison';
 import { isInputDate, spanDays, timeZoneLabel, todayInput } from '../utils/emissions';
-import { formatNumber } from '../utils/format';
+import { formatFixed, formatNumber } from '../utils/format';
 import { scaleFor } from '../utils/units';
 
 /** Limites de GET /api/services/compare (docs/api.md). */
@@ -58,25 +61,83 @@ interface Row {
   cell: (service: ComparedService) => ReactNode;
 }
 
-/** Linhas da matriz; energia e CO₂e na escala única dos serviços comparados (#271), com a unidade no rótulo. */
-function rowsFor(services: ComparedService[]): Row[] {
+/** Bloco de linhas da matriz: "Impacto" abre a leitura, "Detalhe das métricas" aprofunda (#328). */
+interface RowGroup {
+  title: string;
+  rows: Row[];
+}
+
+/** Parcela de potência do recurso, ou `null` quando o backend não trouxe as quatro médias do serviço. */
+function wattsOf(service: ComparedService, key: ResourceKey): number | null {
+  return service.avgPowerBreakdown === null ? null : service.avgPowerBreakdown[key];
+}
+
+/**
+ * Recurso do detalhe: o valor medido e a contribuição dele na potência média, "10,39 GB · 3,90 W" (#328). Sem a
+ * parcela, o valor aparece sozinho — não há zero a exibir no lugar dela.
+ */
+function resourceCell(value: number | null, watts: number | null, decimals: number, unit: string): ReactNode {
+  if (value === null) return <MissingValue label="sem dado no período" title="Sem dado no período" />;
+  // O % acompanha o número sem espaço, como em toda a interface; as demais unidades vêm depois de um espaço
+  const amount = `${formatNumber(value, decimals)}${unit === '%' ? '' : ' '}${unit}`;
+  return (
+    <>
+      {amount}
+      {watts !== null && <span className="text-muted"> · {formatFixed(watts, 2)} W</span>}
+    </>
+  );
+}
+
+/**
+ * Linhas da matriz, na ordem de leitura de quem decide (#328): Energia, Intensidade e CO₂e no bloco de impacto — com
+ * as energias e os CO₂e na escala única dos serviços comparados (#271) e a unidade no rótulo —, e as métricas
+ * coletadas depois, no detalhe. A intensidade vem de CO₂e ÷ energia do período (`docs/calculos.md`).
+ */
+function rowsFor(services: ComparedService[]): RowGroup[] {
   const energy = scaleFor('energy', services.map((service) => service.energyKwh));
   const co2e = scaleFor('co2e', services.map((service) => service.co2eGrams));
   return [
-    { label: 'Coletas', cell: collectionsCell },
-    { label: 'CPU média', cell: (service) => amount(service.avgCpuPercent, (value) => `${formatNumber(value, 1)}%`) },
-    { label: 'Memória média (GB)', cell: (service) => amount(service.avgMemoryGb, (value) => formatNumber(value, 2)) },
-    { label: 'Disco médio (GB)', cell: (service) => amount(service.avgDiskGb, (value) => formatNumber(value, 2)) },
-    { label: 'Rede média (GB)', cell: (service) => amount(service.avgNetworkGb, (value) => formatNumber(value, 3)) },
     {
-      label: `Energia (${energy.unit})`,
-      cell: (service) =>
-        amount(service.energyKwh, (value) => <CompactValue quantity="energy" value={value} scale={energy} label="Energia somada no período" />),
+      title: 'Impacto',
+      rows: [
+        {
+          label: `Energia (${energy.unit})`,
+          cell: (service) =>
+            amount(service.energyKwh, (value) => <CompactValue quantity="energy" value={value} scale={energy} label="Energia somada no período" />),
+        },
+        {
+          label: 'Intensidade (g CO₂e/kWh)',
+          cell: (service) =>
+            amount(carbonIntensity(service.co2eGrams, service.energyKwh), (value) => formatNumber(value, 2)),
+        },
+        {
+          label: `CO₂e (${co2e.unit})`,
+          cell: (service) =>
+            amount(service.co2eGrams, (value) => <CompactValue quantity="co2e" value={value} scale={co2e} label="CO₂e somado no período" />),
+        },
+      ],
     },
     {
-      label: `CO₂e (${co2e.unit})`,
-      cell: (service) =>
-        amount(service.co2eGrams, (value) => <CompactValue quantity="co2e" value={value} scale={co2e} label="CO₂e somado no período" />),
+      title: 'Detalhe das métricas',
+      rows: [
+        { label: 'Coletas', cell: collectionsCell },
+        {
+          label: 'CPU média',
+          cell: (service) => resourceCell(service.avgCpuPercent, wattsOf(service, 'cpuW'), 1, '%'),
+        },
+        {
+          label: 'Memória média',
+          cell: (service) => resourceCell(service.avgMemoryGb, wattsOf(service, 'memoryW'), 2, 'GB'),
+        },
+        {
+          label: 'Disco médio',
+          cell: (service) => resourceCell(service.avgDiskGb, wattsOf(service, 'diskW'), 2, 'GB'),
+        },
+        {
+          label: 'Rede na coleta',
+          cell: (service) => resourceCell(service.avgNetworkGb, wattsOf(service, 'networkW'), 3, 'GB'),
+        },
+      ],
     },
   ];
 }
@@ -95,14 +156,23 @@ function co2eExtremes(services: ComparedService[]): { lowest: Set<string>; highe
   return { lowest: withValue(min), highest: withValue(max) };
 }
 
+/** Destaque da coluna e da barra de CO₂e: sempre com o texto, nunca só a cor. */
+interface Extreme {
+  kind: 'lowest' | 'highest';
+  label: string;
+  arrow: string;
+  text: string;
+  tint: string;
+}
+
 /**
- * Destaque da coluna e da barra de CO₂e: verde no menor CO₂e, laranja (alerta) no maior; sempre com o texto, nunca só
- * a cor.
+ * Verde (primária) no menor CO₂e, laranja (alerta) no maior; a coluna e a barra usam o mesmo objeto, então o texto do
+ * destaque nunca diverge entre a tabela e o gráfico. No menor CO₂e o rótulo ganha a causa da diferença (#328).
  */
-const EXTREME = {
+const EXTREME: Record<Extreme['kind'], Extreme> = {
   lowest: { kind: 'lowest', label: 'menor CO₂e', arrow: '↓', text: 'text-primary-hover', tint: 'bg-primary/10' },
   highest: { kind: 'highest', label: 'maior CO₂e', arrow: '↑', text: 'text-warning', tint: 'bg-warning/10' },
-} as const;
+};
 
 /**
  * Comparação entre serviços (RF15, #194): de 2 a 10 serviços no mesmo período, por GET /api/services/compare.
@@ -148,8 +218,14 @@ export default function ComparePage() {
 
   const { data, loading, error, refresh } = useComparison(ids, start, end);
   const extremes = data ? co2eExtremes(data.services) : null;
-  const extremeOf = (id: string) =>
-    extremes?.lowest.has(id) ? EXTREME.lowest : extremes?.highest.has(id) ? EXTREME.highest : null;
+  // Por que o serviço de menor CO₂e emite menos; null quando os dados não sustentam uma causa
+  const cause = data ? lowestCo2eCause(data.services) : null;
+  const extremeOf = (id: string): Extreme | null => {
+    if (extremes?.lowest.has(id)) {
+      return cause?.id === id ? { ...EXTREME.lowest, label: `${EXTREME.lowest.label}: ${CAUSE_LABEL[cause.kind]}` } : EXTREME.lowest;
+    }
+    return extremes?.highest.has(id) ? EXTREME.highest : null;
+  };
 
   function toggle(id: string) {
     setDraftIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -325,18 +401,32 @@ export default function ComparePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {/* Linhas alternadas; a cor da coluna em destaque é translúcida e deixa a alternância aparecer */}
-                  {rowsFor(data.services).map((row) => (
-                    <tr key={row.label} className="border-t border-border even:bg-surface-3">
-                      <th scope="row" className="whitespace-nowrap px-5 py-2 text-left font-medium text-muted">
-                        {row.label}
-                      </th>
-                      {data.services.map((service) => (
-                        <td key={service.id} className={`px-5 py-2 text-right font-data ${extremeOf(service.id)?.tint ?? ''}`}>
-                          {row.cell(service)}
-                        </td>
+                  {rowsFor(data.services).map((group) => (
+                    <Fragment key={group.title}>
+                      {/* Título do bloco: "Impacto" antes do detalhe, na leitura de quem decide (#328) */}
+                      <tr className="border-t border-border">
+                        <th
+                          scope="colgroup"
+                          colSpan={data.services.length + 1}
+                          className="px-5 pt-3 pb-1 text-left text-xs font-semibold text-text-2"
+                        >
+                          {group.title}
+                        </th>
+                      </tr>
+                      {/* Linhas alternadas; a cor da coluna em destaque é translúcida e deixa a alternância aparecer */}
+                      {group.rows.map((row) => (
+                        <tr key={row.label} className="even:bg-surface-3">
+                          <th scope="row" className="whitespace-nowrap px-5 py-2 text-left font-medium text-muted">
+                            {row.label}
+                          </th>
+                          {data.services.map((service) => (
+                            <td key={service.id} className={`px-5 py-2 text-right font-data ${extremeOf(service.id)?.tint ?? ''}`}>
+                              {row.cell(service)}
+                            </td>
+                          ))}
+                        </tr>
                       ))}
-                    </tr>
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
@@ -344,6 +434,9 @@ export default function ComparePage() {
             </div>
 
             <CompareChart services={data.services} highlightOf={extremeOf} />
+
+            {/* Composição da potência média: mesma ordem de colunas da tabela (#328) */}
+            <PowerBreakdownChart services={data.services} />
 
           </section>
         )}
