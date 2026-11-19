@@ -152,6 +152,12 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Dashboard com o backend real (`docker compose`) em 17/11/2026, 23h48, em 1440 px, com cerca de 13 h de coletas: Ashburn (`us-east`) emitiu mais (150 g) com dois serviços e a intensidade de 378 g CO₂e/kWh; Sao Paulo (`br-sudeste`, 85 g/kWh) tem o selo **Rede limpa**. O crédito das imagens da EOX fica no canto do mapa (#351)._
 
+- **RF15 — Alternativa mais limpa: simulação de migração regional (US12 #53; #382, PR #383; #326):** com uma região selecionada no mapa, na lista ou na tabela, abaixo do mapa abre o painel da região com o bloco **Alternativa mais limpa nas últimas 24 h**: "A mesma energia das últimas 24 h emitiria cerca de X g de CO₂e em <cidade>: Y% menos", sempre com a região de menor intensidade entre todas as da Carbon API, inclusive as sem serviço hoje, e a linha da conta em kWh e g/kWh para quem quiser refazer. A tabela de fatores é o seletor de destino: da mais limpa para a mais suja, com intensidade, CO₂e simulado e diferença, a mais limpa destacada e as regiões sem intensidade bloqueadas; destino mais sujo aparece como aumento, nunca como redução negativa. **Ver alternativa mais limpa** leva a câmera até o destino, marcado no mapa como **Destino simulado** do tamanho do CO₂e simulado, e **Voltar para <origem>** desfaz. A conta troca só o fator da região e preserva a energia ([fórmula, ressalvas e exemplo em docs/calculos.md](docs/calculos.md#simulação-de-migração-regional)); o painel declara o que ela não considera (latência, custo de nuvem, disponibilidade, hardware ou arquitetura, energia para mover os dados) e a hora da intensidade usada ([detalhes](frontend/README.md#simulação-de-migração-rf15-326)).
+
+  ![Mapa com o destino simulado em Toronto e o painel da alternativa mais limpa de Ashburn](docs/img/sprint-3-alternativa-limpa.png)
+
+  _Dashboard com o backend real (`docker compose up --build`) em 19/11/2026, 9h29, em 1440 px, com cerca de 36 h de coletas: Ashburn (`us-east`, 378 g CO₂e/kWh) emitiu 636 g com 1,68 kWh nas últimas 24 h; a mesma energia em Toronto (`ca-central`, 40 g/kWh) daria 67,29 g (a linha da conta mostra 1,682 kWh × 40 g/kWh, com a energia arredondada a 4 algarismos), 89,42% menos. A tabela mostra também Sao Paulo, Dublin e Tokyo, este com aumento de 23,02%._
+
 - **RF09, RNF01 — Eixo de Emissões ajustado ao trecho com dados (#332, PR #344):** quando o monitoramento de um serviço começa depois de 20% do período escolhido, o gráfico de Emissões marca o início ("monitoramento começou entre 19:30 e 19:45") e oferece **Ajustar ao trecho com dados**, que encurta o eixo; KPIs e totais continuam sendo do período inteiro, e o texto sob o título avisa isso ([detalhes](frontend/README.md#página-emissões-190)).
 
   ![Emissões de ontem com a marca do início do monitoramento](docs/img/sprint-3-emissoes-eixo.png)
@@ -188,7 +194,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 - **Dashboard em três níveis:** visão executiva (kWh total, gCO₂e, serviços ativos e indisponíveis, com atualização sem recarregar), análise comparativa (ranking e distribuição geográfica) e investigação detalhada (histórico por serviço).
 - **Prioridade apontada pelo cliente na review da Sprint 1:** comparar serviços e analisar os dados já coletados, para ver o que compensa fazer ([#159](https://github.com/DEVassos/ecopulse-app/issues/159)).
-- **Diferenciais em estudo:** simulação de migração para regiões com matriz mais limpa ([US12, #53](https://github.com/DEVassos/ecopulse-app/issues/53)) e exportação de relatórios em PDF/CSV ([US13, #54](https://github.com/DEVassos/ecopulse-app/issues/54)), previstas para a Sprint 3.
+- **Diferencial em estudo:** exportação de relatórios em PDF/CSV ([US13, #54](https://github.com/DEVassos/ecopulse-app/issues/54)). A simulação de migração (US12) entrou na Sprint 3 (§ 3, RF15).
 
 ## 5. Tecnologias
 
