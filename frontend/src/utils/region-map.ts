@@ -164,3 +164,11 @@ export function mapDestination(overview: RegionOverview, originCode: string | nu
 export function cameraTarget(selectedCode: string | null, destination: MapDestination | null, placedCodes: ReadonlySet<string>): string | null {
   return destination !== null && placedCodes.has(destination.code) ? destination.code : selectedCode;
 }
+
+/**
+ * Maior CO₂e da escala das bolhas: o das regiões com serviço e, com a simulação aberta, o do destino (#326). Sem o
+ * destino, um destino mais sujo que a maior região sairia do tamanho dela, porque o raio para em 1.
+ */
+export function co2eScaleMax(monitored: readonly ListedRegion[], destination: MapDestination | null): number {
+  return Math.max(0, ...monitored.map((region) => region.co2eGrams ?? 0), destination?.co2eGrams ?? 0);
+}

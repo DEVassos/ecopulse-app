@@ -8,7 +8,7 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { REGION_STATUSES } from '../services/regions.types';
 import type { RegionStatus } from '../services/regions.types';
 import { formatQuantity } from '../utils/units';
-import { bubbleDiameter, cameraTarget, fitZoom, IDLE_DOT, mapScale, REFERENCE_SIDE, ringPercent } from '../utils/region-map';
+import { bubbleDiameter, cameraTarget, co2eScaleMax, fitZoom, IDLE_DOT, mapScale, REFERENCE_SIDE, ringPercent } from '../utils/region-map';
 import { isCleanGrid } from '../utils/regions';
 import type { ListedRegion, MapDestination, RegionOverview } from '../utils/region-map';
 import countries from './countries-110m.json';
@@ -97,7 +97,8 @@ function regionLabel(region: PlacedRegion): string {
 export default function RegionMap({ overview, selectedCode, onSelect, stale = false, destination = null }: Props) {
   const monitored = useMemo(() => overview.monitored.filter(isPlaced), [overview]);
   const regions = useMemo(() => [...monitored, ...overview.idle.filter(isPlaced)], [monitored, overview]);
-  const maxCo2e = useMemo(() => Math.max(0, ...monitored.map((region) => region.co2eGrams ?? 0)), [monitored]);
+  // Com a simulação aberta, o destino entra na escala: um destino mais sujo que a maior região fica maior que ela (#326)
+  const maxCo2e = useMemo(() => co2eScaleMax(monitored, destination), [monitored, destination]);
   const maxEnergy = useMemo(() => Math.max(0, ...monitored.map((region) => region.energyKwh ?? 0)), [monitored]);
   // A câmera segue o destino simulado (#326) quando há um; voltar para a origem ou trocar de região a traz de volta
   const target = cameraTarget(selectedCode, destination, new Set(regions.map((region) => region.code)));

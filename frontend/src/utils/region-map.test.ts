@@ -6,6 +6,7 @@ import {
   bubbleDiameter,
   buildRegionOverview,
   cameraTarget,
+  co2eScaleMax,
   fitZoom,
   formatMigrationPercent,
   intensityTime,
@@ -174,6 +175,16 @@ describe('destino simulado no mapa (#326)', () => {
     expect(mapDestination(overview, 'ca-central', 'us-east')).toBeNull();
     expect(mapDestination(overview, 'us-east', 'xx-none')).toBeNull();
     expect(mapDestination(overview, 'us-east', 'sa-east')).toEqual({ code: 'sa-east', co2eGrams: null });
+  });
+
+  it('co2eScaleMax: destino mais sujo que a maior região amplia a escala, e o marcador fica maior que a origem', () => {
+    expect(co2eScaleMax(overview.monitored, null)).toBe(44.6);
+    expect(co2eScaleMax(overview.monitored, { code: 'ca-central', co2eGrams: 4.72 })).toBe(44.6);
+    expect(co2eScaleMax(overview.monitored, { code: 'sa-east', co2eGrams: null })).toBe(44.6);
+    // Antes, 311 g simulados e 253 g da origem saíam os dois com o diâmetro máximo (o raio para em 1)
+    const max = co2eScaleMax(overview.monitored, { code: 'jp-east', co2eGrams: 57.2 });
+    expect(max).toBe(57.2);
+    expect(bubbleDiameter(57.2, max)).toBeGreaterThan(bubbleDiameter(44.6, max));
   });
 
   it('cameraTarget: o destino com coordenada manda na câmera; sem ele, a seleção', () => {
