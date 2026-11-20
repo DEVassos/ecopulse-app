@@ -2,7 +2,7 @@
 // Segue o modelo do ADR 0006 (potência × intervalo × intensidade regional) com métricas sintéticas:
 // a mesma estação e o mesmo horário sempre dão o mesmo valor, então "Atualizar" não embaralha a curva.
 
-import type { ServicesComparison } from './compare.types';
+import type { PowerBreakdown, ServicesComparison } from './compare.types';
 import { demoServices } from './demo-data';
 import type { EmissionPoint, EmissionsQuery, EmissionsSeries } from './emissions.types';
 import { groupPoints, totalsOf } from '../utils/emissions';
@@ -22,6 +22,20 @@ const PROFILES: Record<string, { cpu: number; memoryGb: number; diskGb: number; 
   'email-dispatcher': { cpu: 30, memoryGb: 1.5, diskGb: 10, networkGb: 0.12, intensity: 85 },
   'inventory-sync': { cpu: 25, memoryGb: 1.0, diskGb: 8, networkGb: 0.05, intensity: 40 },
 };
+
+/**
+ * Mesmos coeficientes e mesma precisão de `backend/src/domain/carbon-calculator.ts`, para o demo não divergir do
+ * contrato de GET /api/services/compare (`docs/api.md`).
+ */
+function breakdownOf(profile: (typeof PROFILES)[string]): PowerBreakdown {
+  const watts = (value: number) => Number(value.toFixed(6));
+  return {
+    cpuW: watts(profile.cpu),
+    memoryW: watts(profile.memoryGb * 0.375),
+    diskW: watts(profile.diskGb * 0.01),
+    networkW: watts(profile.networkGb * 0.02),
+  };
+}
 
 /** Ruído determinístico em [0, 1) a partir de um número. */
 function noise(seed: number): number {
@@ -121,6 +135,7 @@ export function demoComparison(ids: string[], from: string, to: string): Promise
       avgMemoryGb: profile?.memoryGb ?? null,
       avgDiskGb: profile?.diskGb ?? null,
       avgNetworkGb: profile?.networkGb ?? null,
+      avgPowerBreakdown: profile === undefined ? null : breakdownOf(profile),
       energyKwh: totals.energyKwh,
       co2eGrams: totals.co2eGrams,
     };
