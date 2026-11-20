@@ -1,6 +1,7 @@
 // Participação de cada serviço no CO₂e do período (#260), a partir de GET /api/services/ranking.
 import type { ServicesRankingResponse } from '../services/ranking.types';
 import { formatNumber } from './format';
+import { roundedShares } from './share';
 
 export interface RankingShare {
   /** Posição no ranking (1 = maior); null para quem não tem CO₂e calculado no período. */
@@ -17,25 +18,6 @@ export interface RankingShare {
 const SHARE_STEPS = 1000;
 
 /**
- * Arredonda as partes a 0,1 ponto percentual pelo método do maior resto: cada uma recebe o piso e os décimos que faltam
- * vão para os maiores restos. Assim a coluna exibida soma sempre 100,0%; arredondar cada linha sozinha desviaria até
- * 0,05 por serviço (99,9 ou 100,1 com 8 serviços). A ordem entre as partes não se inverte.
- */
-function roundedShares(values: number[], total: number): number[] {
-  const exact = values.map((value) => (value / total) * SHARE_STEPS);
-  const steps = exact.map((value) => Math.floor(value));
-  let missing = SHARE_STEPS - steps.reduce((sum, value) => sum + value, 0);
-  const byRemainder = exact.map((value, index) => ({ index, remainder: value - steps[index] }))
-    .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
-  for (const { index } of byRemainder) {
-    if (missing <= 0) break;
-    steps[index] += 1;
-    missing -= 1;
-  }
-  return steps.map((value) => value / SHARE_STEPS);
-}
-
-/**
  * Parte de cada serviço no CO₂e do período, pelo id, já arredondada a 0,1 ponto percentual: as partes exibidas somam
  * 100,0%. Leva também a energia e o CO₂e do período, que a tabela mostra nas colunas das 24 h (#330), sem outra busca. O total é a soma dos serviços com cálculo. Total zero (período sem emissão calculada) não divide: quem tem
  * cálculo fica com 0%, e não sem parte — "sem cálculo" é só para co2eGrams null, senão um período sem emissão pareceria
@@ -44,7 +26,7 @@ function roundedShares(values: number[], total: number): number[] {
 export function rankingShares(ranking: ServicesRankingResponse): Map<string, RankingShare> {
   const calculated = ranking.services.filter((service) => service.co2eGrams !== null);
   const total = calculated.reduce((sum, service) => sum + (service.co2eGrams ?? 0), 0);
-  const rounded = total === 0 ? calculated.map(() => 0) : roundedShares(calculated.map((service) => service.co2eGrams ?? 0), total);
+  const rounded = total === 0 ? calculated.map(() => 0) : roundedShares(calculated.map((service) => service.co2eGrams ?? 0), total, SHARE_STEPS);
   const shareById = new Map(calculated.map((service, index) => [service.id, rounded[index]]));
   return new Map(
     ranking.services.map((service) => [

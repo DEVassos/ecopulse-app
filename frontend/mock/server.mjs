@@ -44,6 +44,8 @@ async function readJson(req) {
  *   MOCK_SERVICES=ranking-instavel: a 1ª chamada de GET /services/ranking responde e as seguintes dão 500, para ver a
  *   parte já calculada em cinza no ciclo seguinte sem reiniciar o mock, o que invalidaria o token (#257, #260)
  *   MOCK_SERVICES=ranking-falha: toda chamada de GET /services/ranking responde 500, para ver a coluna sem ranking (#260)
+ *   MOCK_SERVICES=mudancas: a cada chamada de GET /services o Checkout Worker alterna entre indisponível e ativo, e a
+ *   Billing API entra e sai da lista a cada 3 chamadas, para ver os avisos de mudança de estado (#331)
  *   MOCK_REGIONS=falha: GET /regions responde 502, como a Carbon API fora do ar sem cache (#319, #322)
  */
 const SERVICES_SCENARIO = process.env.MOCK_SERVICES ?? 'normal';
@@ -51,6 +53,8 @@ const REGIONS_SCENARIO = process.env.MOCK_REGIONS ?? 'normal';
 
 /** Chamadas de GET /services/ranking desde que o mock subiu (cenário MOCK_SERVICES=ranking-instavel). */
 let rankingCalls = 0;
+/** Chamadas de GET /services desde que o mock subiu (cenário MOCK_SERVICES=mudancas). */
+let servicesCalls = 0;
 
 const SERVICES = [
 // region é o nome e regionCode o código, como no backend (#297); o Inventory Sync não tem região e por isso não tem cálculo
@@ -180,6 +184,22 @@ function averageOrNull(items, field) {
 }
 
 /**
+ * Parcelas da potência a partir das médias dos quatro recursos, com os mesmos coeficientes de
+ * `backend/src/domain/carbon-calculator.ts` (CPU 100 W, RAM 0,375 W/GB, disco 0,01 W/GB, rede 0,02 W/GB).
+ * `null` quando falta alguma média, como no backend (`docs/api.md`, GET /api/services/compare).
+ */
+function breakdownFromAverages(cpu, memory, disk, network) {
+  if ([cpu, memory, disk, network].includes(null)) return null;
+  const watts = (value) => Number(value.toFixed(6));
+  return {
+    cpuW: watts((cpu / 100) * 100),
+    memoryW: watts(memory * 0.375),
+    diskW: watts(disk * 0.01),
+    networkW: watts(network * 0.02),
+  };
+}
+
+/**
  * Resumo e comparação leem o mesmo banco que GET /services, então seguem o cenário dela (#239):
  * MOCK_SERVICES=vazio → nenhum serviço · MOCK_SERVICES=erro → HTTP 500, como o backend com o banco fora do ar.
  */
@@ -267,7 +287,15 @@ const routes = {
   // US01 / US04 — serviços monitorados (exige token desde a #257)
   'GET /services': async (_req, res) => {
     if (SERVICES_SCENARIO === 'erro') return send(res, 500, { error: { code: 'INTERNAL_ERROR', message: 'Falha simulada no backend falso.' } });
-    const services = SERVICES_SCENARIO === 'vazio' ? [] : SERVICES.map(readService);
+    let catalog = SERVICES_SCENARIO === 'vazio' ? [] : SERVICES;
+    if (SERVICES_SCENARIO === 'mudancas') {
+      const call = ++servicesCalls;
+      const down = { status: 'indisponivel', reason: 'Serviço indisponível (HTTP 503).' };
+      catalog = SERVICES.map((service) => (service.id === 'checkout-worker' && call % 2 === 0 ? { ...service, ...down } : service));
+      const audit = SERVICES.find((service) => service.id === 'audit-stream');
+      if (Math.floor(call / 3) % 2 === 1) catalog.push({ ...audit, id: 'billing-api', name: 'Billing API' });
+    }
+    const services = catalog.map(readService);
     const checkout = services.find((service) => service.id === 'checkout-worker');
     if (SERVICES_SCENARIO === 'sem-id' && checkout) delete checkout.id;
     if (SERVICES_SCENARIO === 'cpu-texto' && services[0]) services[0].cpuPercent = String(services[0].cpuPercent);
@@ -443,6 +471,12 @@ const routes = {
           avgMemoryGb: averageOrNull(items, 'memoryGb'),
           avgDiskGb: averageOrNull(items, 'diskGb'),
           avgNetworkGb: averageOrNull(items, 'networkGb'),
+          avgPowerBreakdown: breakdownFromAverages(
+            averageOrNull(items, 'cpuPercent'),
+            averageOrNull(items, 'memoryGb'),
+            averageOrNull(items, 'diskGb'),
+            averageOrNull(items, 'networkGb'),
+          ),
           energyKwh: sumOrNull(items, 'energyKwh'),
           co2eGrams: sumOrNull(items, 'co2eGrams'),
         };
