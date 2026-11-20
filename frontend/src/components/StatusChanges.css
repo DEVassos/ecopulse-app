@@ -1,0 +1,30 @@
+/* Mudanças de estado (#331): entrada do aviso e destaque breve da linha da tabela que mudou de estado */
+@layer components {
+  @media (prefers-reduced-motion: no-preference) {
+    .service-row--changed {
+      animation: service-row-flash 4s ease-out;
+    }
+  }
+
+  /* Sem animação: um contorno parado até a atualização seguinte */
+  @media (prefers-reduced-motion: reduce) {
+    .service-row--changed {
+      outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+      outline-offset: -2px;
+    }
+  }
+
+  /* Só o início: a linha volta sozinha à cor dela (hover, região selecionada ou nenhuma) */
+  @keyframes service-row-flash {
+    from {
+      background-color: color-mix(in srgb, var(--accent) 24%, transparent);
+    }
+  }
+
+  @keyframes change-toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+}

@@ -10,10 +10,12 @@ import { formatInScale, scaleFor } from '../utils/units';
 import type { Quantity, Scale } from '../utils/units';
 import type { RegionGrid } from '../utils/regions';
 import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow';
+import type { Trend, ValueTrends } from '../hooks/useStatusChanges';
 import CleanGridBadge from './CleanGridBadge';
 import CompactValue from './CompactValue';
 import MissingValue from './MissingValue';
 import StatusBadge from './StatusBadge';
+import './StatusChanges.css';
 
 type SortKey = 'name' | 'status' | 'energy24h' | 'co2e24h' | 'share' | 'averageWatts' | 'cpuPercent' | 'carbonIntensityGco2ePerKwh' | 'lastReadingAt' | 'location';
 
@@ -81,6 +83,25 @@ interface Props {
   regionGrids?: ReadonlyMap<string, RegionGrid> | null;
   /** A última busca das regiões falhou: o selo fica em cinza, com o dado da atualização anterior. */
   regionGridsStale?: boolean;
+  /** Serviços que mudaram de estado na última atualização (#331): a linha ganha um destaque breve. */
+  changedIds?: ReadonlySet<string>;
+  /**
+   * CPU e fator que subiram ou desceram desde a atualização anterior (#331): seta ▲/▼ antes do valor. Com `stale`, as
+   * setas somem: o número é da atualização anterior e não "acabou de subir".
+   */
+  trends?: ReadonlyMap<string, ValueTrends>;
+}
+
+/** Seta antes do valor que mudou desde a atualização anterior (#331); o leitor de tela ouve "subiu" ou "desceu". */
+function TrendMark({ trend }: { trend: Trend | undefined }) {
+  if (!trend) return null;
+  return (
+    <>
+      {/* Antes do valor, e não depois: a coluna numérica continua alinhada pela direita */}
+      <span aria-hidden="true" className="mr-1 text-[10px] text-muted">{trend === 'up' ? '▲' : '▼'}</span>
+      <span className="sr-only">{trend === 'up' ? 'subiu: ' : 'desceu: '}</span>
+    </>
+  );
 }
 
 type Shares = Map<string, RankingShare> | null | undefined;
@@ -222,6 +243,8 @@ export default function ServicesTable({
   onSelectRegion,
   regionGrids = null,
   regionGridsStale = false,
+  changedIds,
+  trends,
 }: Props) {
   const [search, setSearch] = useState('');
   // Ordem inicial pelo CO₂e das 24 h, do maior para o menor (#330): a primeira linha é o maior emissor do período, o
@@ -331,6 +354,7 @@ export default function ServicesTable({
               const inRegion = selectedRegion !== null && service.regionCode === selectedRegion;
               // Rede da região agora (#324): o selo segue GET /api/regions, não o fator gravado na última leitura
               const grid = service.regionCode === null ? undefined : regionGrids?.get(service.regionCode);
+              const trend = stale ? undefined : trends?.get(service.id);
               return (
                 // O clique vale para a linha toda; o botão do nome dá o mesmo acesso pelo teclado (o clique dele sobe até aqui).
                 // Focar o botão antes de abrir faz o foco voltar para ele ao fechar, mesmo com clique fora do nome.
@@ -342,7 +366,7 @@ export default function ServicesTable({
                     (clicked ?? event.currentTarget.querySelector('button'))?.focus();
                     onSelect(service);
                   }}
-                  className={`cursor-pointer border-t border-border hover:bg-surface-2${inRegion ? ' bg-surface-3 shadow-[inset_3px_0_0_var(--accent)]' : ''}`}
+                  className={`cursor-pointer border-t border-border hover:bg-surface-2${inRegion ? ' bg-surface-3 shadow-[inset_3px_0_0_var(--accent)]' : ''}${changedIds?.has(service.id) ? ' service-row--changed' : ''}`}
                 >
                   <th scope="row" className="px-5 py-2 text-left font-medium">
                     <button
@@ -397,13 +421,23 @@ export default function ServicesTable({
                   {/* Potência em destaque e recursos no tooltip (#298); o atributo fica antes de className porque os testes
                       casam a classe colada ao valor. Quem usa teclado vê os mesmos dados na janela de detalhes */}
                   <td data-tooltip={resourcesText(service) ?? undefined} data-tooltip-value={powerText(service) ?? undefined} className={`px-5 py-2 text-right font-data${dim}`}>
-                    {service.cpuPercent === null ? <MissingValue /> : `${formatNumber(service.cpuPercent, 0)}%`}
+                    {service.cpuPercent === null ? (
+                      <MissingValue />
+                    ) : (
+                      <>
+                        <TrendMark trend={trend?.cpuPercent} />
+                        {`${formatNumber(service.cpuPercent, 0)}%`}
+                      </>
+                    )}
                   </td>
                   <td className={`px-5 py-2 text-right font-data${dim}`}>
                     {service.carbonIntensityGco2ePerKwh === null ? (
                       <MissingValue {...factorMissing(service)} />
                     ) : (
-                      <span data-tooltip={factorTooltip(service)}>{formatNumber(service.carbonIntensityGco2ePerKwh, 0)}</span>
+                      <span data-tooltip={factorTooltip(service)}>
+                        <TrendMark trend={trend?.carbonIntensityGco2ePerKwh} />
+                        {formatNumber(service.carbonIntensityGco2ePerKwh, 0)}
+                      </span>
                     )}
                   </td>
                   <td data-tooltip={intervalText(service) ?? undefined} className="px-5 py-2 text-right font-data text-muted">
