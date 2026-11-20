@@ -33,6 +33,14 @@ describe('RegionMap', () => {
     expect(html).not.toContain('role="status"');
   });
 
+  it('mostra "Destino simulado" na legenda só durante a simulação de migração (#326)', () => {
+    expect(render(overview)).not.toContain('Destino simulado');
+    const html = renderToStaticMarkup(
+      <RegionMap overview={overview} selectedCode="us-east" onSelect={() => {}} destination={{ code: 'eu-north', co2eGrams: 25 }} />,
+    );
+    expect(html).toContain('region-map__key--destination" aria-hidden="true"></i>Destino simulado</li>');
+  });
+
   it('apaga as bolhas quando a última busca falhou', () => {
     expect(render(overview, true)).toContain('class="region-map region-map--stale"');
   });

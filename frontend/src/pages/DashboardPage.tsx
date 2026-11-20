@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import AppHeader from '../components/AppHeader';
 import ChangeToast from '../components/ChangeToast';
 import EmptyState from '../components/EmptyState';
@@ -24,7 +24,7 @@ import { rankingIsStale, rankingShares, rankingSentence } from '../utils/ranking
 import SummaryPanel from '../components/SummaryPanel';
 import { summarizeStatus } from '../utils/summary';
 import { fetchRegions, fetchRegionsSummary } from '../services/regions.service';
-import { buildRegionOverview } from '../utils/region-map';
+import { buildRegionOverview, mapDestination } from '../utils/region-map';
 import type { RegionOverview } from '../utils/region-map';
 import { gridByCode } from '../utils/regions';
 import type { RegionGrid } from '../utils/regions';
@@ -63,8 +63,19 @@ export default function DashboardPage() {
   // atualização periódica não mexe nele, porque fica pelo `code`
   const [simulation, setSimulation] = useState<{ origin: string; destination: string } | null>(null);
   const destinationCode = simulation !== null && simulation.origin === selectedRegion ? simulation.destination : null;
-  const chooseDestination = (code: string | null) =>
+  const regionAreaRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * `reveal`: os botões do painel trazem o mapa à vista quando ele saiu da tela por cima (no celular, o painel fica
+   * abaixo do mapa e da lista), para a câmera andar à vista (#326). Escolher uma linha da tabela não rola a página.
+   */
+  const chooseDestination = (code: string | null, reveal = false) => {
     setSimulation(code === null || selectedRegion === null ? null : { origin: selectedRegion, destination: code });
+    const area = regionAreaRef.current;
+    if (reveal && area && area.getBoundingClientRect().top < 0) {
+      const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      area.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+    }
+  };
   // Como o ranking e as regiões, espera a primeira lista: antes, a busca do primeiro render era cancelada logo em seguida
   useEffect(() => {
     if (isDemoMode || updatedAt === null) return;
@@ -235,9 +246,15 @@ export default function DashboardPage() {
         )}
         {/* Mapa e lista lado a lado; no celular, o mapa em cima e a lista embaixo (#322, RNF01) */}
         {data && data.services.length > 0 && regions && (
-          <div className="region-area">
+          <div className="region-area" ref={regionAreaRef}>
             <Suspense fallback={<LoadingState message="Carregando o mapa…" />}>
-              <RegionMap overview={regions} selectedCode={selectedRegion} onSelect={toggleRegion} stale={regionsError !== '' || error !== ''} />
+              <RegionMap
+                overview={regions}
+                selectedCode={selectedRegion}
+                onSelect={toggleRegion}
+                stale={regionsError !== '' || error !== ''}
+                destination={mapDestination(regions, selectedRegion, destinationCode)}
+              />
             </Suspense>
             <RegionList
               overview={regions}
