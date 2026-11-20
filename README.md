@@ -197,6 +197,10 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 - **DW06 / RP06 / RNF05 — Aplicação inteira com login (#257):** o backend exige `Authorization: Bearer <JWT>` em `/api/services` e `/api/collections` e responde 401 sem token válido; `/health`, o login e `GET /api/monitoring-settings` continuam públicos. No frontend, `/login` é a única página aberta sem sessão: o dashboard, Emissões, Comparação e Configuração levam ao login e, depois dele, voltam para a mesma tela, com os filtros da URL. Sem sessão não há busca nem polling; um token expirado encerra a sessão e o login avisa "Sua sessão expirou.". O modo demonstração, sem backend, continua abrindo direto com dados ilustrativos ([ADR 0009](docs/adr/0009-aplicacao-inteira-com-login.md)).
 
+- **RF08 — Indicadores com período anterior (#234):** o painel de energia e emissões mostra as últimas 24 h e a variação contra as 24 h anteriores, vindas de uma única resposta de `GET /api/services/summary` (com `totals`, `previous` e `servicesByStatus`); sem cálculo no período anterior, o painel diz isso em vez de mostrar 100%. As coletas com falha do período aparecem embaixo dos indicadores.
+
+  ![Indicadores com variação contra o período anterior](docs/img/sprint-3-indicadores-agregados.png)
+
 ## 4. Escopo planejado
 
 > Planejado, **ainda não implementado**. O andamento real está no [quadro do projeto](https://github.com/orgs/DEVassos/projects/6) e no [plano de entregas](docs/plano-de-entregas.md).
