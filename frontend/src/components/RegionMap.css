@@ -12,6 +12,8 @@
     --bubble-indisponivel-fill: rgb(239 68 68 / 0.45);
     --bubble-sem_metricas: #fb923c;
     --bubble-sem_metricas-fill: rgb(249 115 22 / 0.3);
+    --bubble-destination: #7dd3fc;
+    --bubble-destination-fill: rgb(56 189 248 / 0.35);
     --bubble-energy: #facc15;
     --bubble-track: rgb(255 255 255 / 0.25);
     --map-glass: rgb(11 18 32 / 0.86);
@@ -51,20 +53,50 @@
     color: var(--map-glass-text);
   }
 
-  /* Ao lado dos botões de zoom do MapLibre, que ficam no canto superior direito */
+  /* Ao lado dos botões de zoom do MapLibre, que ficam no canto superior direito; mesmo tamanho compacto do botão da
+     apresentação (30 px, acima dos 24 px mínimos de alvo de toque, #262) */
   .region-map__overview {
     top: 10px;
     right: 52px;
-    min-height: 44px;
-    padding: 0 14px;
-    border-radius: 10px;
+    min-height: 30px;
+    padding: 0 10px;
+    border-radius: 8px;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
   }
 
   .region-map__overview:hover {
+    color: #ffffff;
+  }
+
+  /* Modo apresentação (#323) no canto superior esquerdo; o aviso "sem imagens" desce para baixo dele */
+  .region-map__present {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 2;
+    display: flex;
+    gap: 6px;
+  }
+
+  /* Compactos, para cobrir pouco do globo: 30 px de altura, a dos botões de zoom do MapLibre, acima dos 24 px
+     mínimos de alvo de toque (docs/identidade-visual.md, #262) */
+  .region-map__present button {
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--map-glass-border);
+    border-radius: 8px;
+    background: var(--map-glass);
+    color: var(--map-glass-text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .region-map__present button:hover {
     color: #ffffff;
   }
 
@@ -208,6 +240,29 @@
     display: none;
   }
 
+  /* Nome sob a bolha selecionada e sob o destino simulado (#326): o mapa diz onde a câmera está, também no celular,
+     onde o painel fica longe do mapa. Acompanha o marcador e não recebe clique (o clique é da bolha) */
+  .region-bubble__caption {
+    position: absolute;
+    top: calc(100% + 14px);
+    left: 50%;
+    padding: 4px 10px;
+    border: 1px solid var(--map-glass-border);
+    border-radius: 8px;
+    background: var(--map-glass);
+    color: #ffffff;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    pointer-events: none;
+    transform: translateX(-50%);
+  }
+
+  .region-bubble__caption[hidden] {
+    display: none;
+  }
+
   /* Dados da atualização anterior: bolhas sem cor e sem pulso, como os números apagados da página (#261) */
   .region-map--stale .region-bubble b {
     filter: grayscale(1);
@@ -236,7 +291,7 @@
 
   /* Sem imagens de satélite (sem internet ou serviço da EOX fora): o contorno dos países fica visível e o aviso, no topo */
   .region-map__notice {
-    top: 12px;
+    top: 50px;
     left: 12px;
     max-width: calc(100% - 120px);
     margin: 0;
@@ -256,5 +311,27 @@
     height: 8px;
     border: 1.5px solid var(--map-glass-text);
     background: rgb(148 163 184 / 0.35);
+  }
+
+  /* Destino da simulação de migração (#326): azul-claro com contorno tracejado por fora, para não se confundir com o
+     tracejado de "sem métricas" nem com o ponto neutro; o tamanho é o do CO₂e simulado */
+  .region-bubble--destination b {
+    border: 2px solid var(--bubble-destination);
+    background: var(--bubble-destination-fill);
+    outline: 2px dashed #ffffff;
+    outline-offset: 3px;
+  }
+
+  /* Simulação, não leitura: sem o pulso "ao vivo" das regiões ativas, mesmo quando o destino tem serviço. Duas classes
+     para vencer `.region-bubble--ativo:not(.region-bubble--selected) b`, que vem antes e tem a mesma especificidade */
+  .region-bubble.region-bubble--destination b {
+    animation: none;
+  }
+
+  .region-map__key--destination {
+    border-color: var(--bubble-destination);
+    background: var(--bubble-destination-fill);
+    outline: 1.5px dashed var(--map-glass-text);
+    outline-offset: 1px;
   }
 }

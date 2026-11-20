@@ -20,6 +20,7 @@ const OVERVIEW: RegionOverview = {
   idle: [listed('eu-north', 'Estocolmo', { co2eGrams: null, energyKwh: null, carbonIntensityGco2ePerKwh: 25, renewableSharePercent: 98, services: { ativo: 0, indisponivel: 0, sem_metricas: 0 }, worstStatus: null, monitoredServices: 0 })],
   outside: { services: 1, co2eGrams: 12 },
   unplacedServices: 1,
+  fetchedAt: '2026-11-13T13:00:00.000Z',
 };
 
 function render(overview: RegionOverview = OVERVIEW, selectedCode: string | null = null, stale = false): string {
@@ -77,7 +78,7 @@ describe('RegionList', () => {
   });
 
   it('não quebra sem nenhuma região monitorada', () => {
-    const html = render({ monitored: [], idle: [], outside: { services: 3, co2eGrams: null }, unplacedServices: 3 });
+    const html = render({ monitored: [], idle: [], outside: { services: 3, co2eGrams: null }, unplacedServices: 3, fetchedAt: '2026-11-13T13:00:00.000Z' });
     expect(html).toContain('Nenhum serviço com região conhecida pela Carbon API.');
     expect(html).not.toContain('<details');
   });

@@ -127,6 +127,66 @@ export function estimateMigration(
   return { grams, savedGrams, savedPercent: originCo2eGrams > 0 ? (100 * savedGrams) / originCo2eGrams : null };
 }
 
+/** Uma linha da tabela de destinos da simulação (#326): a região e a conta com a energia da origem. */
+export interface MigrationRow<T extends GridRegion = GridRegion> {
+  region: T;
+  /** Sem intensidade no destino a região fica "indisponível" e não pode ser escolhida. */
+  available: boolean;
+  /** A mais limpa entre os destinos possíveis: a linha em destaque e a escolha de "Ver alternativa mais limpa". */
+  cleanest: boolean;
+  /** null sem intensidade no destino ou sem energia/CO₂e no período da origem. */
+  estimate: MigrationEstimate | null;
+}
+
+/**
+ * Tabela de destinos da simulação (#326, critério 2 da #53): todas as regiões exceto a origem, da mais limpa para a
+ * mais suja (`sortByCleanest`), cada uma com a conta de `estimateMigration` sobre a energia e o CO₂e da origem.
+ */
+export function migrationRows<T extends GridRegion>(
+  regions: readonly T[],
+  originCode: string,
+  energyKwh: number | null,
+  originCo2eGrams: number | null,
+): MigrationRow<T>[] {
+  const cleanestCode = cleanestRegion(regions, originCode)?.code;
+  return sortByCleanest(regions)
+    .filter((region) => region.code !== originCode)
+    .map((region) => ({
+      region,
+      available: region.carbonIntensityGco2ePerKwh !== null,
+      cleanest: region.code === cleanestCode,
+      estimate: estimateMigration(energyKwh, originCo2eGrams, region.carbonIntensityGco2ePerKwh),
+    }));
+}
+
+/**
+ * A origem já tem a menor intensidade (#326, critério 2): nenhum outro destino com intensidade é mais limpo. Empate conta
+ * como "já é a mais limpa", porque mudar para uma região igual não reduz nada; o `cleanestRegion` exclui a origem e,
+ * sozinho, apontaria a empatada como alternativa. Sem intensidade na origem não há como afirmar: false.
+ */
+export function isCleanestOrigin(regions: readonly GridRegion[], originCode: string): boolean {
+  const origin = regions.find((region) => region.code === originCode)?.carbonIntensityGco2ePerKwh ?? null;
+  if (origin === null) return false;
+  return regions.every(
+    (region) => region.code === originCode || region.carbonIntensityGco2ePerKwh === null || region.carbonIntensityGco2ePerKwh >= origin,
+  );
+}
+
+/** Como a tela lê uma estimativa: redução, aumento ou igual, sempre com números positivos (calculos.md: nunca "redução negativa"). */
+export interface MigrationChange {
+  kind: 'reducao' | 'aumento' | 'igual';
+  /** Diferença em gramas, sem sinal. */
+  grams: number;
+  /** Diferença em % do CO₂e de origem, sem sinal; null quando o CO₂e de origem é 0 ("percentual não calculável"). */
+  percent: number | null;
+}
+
+export function migrationChange(estimate: MigrationEstimate): MigrationChange {
+  const { savedGrams, savedPercent } = estimate;
+  const kind = savedGrams > 0 ? 'reducao' : savedGrams < 0 ? 'aumento' : 'igual';
+  return { kind, grams: Math.abs(savedGrams), percent: savedPercent === null ? null : Math.abs(savedPercent) };
+}
+
 /**
  * Limite de "rede limpa", em gCO₂e/kWh (docs/calculos.md § Limite de "rede limpa"). É decisão de produto do PO, não
  * constante do modelo: quem discordar do número muda o limite aqui e no documento, no mesmo PR.

@@ -1,8 +1,30 @@
-import { apiRequest } from './api';
-import type { ComparedService, ServicesComparison } from './compare.types';
+import { apiRequest, unexpectedFormat } from './api';
+import type { ComparedService, PowerBreakdown, ServicesComparison } from './compare.types';
 import { readAmountOrNull, readCount, readId, readInstant, readList, readRecord, readText, readTextOrNull } from './contract';
 import { demoComparison } from './emissions.demo';
 import { isDemoMode } from './services.service';
+
+/**
+ * Decomposição da potência média (#327): as quatro parcelas em W, ou null quando o backend não tem as quatro médias.
+ * Um objeto sem parcela é resposta fora do contrato, como qualquer outro campo de medida.
+ */
+function parsePowerBreakdown(value: unknown, at: string): PowerBreakdown | null {
+  if (value === null) return null;
+  const item = readRecord(value, at);
+  return {
+    cpuW: wattsOf(item.cpuW, `${at}.cpuW`),
+    memoryW: wattsOf(item.memoryW, `${at}.memoryW`),
+    diskW: wattsOf(item.diskW, `${at}.diskW`),
+    networkW: wattsOf(item.networkW, `${at}.networkW`),
+  };
+}
+
+/** Parcela de potência: medida obrigatória; null aqui seria um objeto pela metade, fora do contrato. */
+function wattsOf(value: unknown, field: string): number {
+  const parsed = readAmountOrNull(value, field);
+  if (parsed === null) throw unexpectedFormat(field);
+  return parsed;
+}
 
 function parseComparedService(value: unknown, at: string): ComparedService {
   const item = readRecord(value, at);
@@ -17,6 +39,7 @@ function parseComparedService(value: unknown, at: string): ComparedService {
     avgMemoryGb: readAmountOrNull(item.avgMemoryGb, `${at}.avgMemoryGb`),
     avgDiskGb: readAmountOrNull(item.avgDiskGb, `${at}.avgDiskGb`),
     avgNetworkGb: readAmountOrNull(item.avgNetworkGb, `${at}.avgNetworkGb`),
+    avgPowerBreakdown: parsePowerBreakdown(item.avgPowerBreakdown, `${at}.avgPowerBreakdown`),
     energyKwh: readAmountOrNull(item.energyKwh, `${at}.energyKwh`),
     co2eGrams: readAmountOrNull(item.co2eGrams, `${at}.co2eGrams`),
   };
