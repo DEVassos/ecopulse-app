@@ -191,6 +191,11 @@ export function bubbleCaption(region: ListedRegion, selectedCode: string | null,
 export const PRESENTATION_DWELL_MS = 6000;
 /** Se o mapa não avisar a chegada (sem WebGL, imagens sem resposta), a contagem começa assim mesmo depois disto. */
 export const PRESENTATION_ARRIVAL_TIMEOUT_MS = 8000;
+/**
+ * Pausado por este tempo, o modo apresentação desliga e o botão volta a "Apresentar" (sugestão da revisão do #385): sem
+ * o "Encerrar", quem só experimentou ficava em "Retomar" até sair do Dashboard. O mapa fica na região atual.
+ */
+export const PRESENTATION_PAUSE_RESET_MS = 60_000;
 
 /**
  * Ordem do modo apresentação (#323): as regiões com serviço e coordenada, da maior para a menor emissão, a mesma ordem

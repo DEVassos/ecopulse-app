@@ -26,6 +26,7 @@ import {
   mapDestination,
   nextPresentationCode,
   PRESENTATION_ARRIVAL_TIMEOUT_MS,
+  PRESENTATION_PAUSE_RESET_MS,
   PRESENTATION_DWELL_MS,
   presentationOrder,
 } from '../utils/region-map';
@@ -175,6 +176,12 @@ export default function DashboardPage() {
     const timer = window.setTimeout(() => setSelectedRegion(nextPresentationCode(order, selectedRegion)), delay);
     return () => window.clearTimeout(timer);
   }, [presenting, selectedRegion, arrivedRegion, presentationKey]);
+  // Pausado por 1 min, o modo desliga e o botão volta a "Apresentar"; cada nova pausa recomeça a contagem
+  useEffect(() => {
+    if (presenting !== 'paused') return;
+    const timer = window.setTimeout(() => setPresenting('off'), PRESENTATION_PAUSE_RESET_MS);
+    return () => window.clearTimeout(timer);
+  }, [presenting]);
   const presentation = {
     status: presenting,
     onStart: () => {

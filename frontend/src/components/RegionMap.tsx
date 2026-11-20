@@ -69,7 +69,7 @@ export interface Presentation {
   onStart: () => void;
   /** Pausar ou retomar. */
   onToggle: () => void;
-  /** Toque, clique, tecla ou foco dentro do mapa, fora dos botões da apresentação: o Dashboard pausa (WCAG 2.2.2). */
+  /** Toque, clique, roda do mouse, tecla ou foco dentro do mapa, fora dos botões da apresentação: o Dashboard pausa (WCAG 2.2.2). */
   onInteract: () => void;
   /** O mapa chegou na região selecionada (fim da viagem, imagens carregadas): começa a contar o tempo nela. */
   onArrive: (code: string) => void;
@@ -437,6 +437,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
       onPointerDown={interact}
       onKeyDown={interact}
       onFocus={interact}
+      onWheel={interact}
     >
       <h2 id="region-map-title" className="sr-only">Mapa das regiões</h2>
       <div className="region-map__stage">
