@@ -280,4 +280,31 @@ describe('ServicesTable', () => {
     );
     expect(withoutCalculation.match(/sem cálculo no período/g)).toHaveLength(4);
   });
+
+  it('destaca só a linha que mudou de estado e põe a seta antes da CPU que subiu e do fator que desceu (#331)', () => {
+    const html = renderToStaticMarkup(
+      <ServicesTable
+        services={[service('mudou', 'indisponivel', 2), service('igual', 'ativo', 1)]}
+        onSelect={() => undefined}
+        changedIds={new Set(['mudou'])}
+        trends={new Map([['igual', { cpuPercent: 'up', carbonIntensityGco2ePerKwh: 'down' }]])}
+      />,
+    );
+    expect(html.match(/service-row--changed/g)).toHaveLength(1);
+    expect(html).toMatch(/▲<\/span><span class="sr-only">subiu: <\/span>50%/);
+    expect(html).toMatch(/▼<\/span><span class="sr-only">desceu: <\/span>377/);
+  });
+
+  it('esconde as setas quando a última busca falhou: o número não é atual (#331)', () => {
+    const html = renderToStaticMarkup(
+      <ServicesTable
+        services={[service('igual', 'ativo', 1)]}
+        onSelect={() => undefined}
+        stale
+        trends={new Map([['igual', { cpuPercent: 'up', carbonIntensityGco2ePerKwh: 'down' }]])}
+      />,
+    );
+    expect(html).not.toMatch(/[▲▼]|subiu|desceu/);
+    expect(html).toContain('50%');
+  });
 });

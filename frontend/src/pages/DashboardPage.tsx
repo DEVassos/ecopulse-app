@@ -1,10 +1,12 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import AppHeader from '../components/AppHeader';
+import ChangeToast from '../components/ChangeToast';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import KpiPanel from '../components/KpiPanel';
 import LastUpdated from '../components/LastUpdated';
 import LoadingState from '../components/LoadingState';
+import RecentChanges from '../components/RecentChanges';
 import RegionDetail from '../components/RegionDetail';
 import RegionList from '../components/RegionList';
 import ServiceDetailsDialog from '../components/ServiceDetailsDialog';
@@ -12,6 +14,7 @@ import ServicesTable from '../components/ServicesTable';
 import UpdateFailedBanner from '../components/UpdateFailedBanner';
 import { useMonitoring } from '../hooks/useMonitoring';
 import { useServices } from '../hooks/useServices';
+import { useStatusChanges } from '../hooks/useStatusChanges';
 import { isDemoMode } from '../services/services.service';
 import { fetchServicesSummary } from '../services/services.service';
 import type { ServicesSummaryResponse } from '../services/services.types';
@@ -42,6 +45,8 @@ const RegionMap = lazy(() => import('../components/RegionMap'));
 export default function DashboardPage() {
   const { data, loading, error, updatedAt, refresh } = useServices();
   const { refreshIntervalMs } = useMonitoring();
+  // Mudanças de estado entre uma lista e a seguinte (#331), com a mesma resposta do polling: nenhuma requisição nova
+  const changes = useStatusChanges(data?.services ?? null, updatedAt);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [summary, setSummary] = useState<ServicesSummaryResponse | null>(null);
   const [previousSummary, setPreviousSummary] = useState<ServicesSummaryResponse | null>(null);
@@ -265,6 +270,9 @@ export default function DashboardPage() {
           <KpiPanel summary={summarizeStatus(data.services)} staleSince={error ? updatedAt : null} compact />
         )}
 
+        {/* Logo abaixo dos cards de estado (#331): o que mudou desde que a página abriu, nunca na primeira carga */}
+        {data && data.services.length > 0 && <RecentChanges changes={changes.recent} />}
+
         {/* Leitura do período em uma frase (#260): quem respondeu pela maior parte do CO₂e das 24 h. Some enquanto o
             ranking não chegou; depois de uma falha, fica em cinza com a última resposta. Sem aria-live: a parte muda a cada
             ciclo com a janela de 24 h deslizando, e anunciar a frase a cada 30 s atrapalharia o leitor de tela (como no LastUpdated) */}
@@ -327,12 +335,16 @@ export default function DashboardPage() {
             onSelectRegion={pickRegion}
             regionGrids={regionGrids}
             regionGridsStale={regionGridsFailed || error !== ''}
+            changedIds={changes.changedIds}
+            trends={changes.trends}
           />
         )}
 
         {/* Montada só enquanto aberta: fechar desmonta e cancela o polling do histórico */}
         {selected && <ServiceDetailsDialog key={selected.id} service={selected} onClose={() => setSelectedId(null)} />}
       </main>
+
+      <ChangeToast toast={changes.toast} />
 
       <footer className="page-footer">EcoPulse · DEVassos · Fatec Jacareí 2DSM 2026-2</footer>
     </div>
