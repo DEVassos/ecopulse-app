@@ -20,9 +20,9 @@ A situação de cada critério previsto fica **só** no [plano de entregas](../p
 | #313 | Conferência das consultas agregadas por período e índices | RF14, RF15, RNF03 | BD04 | @viniciusaugusto1997, @LUCASAMR23 | must |
 | #256 | Emissões conta de novo coletas inválidas na página seguinte | RF09, RNF04 | DW04, TP03 | @travensolli | must (vem da Sprint 2) |
 | #234 | Resumo do dashboard no contrato de 23/10, com IndicatorsPanel | RF08 | DW05 | @DeaTuribio, @LUCASAMR23 | should (vem da Sprint 2) |
-| #195 | US15: cadastro de usuário por convite do administrador | RNF05 | DW06 | @LUCASAMR23 | should, quebrada em #196 e #197 |
-| #196 | Convites e cadastro por convite no backend | RNF05 | DW06, BD01 | @LUCASAMR23, @viniciusaugusto1997 | should |
-| #197 | Telas de convite e de cadastro por convite | RNF05 | DW04, DW06 | @DeaTuribio | should |
+| #195 | US15: cadastro de usuário por convite do administrador | RNF05 | DW06 | @LUCASAMR23 | retirada em 20/11; transferida para Sprint 4 |
+| #196 | Convites e cadastro por convite no backend | RNF05 | DW06, BD01 | @LUCASAMR23, @viniciusaugusto1997 | retirada em 20/11; transferida para Sprint 4 |
+| #197 | Telas de convite e de cadastro por convite | RNF05 | DW04, DW06 | @DeaTuribio | retirada em 20/11; transferida para Sprint 4 |
 | #55 | US14: polimento, validação de carga e documentação de portfólio | RNF03, RNF05 | ES07, ES08 | @travensolli | must |
 | #51 | US10: mapa por bolhas | RF12, RF13 | DW04 | @DeaTuribio | must desde 10/11; tarefas #318–#324 |
 | #53 | US12: simulação de migração regional | RF15 | DW03, DW04 | @henriqueptbd-cell, @DeaTuribio | must desde 10/11; tarefas #325 e #326 |
@@ -47,3 +47,7 @@ Itens de processo (5): #312, #310, #311, #169 e #167. Detalhes, estimativas, cap
 | #197 depende de #196 | médio | contrato das rotas na issue antes do primeiro commit (#167) | @LUCASAMR23 |
 | Regressão nos critérios das Sprints 1 e 2 | alto | `teste-avaliador.sh` antes do congelamento e reteste em "Verificações realizadas" | @travensolli |
 | Feriado de 20/11 | baixo | daily assíncrona por texto, com ata | @travensolli |
+
+## 4. Pendências transferidas para a Sprint 4
+
+Em 20/11, as issues [#196](https://github.com/DEVassos/ecopulse-app/issues/196) (convites no backend), [#195](https://github.com/DEVassos/ecopulse-app/issues/195) (US15, cadastro por convite) e [#197](https://github.com/DEVassos/ecopulse-app/issues/197) (telas de convite) foram retiradas da Sprint 3 e transferidas para a Sprint 4. A decisão e o motivo estão no [Histórico de alterações do plano](../plano-de-entregas.md#histórico-de-alterações-do-plano). A movimentação não altera os critérios previstos nem o denominador 46 da Sprint 3.
