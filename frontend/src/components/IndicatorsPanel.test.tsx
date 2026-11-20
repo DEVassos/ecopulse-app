@@ -38,6 +38,13 @@ describe('IndicatorsPanel — equivalências do CO₂e (#333)', () => {
   });
 });
 
+describe('IndicatorsPanel — coletas com falha no período', () => {
+  it('mostra quantas coletas do período falharam, de quantas', () => {
+    const html = renderToStaticMarkup(<IndicatorsPanel summary={summary({ ...TOTALS, collections: 12, failed: 2 })} stale={false} />);
+    expect(html).toContain('Coletas com falha no período: 2 de 12');
+  });
+});
+
 describe('IndicatorsPanel — variação contra o período anterior (mesma resposta)', () => {
   it('mostra a variação e o rótulo "vs. 24 h anteriores" quando há base', () => {
     const previous = { ...TOTALS, energyKwh: 0.0100, co2eGrams: 2000 };

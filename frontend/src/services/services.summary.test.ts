@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ApiError } from './api';
-import { parseServicesSummaryResponse } from './services.service';
+import { parseServicesSummaryResponse } from './summary.service';
 
 // Corpo de GET /api/services/summary como em docs/api.md
 function validBody() {

@@ -5,6 +5,7 @@
 import type { PowerBreakdown, ServicesComparison } from './compare.types';
 import { demoServices } from './demo-data';
 import type { EmissionPoint, EmissionsQuery, EmissionsSeries } from './emissions.types';
+import type { ServiceSummaryTotals, ServicesSummaryResponse } from './services.types';
 import { groupPoints, totalsOf } from '../utils/emissions';
 
 /** Intervalo entre coletas do worker (POLLING_INTERVAL_MS do .env.example). */
@@ -141,4 +142,50 @@ export function demoComparison(ids: string[], from: string, to: string): Promise
     };
   });
   return Promise.resolve({ from, to, services });
+}
+
+/** Totais de um período com as regras de GET /api/services/summary: energia e CO₂e só das coletas calculadas, null sem nenhuma. */
+function summaryTotalsOf(points: EmissionPoint[]): ServiceSummaryTotals {
+  const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+  const energies = points.flatMap((point) => (point.energyKwh === null ? [] : [point.energyKwh]));
+  const emissions = points.flatMap((point) => (point.co2eGrams === null ? [] : [point.co2eGrams]));
+  const energyKwh = energies.length === 0 ? null : sum(energies);
+  const co2eGrams = emissions.length === 0 ? null : sum(emissions);
+  return {
+    collections: sum(points.map((point) => point.collections)),
+    failed: sum(points.map((point) => point.failed)),
+    notCalculated: sum(points.map((point) => point.notCalculated)),
+    energyKwh,
+    co2eGrams,
+    carbonIntensityGco2ePerKwh: energyKwh === null || energyKwh === 0 || co2eGrams === null ? null : co2eGrams / energyKwh,
+  };
+}
+
+/**
+ * Resumo ilustrativo do painel de indicadores (GET /api/services/summary): mesmo formato e mesmas regras da rota,
+ * com a série sintética da página Emissões e os estados do demo-data.
+ */
+export function demoSummary(from: string, to: string): Promise<ServicesSummaryResponse> {
+  const fromMs = Date.parse(from);
+  const toMs = Date.parse(to);
+  const previousFromMs = fromMs - (toMs - fromMs);
+  const services = demoServices().services;
+  const totalsBetween = (start: number, end: number) =>
+    summaryTotalsOf(services.flatMap((service) => demoCollections(service.id, start, end)));
+  const countOf = (status: string) => services.filter((service) => service.status === status).length;
+  const ativo = countOf('ativo');
+  const indisponivel = countOf('indisponivel');
+  const sem_metricas = countOf('sem_metricas');
+  const removido = countOf('removido');
+  return Promise.resolve({
+    from: new Date(fromMs).toISOString(),
+    to: new Date(toMs).toISOString(),
+    totals: totalsBetween(fromMs, toMs),
+    previous: {
+      from: new Date(previousFromMs).toISOString(),
+      to: new Date(fromMs).toISOString(),
+      totals: totalsBetween(previousFromMs, fromMs),
+    },
+    servicesByStatus: { ativo, indisponivel, sem_metricas, removido, total: ativo + indisponivel + sem_metricas },
+  });
 }

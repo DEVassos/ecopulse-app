@@ -149,6 +149,12 @@ export default function IndicatorsPanel({ summary, stale }: Props) {
           }
         />
       </div>
+      {/* Falhas de coleta no período: o número que explica uma variação alta ou um total baixo */}
+      {current && (
+        <p className="m-0 text-sm text-muted">
+          Coletas com falha no período: {formatNumber(current.failed, 0)} de {formatNumber(current.collections, 0)}
+        </p>
+      )}
     </section>
   );
 }
