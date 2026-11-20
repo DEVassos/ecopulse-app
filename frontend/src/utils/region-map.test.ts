@@ -13,6 +13,8 @@ import {
   intensityTime,
   mapDestination,
   mapScale,
+  nextPresentationCode,
+  presentationOrder,
   migrationMath,
   ringPercent,
   serviceCount,
@@ -207,5 +209,24 @@ describe('destino simulado no mapa (#326)', () => {
     expect(cameraTarget('us-east', null, placed)).toBe('us-east');
     expect(cameraTarget('us-east', { code: 'sem-gps', co2eGrams: 1 }, placed)).toBe('us-east');
     expect(cameraTarget(null, null, placed)).toBeNull();
+  });
+});
+
+describe('modo apresentação (#323)', () => {
+  it('presentationOrder: regiões com serviço e coordenada, da maior para a menor emissão', () => {
+    const overview = buildRegionOverview(
+      list(region('us-east'), region('eu-west'), region('jp-east', { latitude: null, longitude: null }), region('eu-north', { monitoredServices: 0 })),
+      summary(totals('us-east', { co2eGrams: 50 }), totals('eu-west', { co2eGrams: 900 }), totals('jp-east', { co2eGrams: 300 })),
+    );
+    expect(presentationOrder(overview)).toEqual(['eu-west', 'us-east']);
+  });
+
+  it('nextPresentationCode: anda em ciclo e começa pela primeira sem seleção ou com seleção fora da ordem', () => {
+    const order = ['eu-west', 'us-east', 'jp-east'];
+    expect(nextPresentationCode(order, null)).toBe('eu-west');
+    expect(nextPresentationCode(order, 'eu-west')).toBe('us-east');
+    expect(nextPresentationCode(order, 'jp-east')).toBe('eu-west');
+    expect(nextPresentationCode(order, 'ca-central')).toBe('eu-west');
+    expect(nextPresentationCode([], null)).toBeNull();
   });
 });

@@ -186,3 +186,28 @@ export function bubbleCaption(region: ListedRegion, selectedCode: string | null,
   if (region.worstStatus === null && region.co2eGrams === null) return `${region.name} · sem serviço hoje`;
   return region.co2eGrams === null ? region.name : `${region.name} · ${formatQuantity('co2e', region.co2eGrams)} CO₂e`;
 }
+
+/** Tempo em cada região do modo apresentação (#323), contado depois que o mapa chega nela. */
+export const PRESENTATION_DWELL_MS = 6000;
+/** Se o mapa não avisar a chegada (sem WebGL, imagens sem resposta), a contagem começa assim mesmo depois disto. */
+export const PRESENTATION_ARRIVAL_TIMEOUT_MS = 8000;
+/**
+ * Pausado por este tempo, o modo apresentação desliga e o botão volta a "Apresentar" (sugestão da revisão do #385): sem
+ * o "Encerrar", quem só experimentou ficava em "Retomar" até sair do Dashboard. O mapa fica na região atual.
+ */
+export const PRESENTATION_PAUSE_RESET_MS = 60_000;
+
+/**
+ * Ordem do modo apresentação (#323): as regiões com serviço e coordenada, da maior para a menor emissão, a mesma ordem
+ * da lista (`monitored` já vem assim). Região sem coordenada não tem para onde a câmera ir.
+ */
+export function presentationOrder(overview: RegionOverview): string[] {
+  return overview.monitored.filter((region) => region.latitude !== null && region.longitude !== null).map((region) => region.code);
+}
+
+/** Próxima região do ciclo; da última volta à primeira. Sem seleção, ou com uma fora da ordem, começa pela primeira. */
+export function nextPresentationCode(order: readonly string[], current: string | null): string | null {
+  if (order.length === 0) return null;
+  const index = current === null ? -1 : order.indexOf(current);
+  return order[(index + 1) % order.length];
+}
