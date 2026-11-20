@@ -128,7 +128,8 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
     await collections.insert(calculated(a.id, from, '0.001', '0.1'));
     await collections.insert(calculated(a.id, new Date(from.getTime() + 3 * 60_000), '0.001', '0.1'));
     await collections.insert({ ...reading(b.id), collected_at: new Date(from.getTime() + 5 * 60_000),
-      status: 'erro', error_message: 'Timeout' });
+      status: 'erro', error_message: 'Timeout', collection_interval_seconds: null, cpu_percent: null,
+      memory_gb: null, disk_gb: null, network_gb: null, metrics: {}, ...notCalculated });
     await collections.insert({ ...reading(c.id), collected_at: new Date(from.getTime() + 7 * 60_000),
       status: 'sem_metricas', collection_interval_seconds: null, cpu_percent: null, memory_gb: null,
       disk_gb: null, network_gb: null, metrics: {}, ...notCalculated });
@@ -138,8 +139,9 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
     const summary = await getServicesSummary(services, { from, to });
     expect(summary.from).toBe(from.toISOString());
     expect(summary.to).toBe(to.toISOString());
+    // failed e notCalculated se sobrepõem (docs/api.md): erro e sem_metricas contam nas duas
     expect(summary.totals).toEqual({
-      collections: 4, failed: 1, notCalculated: 2, energyKwh: 0.002, co2eGrams: 0.2,
+      collections: 4, failed: 2, notCalculated: 2, energyKwh: 0.002, co2eGrams: 0.2,
       carbonIntensityGco2ePerKwh: 100,
     });
     expect(summary.previous).toEqual({

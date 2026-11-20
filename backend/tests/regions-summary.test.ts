@@ -9,6 +9,7 @@ import { createDatabase, type QueryExecutor } from '../src/db/connection';
 import { CollectionRepository } from '../src/modules/collections/collections.repository';
 import { RegionsSummaryRepository } from '../src/modules/regions/regions-summary.repository';
 import type { RegionsSummaryResponse } from '../src/modules/regions/regions-summary.service';
+import type { ServicesSummaryResponse } from '../src/modules/services/services.service';
 import { ServiceRepository } from '../src/modules/services/services.repository';
 import { UserRepository } from '../src/modules/usuarios/usuarios.repository';
 import { DatabaseError } from '../src/shared/errors';
@@ -106,7 +107,7 @@ describe.skipIf(!url)('regions summary no PostgreSQL real', () => {
           const search = new URLSearchParams({ from: start.toISOString(), to: end.toISOString() });
           const regional = await fetch(base + '/regions/summary?' + search, { headers }); expect(regional.status).toBe(200);
           const body = await regional.json() as RegionsSummaryResponse;
-          const global = await (await fetch(base + '/services/summary?' + search, { headers })).json() as { energyKwh: number | null; co2eGrams: number | null };
+          const global = (await (await fetch(base + '/services/summary?' + search, { headers })).json() as ServicesSummaryResponse).totals;
           const sum = (key: 'energyKwh' | 'co2eGrams') => body.regions.every(row => row[key] === null) ? null : body.regions.reduce((total, row) => total + (row[key] ?? 0), 0);
           expect(sum('energyKwh')).toBe(global.energyKwh); expect(sum('co2eGrams')).toBe(global.co2eGrams);
           expect(global).toMatchObject({ energyKwh: energy, co2eGrams: co2e });
