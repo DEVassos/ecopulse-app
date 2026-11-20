@@ -184,6 +184,22 @@ function averageOrNull(items, field) {
 }
 
 /**
+ * Parcelas da potência a partir das médias dos quatro recursos, com os mesmos coeficientes de
+ * `backend/src/domain/carbon-calculator.ts` (CPU 100 W, RAM 0,375 W/GB, disco 0,01 W/GB, rede 0,02 W/GB).
+ * `null` quando falta alguma média, como no backend (`docs/api.md`, GET /api/services/compare).
+ */
+function breakdownFromAverages(cpu, memory, disk, network) {
+  if ([cpu, memory, disk, network].includes(null)) return null;
+  const watts = (value) => Number(value.toFixed(6));
+  return {
+    cpuW: watts((cpu / 100) * 100),
+    memoryW: watts(memory * 0.375),
+    diskW: watts(disk * 0.01),
+    networkW: watts(network * 0.02),
+  };
+}
+
+/**
  * Resumo e comparação leem o mesmo banco que GET /services, então seguem o cenário dela (#239):
  * MOCK_SERVICES=vazio → nenhum serviço · MOCK_SERVICES=erro → HTTP 500, como o backend com o banco fora do ar.
  */
@@ -455,6 +471,12 @@ const routes = {
           avgMemoryGb: averageOrNull(items, 'memoryGb'),
           avgDiskGb: averageOrNull(items, 'diskGb'),
           avgNetworkGb: averageOrNull(items, 'networkGb'),
+          avgPowerBreakdown: breakdownFromAverages(
+            averageOrNull(items, 'cpuPercent'),
+            averageOrNull(items, 'memoryGb'),
+            averageOrNull(items, 'diskGb'),
+            averageOrNull(items, 'networkGb'),
+          ),
           energyKwh: sumOrNull(items, 'energyKwh'),
           co2eGrams: sumOrNull(items, 'co2eGrams'),
         };
