@@ -1,8 +1,9 @@
 // Lista de regiões do Dashboard (#342, RF13): o que cada linha mostra, em cálculo puro, sem React. A junção das duas
 // respostas e o pior estado vêm da #321 (`utils/regions.ts`); aqui ficam só o nome, o lugar e a ordem da tela.
 import type { RegionStatus, RegionsResponse, RegionsSummaryResponse } from '../services/regions.types';
-import { bubbleRadius, joinRegions } from './regions';
+import { bubbleRadius, estimateMigration, joinRegions } from './regions';
 import type { RegionWithTotals } from './regions';
+import { formatQuantity } from './units';
 
 /** Uma região pronta para a lista (e, na #322, para o mapa). */
 export interface ListedRegion extends RegionWithTotals {
@@ -21,6 +22,8 @@ export interface RegionOverview {
   outside: { services: number; co2eGrams: number | null };
   /** Fora do mapa: os serviços de `outside` mais os de regiões listadas sem coordenada. */
   unplacedServices: number;
+  /** Quando o backend buscou as intensidades na Carbon API (ISO 8601): a simulação mostra "intensidade de HH:MM" (#326). */
+  fetchedAt: string;
 }
 
 /** Serviços contados numa região, sem os removidos. */
@@ -59,6 +62,7 @@ export function buildRegionOverview(list: RegionsResponse, summary: RegionsSumma
     idle,
     outside: { services: outsideServices, co2eGrams: sumOrNull(unlisted.map((item) => item.co2eGrams)) },
     unplacedServices: outsideServices + withoutCoordinate,
+    fetchedAt: list.fetchedAt,
   };
 }
 
@@ -103,4 +107,107 @@ export function mapScale(width: number, height: number): number {
 export function ringPercent(energyKwh: number | null, maxEnergyKwh: number): number | null {
   if (energyKwh === null || maxEnergyKwh <= 0) return null;
   return Math.max(4, Math.round(Math.min(1, energyKwh / maxEnergyKwh) * 100));
+}
+
+/** O cache da Carbon API no backend dura 1 h: intensidade mais velha que isso indica que a API não respondeu. */
+export const INTENSITY_MAX_AGE_MS = 60 * 60 * 1000;
+
+/**
+ * Hora das intensidades usadas na simulação (#326): "14:05" e se passou de 1 h. `source: 'cache'` é o estado normal
+ * durante a hora de cache, por isso a tela sempre mostra a hora, e o aviso só aparece quando o dado passou da hora.
+ */
+export function intensityTime(fetchedAt: string, now: Date = new Date()): { time: string; stale: boolean } {
+  const at = new Date(fetchedAt);
+  return {
+    time: at.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+    stale: now.getTime() - at.getTime() > INTENSITY_MAX_AGE_MS,
+  };
+}
+
+/** Percentual da simulação com 2 casas, como no exemplo de docs/calculos.md: 89.4170… → "89,42%". */
+export function formatMigrationPercent(percent: number): string {
+  return `${percent.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+}
+
+/**
+ * Linha da conta para quem verifica (#326): energia em kWh e intensidade em g/kWh, as unidades de docs/calculos.md,
+ * com 4 algarismos significativos como o `formatPrecise`. "0,118 kWh × 40 g/kWh = 4,72 g".
+ */
+export function migrationMath(energyKwh: number, intensity: number, grams: number): string {
+  const precise = (value: number) => value.toLocaleString('pt-BR', { maximumSignificantDigits: 4 });
+  return `${precise(energyKwh)} kWh × ${precise(intensity)} g/kWh = ${precise(grams)} g`;
+}
+
+/** Destino da simulação no mapa (#326): a região escolhida e o CO₂e que a energia da origem emitiria nela. */
+export interface MapDestination {
+  code: string;
+  /** CO₂e simulado em gramas, que dá o tamanho do marcador na mesma escala das bolhas; null sem conta possível. */
+  co2eGrams: number | null;
+}
+
+/**
+ * Destino escolhido no painel, pronto para o mapa: só quando a origem é uma região com serviço e o destino está na lista
+ * da Carbon API. O CO₂e é a conta de `estimateMigration`, a mesma do painel.
+ */
+export function mapDestination(overview: RegionOverview, originCode: string | null, destinationCode: string | null): MapDestination | null {
+  if (originCode === null || destinationCode === null || originCode === destinationCode) return null;
+  const origin = overview.monitored.find((region) => region.code === originCode);
+  const destination = [...overview.monitored, ...overview.idle].find((region) => region.code === destinationCode);
+  if (!origin || !destination) return null;
+  const estimate = estimateMigration(origin.energyKwh, origin.co2eGrams, destination.carbonIntensityGco2ePerKwh);
+  return { code: destination.code, co2eGrams: estimate?.grams ?? null };
+}
+
+/**
+ * Para onde a câmera vai (#326): o destino simulado quando há um com coordenada; senão, a região selecionada. A câmera só
+ * se move quando este código muda, então a atualização periódica não a mexe.
+ */
+export function cameraTarget(selectedCode: string | null, destination: MapDestination | null, placedCodes: ReadonlySet<string>): string | null {
+  return destination !== null && placedCodes.has(destination.code) ? destination.code : selectedCode;
+}
+
+/**
+ * Maior CO₂e da escala das bolhas: o das regiões com serviço e, com a simulação aberta, o do destino (#326). Sem o
+ * destino, um destino mais sujo que a maior região sairia do tamanho dela, porque o raio para em 1.
+ */
+export function co2eScaleMax(monitored: readonly ListedRegion[], destination: MapDestination | null): number {
+  return Math.max(0, ...monitored.map((region) => region.co2eGrams ?? 0), destination?.co2eGrams ?? 0);
+}
+
+/**
+ * Etiqueta visível sob a bolha selecionada e sob o destino simulado (#326): o mapa diz onde a câmera está, mesmo com o
+ * painel fora da tela. "Ashburn · 253 g CO₂e", "Destino simulado: Toronto · 26,8 g CO₂e". As outras bolhas: null.
+ */
+export function bubbleCaption(region: ListedRegion, selectedCode: string | null, destination: MapDestination | null): string | null {
+  if (region.code === destination?.code) {
+    return `Destino simulado: ${region.name}${destination.co2eGrams === null ? '' : ` · ${formatQuantity('co2e', destination.co2eGrams)} CO₂e`}`;
+  }
+  if (region.code !== selectedCode) return null;
+  if (region.worstStatus === null && region.co2eGrams === null) return `${region.name} · sem serviço hoje`;
+  return region.co2eGrams === null ? region.name : `${region.name} · ${formatQuantity('co2e', region.co2eGrams)} CO₂e`;
+}
+
+/** Tempo em cada região do modo apresentação (#323), contado depois que o mapa chega nela. */
+export const PRESENTATION_DWELL_MS = 6000;
+/** Se o mapa não avisar a chegada (sem WebGL, imagens sem resposta), a contagem começa assim mesmo depois disto. */
+export const PRESENTATION_ARRIVAL_TIMEOUT_MS = 8000;
+/**
+ * Pausado por este tempo, o modo apresentação desliga e o botão volta a "Apresentar" (sugestão da revisão do #385): sem
+ * o "Encerrar", quem só experimentou ficava em "Retomar" até sair do Dashboard. O mapa fica na região atual.
+ */
+export const PRESENTATION_PAUSE_RESET_MS = 60_000;
+
+/**
+ * Ordem do modo apresentação (#323): as regiões com serviço e coordenada, da maior para a menor emissão, a mesma ordem
+ * da lista (`monitored` já vem assim). Região sem coordenada não tem para onde a câmera ir.
+ */
+export function presentationOrder(overview: RegionOverview): string[] {
+  return overview.monitored.filter((region) => region.latitude !== null && region.longitude !== null).map((region) => region.code);
+}
+
+/** Próxima região do ciclo; da última volta à primeira. Sem seleção, ou com uma fora da ordem, começa pela primeira. */
+export function nextPresentationCode(order: readonly string[], current: string | null): string | null {
+  if (order.length === 0) return null;
+  const index = current === null ? -1 : order.indexOf(current);
+  return order[(index + 1) % order.length];
 }
