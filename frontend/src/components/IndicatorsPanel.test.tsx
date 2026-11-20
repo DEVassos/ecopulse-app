@@ -1,0 +1,60 @@
+import { renderToStaticMarkup } from 'react-dom/server';
+import { describe, expect, it } from 'vitest';
+import IndicatorsPanel from './IndicatorsPanel';
+import { EQUIVALENTS_DISCLAIMER } from '../utils/equivalents';
+import type { ServiceSummaryTotals, ServicesSummaryResponse } from '../services/services.types';
+
+const TOTALS: ServiceSummaryTotals = { collections: 4, failed: 0, notCalculated: 0, energyKwh: 0.0087, co2eGrams: 2128.68, carbonIntensityGco2ePerKwh: 244.7 };
+const EMPTY: ServiceSummaryTotals = { collections: 0, failed: 0, notCalculated: 0, energyKwh: null, co2eGrams: null, carbonIntensityGco2ePerKwh: null };
+
+function summary(totals: ServiceSummaryTotals, previous: ServiceSummaryTotals = EMPTY): ServicesSummaryResponse {
+  return {
+    from: '2026-11-12T22:00:00.000Z',
+    to: '2026-11-13T22:00:00.000Z',
+    totals,
+    previous: { from: '2026-11-11T22:00:00.000Z', to: '2026-11-12T22:00:00.000Z', totals: previous },
+    servicesByStatus: { ativo: 3, indisponivel: 0, sem_metricas: 0, removido: 0, total: 3 },
+  };
+}
+
+describe('IndicatorsPanel — equivalências do CO₂e (#333)', () => {
+  it('mostra as duas unidades com o aviso de ordem de grandeza', () => {
+    const html = renderToStaticMarkup(<IndicatorsPanel summary={summary(TOTALS)} stale={false} />);
+    expect(html).toContain('≈ 8,7 km de carro a gasolina · ≈ 170 cargas de celular');
+    expect(html).toContain('(ordem de grandeza)');
+  });
+
+  it('leva o fator e as fontes ao texto lido, não só ao tooltip de hover', () => {
+    const html = renderToStaticMarkup(<IndicatorsPanel summary={summary(TOTALS)} stale={false} />);
+    // O tooltip não recebe foco: sem o sr-only a fonte não chegaria a leitor de tela nem a toque
+    expect(html).toContain(`class="sr-only">: ${EQUIVALENTS_DISCLAIMER} EPA, Greenhouse Gas Equivalencies Calculator`);
+    expect(html).toContain('consultado em 13/11/2026');
+  });
+
+  it('sem CO₂e calculado não mostra equivalência nem fonte', () => {
+    const html = renderToStaticMarkup(<IndicatorsPanel summary={summary({ ...TOTALS, co2eGrams: null })} stale={false} />);
+    expect(html).not.toContain('ordem de grandeza');
+    expect(html).not.toContain('km de carro a gasolina');
+  });
+});
+
+describe('IndicatorsPanel — variação contra o período anterior (mesma resposta)', () => {
+  it('mostra a variação e o rótulo "vs. 24 h anteriores" quando há base', () => {
+    const previous = { ...TOTALS, energyKwh: 0.0100, co2eGrams: 2000 };
+    const html = renderToStaticMarkup(<IndicatorsPanel summary={summary(TOTALS, previous)} stale={false} />);
+    expect(html).toContain('vs. 24 h anteriores');
+    expect(html).toContain('▲');
+  });
+
+  it('sem cálculo no período anterior mostra o aviso visível, não um zero nem 100%', () => {
+    const html = renderToStaticMarkup(<IndicatorsPanel summary={summary(TOTALS, EMPTY)} stale={false} />);
+    expect(html).toContain('Sem cálculo no período anterior');
+    expect(html).not.toContain('100%');
+  });
+
+  it('antes da primeira resposta mostra o estado de cálculo, sem valores', () => {
+    const html = renderToStaticMarkup(<IndicatorsPanel summary={null} stale={false} />);
+    expect(html).toContain('calculando');
+    expect(html).toContain('aria-busy="true"');
+  });
+});
