@@ -3,12 +3,18 @@ import type { Region, RegionsResponse, RegionsSummaryResponse, RegionSummary } f
 import {
   MIN_BUBBLE,
   MIN_SCALE,
+  bubbleCaption,
   bubbleDiameter,
   buildRegionOverview,
+  cameraTarget,
+  co2eScaleMax,
   fitZoom,
   formatMigrationPercent,
   intensityTime,
+  mapDestination,
   mapScale,
+  nextPresentationCode,
+  presentationOrder,
   migrationMath,
   ringPercent,
   serviceCount,
@@ -150,5 +156,77 @@ describe('simulação de migração na tela (#326)', () => {
   it('linha da conta em kWh e g/kWh (critério 1: 0,118 kWh × 40 g/kWh = 4,72 g)', () => {
     expect(migrationMath(0.118, 40, 0.118 * 40)).toBe('0,118 kWh × 40 g/kWh = 4,72 g');
     expect(migrationMath(0.00123456, 465, 0.00123456 * 465)).toBe('0,001235 kWh × 465 g/kWh = 0,5741 g');
+  });
+});
+
+describe('destino simulado no mapa (#326)', () => {
+  const overview = buildRegionOverview(
+    list(region('us-east'), region('ca-central', { city: 'Montreal', carbonIntensityGco2ePerKwh: 40, monitoredServices: 0 }), region('sa-east', { carbonIntensityGco2ePerKwh: null, monitoredServices: 0 })),
+    summary(totals('us-east', { energyKwh: 0.118, co2eGrams: 44.6 })),
+  );
+
+  it('mapDestination: o CO₂e simulado é a conta do painel (0,118 kWh × 40 g/kWh = 4,72 g)', () => {
+    const destination = mapDestination(overview, 'us-east', 'ca-central');
+    expect(destination?.code).toBe('ca-central');
+    expect(destination?.co2eGrams).toBeCloseTo(4.72, 10);
+  });
+
+  it('mapDestination: sem origem com serviço, sem destino ou destino igual à origem, nada; sem intensidade, sem tamanho', () => {
+    expect(mapDestination(overview, null, 'ca-central')).toBeNull();
+    expect(mapDestination(overview, 'us-east', null)).toBeNull();
+    expect(mapDestination(overview, 'us-east', 'us-east')).toBeNull();
+    expect(mapDestination(overview, 'ca-central', 'us-east')).toBeNull();
+    expect(mapDestination(overview, 'us-east', 'xx-none')).toBeNull();
+    expect(mapDestination(overview, 'us-east', 'sa-east')).toEqual({ code: 'sa-east', co2eGrams: null });
+  });
+
+  it('co2eScaleMax: destino mais sujo que a maior região amplia a escala, e o marcador fica maior que a origem', () => {
+    expect(co2eScaleMax(overview.monitored, null)).toBe(44.6);
+    expect(co2eScaleMax(overview.monitored, { code: 'ca-central', co2eGrams: 4.72 })).toBe(44.6);
+    expect(co2eScaleMax(overview.monitored, { code: 'sa-east', co2eGrams: null })).toBe(44.6);
+    // Antes, 311 g simulados e 253 g da origem saíam os dois com o diâmetro máximo (o raio para em 1)
+    const max = co2eScaleMax(overview.monitored, { code: 'jp-east', co2eGrams: 57.2 });
+    expect(max).toBe(57.2);
+    expect(bubbleDiameter(57.2, max)).toBeGreaterThan(bubbleDiameter(44.6, max));
+  });
+
+  it('bubbleCaption: nome visível só na selecionada e no destino, com o CO₂e que o tamanho representa', () => {
+    const [usEast] = overview.monitored;
+    const montreal = overview.idle.find((item) => item.code === 'ca-central');
+    if (!montreal) throw new Error('ca-central deveria estar entre as regiões sem serviço');
+    const destination = mapDestination(overview, 'us-east', 'ca-central');
+    expect(bubbleCaption(usEast, 'us-east', destination)).toBe('Ashburn · 44,6 g CO₂e');
+    expect(bubbleCaption(montreal, 'us-east', destination)).toBe('Destino simulado: Montreal · 4,72 g CO₂e');
+    expect(bubbleCaption(montreal, 'us-east', null)).toBeNull();
+    expect(bubbleCaption(usEast, null, null)).toBeNull();
+    expect(bubbleCaption(montreal, 'ca-central', null)).toBe('Montreal · sem serviço hoje');
+    expect(bubbleCaption(montreal, 'us-east', { code: 'ca-central', co2eGrams: null })).toBe('Destino simulado: Montreal');
+  });
+
+  it('cameraTarget: o destino com coordenada manda na câmera; sem ele, a seleção', () => {
+    const placed = new Set(['us-east', 'ca-central']);
+    expect(cameraTarget('us-east', { code: 'ca-central', co2eGrams: 4.72 }, placed)).toBe('ca-central');
+    expect(cameraTarget('us-east', null, placed)).toBe('us-east');
+    expect(cameraTarget('us-east', { code: 'sem-gps', co2eGrams: 1 }, placed)).toBe('us-east');
+    expect(cameraTarget(null, null, placed)).toBeNull();
+  });
+});
+
+describe('modo apresentação (#323)', () => {
+  it('presentationOrder: regiões com serviço e coordenada, da maior para a menor emissão', () => {
+    const overview = buildRegionOverview(
+      list(region('us-east'), region('eu-west'), region('jp-east', { latitude: null, longitude: null }), region('eu-north', { monitoredServices: 0 })),
+      summary(totals('us-east', { co2eGrams: 50 }), totals('eu-west', { co2eGrams: 900 }), totals('jp-east', { co2eGrams: 300 })),
+    );
+    expect(presentationOrder(overview)).toEqual(['eu-west', 'us-east']);
+  });
+
+  it('nextPresentationCode: anda em ciclo e começa pela primeira sem seleção ou com seleção fora da ordem', () => {
+    const order = ['eu-west', 'us-east', 'jp-east'];
+    expect(nextPresentationCode(order, null)).toBe('eu-west');
+    expect(nextPresentationCode(order, 'eu-west')).toBe('us-east');
+    expect(nextPresentationCode(order, 'jp-east')).toBe('eu-west');
+    expect(nextPresentationCode(order, 'ca-central')).toBe('eu-west');
+    expect(nextPresentationCode([], null)).toBeNull();
   });
 });
