@@ -1,9 +1,19 @@
 import { formatNumber } from '../utils/format';
-import { formatMigrationPercent, intensityTime, migrationMath } from '../utils/region-map';
+import {
+  formatMigrationPercent,
+  intensityRatioText,
+  intensityTime,
+  migrationBars,
+  migrationMath,
+  migrationVerdict,
+  periodIntensity,
+  serviceCount,
+} from '../utils/region-map';
 import type { ListedRegion, RegionOverview } from '../utils/region-map';
 import { isCleanestOrigin, migrationChange, migrationRows } from '../utils/regions';
 import type { MigrationEstimate, MigrationRow } from '../utils/regions';
 import { formatQuantity } from '../utils/units';
+import CleanGridBadge from './CleanGridBadge';
 import './RegionDetail.css';
 
 /** Seção da fórmula e das ressalvas, no GitHub: a tela não repete a conta, aponta para ela. */
@@ -28,33 +38,113 @@ interface Props {
   now?: Date;
 }
 
-/** "Montreal" ou "Montreal (sem serviço hoje)": o destino pode não ter serviço, e a tela diz isso. */
+/** O destino não tem serviço monitorado hoje: a tela diz isso, para não parecer que já há algo rodando lá. */
+function isIdle(region: ListedRegion): boolean {
+  return region.worstStatus === null && region.co2eGrams === null;
+}
+
+/** "Montreal" ou "Montreal (sem serviço hoje)" na tabela de destinos. */
 function destinationName(region: ListedRegion): string {
-  return region.worstStatus === null && region.co2eGrams === null ? `${region.name} (sem serviço hoje)` : region.name;
+  return isIdle(region) ? `${region.name} (sem serviço hoje)` : region.name;
 }
 
-/** O fim da frase da simulação, sempre com números positivos: "89,42% menos", "aumento de 4,35 g (23,02%)". */
-function changeText(estimate: MigrationEstimate): string {
+/** "39,9 g a menos de CO₂e nas últimas 24 h": a diferença em palavras, nunca só pelo sinal ou pela cor. */
+function deltaText(estimate: MigrationEstimate, periodLabel: string): string {
   const change = migrationChange(estimate);
-  if (change.kind === 'igual') return 'a mesma emissão';
-  const grams = formatQuantity('co2e', change.grams);
-  if (change.percent === null) return `${change.kind === 'reducao' ? 'redução' : 'aumento'} de ${grams} (percentual não calculável)`;
-  const percent = formatMigrationPercent(change.percent);
-  return change.kind === 'reducao' ? `${percent} menos` : `aumento de ${grams} (${percent})`;
+  if (change.kind === 'igual') return `A mesma emissão nas ${periodLabel}`;
+  return `${formatQuantity('co2e', change.grams)} a ${change.kind === 'reducao' ? 'menos' : 'mais'} de CO₂e nas ${periodLabel}`;
 }
 
-/** Coluna "Diferença" da tabela: "−89,42%" ou "+23,02%", com a palavra para o leitor de tela. */
+/** Coluna "Diferença" da tabela: "▼ 89,42%" ou "▲ 23,02%", com a palavra para o leitor de tela. */
 function differenceCell(row: MigrationRow<ListedRegion>) {
   if (!row.available) return 'indisponível';
   if (row.estimate === null) return '—';
   const change = migrationChange(row.estimate);
   if (change.kind === 'igual') return 'igual';
-  const sign = change.kind === 'reducao' ? '−' : '+';
+  const arrow = change.kind === 'reducao' ? '▼' : '▲';
   const value = change.percent === null ? formatQuantity('co2e', change.grams) : formatMigrationPercent(change.percent);
   return (
     <>
-      <span aria-hidden="true">{sign}{value}</span>
+      <span className={`region-detail__diff region-detail__diff--${change.kind}`} aria-hidden="true">
+        {arrow} {value}
+      </span>
       <span className="sr-only">{change.kind === 'reducao' ? 'redução de' : 'aumento de'} {value}</span>
+    </>
+  );
+}
+
+interface RecommendationProps {
+  origin: ListedRegion;
+  destination: ListedRegion;
+  estimate: MigrationEstimate;
+  periodLabel: string;
+  stale: boolean;
+}
+
+/**
+ * Cartão da simulação (#395): o veredito numa frase, o antes e o depois no mesmo eixo, a diferença em palavras e a conta;
+ * logo abaixo, por que a diferença existe. A energia da origem é a mesma nos dois lados: só a rede muda.
+ */
+function Recommendation({ origin, destination, estimate, periodLabel, stale }: RecommendationProps) {
+  const change = migrationChange(estimate);
+  const originGrams = origin.co2eGrams ?? 0;
+  const energyKwh = origin.energyKwh ?? 0;
+  const bars = migrationBars(originGrams, estimate.grams);
+  const destinationIntensity = destination.carbonIntensityGco2ePerKwh;
+  const originIntensity = periodIntensity(origin.energyKwh, origin.co2eGrams);
+  const ratio = intensityRatioText(originIntensity, destinationIntensity);
+  const services = serviceCount(origin.services);
+  const originValue = formatQuantity('co2e', originGrams);
+  const simulatedValue = formatQuantity('co2e', estimate.grams);
+
+  return (
+    <>
+      <div className={`region-detail__reco region-detail__reco--${change.kind}`}>
+        <p className="region-detail__verdict">
+          {migrationVerdict(change, destination.name)}
+          <CleanGridBadge grid={destination} stale={stale} className="region-detail__badge" />
+        </p>
+        <div
+          className="region-detail__bars"
+          role="img"
+          aria-label={`CO₂e nas ${periodLabel}: hoje em ${origin.name}, ${originValue}; simulado em ${destination.name}, ${simulatedValue}.`}
+        >
+          <span className="region-detail__bar-label">Hoje em {origin.name}</span>
+          <span className="region-detail__track" aria-hidden="true">
+            <span className="region-detail__fill region-detail__fill--origin" style={{ width: `${bars.origin}%` }} />
+          </span>
+          <span className="region-detail__bar-value font-data">{originValue}</span>
+          <span className="region-detail__bar-label">Simulado em {destination.name}</span>
+          <span className="region-detail__track" aria-hidden="true">
+            <span className={`region-detail__fill region-detail__fill--${change.kind}`} style={{ width: `${bars.simulated}%` }} />
+          </span>
+          <span className="region-detail__bar-value font-data">{simulatedValue}</span>
+        </div>
+        <p className="region-detail__delta font-data">{deltaText(estimate, periodLabel)}</p>
+        <p className="region-detail__math font-data">Conta: {migrationMath(energyKwh, destinationIntensity ?? 0, estimate.grams)}</p>
+      </div>
+
+      <div className="region-detail__why">
+        <h4 className="region-detail__why-title">Por que a diferença</h4>
+        <ul className="region-detail__why-list">
+          <li>
+            <strong>Intensidade de carbono:</strong>{' '}
+            {originIntensity === null ? 'sem cálculo' : `${formatNumber(originIntensity, 0)} g/kWh`} em {origin.name} no período
+            (CO₂e ÷ energia) contra {destinationIntensity === null ? 'sem dado' : `${formatNumber(destinationIntensity, 0)} g/kWh`} em{' '}
+            {destination.name} agora{ratio ? `: ${ratio}` : ''}.
+          </li>
+          <li>
+            <strong>Energia considerada:</strong> {formatQuantity('energy', energyKwh)}, a mesma que{' '}
+            {services === 1 ? 'o serviço' : `os ${services} serviços`} de {origin.name} {services === 1 ? 'consumiu' : 'consumiram'} nas{' '}
+            {periodLabel}. A simulação troca só a rede.
+          </li>
+          {isIdle(destination) && (
+            <li>
+              <strong>Destino:</strong> {destination.name} não tem serviço monitorado hoje.
+            </li>
+          )}
+        </ul>
+      </div>
     </>
   );
 }
@@ -91,19 +181,13 @@ export default function RegionDetail({ overview, originCode, destinationCode, on
         {origin.energyKwh === null ? 'energia sem cálculo' : `${formatQuantity('energy', origin.energyKwh)} de energia`} nas {periodLabel}
       </p>
 
-      <h3 className="region-detail__subtitle">Alternativa mais limpa nas {periodLabel}</h3>
+      <h3 className="region-detail__subtitle">
+        {chosen ? 'Destino escolhido' : 'Alternativa mais limpa'} nas {periodLabel}
+      </h3>
       {noData ? (
         <p className="region-detail__sentence">Sem dado no período para estimar.</p>
       ) : shown?.estimate ? (
-        <>
-          <p className="region-detail__sentence">
-            A mesma energia das {periodLabel} emitiria cerca de <strong>{formatQuantity('co2e', shown.estimate.grams)}</strong> de CO₂e em{' '}
-            <strong>{destinationName(shown.region)}</strong>: <strong>{changeText(shown.estimate)}</strong>.
-          </p>
-          <p className="region-detail__math font-data">
-            Conta: {migrationMath(origin.energyKwh ?? 0, shown.region.carbonIntensityGco2ePerKwh ?? 0, shown.estimate.grams)}
-          </p>
-        </>
+        <Recommendation origin={origin} destination={shown.region} estimate={shown.estimate} periodLabel={periodLabel} stale={stale} />
       ) : alreadyCleanest ? (
         <p className="region-detail__sentence">Esta já é a região de menor intensidade de carbono.</p>
       ) : (

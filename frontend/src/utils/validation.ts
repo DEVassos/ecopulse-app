@@ -34,3 +34,16 @@ export function validatePasswordConfirmation(password: string, confirmation: str
   if (confirmation === '') return 'Repita a senha.';
   return confirmation === password ? '' : 'As senhas não são iguais.';
 }
+
+/** Senha atual na troca de senha do perfil (#401): aqui só conferimos se foi digitada; quem confere é o backend. */
+export function validateCurrentPassword(value: string): string {
+  return value === '' ? 'Informe a senha atual.' : '';
+}
+
+/** Nova senha no perfil (#401): a regra do cadastro e diferente da atual, como no backend (#400). */
+export function validateChangedPassword(current: string, next: string): string {
+  if (next === '') return 'Informe a nova senha.';
+  const rule = validateNewPassword(next);
+  if (rule) return rule;
+  return next === current ? 'A nova senha deve ser diferente da atual.' : '';
+}

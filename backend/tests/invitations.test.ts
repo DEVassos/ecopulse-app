@@ -6,12 +6,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/app';
 import { Invitation } from '../src/domain/invitation';
 import { CollectionRepository } from '../src/modules/collections/collections.repository';
-import { isValidPassword } from '../src/modules/invitations/invitations.controller';
 import { InvitationRepository } from '../src/modules/invitations/invitations.repository';
 import { hashToken } from '../src/modules/invitations/invitations.service';
 import { ServiceRepository } from '../src/modules/services/services.repository';
 import { UserRepository } from '../src/modules/usuarios/usuarios.repository';
 import type { AuthConfig } from '../src/modules/usuarios/usuarios.service';
+import { isValidPassword } from '../src/shared/account-rules';
 import type { StoredInvitation, StoredUser } from '../src/shared/persistence.types';
 import { memoryDatabase } from './invitations-test.repository';
 
