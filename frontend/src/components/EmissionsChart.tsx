@@ -24,6 +24,7 @@ import {
   typicalIntervalMs,
 } from '../utils/emissions';
 import { CHAR_WIDTH, freeBaseline, labelBox, labelsOverlap } from '../utils/chart-labels';
+import { barPath, intervalBars } from '../utils/emission-bars';
 import { scaleFor } from '../utils/units';
 import { describeWindow, dragSpan } from '../utils/zoom';
 import type { LabelAnchor, LabelBox } from '../utils/chart-labels';
@@ -123,10 +124,11 @@ function nearestIndex(times: number[], t: number): number {
 }
 
 /**
- * Gráfico de linha da emissão de CO₂e ao longo do tempo (SVG próprio, sem biblioteca).
- * Agrupado, cada ponto é a soma do intervalo, desenhada no meio dele, com uma faixa clara de onde a soma estaria se
- * todas as coletas fossem a menor ou a maior do intervalo (o pico de uma coleta não some na soma).
- * A linha é interrompida onde não há cálculo ou onde a coleta parou; falhas aparecem na faixa acima do eixo do tempo.
+ * Gráfico da emissão de CO₂e ao longo do tempo (SVG próprio, sem biblioteca).
+ * Por intervalo, uma barra por intervalo (ou por coleta): cada valor é uma quantidade daquele intervalo, e a barra
+ * ocupa o intervalo inteiro, com um traço de onde a soma estaria se todas as coletas fossem a menor ou a maior do
+ * intervalo (o pico de uma coleta não some na soma). Sem cálculo, não há barra; falhas aparecem na faixa acima do eixo
+ * do tempo. No Acumulado, uma linha: o total corrido é contínuo e só cresce.
  */
 /** Sem trechos sem coleta: a mesma referência em toda renderização. */
 const NO_SPANS: TimeSpan[] = [];
@@ -247,6 +249,33 @@ export default function EmissionsChart({
     // x e y são recriadas a cada renderização, mas dependem só de plotW, plotH, fromMs, toMs e yMax, que estão na lista
     // eslint-disable-next-line react-hooks/exhaustive-deps -- listar x e y refaria os caminhos do gráfico a cada renderização
   }, [points, times, values, band, stepMs, grouped, openIndex, plotW, plotH, fromMs, toMs, yMax]);
+
+  // Por intervalo: barras, como no protótipo da Sprint 3; o Acumulado continua em linha (é um total corrido)
+  const barsMode = mode === 'intervalo';
+  const bars = useMemo(
+    () =>
+      barsMode
+        ? intervalBars({
+            // Agrupado, o tempo do ponto é o meio do intervalo; por coleta, o próprio instante: a barra centra nele
+            starts: times.map((t) => t - stepMs / 2),
+            stepMs,
+            values,
+            openIndex,
+            peakIndex,
+            ranges: band.length > 0 ? band : values.map(() => null),
+            x,
+            y,
+            baseline: MARGIN.top + plotH,
+            plotLeft: MARGIN.left,
+            plotRight: MARGIN.left + plotW,
+          })
+        : [],
+    // x e y dependem só de plotW, plotH, fromMs, toMs e yMax, que estão na lista
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- listar x e y refaria as barras a cada renderização
+    [barsMode, times, stepMs, values, openIndex, peakIndex, band, plotW, plotH, fromMs, toMs, yMax],
+  );
+  const hasRange = bars.some((bar) => bar.range !== null);
+  const hasOpenBar = bars.some((bar) => bar.kind === 'open');
 
   // Intervalo em andamento: o meio dele passa de "agora", então o ponto fica no fim do plot
   const openValue = openIndex !== null ? values[openIndex] : null;
@@ -471,13 +500,37 @@ export default function EmissionsChart({
                 fill={`url(#${ids}-nodata)`}
               />
             ))}
-            {bandPath && <path d={bandPath} className="emissions-chart__band" />}
-            {/* Com a faixa mín./máx., a área preenchida embaixo da linha ficaria pesada demais */}
-            {!bandPath && <path d={area} fill={`url(#${ids}-area)`} />}
-            <path d={line} className="emissions-chart__line" />
-            {dots.map((dot) => (
-              <circle key={dot.cx} className="emissions-chart__single" cx={dot.cx} cy={dot.cy} r={3} />
-            ))}
+            {barsMode ? (
+              <g className="emissions-chart__bars">
+                {bars.map((bar) => (
+                  <g key={bar.index}>
+                    <path
+                      d={barPath(bar)}
+                      className={`emissions-chart__bar emissions-chart__bar--${bar.kind}${hover === bar.index ? ' emissions-chart__bar--hover' : ''}`}
+                    />
+                    {bar.range && (
+                      <line
+                        className="emissions-chart__range"
+                        x1={bar.x + bar.width / 2}
+                        x2={bar.x + bar.width / 2}
+                        y1={bar.range.top}
+                        y2={bar.range.bottom}
+                      />
+                    )}
+                  </g>
+                ))}
+              </g>
+            ) : (
+              <>
+                {bandPath && <path d={bandPath} className="emissions-chart__band" />}
+                {/* Com a faixa mín./máx., a área preenchida embaixo da linha ficaria pesada demais */}
+                {!bandPath && <path d={area} fill={`url(#${ids}-area)`} />}
+                <path d={line} className="emissions-chart__line" />
+                {dots.map((dot) => (
+                  <circle key={dot.cx} className="emissions-chart__single" cx={dot.cx} cy={dot.cy} r={3} />
+                ))}
+              </>
+            )}
             {openLink && <line className="emissions-chart__open-link" {...openLink} />}
 
             {mean !== null && (
@@ -501,10 +554,10 @@ export default function EmissionsChart({
             </g>
           )}
 
-          {open && <circle className="emissions-chart__open" cx={open.cx} cy={open.cy} r={4} pointerEvents="none" />}
+          {open && !barsMode && <circle className="emissions-chart__open" cx={open.cx} cy={open.cy} r={4} pointerEvents="none" />}
 
-          {/* Maior ponto, em cor neutra (o neon fica com o tile do pico); fora do clip para o halo e o rótulo não serem cortados */}
-          {peak && (
+          {/* Maior ponto da linha, em cor neutra (o neon fica com o tile do pico); nas barras, o destaque é a própria barra */}
+          {peak && !barsMode && (
             <g className="emissions-chart__peak" pointerEvents="none">
               <circle className="emissions-chart__peak-halo" cx={peak.cx} cy={peak.cy} r={10} />
               <circle className="emissions-chart__peak-dot" cx={peak.cx} cy={peak.cy} r={4.5} />
@@ -550,8 +603,9 @@ export default function EmissionsChart({
             />
           ))}
 
-          {/* Cursor (some durante o arrasto, como a dica) */}
-          {hovered && hover !== null && !selection && (
+          {/* Cursor (some durante o arrasto, como a dica); nas barras, a barra sob o ponteiro já se destaca, e o cursor
+              só aparece onde não há barra (intervalo sem cálculo) */}
+          {hovered && hover !== null && !selection && (!barsMode || hoveredValue === null) && (
             <g pointerEvents="none">
               <line className="emissions-chart__cursor" x1={hoverX} x2={hoverX} y1={MARGIN.top} y2={MARGIN.top + plotH} />
               {hoveredValue !== null && <circle className="emissions-chart__dot" cx={hoverX} cy={y(hoveredValue)} r={4} />}
@@ -653,7 +707,7 @@ export default function EmissionsChart({
         </p>
       )}
 
-      {(presentGaps.size > 0 || bandPath || missing.length > 0 || startX !== null) && (
+      {(presentGaps.size > 0 || (!barsMode && bandPath) || hasRange || hasOpenBar || missing.length > 0 || startX !== null) && (
         <ul className="emissions-chart__legend" aria-label="Legenda do gráfico">
           {startMark && startX !== null && (
             <li>
@@ -661,10 +715,22 @@ export default function EmissionsChart({
               {startMark.label.charAt(0).toUpperCase() + startMark.label.slice(1)}
             </li>
           )}
-          {bandPath && (
+          {!barsMode && bandPath && (
             <li>
               <span className="emissions-chart__swatch emissions-chart__swatch--band" aria-hidden="true" />
               Faixa: menor e maior coleta do intervalo
+            </li>
+          )}
+          {hasRange && (
+            <li>
+              <span className="emissions-chart__swatch emissions-chart__swatch--range" aria-hidden="true" />
+              Traço: a soma se todas as coletas fossem a menor ou a maior do intervalo
+            </li>
+          )}
+          {hasOpenBar && (
+            <li>
+              <span className="emissions-chart__swatch emissions-chart__swatch--open" aria-hidden="true" />
+              Intervalo em andamento: soma parcial
             </li>
           )}
           {missing.length > 0 && (

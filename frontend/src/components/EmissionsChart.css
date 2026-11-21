@@ -207,6 +207,57 @@
     opacity: 0.14;
   }
 
+  /* Por intervalo: barras no verde do CO₂e, a meio tom; o maior intervalo e a barra sob o ponteiro ganham o tom cheio */
+  .emissions-chart__bar {
+    fill: var(--accent);
+    fill-opacity: 0.5;
+  }
+
+  .emissions-chart__bar--peak,
+  .emissions-chart__bar--hover {
+    fill: var(--accent-hover);
+    fill-opacity: 1;
+  }
+
+  /* Intervalo em andamento: soma parcial, barra vazada e tracejada, como o ponto vazado da linha */
+  .emissions-chart__bar--open {
+    fill-opacity: 0.12;
+    stroke: var(--accent);
+    stroke-width: 1.2;
+    stroke-dasharray: 3 2;
+  }
+
+  .emissions-chart__bar--open.emissions-chart__bar--hover {
+    fill: var(--accent);
+    fill-opacity: 0.3;
+  }
+
+  /* Traço da menor à maior coleta, na escala da soma: tinta neutra, fina, por cima da barra */
+  .emissions-chart__range {
+    stroke: var(--text-2);
+    stroke-width: 1.2;
+    opacity: 0.4;
+  }
+
+  /* No alto contraste do sistema, a barra vira contorno, e a tracejada continua diferente das cheias */
+  @media (forced-colors: active) {
+    .emissions-chart__bar {
+      fill: CanvasText;
+      fill-opacity: 0.4;
+    }
+
+    .emissions-chart__bar--peak,
+    .emissions-chart__bar--hover {
+      fill: Highlight;
+      fill-opacity: 1;
+    }
+
+    .emissions-chart__bar--open {
+      fill: Canvas;
+      stroke: CanvasText;
+    }
+  }
+
   /* Zoom por arrasto (#397): a mira indica que dá para selecionar com o mouse; a faixa do trecho fica em --sky */
   .emissions-chart__hit--zoom {
     cursor: crosshair;
@@ -316,5 +367,19 @@
   .emissions-chart__swatch--band {
     height: 10px;
     background: color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+
+  .emissions-chart__swatch--range {
+    width: 2px;
+    height: 12px;
+    border-radius: 0;
+    background: color-mix(in srgb, var(--text-2) 55%, transparent);
+  }
+
+  .emissions-chart__swatch--open {
+    width: 10px;
+    height: 12px;
+    border: 1.2px dashed var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
   }
 }

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router';
 import AppHeader from '../components/AppHeader';
 import EmissionsChart from '../components/EmissionsChart';
 import type { EmissionsChartMode } from '../components/EmissionsChart';
+import EmissionsOverview from '../components/EmissionsOverview';
 import { ZoomBand, ZoomButtons } from '../components/EmissionsZoom';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -500,6 +501,10 @@ export default function EmissionsPage() {
                     onZoomReset={() => applyZoom(null)}
                     zoomed={shown !== null}
                   />
+                )}
+                {/* Com um trecho ampliado, a miniatura mostra onde ele fica no período inteiro (#410) */}
+                {data !== null && period !== null && shown !== null && points.length > 0 && (
+                  <EmissionsOverview points={allPoints} bucket={data.bucket} fromMs={period.fromMs} toMs={period.toMs} zoom={shown} />
                 )}
                 {/* Só aparece com mouse (CSS): no toque, o arrasto percorre os pontos e o zoom fica nos botões (#397) */}
                 {data !== null && points.length > 0 && (
