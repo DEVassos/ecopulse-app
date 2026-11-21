@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { loginDestination, returnPath } from './login-redirect';
+import { loginDestination, registeredEmail, returnPath } from './login-redirect';
 
 describe('returnPath', () => {
   it('guarda o caminho com a query e a âncora, para o login voltar à mesma tela (#257)', () => {
@@ -22,5 +22,15 @@ describe('loginDestination', () => {
     ['caminho com duas barras (outro host)', { from: '//exemplo.com' }],
   ])('vai para o dashboard: %s', (_case, state) => {
     expect(loginDestination(state)).toBe('/');
+  });
+});
+
+describe('registeredEmail (#197)', () => {
+  it('lê o e-mail da conta criada pelo convite', () => {
+    expect(registeredEmail({ registeredEmail: 'ana@exemplo.com' })).toBe('ana@exemplo.com');
+  });
+
+  it.each([null, {}, { registeredEmail: '' }, { registeredEmail: 42 }, { from: '/' }])('ignora state sem conta criada: %j', (state) => {
+    expect(registeredEmail(state)).toBeNull();
   });
 });

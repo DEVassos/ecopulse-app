@@ -6,11 +6,14 @@ import type { EmissionsChartMode } from '../components/EmissionsChart';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import EstimateTag from '../components/EstimateTag';
+import ExportButtons from '../components/ExportButtons';
 import LastUpdated from '../components/LastUpdated';
 import LoadingState from '../components/LoadingState';
 import PeriodPicker from '../components/PeriodPicker';
+import { PrintHeader, PrintTable } from '../components/PrintReport';
 import { useEmissions } from '../hooks/useEmissions';
 import { useMonitoring } from '../hooks/useMonitoring';
+import { usePrintReport } from '../hooks/usePrintReport';
 import { useServices } from '../hooks/useServices';
 import type { EmissionsBucket } from '../services/emissions.types';
 import { isDemoMode } from '../services/services.service';
@@ -42,6 +45,7 @@ import {
 } from '../utils/emissions';
 import { formatDayTime } from '../utils/format';
 import './EmissionsPage.css';
+import '../styles/print.css';
 
 /** Mensagem de erro do período, ligada aos dois campos de data por aria-describedby (#262). */
 const FORM_ERROR_ID = 'emissoes-erro-periodo';
@@ -52,6 +56,13 @@ function locationOf(service: MonitoredService): string {
   return [service.city, service.region].filter(Boolean).join(' · ');
 }
 
+/** Região no relatório impresso: "Tokyo (jp-east)", sem repetir cidade e região quando são iguais ("Tokyo · Tokyo"). */
+function printLocation(service: MonitoredService): string {
+  const place = service.city ?? service.region ?? '';
+  if (!service.regionCode) return place;
+  return place ? `${place} (${service.regionCode})` : service.regionCode;
+}
+
 /**
  * Página Emissões (#190): emissão estimada de CO₂e de um serviço ao longo do tempo.
  * Serviço, período e tempo real ficam na URL (`?servico=&de=&ate=&tempo=real`): o link abre no mesmo filtro e o
@@ -60,6 +71,8 @@ function locationOf(service: MonitoredService): string {
 export default function EmissionsPage() {
   const { data: servicesData, loading: servicesLoading, error: servicesError, refresh: refreshServices } = useServices();
   const { refreshIntervalMs } = useMonitoring();
+  // Relatório impresso / PDF (#13): as regras de impressão valem só nesta página, e o papel sai sempre no tema claro
+  usePrintReport();
   const [params, setParams] = useSearchParams();
   const today = todayInput();
   const services = useMemo(() => servicesData?.services ?? [], [servicesData]);
@@ -223,6 +236,13 @@ export default function EmissionsPage() {
               )}
             </div>
 
+            <PrintHeader
+              serviceName={service.name}
+              location={printLocation(service)}
+              periodLabel={`${periodLabel} (${timeZoneLabel(start)})`}
+              bucketLabel={data ? BUCKET_LABEL[data.bucket] : null}
+              updatedAt={updatedAt}
+            />
             <div className="emissions__card panel">
               <header className="emissions__header">
                 <div>
@@ -253,6 +273,17 @@ export default function EmissionsPage() {
                   {loading && <span className="emissions__spinner" aria-hidden="true" />}
                 </LastUpdated>
               </header>
+
+              {/* Exportação do período (#24, US13 #54): CSV com todas as coletas e PDF pela impressão do navegador */}
+              <ExportButtons
+                serviceId={service.id}
+                serviceName={service.name}
+                start={start}
+                end={end}
+                fromMs={range.fromMs}
+                toMs={range.toMs}
+                expectedCount={totals?.collections ?? null}
+              />
 
               {error && <ErrorState message={error} onRetry={refresh} />}
 
@@ -371,6 +402,15 @@ export default function EmissionsPage() {
                 </p>
               )}
             </div>
+            {data !== null && points.length > 0 && (
+              <PrintTable
+                points={points}
+                bucket={data.bucket}
+                bucketLabel={BUCKET_LABEL[data.bucket]}
+                multiDay={multiDay}
+                missing={missing}
+              />
+            )}
           </section>
         )}
       </main>

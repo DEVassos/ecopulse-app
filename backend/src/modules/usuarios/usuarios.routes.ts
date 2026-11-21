@@ -7,6 +7,6 @@ import type { AuthConfig } from './usuarios.service';
 export function authRoutes(users: UserRepository, config: AuthConfig): Router {
   const router = Router();
   router.post('/api/auth/login', loginController(users, config));
-  router.get('/api/auth/me', authMiddleware(config), meController);
+  router.get('/api/auth/me', authMiddleware(config), meController(users));
   return router;
 }

@@ -1,9 +1,12 @@
 import { createContext } from 'react';
+import type { UserRole } from '../services/auth.types';
 
 export interface AuthUser {
   email: string;
-  /** Nome mostrado no cabeçalho: a parte do e-mail antes do @. */
+  /** Nome mostrado no cabeçalho, como o backend devolveu no login (#196). */
   name: string;
+  /** Só decide o que a tela mostra (ex.: Convidar pessoa); quem bloqueia a ação é o backend, com 403. */
+  role: UserRole;
 }
 
 export interface AuthContextValue {

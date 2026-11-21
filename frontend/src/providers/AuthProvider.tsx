@@ -14,11 +14,15 @@ interface Session {
   user: AuthUser;
 }
 
-/** Sessão salva com o formato esperado, ou null (nada salvo, outra versão ou conteúdo alterado à mão). */
+/**
+ * Sessão salva com o formato esperado, ou null (nada salvo, outra versão ou conteúdo alterado à mão). Sessão de antes
+ * da #196, sem papel, também volta null: o token dela não tem papel e o backend já o recusaria.
+ */
 function parseSession(value: unknown): Session | null {
   if (!isRecord(value) || typeof value.token !== 'string' || value.token === '' || !isRecord(value.user)) return null;
-  const { email, name } = value.user;
-  return typeof email === 'string' && typeof name === 'string' ? { token: value.token, user: { email, name } } : null;
+  const { email, name, role } = value.user;
+  if (typeof email !== 'string' || typeof name !== 'string' || (role !== 'admin' && role !== 'usuario')) return null;
+  return { token: value.token, user: { email, name, role } };
 }
 
 function readSession(): Session | null {
@@ -56,8 +60,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { token } = await authService.login({ email, password });
-    const next: Session = { token, user: { email, name: email.split('@')[0] } };
+    const { token, user } = await authService.login({ email, password });
+    const next: Session = { token, user: { email: user.email, name: user.name, role: user.role } };
     writeSession(next);
     setAuthToken(token);
     setSessionExpired(false);
