@@ -25,6 +25,17 @@ function repositories(collectionRows: unknown[] = [], serviceRows: unknown[] = [
   };
 }
 
+function summaryRepositories(summaryRows: unknown[][], statusRows: unknown[] = []) {
+  const collections = new CollectionRepository({ query: vi.fn().mockResolvedValue({ rows: [] }) });
+  const services = new ServiceRepository({ query: vi.fn().mockImplementation(async (text: string) => {
+    if (text.includes('GROUP BY status')) return { rows: statusRows };
+    const rows = summaryRows.shift();
+    if (!rows) throw new Error('Faltou fixture dos totais do resumo.');
+    return { rows };
+  }) });
+  return { collections, services };
+}
+
 function createApp(verify: () => Promise<void>, collections: CollectionRepository, services: ServiceRepository,
   corsOrigins: readonly string[] = [], carbonApi?: CarbonApi) {
   const users = new UserRepository({ query: vi.fn().mockResolvedValue({ rows: [] }) });
@@ -143,41 +154,55 @@ describe('HTTP', () => {
     expect(service).toEqual(expect.objectContaining({ regionCode: 'ca-central', lastReadingAt: null, cpuPercent: null, collectionIntervalSeconds: null, memoryGb: null,
       diskGb: null, networkGb: null, powerWatts: null, carbonIntensityGco2ePerKwh: null, powerBreakdown: null }));
   });
-  it('retorna os indicadores agregados para o período solicitado', async () => {
-    const summary = { energy_kwh: '1.2500', co2e_grams: '85.5000', active: '3', unavailable: '1', without_metrics: '2', removed: '0' };
-    const { collections, services } = repositories([], [summary]);
+  it('retorna os indicadores do período e do anterior com estados atuais', async () => {
+    const { collections, services } = summaryRepositories([
+      [{ collections: '4', failed: '1', not_calculated: '2', energy_kwh: '1.2500', co2e_grams: '85.5000' }],
+      [{ collections: '2', failed: '0', not_calculated: '0', energy_kwh: '2', co2e_grams: '100' }],
+    ], [{ status: 'ativo', count: '3' }, { status: 'removido', count: '2' }]);
     const response = await authenticatedRequest(await serve(createApp(async () => {}, collections, services))
       + '/api/services/summary?from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z');
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
-      period: { from: '2026-10-20T00:00:00.000Z', to: '2026-10-21T00:00:00.000Z' },
-      energyKwh: 1.25, co2eGrams: 85.5,
-      services: { active: 3, unavailable: 1, withoutMetrics: 2, removed: 0 },
+      from: '2026-10-20T00:00:00.000Z',
+      to: '2026-10-21T00:00:00.000Z',
+      totals: { collections: 4, failed: 1, notCalculated: 2, energyKwh: 1.25, co2eGrams: 85.5, carbonIntensityGco2ePerKwh: 68.4 },
+      previous: {
+        from: '2026-10-19T00:00:00.000Z',
+        to: '2026-10-20T00:00:00.000Z',
+        totals: { collections: 2, failed: 0, notCalculated: 0, energyKwh: 2, co2eGrams: 100, carbonIntensityGco2ePerKwh: 50 },
+      },
+      servicesByStatus: { ativo: 3, indisponivel: 0, sem_metricas: 0, removido: 2, total: 3 },
     });
   });
-  it('preserva null nos totais quando não houve cálculo disponível no período', async () => {
-    const summary = { energy_kwh: null, co2e_grams: null, active: '1', unavailable: '0', without_metrics: '0', removed: '0' };
-    const { collections, services } = repositories([], [summary]);
+  it('preserva null sem cálculo e não divide por energia zero', async () => {
+    const { collections, services } = summaryRepositories([
+      [{ collections: '0', failed: '0', not_calculated: '0', energy_kwh: null, co2e_grams: null }],
+      [{ collections: '1', failed: '0', not_calculated: '0', energy_kwh: '0', co2e_grams: '0' }],
+    ]);
     const response = await authenticatedRequest(await serve(createApp(async () => {}, collections, services))
       + '/api/services/summary?from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z');
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ energyKwh: null, co2eGrams: null });
-  });
-  it('mantém zero quando cálculos disponíveis totalizam zero', async () => {
-    const summary = { energy_kwh: '0', co2e_grams: '0', active: '1', unavailable: '0', without_metrics: '0', removed: '0' };
-    const { collections, services } = repositories([], [summary]);
-    const response = await authenticatedRequest(await serve(createApp(async () => {}, collections, services))
-      + '/api/services/summary?from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z');
-    expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ energyKwh: 0, co2eGrams: 0 });
+    expect(await response.json()).toEqual({
+      from: '2026-10-20T00:00:00.000Z',
+      to: '2026-10-21T00:00:00.000Z',
+      totals: { collections: 0, failed: 0, notCalculated: 0, energyKwh: null, co2eGrams: null, carbonIntensityGco2ePerKwh: null },
+      previous: {
+        from: '2026-10-19T00:00:00.000Z',
+        to: '2026-10-20T00:00:00.000Z',
+        totals: { collections: 1, failed: 0, notCalculated: 0, energyKwh: 0, co2eGrams: 0, carbonIntensityGco2ePerKwh: null },
+      },
+      servicesByStatus: { ativo: 0, indisponivel: 0, sem_metricas: 0, removido: 0, total: 0 },
+    });
   });
   it('usa as últimas 24 horas quando o período do resumo é omitido', async () => {
-    const summary = { energy_kwh: null, co2e_grams: null, active: '0', unavailable: '0', without_metrics: '0', removed: '0' };
-    const { collections, services } = repositories([], [summary]);
+    const totals = { collections: '0', failed: '0', not_calculated: '0', energy_kwh: null, co2e_grams: null };
+    const { collections, services } = summaryRepositories([[totals], [totals]]);
     const response = await authenticatedRequest(await serve(createApp(async () => {}, collections, services)) + '/api/services/summary');
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(new Date(body.period.to).getTime() - new Date(body.period.from).getTime()).toBe(24 * 60 * 60 * 1000);
+    expect(new Date(body.to).getTime() - new Date(body.from).getTime()).toBe(24 * 60 * 60 * 1000);
+    expect(body.previous.to).toBe(body.from);
+    expect(new Date(body.previous.to).getTime() - new Date(body.previous.from).getTime()).toBe(24 * 60 * 60 * 1000);
   });
   it('rejeita data de calendário inexistente nos filtros do resumo', async () => {
     const { collections, services } = repositories();
