@@ -185,6 +185,12 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Página Emissões com o backend falso (`npm run mock`), em 1280 px, com o relógio do navegador em 20/11/2026 18:30 (para o "Hoje" ter 18 h 30 min de coletas): Fraud Detector depois de dois **Aproximar** e um **▶**. Os cards dizem "no trecho" (122 g de CO₂e, 324 Wh, 570 coletas), a faixa mostra o trecho 09:30 → 14:15 e os totais do período inteiro (478 g, 1,27 kWh, 2.221 coletas), e o gráfico vai de 09:30 a 14:15._
 
+- **RF10, RNF01 — Zoom por arrasto no gráfico de Emissões (#397):** com o mouse, arrastar sobre o gráfico mostra uma faixa com o início, o fim e a duração do trecho e, ao soltar, amplia esse trecho como os botões do #396; duplo clique ou **Esc** voltam ao período inteiro, e um clique simples continua abrindo só a dica do ponto. No toque, o arrasto segue percorrendo os pontos e o zoom fica nos botões ([detalhes](frontend/README.md#página-emissões-190)).
+
+  ![Faixa do arrasto sobre o gráfico de Emissões, das 12:00 às 16:00](docs/img/sprint-3-emissoes-arrasto.png)
+
+  _Página Emissões com o backend falso (`npm run mock`), em 1280 px, com o relógio do navegador em 20/11/2026 18:30: Fraud Detector, "Hoje", durante o arrasto das 12:00 às 16:00; a faixa azul diz "20/11 12:00 → 16:00 (4 h)", e a dica do ponto fica escondida até soltar._
+
 - **RF07, DW05 — Equivalências do CO₂e no card de emissões (#333, PR #350):** abaixo do total de **Emissões no período**, o dashboard mostra a mesma conta em duas unidades do dia a dia — quilômetros de carro a gasolina e cargas de celular — com a etiqueta **ordem de grandeza** e os dois fatores, a fonte e a data de consulta no tooltip da linha. São dois algarismos significativos no padrão brasileiro; abaixo de 0,01 a unidade vira "< 0,01", nunca zero, e sem CO₂e calculado a linha não aparece. A conta é só de apresentação e não é gravada ([fatores, contas e exemplo em docs/calculos.md](docs/calculos.md#equivalências); [detalhes em frontend/README.md](frontend/README.md#indicadores-agregados-rf08)).
 
   ![Emissões no período com a linha de equivalência abaixo do valor](docs/img/sprint-3-equivalencias.png)
