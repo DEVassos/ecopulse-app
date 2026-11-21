@@ -68,6 +68,18 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     setSession(next);
   }, []);
 
+  // Perfil (#401): o mesmo token, com o nome que o backend devolveu; o sessionStorage acompanha para o F5 não voltar
+  // ao nome antigo
+  const updateUser = useCallback(
+    (user: AuthUser) => {
+      if (!session) return;
+      const next: Session = { token: session.token, user: { email: user.email, name: user.name, role: user.role } };
+      writeSession(next);
+      setSession(next);
+    },
+    [session],
+  );
+
   // Token recusado (expirou ou foi trocado o segredo): encerra a sessão. Sem usuário, o ProtectedRoute leva a
   // pessoa ao login guardando a tela atual, e as páginas desmontam, o que para o polling (#257)
   useEffect(() => {
@@ -78,8 +90,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   }, [logout]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user: session?.user ?? null, sessionExpired, login, logout }),
-    [session, sessionExpired, login, logout],
+    () => ({ user: session?.user ?? null, sessionExpired, login, logout, updateUser }),
+    [session, sessionExpired, login, logout, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
