@@ -1,6 +1,6 @@
 import { apiRequest, unexpectedFormat } from './api';
 import type { ComparedService, PowerBreakdown, ServicesComparison } from './compare.types';
-import { readAmountOrNull, readCount, readId, readInstant, readList, readRecord, readText, readTextOrNull } from './contract';
+import { readAmountOrNull, readCount, readId, readInstant, readList, readRecord, readSecondsOrNull, readText, readTextOrNull } from './contract';
 import { demoComparison } from './emissions.demo';
 import { isDemoMode } from './services.service';
 
@@ -42,6 +42,7 @@ function parseComparedService(value: unknown, at: string): ComparedService {
     avgPowerBreakdown: parsePowerBreakdown(item.avgPowerBreakdown, `${at}.avgPowerBreakdown`),
     energyKwh: readAmountOrNull(item.energyKwh, `${at}.energyKwh`),
     co2eGrams: readAmountOrNull(item.co2eGrams, `${at}.co2eGrams`),
+    monitoredSeconds: readSecondsOrNull(item.monitoredSeconds, `${at}.monitoredSeconds`),
   };
 }
 

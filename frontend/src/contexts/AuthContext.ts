@@ -17,6 +17,8 @@ export interface AuthContextValue {
   /** Lança ApiError com a mensagem pronta quando o login falha. */
   login: (email: string, password: string) => Promise<void>;
   logout: () => void;
+  /** Troca os dados da conta na sessão aberta, sem novo login: o nome salvo no Perfil vai ao cabeçalho (#401). */
+  updateUser: (user: AuthUser) => void;
 }
 
 export const AuthContext = createContext<AuthContextValue | null>(null);

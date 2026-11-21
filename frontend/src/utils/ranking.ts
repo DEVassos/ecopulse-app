@@ -1,5 +1,6 @@
 // Participação de cada serviço no CO₂e do período (#260), a partir de GET /api/services/ranking.
 import type { ServicesRankingResponse } from '../services/ranking.types';
+import { averagePowerFromEnergy } from './efficiency';
 import { formatNumber } from './format';
 import { roundedShares } from './share';
 
@@ -12,6 +13,10 @@ export interface RankingShare {
   co2eGrams: number | null;
   /** Fração do total do período (0 a 1); null quando o serviço ou o total não têm cálculo. */
   share: number | null;
+  /** Segundos monitorados das coletas calculadas, no período; null como `energyKwh`. */
+  monitoredSeconds: number | null;
+  /** Potência média do período, em W: energia ÷ tempo monitorado (#329); null sem energia calculada. */
+  averageWatts: number | null;
 }
 
 /** Passos de 0,1 ponto percentual em 100%: a parte exibida tem uma casa. */
@@ -31,7 +36,14 @@ export function rankingShares(ranking: ServicesRankingResponse): Map<string, Ran
   return new Map(
     ranking.services.map((service) => [
       service.id,
-      { position: service.position, energyKwh: service.energyKwh, co2eGrams: service.co2eGrams, share: shareById.get(service.id) ?? null },
+      {
+        position: service.position,
+        energyKwh: service.energyKwh,
+        co2eGrams: service.co2eGrams,
+        share: shareById.get(service.id) ?? null,
+        monitoredSeconds: service.monitoredSeconds,
+        averageWatts: averagePowerFromEnergy(service.energyKwh, service.monitoredSeconds),
+      },
     ]),
   );
 }
