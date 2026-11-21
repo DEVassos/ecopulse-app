@@ -213,6 +213,12 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _O link aberto sem sessão: e-mail e papel vêm do convite; a conta criada entra com a senha escolhida e vê a Configuração só para leitura ([print](docs/img/sprint-3-configuracao-usuario.png))._
 
+- **DW06 / RP06 / RNF05 — Perfil: nome e senha da própria conta (#400, #401):** qualquer conta, administrador ou usuário, abre o **Perfil** pelo nome no cabeçalho (no celular, pelo **Menu**) e troca o próprio nome (`PATCH /api/auth/me`), que aparece no cabeçalho sem novo login, e a própria senha (`PUT /api/auth/me/password`), com a senha atual conferida pelo backend e a nova na regra do cadastro. E-mail e papel aparecem só para leitura. Senha atual errada responde 400 e aparece no campo, sem encerrar a sessão; trocar a senha não encerra as sessões já abertas, porque o JWT vale até expirar, e a tela e a [API](docs/api.md#put-apiauthmepassword) dizem isso. Como verificar em [frontend/README.md](frontend/README.md#perfil-401).
+
+  ![Perfil com o nome salvo e a senha atual errada](docs/img/sprint-3-perfil.png)
+
+  _Backend falso (`npm run mock`), 1280 px, tema escuro, em 21/11/2026, como `usuario@ecopulse.local`: o nome salvo já aparece no cabeçalho, e a senha atual errada fica no campo, com a sessão aberta._
+
 ## 4. Escopo planejado
 
 > Planejado, **ainda não implementado**. O andamento real está no [quadro do projeto](https://github.com/orgs/DEVassos/projects/6) e no [plano de entregas](docs/plano-de-entregas.md).
