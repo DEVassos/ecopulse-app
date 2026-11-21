@@ -1,0 +1,59 @@
+@layer components {
+  /*
+   * Dispersão "Carga ou região?" (#399): grade fina sólida, retas finas tracejadas e pontos neutros; só o menor CO₂e
+   * (--accent-hover) e o maior (--warning) ganham cor, sempre com a seta no rótulo e o texto na legenda.
+   */
+  .compare-scatter__grid {
+    stroke: var(--border);
+  }
+
+  .compare-scatter__tick,
+  .compare-scatter__ray-name {
+    fill: var(--muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .compare-scatter__ray-name {
+    fill: var(--text-2);
+  }
+
+  .compare-scatter__ray {
+    stroke: var(--faint);
+    stroke-dasharray: 4 4;
+  }
+
+  .compare-scatter__ray--active {
+    stroke: var(--text-2);
+    stroke-width: 1.5;
+  }
+
+  .compare-scatter__dot {
+    fill: var(--muted);
+    stroke: var(--surface);
+    stroke-width: 2;
+  }
+
+  .compare-scatter__mark--lowest {
+    fill: var(--accent-hover);
+  }
+
+  .compare-scatter__mark--highest {
+    fill: var(--warning);
+  }
+
+  /* Contorno da cor do card: o nome continua legível quando cruza uma reta ou a grade */
+  .compare-scatter__label {
+    fill: var(--text);
+    font-size: 12px;
+    font-weight: 600;
+    paint-order: stroke;
+    stroke: var(--surface);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+
+  .compare-scatter__point--dim {
+    opacity: 0.3;
+  }
+}
