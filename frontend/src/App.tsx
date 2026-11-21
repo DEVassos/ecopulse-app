@@ -4,6 +4,7 @@ import TooltipLayer from './components/TooltipLayer';
 import ComparePage from './pages/ComparePage';
 import DashboardPage from './pages/DashboardPage';
 import EmissionsPage from './pages/EmissionsPage';
+import HelpPage from './pages/HelpPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import SettingsPage from './pages/SettingsPage';
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/emissoes" element={<EmissionsPage />} />
             <Route path="/comparacao" element={<ComparePage />} />
+            <Route path="/ajuda" element={<HelpPage />} />
           </Route>
           {/* Configuração exige sessão até no modo demonstração, em que não há backend para entrar */}
           <Route element={<ProtectedRoute allowDemo={false} />}>

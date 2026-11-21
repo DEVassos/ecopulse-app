@@ -22,6 +22,8 @@ function validBody() {
         avgPowerBreakdown: { cpuW: 42.5, memoryW: 0.7875, diskW: 0.1, networkW: 0.006 },
         energyKwh: 0.01,
         co2eGrams: 0.85,
+        // 43 200 s monitorados: energia e tempo saem do mesmo conjunto de coletas (#329)
+        monitoredSeconds: 43_200,
       },
       {
         id: '2',
@@ -37,6 +39,7 @@ function validBody() {
         avgPowerBreakdown: null,
         energyKwh: null,
         co2eGrams: null,
+        monitoredSeconds: null,
       },
     ],
   };
@@ -99,6 +102,10 @@ describe('parseComparisonResponse', () => {
       { avgPowerBreakdown: { cpuW: null, memoryW: 2, diskW: 3, networkW: 4 } },
       'services[1].avgPowerBreakdown.cpuW',
     ],
+    // Tempo monitorado (#329): sem ele não há potência média, e fração ou negativo não é soma de intervalos
+    ['tempo monitorado ausente', { monitoredSeconds: undefined }, 'services[1].monitoredSeconds'],
+    ['tempo monitorado negativo', { monitoredSeconds: -60 }, 'services[1].monitoredSeconds'],
+    ['tempo monitorado fracionado', { monitoredSeconds: 0.5 }, 'services[1].monitoredSeconds'],
   ])('recusa %s', (_case, changes, field) => {
     expect(rejection(withSecondService(changes)).message).toContain(`(${field})`);
   });
