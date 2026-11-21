@@ -173,6 +173,12 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Prévia de impressão com o backend real (`docker compose up --build`) em 19/11/2026, 12h01, em largura A4: Audit Stream (`jp-east`) em 18/11, com 1.511 coletas, 405 g de CO₂e e 870 Wh; a tabela segue com 96 intervalos de 15 min nas páginas seguintes, com o total (404,54 g) no fim. O CSV do mesmo dia tem 1.511 linhas, e a soma da coluna `co2e_g` dá 404,54 g._
 
+- **RNF05, RNF01 — Página Ajuda com abas (US14 #55; #398):** o item **Ajuda** do menu abre `/ajuda`, com as abas **Como usar** (o caminho do Dashboard às análises em cinco passos, cada um com o link da tela) e **Administração**: o papel da sessão, o que só o administrador altera (o intervalo de atualização da tela, que não muda a coleta, e os convites de uso único com papel), o que os dois papéis fazem e o que ninguém altera pela tela — coeficientes do modelo, intensidade de carbono da Carbon API e lista de serviços —, com o motivo. As abas seguem o padrão de acessibilidade (→, ←, Home e End trocam de aba), e a aba aberta fica na URL (`/ajuda?aba=administracao`), com o "voltar" do navegador desfazendo a troca. [Como verificar](frontend/README.md#ajuda-rnf05-398).
+
+  ![Aba Administração da Ajuda vista por uma conta Usuário](docs/img/sprint-3-ajuda.png)
+
+  _Backend falso (`npm run mock`) em 21/11/2026, em 1280 px, com a conta `usuario@ecopulse.local`: "Papel: Usuário", "Sua conta não altera estes itens." no grupo **Só o administrador**, o intervalo com os valores aceitos pelo backend (15, 30 ou 60 s) e o que ninguém altera pela tela._
+
 - **RF09, RNF01 — Eixo de Emissões ajustado ao trecho com dados (#332, PR #344):** quando o monitoramento de um serviço começa depois de 20% do período escolhido, o gráfico de Emissões marca o início ("monitoramento começou entre 19:30 e 19:45") e oferece **Ajustar ao trecho com dados**, que encurta o eixo; KPIs e totais continuam sendo do período inteiro, e o texto sob o título avisa isso ([detalhes](frontend/README.md#página-emissões-190)).
 
   ![Emissões de ontem com a marca do início do monitoramento](docs/img/sprint-3-emissoes-eixo.png)
