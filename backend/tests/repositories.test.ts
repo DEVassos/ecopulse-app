@@ -67,21 +67,35 @@ it('busca cada serviço com sua última coleta por LEFT JOIN LATERAL', async () 
   expect(fake.poolQuery.mock.calls[0][0]).toContain('ORDER BY collected_at DESC, id DESC');
   expect(fake.poolQuery.mock.calls[0][1]).toEqual([]);
 });
-it('agrega indicadores por intervalo com parâmetros de data', async () => {
+it('agrega contagens e métricas por intervalo com parâmetros de data', async () => {
   const from = new Date('2026-10-20T00:00:00.000Z');
   const to = new Date('2026-10-21T00:00:00.000Z');
-  const row = { energy_kwh: '1.25', co2e_grams: '85.5', active: '3', unavailable: '1', without_metrics: '2', removed: '0' };
+  const row = { collections: '12', failed: '2', not_calculated: '3', energy_kwh: '1.25', co2e_grams: '85.5' };
   fake.poolQuery.mockResolvedValueOnce({ rows: [row] });
-  const result = await new ServiceRepository(createDatabase('postgresql://localhost/test')).findSummary(from, to);
+  const result = await new ServiceRepository(createDatabase('postgresql://localhost/test')).findSummaryTotals(from, to);
   const sql = fake.poolQuery.mock.calls[0][0] as string;
+  expect(sql).toContain('COUNT(c.id)::text AS collections');
+  expect(sql).toContain("COUNT(c.id) FILTER (WHERE c.status <> 'ok')::text AS failed");
+  expect(sql).toContain("COUNT(c.id) FILTER (WHERE c.calculation_status <> 'disponivel')::text AS not_calculated");
   expect(sql).toContain('SUM(c.energy_kwh)');
   expect(sql).toContain('SUM(c.co2e_grams)');
   expect(sql).not.toContain('COALESCE(SUM(c.energy_kwh)');
   expect(sql).not.toContain('COALESCE(SUM(c.co2e_grams)');
   expect(sql).toContain('c.collected_at >= $1 AND c.collected_at < $2');
-  expect(sql).toContain('COUNT(DISTINCT s.id) FILTER (WHERE s.status = \'ativo\')');
+  expect(sql).not.toContain('${');
   expect(fake.poolQuery.mock.calls[0][1]).toEqual([from, to]);
   expect(result).toEqual(row);
+});
+it('conta serviços atuais agrupados pelo estado', async () => {
+  const rows = [{ status: 'ativo', count: '3' }, { status: 'removido', count: '1' }];
+  fake.poolQuery.mockResolvedValueOnce({ rows });
+  const result = await new ServiceRepository(createDatabase('postgresql://localhost/test')).countServicesByStatus();
+  const sql = fake.poolQuery.mock.calls[0][0] as string;
+  expect(sql).toContain('SELECT status, COUNT(*)::text AS count');
+  expect(sql).toContain('FROM services\n      GROUP BY status');
+  expect(sql).not.toContain('${');
+  expect(fake.poolQuery.mock.calls[0][1]).toEqual([]);
+  expect(result).toEqual(rows);
 });
 it('pondera as médias de recursos pelo intervalo de coleta na comparação (#327)', async () => {
   const from = new Date('2026-10-20T00:00:00Z');
