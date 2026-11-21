@@ -15,8 +15,11 @@ interface Props {
   originCode: string;
   /** Destino escolhido na tabela; null mostra a mais limpa sem escolher. */
   destinationCode: string | null;
-  /** Escolher um destino (linha da tabela ou "Ver alternativa mais limpa") ou voltar para a origem (null). */
-  onDestination: (code: string | null) => void;
+  /**
+   * Escolher um destino (linha da tabela ou "Ver alternativa mais limpa") ou voltar para a origem (null). `reveal` vem dos
+   * botões: o Dashboard traz o mapa à vista para a câmera andar à vista (#326).
+   */
+  onDestination: (code: string | null, reveal?: boolean) => void;
   /** A que período os números se referem, como aparece na tela (ex.: "últimas 24 h"). */
   periodLabel: string;
   /** A última busca falhou: os números são da atualização anterior e ficam apagados (#261). */
@@ -109,12 +112,12 @@ export default function RegionDetail({ overview, originCode, destinationCode, on
 
       <div className="region-detail__actions">
         {cleanest && !alreadyCleanest && chosen?.region.code !== cleanest.region.code && (
-          <button type="button" className="region-detail__button" onClick={() => onDestination(cleanest.region.code)}>
+          <button type="button" className="region-detail__button" onClick={() => onDestination(cleanest.region.code, true)}>
             Ver alternativa mais limpa
           </button>
         )}
         {chosen && (
-          <button type="button" className="region-detail__button" onClick={() => onDestination(null)}>
+          <button type="button" className="region-detail__button" onClick={() => onDestination(null, true)}>
             Voltar para {origin.name}
           </button>
         )}

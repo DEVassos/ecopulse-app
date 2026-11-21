@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { SyntheticEvent } from 'react';
 import type { GeoJSONSourceSpecification, Map as MapLibreMap, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 // O worker do MapLibre 6 é procurado ao lado do módulo, e o build do Vite não o copia: sem ele, o contorno dos países
@@ -8,9 +9,9 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import { REGION_STATUSES } from '../services/regions.types';
 import type { RegionStatus } from '../services/regions.types';
 import { formatQuantity } from '../utils/units';
-import { bubbleDiameter, fitZoom, IDLE_DOT, mapScale, REFERENCE_SIDE, ringPercent } from '../utils/region-map';
+import { bubbleCaption, bubbleDiameter, cameraTarget, co2eScaleMax, fitZoom, IDLE_DOT, mapScale, REFERENCE_SIDE, ringPercent } from '../utils/region-map';
 import { isCleanGrid } from '../utils/regions';
-import type { ListedRegion, RegionOverview } from '../utils/region-map';
+import type { ListedRegion, MapDestination, RegionOverview } from '../utils/region-map';
 import countries from './countries-110m.json';
 import './RegionMap.css';
 
@@ -55,6 +56,23 @@ interface Props {
   onSelect: (code: string) => void;
   /** A última busca falhou: os números são da atualização anterior (#261). */
   stale?: boolean;
+  /** Destino da simulação de migração (#326): marcador com tamanho de bolha, e a câmera vai até ele. */
+  destination?: MapDestination | null;
+  /** Modo apresentação (#323): o Dashboard controla o ciclo; o mapa mostra os botões e avisa toque e chegada. */
+  presentation?: Presentation;
+}
+
+export type PresentationStatus = 'off' | 'playing' | 'paused';
+
+export interface Presentation {
+  status: PresentationStatus;
+  onStart: () => void;
+  /** Pausar ou retomar. */
+  onToggle: () => void;
+  /** Toque, clique, roda do mouse, tecla ou foco dentro do mapa, fora dos botões da apresentação: o Dashboard pausa (WCAG 2.2.2). */
+  onInteract: () => void;
+  /** O mapa chegou na região selecionada (fim da viagem, imagens carregadas): começa a contar o tempo nela. */
+  onArrive: (code: string) => void;
 }
 
 /** Curva de aceleração das etapas da viagem: parte e chega devagar. */
@@ -92,11 +110,14 @@ function regionLabel(region: PlacedRegion): string {
  * tabela (#342): escolher uma região em qualquer um dos três leva o mapa até ela. Sem imagens de satélite, o contorno
  * dos países aparece por baixo.
  */
-export default function RegionMap({ overview, selectedCode, onSelect, stale = false }: Props) {
+export default function RegionMap({ overview, selectedCode, onSelect, stale = false, destination = null, presentation }: Props) {
   const monitored = useMemo(() => overview.monitored.filter(isPlaced), [overview]);
   const regions = useMemo(() => [...monitored, ...overview.idle.filter(isPlaced)], [monitored, overview]);
-  const maxCo2e = useMemo(() => Math.max(0, ...monitored.map((region) => region.co2eGrams ?? 0)), [monitored]);
+  // Com a simulação aberta, o destino entra na escala: um destino mais sujo que a maior região fica maior que ela (#326)
+  const maxCo2e = useMemo(() => co2eScaleMax(monitored, destination), [monitored, destination]);
   const maxEnergy = useMemo(() => Math.max(0, ...monitored.map((region) => region.energyKwh ?? 0)), [monitored]);
+  // A câmera segue o destino simulado (#326) quando há um; voltar para a origem ou trocar de região a traz de volta
+  const target = cameraTarget(selectedCode, destination, new Set(regions.map((region) => region.code)));
 
   const [zoomed, setZoomed] = useState(false);
   /** O mesmo "zoomed", lido pelo listener de resize do MapLibre (fora do React). */
@@ -115,7 +136,9 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
   const flightRef = useRef(0);
   const bubbleClickRef = useRef<(code: string) => void>(() => {});
   const followRef = useRef<(code: string | null) => void>(() => {});
-  /** Região da última viagem: a seleção só move o mapa quando muda, nunca a cada ciclo do polling. */
+  /** Aviso de chegada da apresentação (#323), lido no 'idle' do MapLibre, fora do React. */
+  const arriveRef = useRef<(code: string) => void>(() => {});
+  /** Região da última viagem: a seleção (ou o destino simulado) só move o mapa quando muda, nunca a cada ciclo do polling. */
   const followedRef = useRef<string | null>(null);
 
   // O mapa nasce uma vez. A biblioteca vem por import dinâmico e o componente inteiro por React.lazy (Dashboard).
@@ -262,6 +285,11 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
     if (region) {
       setZoomed(true);
       goTo({ center: [region.longitude, region.latitude], zoom: REGION_ZOOM });
+      // Chegou quando o mapa para e as imagens carregam; uma viagem mais nova cancela o aviso desta
+      const flight = flightRef.current;
+      mapRef.current?.once('idle', () => {
+        if (flight === flightRef.current) arriveRef.current(region.code);
+      });
     } else if (followedRef.current !== null) {
       setZoomed(false);
       goTo(homeView());
@@ -317,12 +345,24 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
     zoomedRef.current = zoomed;
     bubbleClickRef.current = clickBubble;
     followRef.current = follow;
+    arriveRef.current = presentation?.onArrive ?? (() => {});
   });
 
-  // A seleção mudou (na lista, na tabela ou numa bolha), ou o mapa acabou de abrir com uma região já escolhida
+  /**
+   * Interação dentro do mapa pausa a apresentação. Nos botões dela, só o foco pelo teclado conta (Tab até o mapa pausa,
+   * critério 2 da #323): o clique do mouse em "Pausar" não pode pausar no foco e retomar no clique.
+   */
+  function interact(event: SyntheticEvent) {
+    if (presentation?.status !== 'playing' || !(event.target instanceof Element)) return;
+    const onControls = event.target.closest('.region-map__present') !== null;
+    if (onControls && !(event.type === 'focus' && event.target.matches(':focus-visible'))) return;
+    presentation.onInteract();
+  }
+
+  // A seleção ou o destino simulado mudou, ou o mapa acabou de abrir com uma região já escolhida
   useEffect(() => {
-    if (mapReady && selectedCode !== followedRef.current) followRef.current(selectedCode);
-  }, [mapReady, selectedCode]);
+    if (mapReady && target !== followedRef.current) followRef.current(target);
+  }, [mapReady, target]);
 
   // Bolhas em dia com os dados a cada ciclo, sem recriar o mapa: cria as que faltam, atualiza as outras, tira as que saíram
   useEffect(() => {
@@ -341,7 +381,11 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
       if (!entry) {
         const element = document.createElement('button');
         element.type = 'button';
-        element.append(document.createElement('b'), document.createElement('i'));
+        // <b> bolha, <i> anel, <span> etiqueta com o nome (só na selecionada e no destino, #326)
+        const caption = document.createElement('span');
+        caption.className = 'region-bubble__caption';
+        caption.setAttribute('aria-hidden', 'true');
+        element.append(document.createElement('b'), document.createElement('i'), caption);
         element.addEventListener('click', (event) => {
           event.stopPropagation();
           // Bolha do outro lado do globo fica invisível (opacityWhenCovered) e não responde ao clique
@@ -352,16 +396,19 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
         markers.set(region.code, entry);
       }
       const { element, marker } = entry;
-      const idle = region.worstStatus === null && region.co2eGrams === null;
-      const diameter = idle ? IDLE_DOT : bubbleDiameter(region.co2eGrams, maxCo2e, scale);
-      const ring = idle ? null : ringPercent(region.energyKwh, maxEnergy);
-      const [bubble, ringElement] = [element.children[0] as HTMLElement, element.children[1] as HTMLElement];
+      // Destino simulado (#326): tamanho de bolha pelo CO₂e simulado, na mesma escala das outras, mesmo sem serviço
+      const simulated = region.code === destination?.code;
+      const idle = !simulated && region.worstStatus === null && region.co2eGrams === null;
+      const diameter = simulated ? bubbleDiameter(destination.co2eGrams, maxCo2e, scale) : idle ? IDLE_DOT : bubbleDiameter(region.co2eGrams, maxCo2e, scale);
+      const ring = idle || simulated ? null : ringPercent(region.energyKwh, maxEnergy);
+      const [bubble, ringElement, captionElement] = [element.children[0] as HTMLElement, element.children[1] as HTMLElement, element.children[2] as HTMLElement];
       marker.setLngLat([region.longitude, region.latitude]);
       // classList, e não className: o MapLibre põe no mesmo elemento as classes que o posicionam no mapa
       element.classList.add('region-bubble');
       element.classList.toggle('region-bubble--idle', idle);
       for (const state of REGION_STATUSES) element.classList.toggle(`region-bubble--${state}`, state === region.worstStatus);
       element.classList.toggle('region-bubble--selected', region.code === selectedCode);
+      element.classList.toggle('region-bubble--destination', simulated);
       element.setAttribute('aria-pressed', String(region.code === selectedCode));
       // As menores por cima, para continuarem clicáveis quando encostam numa maior
       element.style.zIndex = String(200 - diameter);
@@ -369,19 +416,41 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
       ringElement.className = 'region-bubble__ring';
       ringElement.hidden = ring === null;
       if (ring !== null) ringElement.style.setProperty('--ring', String(ring));
-      const label = regionLabel(region);
+      // O leitor de tela já ouve o nome no aria-label do botão; a etiqueta é para quem olha o mapa
+      const caption = bubbleCaption(region, selectedCode, destination);
+      captionElement.textContent = caption ?? '';
+      captionElement.hidden = caption === null;
+      const label = simulated
+        ? `${regionLabel(region)}. Destino simulado${destination.co2eGrams === null ? '' : `: ${formatQuantity('co2e', destination.co2eGrams)} de CO₂e com a mesma energia`}`
+        : regionLabel(region);
       element.setAttribute('aria-label', label);
       element.title = label;
     }
-  }, [mapReady, regions, maxCo2e, maxEnergy, selectedCode, scale]);
+  }, [mapReady, regions, maxCo2e, maxEnergy, selectedCode, scale, destination]);
 
   if (monitored.length === 0) return null;
 
   return (
-    <section className={stale ? 'region-map region-map--stale' : 'region-map'} aria-labelledby="region-map-title">
+    <section
+      className={stale ? 'region-map region-map--stale' : 'region-map'}
+      aria-labelledby="region-map-title"
+      onPointerDown={interact}
+      onKeyDown={interact}
+      onFocus={interact}
+      onWheel={interact}
+    >
       <h2 id="region-map-title" className="sr-only">Mapa das regiões</h2>
       <div className="region-map__stage">
         <div ref={containerRef} className="region-map__canvas" aria-label="Globo com uma bolha por região monitorada" />
+        {/* Modo apresentação (#323): nunca liga sozinho. Um botão só, que troca de rótulo (Apresentar → Pausar → Retomar):
+            enquanto o modo está ativo, a pausa fica sempre visível, e o foco do teclado continua nele a cada troca */}
+        {presentation && monitored.length > 1 && (
+          <div className="region-map__present">
+            <button type="button" onClick={presentation.status === 'off' ? presentation.onStart : presentation.onToggle}>
+              {{ off: 'Apresentar', playing: 'Pausar', paused: 'Retomar' }[presentation.status]}
+            </button>
+          </div>
+        )}
         {zoomed && (
           <button type="button" className="region-map__overview" onClick={showOverview}>
             Visão geral
@@ -400,6 +469,7 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
         <li><i className="region-map__key region-map__key--idle" aria-hidden="true" />Sem serviço hoje</li>
         <li><i className="region-map__key region-map__key--size" aria-hidden="true" />Tamanho: CO₂e</li>
         <li><i className="region-map__key region-map__key--ring" aria-hidden="true" />Anel: energia</li>
+        {destination && <li><i className="region-map__key region-map__key--destination" aria-hidden="true" />Destino simulado</li>}
       </ul>
     </section>
   );
