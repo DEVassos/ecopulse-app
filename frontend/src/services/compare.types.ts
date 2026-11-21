@@ -27,6 +27,11 @@ export interface ComparedService {
   energyKwh: number | null;
   /** Soma das coletas calculadas, em gramas de CO₂e; null quando nenhuma foi calculada. */
   co2eGrams: number | null;
+  /**
+   * Segundos monitorados das mesmas coletas de `energyKwh` (soma dos intervalos), base da potência média do período
+   * (#329); null quando nenhuma coleta entrou no cálculo.
+   */
+  monitoredSeconds: number | null;
 }
 
 export interface ServicesComparison {

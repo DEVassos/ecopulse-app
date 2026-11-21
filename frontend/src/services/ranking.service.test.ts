@@ -9,9 +9,9 @@ function validBody() {
     from: '2026-11-02T03:00:00.000Z',
     to: '2026-11-03T03:00:00.000Z',
     services: [
-      { position: 1, id: '3', name: 'Fraud Detector', region: 'us-east', status: 'ativo', energyKwh: 1.712, co2eGrams: 645.4, collections: 2880, failed: 0, notCalculated: 0 },
-      { position: 2, id: '1', name: 'Audit Stream', region: 'jp-east', status: 'ativo', energyKwh: 1.279, co2eGrams: 594.7, collections: 2880, failed: 12, notCalculated: 12 },
-      { position: null, id: '7', name: 'Inventory Sync', region: null, status: 'sem_metricas', energyKwh: null, co2eGrams: null, collections: 2880, failed: 0, notCalculated: 2880 },
+      { position: 1, id: '3', name: 'Fraud Detector', region: 'us-east', status: 'ativo', energyKwh: 1.712, co2eGrams: 645.4, monitoredSeconds: 172800, collections: 2880, failed: 0, notCalculated: 0 },
+      { position: 2, id: '1', name: 'Audit Stream', region: 'jp-east', status: 'ativo', energyKwh: 1.279, co2eGrams: 594.7, monitoredSeconds: 172800, collections: 2880, failed: 12, notCalculated: 12 },
+      { position: null, id: '7', name: 'Inventory Sync', region: null, status: 'sem_metricas', energyKwh: null, co2eGrams: null, monitoredSeconds: null, collections: 2880, failed: 0, notCalculated: 2880 },
     ],
   };
 }
@@ -42,6 +42,14 @@ describe('parseRankingResponse', () => {
 
   it('recusa o CO₂e em texto, dizendo o campo', () => {
     expect(rejection(withFirst({ co2eGrams: '645.4' }))).toContain('services[0].co2eGrams');
+  });
+
+  it('recusa tempo monitorado fracionado ou negativo e o aceita como inteiro (#329)', () => {
+    expect(rejection(withFirst({ monitoredSeconds: 1.5 }))).toContain('services[0].monitoredSeconds');
+    expect(rejection(withFirst({ monitoredSeconds: -60 }))).toContain('services[0].monitoredSeconds');
+    // Sem o campo não há como calcular a potência média: a resposta inteira é recusada
+    expect(rejection(withFirst({ monitoredSeconds: undefined }))).toContain('services[0].monitoredSeconds');
+    expect(parseRankingResponse(validBody()).services[0].monitoredSeconds).toBe(172800);
   });
 
   it('recusa posição zero ou fracionada', () => {
