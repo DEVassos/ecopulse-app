@@ -103,9 +103,8 @@ export default function DashboardPage() {
   // Ranking de CO₂e das mesmas 24 h do painel (#260): busca a cada ciclo, inclusive no modo demonstração. Esperar a
   // primeira lista evita duas buscas no mesmo instante; numa falha, a última parte continua na tela, em cinza.
   useEffect(() => {
-    if (updatedAt === null) return;
-    const controller = new AbortController();
     if (period === null) return;
+    const controller = new AbortController();
     void (async () => {
       try {
         const current = await fetchServicesRanking('co2e', period.from, period.to, controller.signal);
@@ -124,9 +123,8 @@ export default function DashboardPage() {
   // Regiões (#342): as mesmas 24 h dos KPIs, a cada ciclo. Uma falha aqui (ex.: Carbon API fora do ar) fica só no lugar
   // da lista, com o último dado em cinza se houver: o resto do Dashboard continua funcionando
   useEffect(() => {
-    if (updatedAt === null) return;
-    const controller = new AbortController();
     if (period === null) return;
+    const controller = new AbortController();
     void (async () => {
       // allSettled, e não all: a lista de regiões serve sozinha ao selo de rede limpa da tabela (#324)
       const [list, totals] = await Promise.allSettled([
