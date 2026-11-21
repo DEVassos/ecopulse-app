@@ -40,6 +40,7 @@ import {
 import type { PresentationStatus } from '../components/RegionMap';
 import type { RegionOverview } from '../utils/region-map';
 import { gridByCode } from '../utils/regions';
+import { dashboardPeriod } from '../utils/dashboard-period';
 import type { RegionGrid } from '../utils/regions';
 import './DashboardPage.css';
 
@@ -54,7 +55,9 @@ export default function DashboardPage() {
   // Mudanças de estado entre uma lista e a seguinte (#331), com a mesma resposta do polling: nenhuma requisição nova
   const changes = useStatusChanges(data?.services ?? null, updatedAt);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const { summary, error: summaryError } = useSummary(updatedAt);
+  // Um único intervalo por atualização: os três totais precisam comparar exatamente as mesmas coletas (#375).
+  const period = useMemo(() => dashboardPeriod(updatedAt), [updatedAt]);
+  const { summary, error: summaryError } = useSummary(period);
   const [ranking, setRanking] = useState<ServicesRankingResponse | null>(null);
   const [rankingError, setRankingError] = useState('');
   const shares = useMemo(() => (ranking ? rankingShares(ranking) : null), [ranking]);
@@ -100,13 +103,11 @@ export default function DashboardPage() {
   // Ranking de CO₂e das mesmas 24 h do painel (#260): busca a cada ciclo, inclusive no modo demonstração. Esperar a
   // primeira lista evita duas buscas no mesmo instante; numa falha, a última parte continua na tela, em cinza.
   useEffect(() => {
-    if (updatedAt === null) return;
+    if (period === null) return;
     const controller = new AbortController();
-    const to = new Date();
-    const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
     void (async () => {
       try {
-        const current = await fetchServicesRanking('co2e', from.toISOString(), to.toISOString(), controller.signal);
+        const current = await fetchServicesRanking('co2e', period.from, period.to, controller.signal);
         if (controller.signal.aborted) return;
         setRanking(current);
         setRankingError('');
@@ -118,19 +119,17 @@ export default function DashboardPage() {
       }
     })();
     return () => controller.abort();
-  }, [updatedAt]);
+  }, [period]);
   // Regiões (#342): as mesmas 24 h dos KPIs, a cada ciclo. Uma falha aqui (ex.: Carbon API fora do ar) fica só no lugar
   // da lista, com o último dado em cinza se houver: o resto do Dashboard continua funcionando
   useEffect(() => {
-    if (updatedAt === null) return;
+    if (period === null) return;
     const controller = new AbortController();
-    const to = new Date();
-    const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
     void (async () => {
       // allSettled, e não all: a lista de regiões serve sozinha ao selo de rede limpa da tabela (#324)
       const [list, totals] = await Promise.allSettled([
         fetchRegions(controller.signal),
-        fetchRegionsSummary(from.toISOString(), to.toISOString(), controller.signal),
+        fetchRegionsSummary(period.from, period.to, controller.signal),
       ]);
       if (controller.signal.aborted) return;
       if (list.status === 'fulfilled') setRegionGrids(gridByCode(list.value.regions));
@@ -144,7 +143,7 @@ export default function DashboardPage() {
       setRegionsError(reason instanceof Error ? reason.message : 'não foi possível carregar as regiões.');
     })();
     return () => controller.abort();
-  }, [updatedAt]);
+  }, [period]);
   const presentationCodes = useMemo(() => (regions ? presentationOrder(regions) : []), [regions]);
   const presentationKey = presentationCodes.join(',');
   // Próxima região: 6 s depois da chegada do mapa; se o mapa não avisar (sem WebGL), 6 s depois de 8 s de espera

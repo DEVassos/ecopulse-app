@@ -1,24 +1,23 @@
 import { useEffect, useState } from 'react';
 import { fetchServicesSummary } from '../services/summary.service';
 import type { ServicesSummaryResponse } from '../services/services.types';
+import type { DashboardPeriod } from '../utils/dashboard-period';
 
 /**
  * Indicadores das últimas 24 h e das 24 h anteriores (GET /api/services/summary), numa única chamada por ciclo.
- * A busca espera a primeira atualização dos serviços (`updatedAt`), como os demais dados do dashboard. Numa falha, o
+ * Recebe a mesma janela calculada a partir de `updatedAt` para ranking e regiões (#375). Numa falha, o
  * último resumo fica como está e `error` traz a mensagem: quem chama decide como mostrar.
  */
-export function useSummary(updatedAt: string | null): { summary: ServicesSummaryResponse | null; error: string } {
+export function useSummary(period: DashboardPeriod | null): { summary: ServicesSummaryResponse | null; error: string } {
   const [summary, setSummary] = useState<ServicesSummaryResponse | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (updatedAt === null) return;
+    if (period === null) return;
     const controller = new AbortController();
-    const to = new Date();
-    const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
     void (async () => {
       try {
-        const current = await fetchServicesSummary(from.toISOString(), to.toISOString(), controller.signal);
+        const current = await fetchServicesSummary(period.from, period.to, controller.signal);
         if (controller.signal.aborted) return;
         setSummary(current);
         setError('');
@@ -31,7 +30,7 @@ export function useSummary(updatedAt: string | null): { summary: ServicesSummary
       }
     })();
     return () => controller.abort();
-  }, [updatedAt]);
+  }, [period]);
 
   return { summary, error };
 }
