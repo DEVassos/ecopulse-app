@@ -120,7 +120,10 @@ export function demoEmissions(query: EmissionsQuery): Promise<EmissionsSeries> {
 export function demoComparison(ids: string[], from: string, to: string): Promise<ServicesComparison> {
   const known = new Map(demoServices().services.map((service) => [service.id, service]));
   const services = ids.map((id) => {
-    const totals = totalsOf(demoCollections(id, Date.parse(from), Date.parse(to)), null);
+    const points = demoCollections(id, Date.parse(from), Date.parse(to));
+    const totals = totalsOf(points, null);
+    // Só as coletas com cálculo entram no tempo monitorado, como no backend (#329)
+    const calculated = points.filter((point) => point.energyKwh !== null).length;
     const profile = totals.collections > totals.failed ? PROFILES[id] : undefined;
     return {
       id,
@@ -136,6 +139,7 @@ export function demoComparison(ids: string[], from: string, to: string): Promise
       avgPowerBreakdown: profile === undefined ? null : breakdownOf(profile),
       energyKwh: totals.energyKwh,
       co2eGrams: totals.co2eGrams,
+      monitoredSeconds: calculated === 0 ? null : (calculated * INTERVAL_MS) / 1000,
     };
   });
   return Promise.resolve({ from, to, services });

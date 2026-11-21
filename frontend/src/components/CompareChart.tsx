@@ -86,7 +86,14 @@ function MetricBars({ metric, services, highlightOf }: MetricBarsProps) {
     <div className="flex min-w-0 flex-col gap-2">
       <h3 className="m-0 font-display text-sm font-semibold">{metric.title}</h3>
       <div ref={containerRef} className="compare-chart">
-        <svg role="img" aria-labelledby={titleId} aria-describedby={descId} width={width} height={rows.length * ROW_HEIGHT}>
+        <svg
+          role="img"
+          aria-labelledby={titleId}
+          aria-describedby={descId}
+          width={width}
+          height={rows.length * ROW_HEIGHT}
+          viewBox={`0 0 ${width} ${rows.length * ROW_HEIGHT}`}
+        >
           <title id={titleId}>{`${metric.title} por serviço`}</title>
           <desc id={descId}>{`${description}.`}</desc>
           {rows.map(({ service, value, text, highlight }, index) => {

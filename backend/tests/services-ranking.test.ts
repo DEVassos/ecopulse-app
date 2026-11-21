@@ -11,12 +11,12 @@ import { DatabaseError } from '../src/shared/errors';
 
 const auth: AuthConfig = { jwtSecret: 'ranking-test-secret-123', jwtExpiresIn: '1h' };
 const token = sign({ email: 'ranking@example.test', role: 'usuario' }, auth.jwtSecret, { subject: '1', expiresIn: auth.jwtExpiresIn });
-const alpha = { id: '3', name: 'Alpha', region: 'Sul', status: 'ativo', collections: '4', failed: '1', not_calculated: '2', energy_kwh: '0', co2e_grams: '2.5' };
-const beta = { id: '12', name: 'Beta', region: null, status: 'removido', collections: '2', failed: '0', not_calculated: '0', energy_kwh: '3', co2e_grams: '1' };
+const alpha = { id: '3', name: 'Alpha', region: 'Sul', status: 'ativo', collections: '4', failed: '1', not_calculated: '2', energy_kwh: '0', co2e_grams: '2.5', monitored_seconds: '172800' };
+const beta = { id: '12', name: 'Beta', region: null, status: 'removido', collections: '2', failed: '0', not_calculated: '0', energy_kwh: '3', co2e_grams: '1', monitored_seconds: '86400' };
 const rows = [
   beta,
   alpha,
-  { id: '9007199254740993', name: 'Sem cálculo', region: null, status: 'sem_metricas', collections: '1', failed: '1', not_calculated: '1', energy_kwh: null, co2e_grams: null },
+  { id: '9007199254740993', name: 'Sem cálculo', region: null, status: 'sem_metricas', collections: '1', failed: '1', not_calculated: '1', energy_kwh: null, co2e_grams: null, monitored_seconds: null },
 ];
 const servers: Server[] = [];
 
@@ -47,9 +47,9 @@ describe('GET /api/services/ranking', () => {
     expect(await response.json()).toEqual({
       metric: 'energy', from: '2026-11-02T03:00:00.000Z', to: '2026-12-03T03:00:00.000Z',
       services: [
-        { position: 1, id: '12', name: 'Beta', region: null, status: 'removido', energyKwh: 3, co2eGrams: 1, collections: 2, failed: 0, notCalculated: 0 },
-        { position: 2, id: '3', name: 'Alpha', region: 'Sul', status: 'ativo', energyKwh: 0, co2eGrams: 2.5, collections: 4, failed: 1, notCalculated: 2 },
-        { position: null, id: '9007199254740993', name: 'Sem cálculo', region: null, status: 'sem_metricas', energyKwh: null, co2eGrams: null, collections: 1, failed: 1, notCalculated: 1 },
+        { position: 1, id: '12', name: 'Beta', region: null, status: 'removido', energyKwh: 3, co2eGrams: 1, monitoredSeconds: 86400, collections: 2, failed: 0, notCalculated: 0 },
+        { position: 2, id: '3', name: 'Alpha', region: 'Sul', status: 'ativo', energyKwh: 0, co2eGrams: 2.5, monitoredSeconds: 172800, collections: 4, failed: 1, notCalculated: 2 },
+        { position: null, id: '9007199254740993', name: 'Sem cálculo', region: null, status: 'sem_metricas', energyKwh: null, co2eGrams: null, monitoredSeconds: null, collections: 1, failed: 1, notCalculated: 1 },
       ],
     });
     expect(query).toHaveBeenCalledOnce();

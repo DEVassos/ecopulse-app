@@ -46,13 +46,39 @@ function render(props: Partial<Parameters<typeof RegionDetail>[0]> = {}): string
 const text = (html: string) => html.replace(/<[^>]+>/g, '');
 
 describe('RegionDetail (#326)', () => {
-  it('critério 1: mostra a mais limpa com "cerca de 4,72 g … 89,42% menos" e a linha da conta', () => {
+  it('critério 1: veredito da mais limpa com 89,42%, antes e depois, a diferença e a linha da conta', () => {
     const html = text(render());
-    expect(html).toContain('A mesma energia das últimas 24 h emitiria cerca de 4,72 g de CO₂e em Montreal (sem serviço hoje): 89,42% menos.');
+    expect(html).toContain('Mover para Montreal reduziria o CO₂e desta região em cerca de 89,42%');
+    expect(html).toContain('Hoje em Ashburn44,6 g');
+    expect(html).toContain('Simulado em Montreal4,72 g');
+    expect(html).toContain('39,9 g a menos de CO₂e nas últimas 24 h');
     expect(html).toContain('Conta: 0,118 kWh × 40 g/kWh = 4,72 g');
     expect(html).toContain('Alternativa mais limpa nas últimas 24 h');
     expect(html).toContain('Ver alternativa mais limpa');
     expect(html).not.toContain('Voltar para');
+  });
+
+  it('critério 1: barras no mesmo eixo, a maior com 100% e a outra proporcional, com rótulo para o leitor de tela', () => {
+    const html = render();
+    expect(html).toContain('region-detail__fill region-detail__fill--origin" style="width:100%"');
+    // 4,72 ÷ 44,6 = 10,6%
+    expect(html).toContain('region-detail__fill region-detail__fill--reducao" style="width:10.6%"');
+    expect(html).toContain('aria-label="CO₂e nas últimas 24 h: hoje em Ashburn, 44,6 g; simulado em Montreal, 4,72 g."');
+    expect(html).toContain('region-detail__reco region-detail__reco--reducao');
+  });
+
+  it('por que a diferença: intensidade do período × a do destino, a energia considerada e o destino sem serviço', () => {
+    const html = text(render());
+    // 44,6 g ÷ 0,118 kWh = 378 g/kWh; 378 ÷ 40 = 9,4
+    expect(html).toContain('Intensidade de carbono: 378 g/kWh em Ashburn no período (CO₂e ÷ energia) contra 40 g/kWh em Montreal agora: 9,4 vezes menor.');
+    // Mesma escala da linha de totais do painel (formatQuantity): 0,118 kWh = 118 Wh
+    expect(html).toContain('Energia considerada: 118 Wh, a mesma que o serviço de Ashburn consumiu nas últimas 24 h. A simulação troca só a rede.');
+    expect(html).toContain('Destino: Montreal não tem serviço monitorado hoje.');
+  });
+
+  it('destino em rede limpa ganha o selo, com texto', () => {
+    expect(text(render())).toContain('Rede limpa');
+    expect(text(render({ destinationCode: 'jp-east' }))).not.toContain('Rede limpa');
   });
 
   it('tabela da mais limpa para a mais suja, sem a origem, com a mais limpa destacada e a sem intensidade bloqueada', () => {
@@ -67,10 +93,20 @@ describe('RegionDetail (#326)', () => {
   it('critério 3: com outro destino escolhido, refaz a conta com a intensidade dele e oferece voltar', () => {
     const html = text(render({ destinationCode: 'jp-east' }));
     // 0,118 × 465 = 54,87 g; 54,87 − 44,6 = 10,27 g a mais, 23,03% de 44,6
-    expect(html).toContain('emitiria cerca de 54,9 g de CO₂e em Tóquio: aumento de 10,3 g (23,03%).');
+    expect(html).toContain('Destino escolhido nas últimas 24 h');
+    expect(html).toContain('Mover para Tóquio aumentaria o CO₂e desta região em cerca de 23,03%');
+    expect(html).toContain('10,3 g a mais de CO₂e nas últimas 24 h');
+    expect(html).toContain('contra 465 g/kWh em Tóquio agora: 1,2 vez maior.');
     expect(html).toContain('Conta: 0,118 kWh × 465 g/kWh = 54,87 g');
     expect(html).toContain('Voltar para Ashburn');
     expect(html).toContain('Ver alternativa mais limpa');
+    expect(render({ destinationCode: 'jp-east' })).toContain('region-detail__reco region-detail__reco--aumento');
+  });
+
+  it('tabela: diferença com seta e porcentagem, e a palavra para o leitor de tela', () => {
+    const html = text(render());
+    expect(html).toContain('▼ 89,42%redução de 89,42%');
+    expect(html).toContain('▲ 23,03%aumento de 23,03%');
   });
 
   it('critério 2: a região de menor intensidade diz que já é a mais limpa', () => {
@@ -90,12 +126,15 @@ describe('RegionDetail (#326)', () => {
     const overview = { ...OVERVIEW, monitored: [listed('us-east', 'Ashburn', 378, { energyKwh: null, co2eGrams: null, worstStatus: 'indisponivel' })] };
     const html = text(render({ overview }));
     expect(html).toContain('Sem dado no período para estimar.');
-    expect(html).not.toMatch(/0,00%|emitiria/);
+    expect(html).not.toMatch(/0,00%|Mover para|region-detail__bars/);
   });
 
-  it('CO₂e de origem 0: diferença em gramas e "percentual não calculável"', () => {
+  it('CO₂e de origem 0: veredito com a diferença em gramas, sem percentual inventado', () => {
     const overview = { ...OVERVIEW, monitored: [listed('us-east', 'Ashburn', 378, { energyKwh: 0.118, co2eGrams: 0 })] };
-    expect(text(render({ overview }))).toContain('Montreal (sem serviço hoje): aumento de 4,72 g (percentual não calculável).');
+    const html = text(render({ overview }));
+    expect(html).toContain('Mover para Montreal aumentaria o CO₂e desta região em 4,72 g');
+    // Nenhum percentual de diferença (o "20% renovável" do selo não conta)
+    expect(html).not.toMatch(/\d+,\d{2}%/);
   });
 
   it('região sem serviço selecionada não abre o painel', () => {
