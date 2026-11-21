@@ -55,8 +55,9 @@ function emptyPoint(t: number, failed: boolean): EmissionPoint {
     t,
     collections: 1,
     failed: failed ? 1 : 0,
-    // Mesma regra da rota: coleta com falha também está sem cálculo, então as duas contagens se sobrepõem.
-    notCalculated: 1,
+    // Regra da série (GET /api/collections/series): `notCalculated` só conta coleta com status "ok", então as duas
+    // contagens não se sobrepõem aqui. Quem soma as duas é o resumo, que segue a rota dele (ver summaryTotalsOf).
+    notCalculated: failed ? 0 : 1,
     energyKwh: null,
     co2eGrams: null,
     co2eMinGrams: null,
@@ -132,7 +133,9 @@ export function demoComparison(ids: string[], from: string, to: string): Promise
       region: known.get(id)?.region ?? null,
       collections: totals.collections,
       failed: totals.failed,
-      notCalculated: totals.notCalculated,
+      // GET /api/services/compare conta cálculo diferente de 'disponivel', e a coleta com falha também não foi
+      // calculada: as contagens se sobrepõem, como no SQL da rota
+      notCalculated: totals.notCalculated + totals.failed,
       avgCpuPercent: profile?.cpu ?? null,
       avgMemoryGb: profile?.memoryGb ?? null,
       avgDiskGb: profile?.diskGb ?? null,
@@ -155,7 +158,9 @@ function summaryTotalsOf(points: EmissionPoint[]): ServiceSummaryTotals {
   return {
     collections: sum(points.map((point) => point.collections)),
     failed: sum(points.map((point) => point.failed)),
-    notCalculated: sum(points.map((point) => point.notCalculated)),
+    // GET /api/services/summary conta cálculo diferente de 'disponivel', então a coleta com falha entra nas duas
+    // contagens; na série cada ponto conta só a dele, e a soma repõe a sobreposição
+    notCalculated: sum(points.map((point) => point.notCalculated + point.failed)),
     energyKwh,
     co2eGrams,
     carbonIntensityGco2ePerKwh: energyKwh === null || energyKwh === 0 || co2eGrams === null ? null : co2eGrams / energyKwh,
