@@ -5,6 +5,7 @@ import ComparePage from './pages/ComparePage';
 import DashboardPage from './pages/DashboardPage';
 import EmissionsPage from './pages/EmissionsPage';
 import LoginPage from './pages/LoginPage';
+import ProfilePage from './pages/ProfilePage';
 import RegisterPage from './pages/RegisterPage';
 import SettingsPage from './pages/SettingsPage';
 import AuthProvider from './providers/AuthProvider';
@@ -25,9 +26,10 @@ export default function App() {
             <Route path="/emissoes" element={<EmissionsPage />} />
             <Route path="/comparacao" element={<ComparePage />} />
           </Route>
-          {/* Configuração exige sessão até no modo demonstração, em que não há backend para entrar */}
+          {/* Configuração e Perfil (#401) exigem sessão até no modo demonstração, em que não há backend para entrar */}
           <Route element={<ProtectedRoute allowDemo={false} />}>
             <Route path="/configuracao" element={<SettingsPage />} />
+            <Route path="/perfil" element={<ProfilePage />} />
           </Route>
 
           <Route path="*" element={<Navigate to="/" replace />} />
