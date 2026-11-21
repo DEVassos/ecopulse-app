@@ -1,7 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import type { StatusChange } from '../hooks/useStatusChanges';
-import ChangeToast, { toastLayout } from './ChangeToast';
+import ChangeToast, { narrowToastTop, toastLayout } from './ChangeToast';
 
 // A renderização estática não roda efeitos: o teste cobre a marcação do primeiro render, que é o que o leitor de tela
 // encontra. O relógio e o botão de fechar ficam com o teste do hook (#331) e a verificação no navegador.
@@ -36,11 +36,25 @@ describe('toastLayout', () => {
     expect(layout.wrapper).toContain('w-[min(360px,calc(100vw-32px))]');
   });
 
-  it('no celular vai para o topo, abaixo do cabeçalho, e mostra uma frase', () => {
-    const layout = toastLayout(true);
+  it('no celular vai para o topo, 8 px abaixo da base do cabeçalho, e mostra uma frase', () => {
+    // 121 px: o cabeçalho de duas linhas em 390 px, com "Atualizar agora" na segunda (#388)
+    const layout = toastLayout(true, 121);
     expect(layout.lines).toBe(1);
-    expect(layout.wrapper).toContain('top-[76px]');
+    expect(layout.style).toEqual({ top: 129 });
     expect(layout.wrapper).not.toContain('bottom-4');
+  });
+});
+
+describe('narrowToastTop', () => {
+  it('acompanha a base do cabeçalho, inclusive empurrada pela faixa do modo demonstração', () => {
+    expect(narrowToastTop(121)).toBe(129);
+    expect(narrowToastTop(165.6)).toBe(174);
+  });
+
+  it('fica a 8 px do topo quando o cabeçalho já saiu da tela ou não foi encontrado', () => {
+    expect(narrowToastTop(-300)).toBe(8);
+    expect(narrowToastTop(0)).toBe(8);
+    expect(narrowToastTop(null)).toBe(8);
   });
 });
 
@@ -59,7 +73,8 @@ describe('ChangeToast', () => {
     expect(markup).toContain('Serviço 1 ficou indisponível');
     expect(markup).not.toContain('Serviço 2 ficou indisponível');
     expect(markup).toContain('e mais 3 em “Últimas mudanças”');
-    expect(markup).toContain('top-[76px]');
+    // Sem medida do cabeçalho na renderização estática, o topo cai na folga mínima
+    expect(markup).toContain('top:8px');
   });
 
   it('mantém a região viva montada e sem aviso quando não há mudança', () => {
