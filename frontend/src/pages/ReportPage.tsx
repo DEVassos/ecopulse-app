@@ -87,7 +87,7 @@ function changeNote(current: number | null, previous: number | null | undefined,
  * (`?de=&ate=`), como em Emissões e na Comparação, e o relatório imprime em A4 pelo mesmo mecanismo de Emissões.
  */
 export default function ReportPage() {
-  usePrintReport();
+  usePrintReport('report');
   const [params, setParams] = useSearchParams();
   const today = todayInput();
   const { start, end } = readPeriodFilter(params, today);
