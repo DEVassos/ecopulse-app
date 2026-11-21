@@ -19,13 +19,13 @@ import { usePrintReport } from '../hooks/usePrintReport';
 import { useServices } from '../hooks/useServices';
 import { useStatusChanges } from '../hooks/useStatusChanges';
 import { isDemoMode } from '../services/services.service';
-import { fetchServicesSummary } from '../services/services.service';
-import type { ServicesSummaryResponse } from '../services/services.types';
 import { fetchServicesRanking } from '../services/ranking.service';
 import type { ServicesRankingResponse } from '../services/ranking.types';
+import { pageWarnings } from '../utils/page-warnings';
 import { formatDayTime } from '../utils/format';
 import { rankingIsStale, rankingShares, rankingSentence } from '../utils/ranking';
-import SummaryPanel from '../components/SummaryPanel';
+import IndicatorsPanel from '../components/IndicatorsPanel';
+import { useSummary } from '../hooks/useSummary';
 import { summarizeStatus } from '../utils/summary';
 import { fetchRegions, fetchRegionsSummary } from '../services/regions.service';
 import {
@@ -54,11 +54,7 @@ export default function DashboardPage() {
   // Mudanças de estado entre uma lista e a seguinte (#331), com a mesma resposta do polling: nenhuma requisição nova
   const changes = useStatusChanges(data?.services ?? null, updatedAt);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [summary, setSummary] = useState<ServicesSummaryResponse | null>(null);
-  const [previousSummary, setPreviousSummary] = useState<ServicesSummaryResponse | null>(null);
-  const [summaryError, setSummaryError] = useState('');
-  const [comparisonError, setComparisonError] = useState('');
-  const [comparisonLoading, setComparisonLoading] = useState(false);
+  const { summary, error: summaryError } = useSummary(updatedAt);
   const [ranking, setRanking] = useState<ServicesRankingResponse | null>(null);
   const [rankingError, setRankingError] = useState('');
   const shares = useMemo(() => (ranking ? rankingShares(ranking) : null), [ranking]);
@@ -101,34 +97,6 @@ export default function DashboardPage() {
     }
   };
   // Como o ranking e as regiões, espera a primeira lista: antes, a busca do primeiro render era cancelada logo em seguida
-  useEffect(() => {
-    if (isDemoMode || updatedAt === null) return;
-    const controller = new AbortController(); const to = new Date(); const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
-    const previousFrom = new Date(from.getTime() - (to.getTime() - from.getTime()));
-    void (async () => {
-      try {
-        const current = await fetchServicesSummary(from.toISOString(), to.toISOString(), controller.signal);
-        if (controller.signal.aborted) return;
-        setSummary(current);
-        setSummaryError('');
-        // A variação anterior continua na tela até chegar a nova resposta, sem piscar "Comparando…" a cada ciclo
-        setComparisonError('');
-        setComparisonLoading(true);
-        try {
-          const previous = await fetchServicesSummary(previousFrom.toISOString(), from.toISOString(), controller.signal);
-          if (!controller.signal.aborted) setPreviousSummary(previous);
-        } catch (reason: unknown) {
-          if (!controller.signal.aborted) setComparisonError(reason instanceof Error ? reason.message : 'Não foi possível carregar a comparação.');
-        } finally {
-          // Também quando cancelada: o ciclo seguinte não herda "Comparando…" de uma busca que não terminou
-          setComparisonLoading(false);
-        }
-      } catch (reason: unknown) {
-        if (!controller.signal.aborted) setSummaryError(reason instanceof Error ? reason.message : 'Não foi possível carregar os indicadores.');
-      }
-    })();
-    return () => controller.abort();
-  }, [updatedAt]);
   // Ranking de CO₂e das mesmas 24 h do painel (#260): busca a cada ciclo, inclusive no modo demonstração. Esperar a
   // primeira lista evita duas buscas no mesmo instante; numa falha, a última parte continua na tela, em cinza.
   useEffect(() => {
@@ -204,9 +172,18 @@ export default function DashboardPage() {
     onInteract: () => setPresenting((status) => (status === 'playing' ? 'paused' : status)),
     onArrive: setArrivedRegion,
   };
-  // Um aviso por página (#271): com a lista falhando e dados na tela, basta a faixa de falha; sem dados, o aviso grande;
-  // com a lista em dia, o primeiro erro entre resumo, comparação e ranking. Nunca avisos iguais empilhados.
-  const pageError = error ? (data ? '' : error) : summaryError || comparisonError || rankingError;
+  // Um aviso por página (#271): com dados na tela, basta a faixa de falha; sem dados, o aviso grande. O resumo entra na
+  // mesma regra da lista (#234): com energia e CO₂e antigos na tela, a faixa avisa e o painel diz desde quando eles valem
+  const warnings = pageWarnings({
+    services: error,
+    hasServices: data !== null,
+    servicesAt: updatedAt,
+    summary: summaryError,
+    summaryAt: summary?.to ?? null,
+    ranking: rankingError,
+  });
+  // Números do período parados: a lista falhou (o resumo só é rebuscado quando ela dá certo) ou a busca do resumo falhou
+  const summaryStaleSince = (error !== '' || summaryError !== '') && summary ? summary.to : null;
   // A janela usa a linha atual da lista: status, CPU e última leitura acompanham cada atualização
   const selected = data?.services.find((service) => service.id === selectedId) ?? null;
 
@@ -267,8 +244,8 @@ export default function DashboardPage() {
         </div>
 
         {/* Falha não apaga o que já estava na tela: com dados, faixa compacta junto do último dado; sem dados, o aviso grande */}
-        {data && <UpdateFailedBanner message={error} updatedAt={updatedAt} onRetry={refresh} />}
-        {pageError && <ErrorState message={pageError} onRetry={refresh} />}
+        {(data || summary) && <UpdateFailedBanner message={warnings.banner} updatedAt={warnings.bannerAt} onRetry={refresh} />}
+        {warnings.page && <ErrorState message={warnings.page} onRetry={refresh} />}
 
         {loading && !data && <LoadingState message="Carregando serviços…" />}
 
@@ -282,7 +259,7 @@ export default function DashboardPage() {
         {/* Impacto primeiro (#259): energia e CO₂e do período no topo. Com os serviços na tela e o resumo a caminho, o painel
             já ocupa o lugar dele em "Calculando…", para a página não pular quando a resposta chega */}
         {(summary || (data && data.services.length > 0 && !isDemoMode && !summaryError)) && (
-          <SummaryPanel summary={summary} previousSummary={previousSummary} comparisonLoading={comparisonLoading} stale={error !== '' || summaryError !== ''} />
+          <IndicatorsPanel summary={summary} staleSince={summaryStaleSince} />
         )}
 
         {/* Estado dos serviços logo abaixo, em cards compactos. Sem dado ainda, os cards não aparecem (nunca zeros inventados);

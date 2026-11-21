@@ -69,7 +69,12 @@ export async function changePassword(users: UserRepository, auth: AuthenticatedU
   currentPassword: string, newPassword: string): Promise<void> {
   const user = await users.findById(auth.id);
   if (user === null) throw accountGone();
-  if (!await compare(currentPassword, user.password_hash)) throw new ValidationError('A senha atual não confere.');
+  const previousHash = user.password_hash;
+  if (!await compare(currentPassword, previousHash)) throw new ValidationError('A senha atual não confere.');
   if (newPassword === currentPassword) throw new ValidationError('A nova senha deve ser diferente da atual.');
-  if (!await users.updatePassword(user.id, await hash(newPassword, BCRYPT_ROUNDS))) throw accountGone();
+  const newHash = await hash(newPassword, BCRYPT_ROUNDS);
+  // Outra troca pode ter invalidado a senha durante o cálculo do bcrypt.
+  if (await users.updatePassword(user.id, newHash, previousHash)) return;
+  if (await users.findById(user.id) === null) throw accountGone();
+  throw new ValidationError('A senha atual não confere.');
 }

@@ -33,11 +33,11 @@ export class UserRepository {
   }
 
   /** Perfil (#400): recebe o hash bcrypt já calculado; a senha em texto nunca chega ao SQL. */
-  async updatePassword(id: string, passwordHash: string): Promise<boolean> {
+  async updatePassword(id: string, passwordHash: string, previousHash: string): Promise<boolean> {
     const result = await this.db.query<{ id: string }>(
       `UPDATE users SET password_hash = $2, updated_at = now()
-       WHERE id = $1
-       RETURNING id`, [id, passwordHash]);
+       WHERE id = $1 AND password_hash = $3
+       RETURNING id`, [id, passwordHash, previousHash]);
     return result.rows.length > 0;
   }
 }
