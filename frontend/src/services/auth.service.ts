@@ -1,7 +1,23 @@
-import { ApiError, apiRequest } from './api';
-import type { CurrentUser, LoginRequest, LoginResponse } from './auth.types';
+import { ApiError, apiRequest, unexpectedFormat } from './api';
+import type { CurrentUser, LoginRequest, LoginResponse, UserRole } from './auth.types';
 import { readId, readRecord, readText } from './contract';
 import { isDemoMode } from './services.service';
+
+export function readRole(value: unknown, field: string): UserRole {
+  if (value === 'admin' || value === 'usuario') return value;
+  throw unexpectedFormat(field);
+}
+
+/** Conta de `user` no login, `GET /auth/me` e `POST /auth/register`: id, e-mail, nome e papel (#196). */
+export function readUser(value: unknown, field: string): CurrentUser {
+  const user = readRecord(value, field);
+  return {
+    id: readId(user.id, 'id'),
+    email: readText(user.email, 'email'),
+    name: readText(user.name, 'name'),
+    role: readRole(user.role, 'role'),
+  };
+}
 
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
   // Sem backend não há quem confira a senha: o modo demonstração não abre a área restrita
@@ -16,11 +32,10 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
     throw error;
   }
   const response = readRecord(body, 'login');
-  return { token: readId(response.token, 'token') };
+  return { token: readId(response.token, 'token'), user: readUser(response.user, 'user') };
 }
 
 /** Rota privada: o api.ts envia o token da sessão em Authorization: Bearer; 401 encerra a sessão. */
 export async function fetchCurrentUser(signal?: AbortSignal): Promise<CurrentUser> {
-  const response = readRecord(await apiRequest<unknown>('/auth/me', { signal }), 'me');
-  return { id: readId(response.id, 'id'), email: readText(response.email, 'email') };
+  return readUser(await apiRequest<unknown>('/auth/me', { signal }), 'me');
 }

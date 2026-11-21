@@ -60,6 +60,56 @@
   font-size: 14px;
 }
 
+/* Aviso de sucesso (conta criada pelo convite, #197) */
+.auth-notice {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* Cadastro por convite (#197): e-mail e papel do convite, só leitura */
+.register-invite {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.register-invite div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.register-invite dt {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.register-invite dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-weight: 500;
+}
+
+.register-validity {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.register-validity a {
+  color: var(--accent-hover);
+}
+
 /* Botão principal */
 .btn-primary {
   width: 100%;

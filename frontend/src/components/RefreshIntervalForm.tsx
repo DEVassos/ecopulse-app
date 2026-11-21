@@ -8,8 +8,9 @@ import { formatDayTime } from '../utils/format';
 /**
  * Seletor do intervalo de atualização do dashboard (#176, DW05). As opções vêm do backend
  * (`allowedIntervalsSeconds`), assim os valores aceitos ficam num lugar só.
+ * `readOnly` (conta `usuario`, #197) mostra só o valor salvo: quem bloqueia a troca é o backend, com 403.
  */
-export default function RefreshIntervalForm() {
+export default function RefreshIntervalForm({ readOnly = false }: { readOnly?: boolean }) {
   const { settings, applySettings } = useMonitoring();
   // null: o administrador ainda não mexeu, então o rádio acompanha o valor salvo
   const [choice, setChoice] = useState<number | null>(null);
@@ -21,6 +22,21 @@ export default function RefreshIntervalForm() {
       <p className="m-0 text-muted">
         Não foi possível ler o intervalo atual no servidor. O dashboard segue com o padrão local; tente de novo em instantes.
       </p>
+    );
+  }
+
+  const savedText = settings.updatedAt
+    ? `Valor salvo: ${settings.refreshIntervalSeconds} s, trocado em ${formatDayTime(settings.updatedAt)}.`
+    : `Valor salvo: ${settings.refreshIntervalSeconds} s (padrão, ainda não configurado).`;
+
+  if (readOnly) {
+    return (
+      <div className="grid gap-2">
+        <p className="m-0 font-data text-lg">A cada {settings.refreshIntervalSeconds} s</p>
+        <p className="m-0 text-xs text-muted">
+          {savedText} Só administradores alteram a configuração.
+        </p>
+      </div>
     );
   }
 
@@ -72,10 +88,7 @@ export default function RefreshIntervalForm() {
       </fieldset>
 
       <p className="m-0 text-xs text-muted">
-        {settings.updatedAt
-          ? `Valor salvo: ${settings.refreshIntervalSeconds} s, trocado em ${formatDayTime(settings.updatedAt)}.`
-          : `Valor salvo: ${settings.refreshIntervalSeconds} s (padrão, ainda não configurado).`}{' '}
-        Vale para todos os visitantes do dashboard, a partir do próximo ciclo.
+        {savedText} Vale para todos os visitantes do dashboard, a partir do próximo ciclo.
       </p>
 
       <div className="flex flex-wrap items-center gap-3">

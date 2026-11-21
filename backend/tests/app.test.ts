@@ -13,7 +13,7 @@ import type { AuthConfig } from '../src/modules/usuarios/usuarios.service';
 import { DatabaseError, ExternalApiError } from '../src/shared/errors';
 
 const authConfig: AuthConfig = { jwtSecret: 'unit-test-key-for-jwt-signing', jwtExpiresIn: '1h' };
-const testToken = sign({ email: 'admin@ecopulse.dev' }, authConfig.jwtSecret, { subject: '7', expiresIn: '1h' });
+const testToken = sign({ email: 'admin@ecopulse.dev', role: 'admin' }, authConfig.jwtSecret, { subject: '7', expiresIn: '1h' });
 
 function repositories(collectionRows: unknown[] = [], serviceRows: unknown[] = [], serviceFailure?: Error) {
   return {

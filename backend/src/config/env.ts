@@ -11,6 +11,10 @@ export interface Environment {
   jwtExpiresIn: NonNullable<SignOptions['expiresIn']>;
   /** Origens do frontend liberadas por CORS (ex.: http://localhost:5173). */
   corsOrigins: string[];
+  /** Origem do frontend usada nos links de convite: a primeira de CORS_ORIGIN (#196). */
+  appUrl: string;
+  /** Validade dos convites de cadastro, em horas (INVITATION_TTL_HOURS, padrão 72). */
+  invitationTtlHours: number;
 }
 
 const DEFAULT_CARBON_API_URL = 'https://carbon.unilaunch.org';
@@ -85,6 +89,12 @@ export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
     || pollingIntervalMs < 1 || pollingIntervalMs > 2147483647) {
     throw new ValidationError('POLLING_INTERVAL_MS deve ser inteiro de 1 a 2147483647 ms.');
   }
+  const ttlText = source.INVITATION_TTL_HOURS ?? '72';
+  const invitationTtlHours = Number(ttlText);
+  if (!/^\d+$/.test(ttlText) || !Number.isInteger(invitationTtlHours) || invitationTtlHours < 1 || invitationTtlHours > 720) {
+    throw new ValidationError('INVITATION_TTL_HOURS deve ser inteiro de 1 a 720 horas.');
+  }
+  const corsOrigins = readCorsOrigins(source.CORS_ORIGIN ?? DEFAULT_CORS_ORIGIN);
   return {
     port,
     databaseUrl: databaseUrl!,
@@ -92,6 +102,8 @@ export function readEnvironment(source: NodeJS.ProcessEnv = process.env): Enviro
     metricsApiUrl: metricsApiText.replace(/\/+$/, ''),
     pollingIntervalMs,
     ...readJwt(source),
-    corsOrigins: readCorsOrigins(source.CORS_ORIGIN ?? DEFAULT_CORS_ORIGIN),
+    corsOrigins,
+    appUrl: corsOrigins[0] ?? DEFAULT_CORS_ORIGIN,
+    invitationTtlHours,
   };
 }
