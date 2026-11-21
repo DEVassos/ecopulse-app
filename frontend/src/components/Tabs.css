@@ -1,0 +1,42 @@
+@layer components {
+  /* Faixa de abas (#398): a aberta tem sublinhado verde e texto em negrito, nunca só a cor. Em tela estreita as abas
+     quebram linha em vez de rolar de lado, para nenhuma ficar escondida */
+  .tabs__list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .tabs__tab {
+    min-height: 44px;
+    margin-bottom: -1px;
+    padding: 8px 12px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--sans);
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .tabs__tab:hover {
+    color: var(--text);
+  }
+
+  .tabs__tab[aria-selected='true'] {
+    border-bottom-color: var(--accent);
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .tabs__panel {
+    padding-top: 20px;
+  }
+
+  .tabs__panel:focus-visible {
+    outline: 2px solid var(--sky);
+    outline-offset: 4px;
+  }
+}
