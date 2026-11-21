@@ -11,10 +11,12 @@ psql -v ON_ERROR_STOP=1 \
   --set=admin_password="$ADMIN_PASSWORD" <<'SQL'
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-INSERT INTO users (email, password_hash)
+INSERT INTO users (email, password_hash, name, role)
 VALUES (
   :'admin_email',
-  crypt(:'admin_password', gen_salt('bf', 10))
+  crypt(:'admin_password', gen_salt('bf', 10)),
+  'Administrador',
+  'admin'
 )
 ON CONFLICT (lower(email)) DO NOTHING;
 SQL

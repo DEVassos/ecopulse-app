@@ -167,6 +167,12 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Dashboard com o backend real (`docker compose up --build`) em 19/11/2026, 9h29, em 1440 px, com cerca de 36 h de coletas: Ashburn (`us-east`, 378 g CO₂e/kWh) emitiu 636 g com 1,68 kWh nas últimas 24 h; a mesma energia em Toronto (`ca-central`, 40 g/kWh) daria 67,29 g (a linha da conta mostra 1,682 kWh × 40 g/kWh, com a energia arredondada a 4 algarismos), 89,42% menos. A tabela mostra também Sao Paulo, Dublin e Tokyo, este com aumento de 23,02%._
 
+- **RNF05 — Exportação do período em CSV e PDF (US13 #54; #24, PR #386; #13, PR #387):** na página Emissões, **Baixar CSV** entrega todas as coletas do serviço no período escolhido, uma por linha (horário de Brasília, status, CPU, memória, disco, rede, intervalo, energia, CO₂e, fator da região, cálculo e erro), em UTF-8, com vírgula como separador e ponto decimal, o padrão das ferramentas de BI (no Excel em português, pelo menu Dados → De Texto/CSV); valor ausente fica vazio, nunca 0, e a soma das colunas bate com os cards. As coletas vêm em partes de `GET /api/collections`, com progresso e **Cancelar**, e uma falha no meio não entrega arquivo pela metade. **Imprimir / PDF** abre a impressão do navegador com um relatório A4 no tema claro: cabeçalho com o logo, DEVassos, serviço, período, região e agrupamento, os KPIs, o gráfico e a tabela por intervalo com o total e os trechos sem coleta, repetindo o cabeçalho da tabela em cada página ([detalhes](frontend/README.md#exportação-do-período-us13-54-24)).
+
+  ![Primeira página do relatório de emissões em PDF](docs/img/sprint-3-relatorio-pdf.png)
+
+  _Prévia de impressão com o backend real (`docker compose up --build`) em 19/11/2026, 12h01, em largura A4: Audit Stream (`jp-east`) em 18/11, com 1.511 coletas, 405 g de CO₂e e 870 Wh; a tabela segue com 96 intervalos de 15 min nas páginas seguintes, com o total (404,54 g) no fim. O CSV do mesmo dia tem 1.511 linhas, e a soma da coluna `co2e_g` dá 404,54 g._
+
 - **RF09, RNF01 — Eixo de Emissões ajustado ao trecho com dados (#332, PR #344):** quando o monitoramento de um serviço começa depois de 20% do período escolhido, o gráfico de Emissões marca o início ("monitoramento começou entre 19:30 e 19:45") e oferece **Ajustar ao trecho com dados**, que encurta o eixo; KPIs e totais continuam sendo do período inteiro, e o texto sob o título avisa isso ([detalhes](frontend/README.md#página-emissões-190)).
 
   ![Emissões de ontem com a marca do início do monitoramento](docs/img/sprint-3-emissoes-eixo.png)
@@ -197,7 +203,17 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 - **DW06 / RP06 / RNF05 — Aplicação inteira com login (#257):** o backend exige `Authorization: Bearer <JWT>` em `/api/services` e `/api/collections` e responde 401 sem token válido; `/health`, o login e `GET /api/monitoring-settings` continuam públicos. No frontend, `/login` é a única página aberta sem sessão: o dashboard, Emissões, Comparação e Configuração levam ao login e, depois dele, voltam para a mesma tela, com os filtros da URL. Sem sessão não há busca nem polling; um token expirado encerra a sessão e o login avisa "Sua sessão expirou.". O modo demonstração, sem backend, continua abrindo direto com dados ilustrativos ([ADR 0009](docs/adr/0009-aplicacao-inteira-com-login.md)).
 
-- **RF08 — Indicadores com período anterior (#234):** o painel de energia e emissões mostra as últimas 24 h e a variação contra as 24 h anteriores, vindas de uma única resposta de `GET /api/services/summary` (com `totals`, `previous` e `servicesByStatus`); sem cálculo no período anterior, o painel diz isso em vez de mostrar 100%. As coletas com falha do período aparecem embaixo dos indicadores.
+- **DW06 / RP06 / RNF05 — Cadastro por convite e papéis (US15 [#195](https://github.com/DEVassos/ecopulse-app/issues/195); #196, PR #392; #197, PR #393):** cada conta tem o papel **Administrador** ou **Usuário**, levado no JWT. As duas consultam todas as telas; só o administrador altera a configuração e convida, e o backend responde 403 à conta usuário. Na **Configuração**, o administrador gera um convite com e-mail e papel e copia o link (uso único, validade de `INVITATION_TTL_HOURS` horas, só o hash do token no banco; não há envio de e-mail). O link abre `/cadastro`, sem sessão, com o e-mail e o papel do convite e a regra de senha conferida antes de enviar; a conta é criada e o convite marcado como usado na mesma transação. Convite usado, expirado ou inexistente mostra o motivo, sem formulário. Volumes criados antes da #196 recebem a [migração 003](database/README.md#papéis-e-convites-196). [Contratos](docs/api.md#post-apiinvitations).
+
+  ![Convidar pessoa na Configuração, com o link gerado](docs/img/sprint-3-convite.png)
+
+  _Compose isolado com o backend da #196 em 21/11/2026, 1280 px: convite para `ana@exemplo.com` como usuário, depois de **Copiar**._
+
+  ![Cadastro por convite](docs/img/sprint-3-cadastro.png)
+
+  _O link aberto sem sessão: e-mail e papel vêm do convite; a conta criada entra com a senha escolhida e vê a Configuração só para leitura ([print](docs/img/sprint-3-configuracao-usuario.png))._
+
+- **RF08 — Indicadores com período anterior (#234, PR #390):** o painel de energia e emissões mostra as últimas 24 h e a variação contra as 24 h anteriores, vindas de uma única resposta de `GET /api/services/summary` (com `totals`, `previous` e `servicesByStatus`); sem cálculo no período anterior, o painel diz isso em vez de mostrar 100%. As coletas com falha do período aparecem embaixo dos indicadores.
 
   ![Indicadores com variação contra o período anterior](docs/img/sprint-3-indicadores-agregados.png)
 
@@ -207,7 +223,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 - **Dashboard em três níveis:** visão executiva (kWh total, gCO₂e, serviços ativos e indisponíveis, com atualização sem recarregar), análise comparativa (ranking e distribuição geográfica) e investigação detalhada (histórico por serviço).
 - **Prioridade apontada pelo cliente na review da Sprint 1:** comparar serviços e analisar os dados já coletados, para ver o que compensa fazer ([#159](https://github.com/DEVassos/ecopulse-app/issues/159)).
-- **Diferencial em estudo:** exportação de relatórios em PDF/CSV ([US13, #54](https://github.com/DEVassos/ecopulse-app/issues/54)). A simulação de migração (US12) entrou na Sprint 3 (§ 3, RF15).
+- **Diferenciais entregues na Sprint 3:** simulação de migração para regiões com matriz mais limpa ([US12, #53](https://github.com/DEVassos/ecopulse-app/issues/53); § 3, RF15) e exportação de relatórios em PDF/CSV ([US13, #54](https://github.com/DEVassos/ecopulse-app/issues/54); § 3, RNF05).
 
 ## 5. Tecnologias
 
@@ -281,9 +297,10 @@ O `compose.yaml` lê o `.env` e repassa as variáveis aos containers ([#27](http
 | `CARBON_API_URL` | `https://carbon.unilaunch.org` | base da API de intensidade de carbono do parceiro |
 | `JWT_SECRET` | `dev-secret-change-me` | chave obrigatória (mínimo 16 caracteres) que assina os tokens JWT do login administrativo |
 | `JWT_EXPIRES_IN` | `8h` | validade positiva com unidade (`s`, `m`, `h` ou `d`) do token emitido no login |
+| `INVITATION_TTL_HOURS` | `72` | validade, em horas (1 a 720), do link de convite de cadastro emitido por um administrador |
 | `METRICS_API_URL` | `https://metrics.unilaunch.org` | base da API agregadora de métricas do parceiro |
 | `POLLING_INTERVAL_MS` | `30000` | intervalo da descoberta de serviços e prazo inicial/de recuperação da coleta (30 s); o prazo normal vem de `collection_interval_seconds`. Vale para o backend fora do Docker; no compose fica o padrão |
-| `CORS_ORIGIN` | `http://localhost:5173` | origem(ns) do dashboard liberadas pelo backend para chamar a API pelo navegador (CORS), separadas por vírgula |
+| `CORS_ORIGIN` | `http://localhost:5173` | origem(ns) do dashboard liberadas pelo backend para chamar a API pelo navegador (CORS), separadas por vírgula; a primeira também monta o link dos convites |
 | `VITE_API_URL` | `http://localhost:3000/api` | base da API consumida pelo dashboard; vazia, o frontend entra em modo demonstração |
 | `VITE_REFRESH_INTERVAL_MS` | `30000` | intervalo da atualização automática do dashboard em ms (mínimo 5000); entra no build do frontend |
 

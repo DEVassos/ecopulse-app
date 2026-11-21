@@ -17,10 +17,11 @@ import type { CarbonApi } from './integrations/carbon-api';
 import { regionsRoutes } from './modules/regions/regions.routes';
 import type { RegionsSummaryRepository } from './modules/regions/regions-summary.repository';
 import { regionsSummaryRoutes } from './modules/regions/regions-summary.routes';
+import { invitationsRoutes, type InvitationsDependencies } from './modules/invitations/invitations.routes';
 
 export function createApp(verify: () => Promise<void>, collections: CollectionRepository, services: ServiceRepository,
   corsOrigins: readonly string[], users: UserRepository, auth: AuthConfig, settings?: MonitoringSettingsRepository,
-  carbonApi?: CarbonApi, regionsSummary?: RegionsSummaryRepository) {
+  carbonApi?: CarbonApi, regionsSummary?: RegionsSummaryRepository, invitations?: InvitationsDependencies) {
   const app = express();
   app.disable('x-powered-by');
   app.use(cors(corsOrigins));
@@ -33,6 +34,7 @@ export function createApp(verify: () => Promise<void>, collections: CollectionRe
   app.use(collectionsRoutes(collections, services));
   app.use(servicesRoutes(services));
   app.use(authRoutes(users, auth));
+  if (invitations !== undefined) app.use(invitationsRoutes(invitations, users, auth));
   if (settings !== undefined) app.use(monitoringSettingsRoutes(settings, auth));
   if (carbonApi !== undefined) app.use(regionsRoutes(carbonApi, services));
   app.use((_req, _res, next) => next(new NotFoundError()));

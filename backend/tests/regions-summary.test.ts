@@ -16,7 +16,7 @@ import { DatabaseError } from '../src/shared/errors';
 import { manualRegions, partialEnergy, regionalPlan, seedPlanVolume, seedRegions, transaction } from './regions-summary-test.repository';
 
 const auth = { jwtSecret: 'regions-summary-test-key', jwtExpiresIn: '1h' as const };
-const token = sign({ email: 'test@example.test' }, auth.jwtSecret, { subject: '1', expiresIn: '1h' });
+const token = sign({ email: 'test@example.test', role: 'usuario' }, auth.jwtSecret, { subject: '1', expiresIn: '1h' });
 const from = new Date('2026-04-01T00:00:00Z'), middle = new Date('2026-04-02T00:00:00Z'), to = new Date('2026-04-03T00:00:00Z');
 const servers: Server[] = [];
 async function serve(db: QueryExecutor, carbonApi?: CarbonApi) {

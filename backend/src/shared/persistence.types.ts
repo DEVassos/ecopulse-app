@@ -41,6 +41,16 @@ export type NewCollection = CollectionBase & (
 export type StoredCollection = NewCollection & {
   id: DatabaseId; created_at: Date;
 };
+export type UserRole = 'admin' | 'usuario';
+export const USER_ROLES: readonly UserRole[] = ['admin', 'usuario'];
+export function isUserRole(value: unknown): value is UserRole {
+  return typeof value === 'string' && (USER_ROLES as readonly string[]).includes(value);
+}
 export interface StoredUser {
-  id: DatabaseId; email: string; password_hash: string; created_at: Date; updated_at: Date;
+  id: DatabaseId; email: string; password_hash: string; name: string; role: UserRole;
+  created_at: Date; updated_at: Date;
+}
+export interface StoredInvitation {
+  id: DatabaseId; email: string; role: UserRole; token_hash: string; invited_by: DatabaseId;
+  expires_at: Date; used_at: Date | null; created_at: Date;
 }

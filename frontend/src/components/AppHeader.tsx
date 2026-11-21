@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { useAuth } from '../hooks/useAuth';
 import { useTheme } from '../hooks/useTheme';
+import { ROLE_LABELS } from '../services/auth.types';
 import Brand from './Brand';
 import ThemeToggle from './ThemeToggle';
 import './AppHeader.css';
@@ -18,7 +19,7 @@ function UserMenu() {
 
   return (
     <div className="user-menu">
-      <span data-tooltip={user.email}>
+      <span data-tooltip={`${user.email} · ${ROLE_LABELS[user.role]}`}>
         Olá, <strong>{user.name}</strong>
       </span>
       {/* Sem sessão, o ProtectedRoute leva ao login e as páginas desmontam, o que para o polling */}
@@ -146,7 +147,9 @@ function MobileMenu() {
                 <span>
                   Olá, <strong>{user.name}</strong>
                 </span>
-                <span className="mobile-menu__email">{user.email}</span>
+                <span className="mobile-menu__email">
+                  {user.email} · {ROLE_LABELS[user.role]}
+                </span>
               </p>
             )}
             <div className="mobile-menu__theme">

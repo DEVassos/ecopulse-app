@@ -17,3 +17,13 @@ export function loginDestination(state: unknown): string {
   const from = (state as Partial<LoginRedirectState> | null)?.from;
   return typeof from === 'string' && from.startsWith('/') && !from.startsWith('//') ? from : '/';
 }
+
+/** Estado que o cadastro por convite manda para /login (#197): mostra "Conta criada…" e já preenche o e-mail. */
+export interface RegisteredState {
+  registeredEmail: string;
+}
+
+export function registeredEmail(state: unknown): string | null {
+  const email = (state as Partial<RegisteredState> | null)?.registeredEmail;
+  return typeof email === 'string' && email !== '' ? email : null;
+}
