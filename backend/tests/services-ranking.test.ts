@@ -10,7 +10,7 @@ import { UserRepository } from '../src/modules/usuarios/usuarios.repository';
 import { DatabaseError } from '../src/shared/errors';
 
 const auth: AuthConfig = { jwtSecret: 'ranking-test-secret-123', jwtExpiresIn: '1h' };
-const token = sign({ email: 'ranking@example.test' }, auth.jwtSecret, { subject: '1', expiresIn: auth.jwtExpiresIn });
+const token = sign({ email: 'ranking@example.test', role: 'usuario' }, auth.jwtSecret, { subject: '1', expiresIn: auth.jwtExpiresIn });
 const alpha = { id: '3', name: 'Alpha', region: 'Sul', status: 'ativo', collections: '4', failed: '1', not_calculated: '2', energy_kwh: '0', co2e_grams: '2.5', monitored_seconds: '172800' };
 const beta = { id: '12', name: 'Beta', region: null, status: 'removido', collections: '2', failed: '0', not_calculated: '0', energy_kwh: '3', co2e_grams: '1', monitored_seconds: '86400' };
 const rows = [

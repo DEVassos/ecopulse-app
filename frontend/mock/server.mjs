@@ -5,16 +5,58 @@
 // Uso: npm run mock  →  http://localhost:3000  (com VITE_API_URL=http://localhost:3000 no .env da raiz)
 
 import { createServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 const PORT = Number(process.env.MOCK_PORT ?? 3000);
 const COLLECTION_GAP_SCENARIO = process.env.MOCK_COLLECTION_GAP === 'true';
 
 /** Administrador do mock: o mesmo do .env.example (no backend real ele vem do seed, #6). */
-const ADMIN = { id: '1', email: 'admin@ecopulse.local', password: 'admin1234' };
+const ADMIN = { id: '1', email: 'admin@ecopulse.local', password: 'admin1234', name: 'Administrador', role: 'admin' };
 
-/** Tokens emitidos desde que o mock subiu. Reiniciar o mock invalida todos (bom para testar o 401). */
-const validTokens = new Set();
+/**
+ * Contas do mock (#196/#197): o administrador e um usuário comum, para ver a Configuração em leitura sem passar pelo
+ * convite. As criadas por convite entram aqui e somem ao reiniciar o mock.
+ */
+const USERS = [ADMIN, { id: '2', email: 'usuario@ecopulse.local', password: 'usuario1234', name: 'Usuária', role: 'usuario' }];
+
+/** Convites emitidos desde que o mock subiu, pelo SHA-256 do token (como no banco real, o token não fica guardado). */
+const invitations = new Map();
+const INVITATION_TTL_MS = 72 * 3_600_000;
+const PASSWORD_RULE = 'A senha deve ter de 8 a 72 caracteres, com pelo menos uma letra e um número.';
+
+/** Token emitido → conta. Reiniciar o mock invalida todos (bom para testar o 401). */
+const validTokens = new Map();
+
+function publicUser(user) {
+  return { id: user.id, email: user.email, name: user.name, role: user.role };
+}
+
+function sessionUser(req) {
+  const token = bearerToken(req);
+  return token === null ? null : (validTokens.get(token) ?? null);
+}
+
+function tokenHash(token) {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+/** Convite pelo token do link: 404 inexistente, 410 usado ou expirado (mesmas mensagens do backend). */
+function availableInvitation(res, token) {
+  const invitation = /^[A-Za-z0-9_-]{43}$/.test(token) ? invitations.get(tokenHash(token)) : undefined;
+  if (!invitation) {
+    send(res, 404, { error: { code: 'NOT_FOUND', message: 'Convite não encontrado.' } });
+    return null;
+  }
+  if (invitation.usedAt) {
+    send(res, 410, { error: { code: 'GONE', message: 'Este convite já foi usado.' } });
+    return null;
+  }
+  if (invitation.expiresAt <= Date.now()) {
+    send(res, 410, { error: { code: 'GONE', message: 'Este convite expirou. Peça um novo ao administrador.' } });
+    return null;
+  }
+  return invitation;
+}
 
 /** Token do cabeçalho Authorization: Bearer <token>, ou null. */
 function bearerToken(req) {
@@ -249,6 +291,7 @@ let monitoringSettings = {
 };
 
 const UNAUTHORIZED = { error: { code: 'UNAUTHORIZED', message: 'Token ausente, inválido ou expirado.' } };
+const FORBIDDEN = { error: { code: 'FORBIDDEN', message: 'Só administradores podem fazer esta ação.' } };
 
 /** Rotas de dados que, como no backend real (#257), só respondem com token válido. */
 const PROTECTED = new Set(['GET /services', 'GET /services/summary', 'GET /services/compare', 'GET /services/ranking', 'GET /collections', 'GET /collections/series', 'GET /regions', 'GET /regions/summary']);
@@ -265,26 +308,71 @@ const routes = {
     if (!body || typeof body.email !== 'string' || body.email.trim() === '' || typeof body.password !== 'string' || body.password === '') {
       return validationError(res, 'Informe email e password.');
     }
-    if (body.email.trim() !== ADMIN.email || body.password !== ADMIN.password) {
-      return send(res, 401, { error: { code: 'UNAUTHORIZED', message: 'Credenciais inválidas.' } });
-    }
+    const user = USERS.find((item) => item.email === body.email.trim().toLowerCase() && item.password === body.password);
+    if (!user) return send(res, 401, { error: { code: 'UNAUTHORIZED', message: 'Credenciais inválidas.' } });
     const token = `mock.${randomUUID()}`;
-    validTokens.add(token);
-    return send(res, 200, { token });
+    validTokens.set(token, user);
+    return send(res, 200, { token, user: publicUser(user) });
   },
 
   // US07 / #20 — rota mínima protegida: só responde com token válido
   'GET /auth/me': async (req, res) => {
-    if (!hasValidToken(req)) return send(res, 401, UNAUTHORIZED);
-    return send(res, 200, { id: ADMIN.id, email: ADMIN.email });
+    const user = sessionUser(req);
+    if (!user) return send(res, 401, UNAUTHORIZED);
+    return send(res, 200, publicUser(user));
+  },
+
+  // #196 — convite de cadastro: só administrador; o link aponta para o Vite (MOCK_APP_URL, padrão http://localhost:5173)
+  'POST /invitations': async (req, res) => {
+    const user = sessionUser(req);
+    if (!user) return send(res, 401, UNAUTHORIZED);
+    if (user.role !== 'admin') return send(res, 403, FORBIDDEN);
+    const body = await readJson(req);
+    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !['admin', 'usuario'].includes(body?.role)) {
+      return validationError(res, 'Informe email válido e role "admin" ou "usuario".');
+    }
+    if (USERS.some((item) => item.email === email)) {
+      return send(res, 409, { error: { code: 'CONFLICT', message: 'Já existe uma conta com este e-mail.' } });
+    }
+    const token = randomBytes(32).toString('base64url');
+    const expiresAt = Date.now() + INVITATION_TTL_MS;
+    invitations.set(tokenHash(token), { email, role: body.role, expiresAt, usedAt: null });
+    const inviteUrl = new URL('/cadastro', process.env.MOCK_APP_URL ?? 'http://localhost:5173');
+    inviteUrl.searchParams.set('convite', token);
+    return send(res, 201, { inviteUrl: inviteUrl.toString(), expiresAt: new Date(expiresAt).toISOString() });
+  },
+
+  // #196 — cadastro por convite: e-mail e papel vêm do convite; o convite vale para um cadastro só
+  'POST /auth/register': async (req, res) => {
+    const body = await readJson(req);
+    if (!body || typeof body.token !== 'string' || typeof body.name !== 'string' || typeof body.password !== 'string') {
+      return validationError(res, 'Informe token, name e password.');
+    }
+    const name = body.name.trim();
+    if (name === '' || name.length > 100) return validationError(res, 'O nome deve ter de 1 a 100 caracteres.');
+    const { password } = body;
+    if (password.length < 8 || Buffer.byteLength(password) > 72 || !/\p{L}/u.test(password) || !/\d/.test(password)) {
+      return validationError(res, PASSWORD_RULE);
+    }
+    const invitation = availableInvitation(res, body.token);
+    if (!invitation) return undefined;
+    if (USERS.some((item) => item.email === invitation.email)) {
+      return send(res, 409, { error: { code: 'CONFLICT', message: 'Já existe uma conta com este e-mail.' } });
+    }
+    invitation.usedAt = Date.now();
+    const user = { id: String(USERS.length + 1), email: invitation.email, password, name, role: invitation.role };
+    USERS.push(user);
+    return send(res, 201, publicUser(user));
   },
 
   // #176 — intervalo de atualização do dashboard: leitura pública, troca só com token (contrato na issue)
   'GET /monitoring-settings': async (_req, res) => send(res, 200, monitoringSettings),
 
   'PUT /monitoring-settings': async (req, res) => {
-    const token = bearerToken(req);
-    if (!token || !validTokens.has(token)) return send(res, 401, UNAUTHORIZED);
+    const user = sessionUser(req);
+    if (!user) return send(res, 401, UNAUTHORIZED);
+    if (user.role !== 'admin') return send(res, 403, FORBIDDEN);
     const body = await readJson(req);
     if (!body || !ALLOWED_INTERVALS.includes(body.refreshIntervalSeconds)) {
       return validationError(res, 'refreshIntervalSeconds deve ser 15, 30 ou 60.');
@@ -547,6 +635,12 @@ createServer(async (req, res) => {
 
   // Aceita as rotas com ou sem o prefixo /api (o .env.example usa VITE_API_URL=http://localhost:3000/api)
   const path = new URL(req.url ?? '/', `http://localhost:${PORT}`).pathname.replace(/^\/api(?=\/)/, '');
+  // GET /invitations/:token é a única rota com parâmetro no caminho
+  if (req.method === 'GET' && path.startsWith('/invitations/')) {
+    const invitation = availableInvitation(res, decodeURIComponent(path.slice('/invitations/'.length)));
+    if (invitation) send(res, 200, { email: invitation.email, role: invitation.role, expiresAt: new Date(invitation.expiresAt).toISOString() });
+    return undefined;
+  }
   const route = routes[`${req.method} ${path}`];
   console.log(`${new Date().toLocaleTimeString('pt-BR')}  ${req.method} ${path}${bearerToken(req) ? '  (com Bearer)' : ''}`);
 
@@ -557,6 +651,6 @@ createServer(async (req, res) => {
   console.log(`Backend falso em http://localhost:${PORT}`);
   console.log(`GET /services: cenário "${SERVICES_SCENARIO}" (MOCK_SERVICES=normal|vazio|erro|sem-id|cpu-texto|resumo-texto|comparacao-sem-id|ranking-texto|ranking-instavel|ranking-falha)`);
   console.log(`GET /regions: cenário "${REGIONS_SCENARIO}" (MOCK_REGIONS=normal|falha)`);
-  console.log(`Login: ${ADMIN.email} / ${ADMIN.password} (exigido nas rotas de dados, #257; reiniciar o mock invalida os tokens)`);
+  console.log(`Login: ${ADMIN.email} / ${ADMIN.password} (admin) ou ${USERS[1].email} / ${USERS[1].password} (usuário, #197); reiniciar o mock invalida os tokens e os convites`);
   console.log(`GET /monitoring-settings: intervalo inicial ${monitoringSettings.refreshIntervalSeconds} s (MOCK_REFRESH_INTERVAL_SECONDS)`);
 });

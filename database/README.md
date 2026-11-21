@@ -1,12 +1,12 @@
 # Banco de dados
 
-SQL explícito no PostgreSQL, sem ORM (ADR 0002). O schema está em `database/schema.sql` (#5, #77) e o modelo em [`docs/arquitetura/modelagem-uml.md`](../docs/arquitetura/modelagem-uml.md). As consultas DML ficam nos repositories do backend: `services.repository.ts`, `collections.repository.ts`, `usuarios/usuarios.repository.ts` e `health.repository.ts`, com transações em `backend/src/db/transaction.repository.ts` (#14, #94). O worker de coleta grava o histórico só por inserção (#19, #99) e, desde o #139 (#133), preenche os campos de cálculo de energia e CO₂e. A tabela `users` já atende ao login JWT administrativo.
+SQL explícito no PostgreSQL, sem ORM (ADR 0002). O schema está em `database/schema.sql` (#5, #77) e o modelo em [`docs/arquitetura/modelagem-uml.md`](../docs/arquitetura/modelagem-uml.md). As consultas DML ficam nos repositories do backend: `services.repository.ts`, `collections.repository.ts`, `usuarios/usuarios.repository.ts`, `invitations/invitations.repository.ts` e `health.repository.ts`, com transações em `backend/src/db/transaction.repository.ts` (#14, #94). O worker de coleta grava o histórico só por inserção (#19, #99) e, desde o #139 (#133), preenche os campos de cálculo de energia e CO₂e. A tabela `users` atende ao login JWT, com o papel de cada conta, e `invitations` guarda os convites de cadastro (#196).
 
 Decisões e fontes do modelo em [`integracao-modelagem-banco.md`](../docs/arquitetura/integracao-modelagem-banco.md); fórmulas e unidades em [`docs/calculos.md`](../docs/calculos.md); contratos dos repositories e fixture dos testes de integração no [README do backend](../backend/README.md#repositories-e-transações-14).
 
 ## Arquivos e ordem
 
-`database/schema.sql` é a fonte única do modelo: services, users, collections, access_entries e monitoring_settings, constraints, índices e comentários em uma transação. Exige PostgreSQL 14 ou superior (numeric com valores especiais nos CHECKs); o compose usa `postgres:16-alpine`. Depois dele, `zz-seed-admin.sh` cria o administrador inicial usando `ADMIN_EMAIL` e `ADMIN_PASSWORD` do ambiente: a senha de cada instalação não é versionada nem gravada em texto puro; o `.env.example` contém apenas valores de desenvolvimento.
+`database/schema.sql` é a fonte única do modelo: services, users, invitations, collections, access_entries e monitoring_settings, constraints, índices e comentários em uma transação. Exige PostgreSQL 14 ou superior (numeric com valores especiais nos CHECKs); o compose usa `postgres:16-alpine`. Depois dele, `zz-seed-admin.sh` cria o administrador inicial usando `ADMIN_EMAIL` e `ADMIN_PASSWORD` do ambiente: a senha de cada instalação não é versionada nem gravada em texto puro; o `.env.example` contém apenas valores de desenvolvimento.
 
 ## Configuração de monitoramento (#250)
 
@@ -23,11 +23,24 @@ O uso de `sh -c` evita a conversão de caminhos do Git Bash. Esperado antes do p
 
 Verificação em infraestrutura exclusiva: aplicar em banco vazio e populado, reaplicar, conferir dados anteriores e configuração preservados; rejeitar `id=2` e intervalo 120; reiniciar somente o projeto exclusivo e repetir GET. A aplicação não executa migrações automaticamente: tabela ausente resulta em erro de banco na rota.
 
+## Papéis e convites (#196)
+
+`users` ganha `name` e `role` (`admin` ou `usuario`, padrão `usuario`), e a tabela `invitations` guarda os convites de cadastro: e-mail, papel, SHA-256 do token do link (o token em si nunca é gravado), quem convidou (FK `RESTRICT` para `users`), `expires_at`, `used_at` e `created_at`. Regras e rotas em [`docs/api.md`](../docs/api.md#post-apiinvitations).
+
+Banco vazio: `schema.sql` já cria as colunas e a tabela, e o seed grava o administrador com `role = 'admin'`. Em volume existente, `schema.sql` recusa `users` sem papel com a mensagem `users sem papel detectada: aplique database/migrations/003-users-role-invitations.sql`. Com backup, aplique a migração, sem apagar o volume:
+
+```bash
+docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -v ON_ERROR_STOP=1 -f /docker-entrypoint-initdb.d/migrations/003-users-role-invitations.sql'
+docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "SELECT email, name, role FROM users;" -c "TABLE invitations;"'
+```
+
+Esperado: as contas que já existiam (até aqui, só o administrador do seed) com `name` `Administrador` e `role` `admin`, e `invitations` vazia. A migração é transacional, preserva senhas e dados das outras tabelas e pode ser reaplicada: com as colunas já presentes, ela não altera `users`. Verificado em 21/11/2026 em PostgreSQL 16, num banco criado com o `schema.sql` anterior, as migrações 001 e 002 e o seed: a migração converteu o administrador, a senha continuou válida, a reaplicação não deu erro e o `schema.sql` novo passou a aplicar sem erro. Depois da migração, quem estava logado entra de novo: tokens sem papel são recusados com 401.
+
 ## Inicialização pelo compose (#27)
 
 A execução oficial é exclusivamente Docker (RP04, ADR 0003). O serviço `postgres` do [`compose.yaml`](../compose.yaml):
 
-- monta esta pasta em `/docker-entrypoint-initdb.d/` (somente leitura). Na **primeira** criação do volume, o entrypoint executa `schema.sql` e, depois, `zz-seed-admin.sh`; o script habilita `pgcrypto`, gera um hash bcrypt com custo 10 e insere um único administrador. Ele ignora o `README.md`;
+- monta esta pasta em `/docker-entrypoint-initdb.d/` (somente leitura). Na **primeira** criação do volume, o entrypoint executa `schema.sql` e, depois, `zz-seed-admin.sh`; o script habilita `pgcrypto`, gera um hash bcrypt com custo 10 e insere um único administrador, com `name = 'Administrador'` e `role = 'admin'`. Ele ignora o `README.md`;
 - guarda os dados no volume nomeado `pgdata` (`/var/lib/postgresql/data`). Eles sobrevivem a `docker compose restart`, `stop` e `down`; só `docker compose down -v` apaga o volume (BD03);
 - tem healthcheck `pg_isready -h 127.0.0.1`, por TCP: em volume novo, o servidor temporário que aplica os `.sql` só aceita conexões pelo socket local, então o banco só fica saudável quando o backend já consegue conectar (#246). O backend só sobe depois dele (`depends_on: condition: service_healthy`);
 - atende em `postgres:5432` dentro da rede do compose (é o endereço que o backend usa) e fica exposto no host na porta `POSTGRES_HOST_PORT` (padrão e exemplo: 5433, para não conflitar com um PostgreSQL local na 5432). Se a 5433 estiver ocupada, troque no `.env`; a porta interna não muda.
@@ -45,14 +58,14 @@ docker compose exec postgres psql -U ecopulse -d ecopulse_db -c '\dt'
 docker compose exec postgres psql -U ecopulse -d ecopulse_db -c 'SELECT count(*) FROM collections;'
 ```
 
-Esperado: as cinco tabelas (`access_entries`, `collections`, `monitoring_settings`, `services`, `users`), a contagem do histórico e um único administrador. No log (`docker compose logs postgres`) aparecem `running /docker-entrypoint-initdb.d/schema.sql` e `running /docker-entrypoint-initdb.d/zz-seed-admin.sh` só na primeira subida.
+Esperado: as seis tabelas (`access_entries`, `collections`, `invitations`, `monitoring_settings`, `services`, `users`), a contagem do histórico e um único administrador. No log (`docker compose logs postgres`) aparecem `running /docker-entrypoint-initdb.d/schema.sql` e `running /docker-entrypoint-initdb.d/zz-seed-admin.sh` só na primeira subida.
 
 ```bash
 docker compose exec postgres psql -U ecopulse -d ecopulse_db \
-  -c "SELECT email, left(password_hash, 7) AS prefixo, count(*) OVER () AS total FROM users;"
+  -c "SELECT email, role, left(password_hash, 7) AS prefixo, count(*) OVER () AS total FROM users;"
 ```
 
-Esperado: uma linha para `ADMIN_EMAIL`, prefixo `$2a$10$` ou `$2b$10$` e total `1`. O seed usa o índice único de e-mail sem distinguir maiúsculas/minúsculas.
+Esperado: uma linha para `ADMIN_EMAIL` com `role` `admin`, prefixo `$2a$10$` ou `$2b$10$` e total `1`. O seed usa o índice único de e-mail sem distinguir maiúsculas/minúsculas.
 
 ### Reaplicar o seed
 
@@ -93,7 +106,7 @@ wsl --exec docker exec ecopulse-schema-check psql -U postgres -c 'SELECT count(*
 wsl --exec docker stop ecopulse-schema-check
 ```
 
-Sem rede/portas/volume, trust fica limitado a esse container temporário; não é configuração de produção nem muda .env.example. Esperado: cinco tabelas, histórico vazio e DDL sem erros; reaplicar o mesmo schema mantém dados existentes do mesmo modelo.
+Sem rede/portas/volume, trust fica limitado a esse container temporário; não é configuração de produção nem muda .env.example. Esperado: seis tabelas, histórico vazio e DDL sem erros; reaplicar o mesmo schema mantém dados existentes do mesmo modelo.
 
 ## Modelo de dados
 
@@ -101,13 +114,14 @@ Sem rede/portas/volume, trust fica limitado a esse container temporário; não �
 |---|---|---|
 | services | Cadastro descoberto e estado atual, incluindo region_code. | ID externo único; coordenadas válidas; timestamps. |
 | collections | Histórico de métricas em GB, intervalo e contexto regional; resultados quando disponíveis. | FK RESTRICT; status de métricas separado do cálculo; métricas completas para ok; NULL para desconhecido. |
-| users | Credenciais administrativas para a área de configuração. | E-mail único sem diferenciar caixa; hash bcrypt. Sem quatro perfis ou tenants. |
+| users | Contas que entram na aplicação: e-mail, nome, hash bcrypt e papel. | E-mail único sem diferenciar caixa; hash bcrypt; `role` `admin` ou `usuario` (padrão `usuario`); nome não vazio. Sem tenants. |
+| invitations | Convites de cadastro emitidos por um administrador (#196). | FK RESTRICT para `users` (quem convidou); SHA-256 do token único e em hex; `role` `admin` ou `usuario`; validade posterior à criação; `used_at` nulo até o cadastro. |
 | access_entries | IP e instante da primeira entrada por sessão da aba. | IP INET e horário TIMESTAMPTZ obrigatórios; índice temporal; sem FK de usuário ou dados HTTP. |
 | monitoring_settings | Intervalo de atualização da tela, independente da coleta. | PK fixa 1; intervalo 15/30/60; updated_at obrigatório. |
 
 Os estados e nulabilidade completos constam na UML e nos CHECKs. Falha de carbono preserva métricas válidas; cálculo indisponível exige mensagem própria e não fabrica emissão zero. JSONB contém objeto bruto de /metrics; campos normalizados são a interface do modelo, e o JSON não substitui a validação feita no backend antes do INSERT.
 
-Energia numeric(20,12) e emissão numeric(24,12) aumentam a resolução para 10⁻¹² sem reduzir a faixa inteira anterior. Exemplos e limites: docs/calculos.md. O schema possui quatro índices explícitos e seis automáticos (cinco PKs e UNIQUE de services.external_id), totalizando dez. Roteiro reproduzível dos testes: [verificação do schema](../docs/arquitetura/verificacao-schema.md).
+Energia numeric(20,12) e emissão numeric(24,12) aumentam a resolução para 10⁻¹² sem reduzir a faixa inteira anterior. Exemplos e limites: docs/calculos.md. O schema possui quatro índices explícitos e oito automáticos (seis PKs, UNIQUE de services.external_id e UNIQUE de invitations.token_hash), totalizando doze. Roteiro reproduzível dos testes: [verificação do schema](../docs/arquitetura/verificacao-schema.md).
 
 ## Inicialização não é migração
 
@@ -125,10 +139,11 @@ Toda DML fica em `backend/src/modules/*/*.repository.ts`, com o driver `pg` e pa
 |---|---|
 | `services/services.repository.ts` | lista os serviços com a última coleta (métricas, energia e CO₂e), busca por ID, upsert por `external_id`, atualização de estado e marcação de ausentes como `removido` |
 | `collections/collections.repository.ts` | insere a coleta (métricas, JSON bruto e campos de cálculo) e lista o histórico com filtros de serviço, período e limite |
-| `usuarios/usuarios.repository.ts` | busca usuário por e-mail sem distinção de caixa (base da autenticação da Sprint 2) |
+| `usuarios/usuarios.repository.ts` | busca usuário por e-mail sem distinção de caixa (login) e por ID (`GET /api/auth/me`); insere a conta criada por convite |
+| `invitations/invitations.repository.ts` | insere o convite com validade calculada pelo banco, busca pelo hash do token e marca o convite como usado só se ainda estiver disponível (`UPDATE … WHERE used_at IS NULL AND expires_at > now() RETURNING *`) |
 | `health/health.repository.ts` | `SELECT 1` do healthcheck |
 
-Cada coleta é um INSERT novo; não há UPDATE nem DELETE de coletas. A FK `RESTRICT` protege serviços referenciados, mas não torna `collections` imutável tecnicamente. Os UPDATEs em `services` atribuem `updated_at = now()`, porque o default só atua na inserção; `users` ainda não tem UPDATE.
+Cada coleta é um INSERT novo; não há UPDATE nem DELETE de coletas. A FK `RESTRICT` protege serviços referenciados, mas não torna `collections` imutável tecnicamente. Os UPDATEs em `services` atribuem `updated_at = now()`, porque o default só atua na inserção; `users` não tem UPDATE. O cadastro por convite cria a conta e marca o convite como usado na mesma transação.
 
 Para consultar o histórico pelo compose:
 

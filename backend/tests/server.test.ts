@@ -16,7 +16,8 @@ function fakeDatabase(connected: boolean): Database {
   };
 }
 const env = { port: 0, databaseUrl: 'postgresql://localhost/test', carbonApiUrl: 'https://carbon.unilaunch.org', metricsApiUrl: 'https://metrics.unilaunch.org',
-  pollingIntervalMs: 30000, corsOrigins: [], jwtSecret: 'development-secret-123', jwtExpiresIn: '8h' as const };
+  pollingIntervalMs: 30000, corsOrigins: [], jwtSecret: 'development-secret-123', jwtExpiresIn: '8h' as const,
+  appUrl: 'http://localhost:5173', invitationTtlHours: 72 };
 it('não inicia HTTP se o banco falhar e fecha pool', async () => {
   const database = fakeDatabase(false);
   await expect(startServer(env, database)).rejects.toBeInstanceOf(DatabaseError);

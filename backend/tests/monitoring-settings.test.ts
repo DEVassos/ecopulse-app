@@ -9,7 +9,8 @@ import { MonitoringSettingsRepository } from '../src/modules/monitoring-settings
 import { DatabaseError } from '../src/shared/errors';
 
 const config = { jwtSecret: 'monitoring-test-local-secret', jwtExpiresIn: '8h' };
-const token = sign({ email: 'admin@example.test' }, config.jwtSecret, { subject: '1', expiresIn: '1h' });
+const token = sign({ email: 'admin@example.test', role: 'admin' }, config.jwtSecret, { subject: '1', expiresIn: '1h' });
+const userToken = sign({ email: 'ana@example.test', role: 'usuario' }, config.jwtSecret, { subject: '2', expiresIn: '1h' });
 const servers: Server[] = [];
 async function app(failure = false) {
   let row: { refresh_interval_seconds: number; updated_at: Date } | null = null;
@@ -75,6 +76,19 @@ describe('contrato HTTP de monitoring-settings', () => {
       expect((await response.json()).error.code).toBe('UNAUTHORIZED');
     }
     expect(query).not.toHaveBeenCalled();
+  });
+  it('PUT com conta usuario responde 403 sem gravar; token sem papel (anterior à #196) responde 401', async () => {
+    const { url, query } = await app();
+    const forbidden = await put(url, { refreshIntervalSeconds: 60 }, `Bearer ${userToken}`);
+    expect(forbidden.status).toBe(403);
+    expect(await forbidden.json()).toEqual({ error: { code: 'FORBIDDEN', message: 'Só administradores podem fazer esta ação.' } });
+    const legacy = sign({ email: 'admin@example.test' }, config.jwtSecret, { subject: '1', expiresIn: '1h' });
+    expect((await put(url, { refreshIntervalSeconds: 60 }, `Bearer ${legacy}`)).status).toBe(401);
+    expect(query).not.toHaveBeenCalled();
+  });
+  it('GET continua público para qualquer papel', async () => {
+    const { url } = await app();
+    expect((await fetch(url, { headers: { Authorization: `Bearer ${userToken}` } })).status).toBe(200);
   });
   it('falha de banco nunca vira padrão válido ou sucesso no PUT', async () => {
     const { url } = await app(true);

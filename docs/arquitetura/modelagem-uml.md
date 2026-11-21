@@ -58,6 +58,18 @@ classDiagram
         +text password_hash
         +timestamptz created_at
         +timestamptz updated_at
+        +text name
+        +text role CHECK_admin_usuario
+    }
+    class invitations {
+        +bigint id PK
+        +text email
+        +text role CHECK_admin_usuario
+        +text token_hash UNIQUE_sha256_hex
+        +bigint invited_by FK
+        +timestamptz expires_at
+        +timestamptz used_at nullable
+        +timestamptz created_at
     }
     class access_entries {
         +bigint id PK
@@ -71,9 +83,10 @@ classDiagram
     }
     note for collections "energy_kwh: numeric(20,12)<br/>co2e_grams: numeric(24,12)"
     services "1" --> "0..*" collections : service_id
+    users "1" --> "0..*" invitations : invited_by
 ```
 
-PKs anteriores: `bigint GENERATED ALWAYS AS IDENTITY`; `monitoring_settings` (#250) usa `smallint` fixo 1 e admite zero linhas antes do primeiro PUT. Intervalo restrito a 15/30/60 s, `updated_at NOT NULL DEFAULT now()`, sem `updated_by`; a configuração é da tela, independente do worker. O Mermaid acima incorpora essa quinta tabela; o PNG anterior representa as quatro tabelas originais. Toda coleta pertence a um serviço, que pode ter zero coletas. FK `ON DELETE RESTRICT`; usuários e entradas independentes, sem FK artificial.
+PKs anteriores: `bigint GENERATED ALWAYS AS IDENTITY`; `monitoring_settings` (#250) usa `smallint` fixo 1 e admite zero linhas antes do primeiro PUT. Intervalo restrito a 15/30/60 s, `updated_at NOT NULL DEFAULT now()`, sem `updated_by`; a configuração é da tela, independente do worker. O Mermaid acima incorpora essa quinta tabela e, desde a #196, `invitations` e as colunas `name` e `role` de `users`; o PNG anterior representa as quatro tabelas originais. Toda coleta pertence a um serviço, que pode ter zero coletas; todo convite pertence ao administrador que o emitiu. FKs `ON DELETE RESTRICT`; entradas independentes de usuários, sem FK artificial.
 
 ### Tipos, nulabilidade e índices
 
@@ -96,9 +109,13 @@ PKs anteriores: `bigint GENERATED ALWAYS AS IDENTITY`; `monitoring_settings` (#2
 | `error_message`, `calculation_error_message` | `text` | Erro de métricas exige mensagem; cálculo indisponível exige mensagem própria. |
 | `users.email`, `password_hash` | `text` | Obrigatórios; email único sem diferenciar caixa; hash bcrypt. Regex não valida senha criptograficamente. |
 | `users.created_at`, `updated_at` | `timestamptz` | Obrigatórios, default now(). |
+| `users.name`, `role` | `text` | Obrigatórios; nome não vazio; papel `admin` ou `usuario`, padrão `usuario` (#196). |
+| `invitations.email`, `role`, `token_hash` | `text` | Obrigatórios; e-mail no formato de `users`; papel `admin` ou `usuario`; SHA-256 em 64 caracteres hex, único. |
+| `invitations.invited_by` | `bigint` | Obrigatório; FK RESTRICT para `users`. |
+| `invitations.expires_at`, `used_at`, `created_at` | `timestamptz` | Validade obrigatória e posterior à criação; `used_at` nulo até o cadastro e não anterior à criação. |
 | `access_entries.ip_address`, `entered_at` | `inet`, `timestamptz` | Obrigatórios; IP observado no backend e horário do servidor. |
 
-Quatro índices explícitos: lower(email), coletas por (service_id, collected_at DESC) e collected_at DESC, entradas por entered_at DESC. Mais seis índices automáticos: cinco PKs e UNIQUE de services.external_id. Total: dez índices. As consultas da aplicação ficam nos repositories do backend (`backend/src/modules/*/*.repository.ts`, #94); o histórico por serviço usa o índice `(service_id, collected_at DESC)`.
+Quatro índices explícitos: lower(email), coletas por (service_id, collected_at DESC) e collected_at DESC, entradas por entered_at DESC. Mais oito índices automáticos: seis PKs, UNIQUE de services.external_id e UNIQUE de invitations.token_hash (#196). Total: doze índices. As consultas da aplicação ficam nos repositories do backend (`backend/src/modules/*/*.repository.ts`, #94); o histórico por serviço usa o índice `(service_id, collected_at DESC)`.
 
 ### Estados e histórico
 

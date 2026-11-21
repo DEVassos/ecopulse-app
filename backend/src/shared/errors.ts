@@ -17,6 +17,20 @@ export class UnauthorizedError extends AppError {
   constructor(message = 'Credenciais inválidas.') { super('UNAUTHORIZED', 401, message); }
 }
 
+/** Sessão válida, mas o papel não permite a ação (ex.: conta `usuario` tentando convidar). */
+export class ForbiddenError extends AppError {
+  constructor(message = 'Só administradores podem fazer esta ação.') { super('FORBIDDEN', 403, message); }
+}
+
+export class ConflictError extends AppError {
+  constructor(message: string) { super('CONFLICT', 409, message); }
+}
+
+/** O recurso existiu, mas não pode mais ser usado (convite usado ou expirado). */
+export class GoneError extends AppError {
+  constructor(message: string) { super('GONE', 410, message); }
+}
+
 export class DatabaseError extends AppError {
   constructor() {
     super('DATABASE_ERROR', 500, 'Não foi possível acessar o banco de dados.');

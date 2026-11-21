@@ -42,7 +42,9 @@ services:
       METRICS_API_URL: ${METRICS_API_URL:-https://metrics.unilaunch.org}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET precisa estar definido no .env}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
-      # Origem do dashboard aberta no navegador (porta do frontend abaixo)
+      # Validade do link de convite de cadastro, em horas (#196)
+      INVITATION_TTL_HOURS: ${INVITATION_TTL_HOURS:-72}
+      # Origem do dashboard (a primeira também monta o link /cadastro?convite= dos convites) aberta no navegador (porta do frontend abaixo)
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
     depends_on:
       postgres:
