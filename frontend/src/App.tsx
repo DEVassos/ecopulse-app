@@ -6,6 +6,7 @@ import DashboardPage from './pages/DashboardPage';
 import EmissionsPage from './pages/EmissionsPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import ReportPage from './pages/ReportPage';
 import SettingsPage from './pages/SettingsPage';
 import AuthProvider from './providers/AuthProvider';
 import MonitoringProvider from './providers/MonitoringProvider';
@@ -24,6 +25,7 @@ export default function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/emissoes" element={<EmissionsPage />} />
             <Route path="/comparacao" element={<ComparePage />} />
+            <Route path="/relatorio" element={<ReportPage />} />
           </Route>
           {/* Configuração exige sessão até no modo demonstração, em que não há backend para entrar */}
           <Route element={<ProtectedRoute allowDemo={false} />}>

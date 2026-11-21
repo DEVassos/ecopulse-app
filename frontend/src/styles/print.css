@@ -2,7 +2,7 @@
  * Relatório do período impresso / em PDF (#13, US13 #54): a página Emissões vira um relatório A4. O tema claro na
  * impressão vem do usePrintReport (troca o data-theme), então aqui só entram layout e o que some no papel.
  * Este arquivo entra no CSS do app inteiro: cada regra de impressão começa por .has-print-report, a classe que o
- * usePrintReport põe no <html> só enquanto a página Emissões está aberta, e a folha A4 com rodapé é uma página nomeada
+ * usePrintReport põe no <html> só enquanto Emissões ou o Relatório (#403) está aberto, e a folha A4 com rodapé é uma página nomeada
  * (relatorio). Nas outras páginas, o Ctrl+P continua como antes. Fora da impressão, só o .print-only (cabeçalho e
  * tabela do relatório) fica escondido.
  */
@@ -58,8 +58,15 @@
     .has-print-report .emissions__header,
     .has-print-report .last-updated,
     .has-print-report .page-footer,
-    .has-print-report .tooltip {
+    .has-print-report .tooltip,
+    .has-print-report .report__filters,
+    .has-print-report .report__no-print {
       display: none !important;
+    }
+
+    /* Relatório do período (#403): nenhum achado partido entre duas páginas */
+    .has-print-report .insight {
+      break-inside: avoid;
     }
 
     .has-print-report .emissions__card {

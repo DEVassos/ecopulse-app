@@ -77,6 +77,16 @@ const PAGES: Array<{ to: string; label: string; end?: boolean; icon: ReactNode }
     ),
   },
   {
+    to: '/relatorio',
+    label: 'Relatório',
+    icon: (
+      <svg {...iconProps}>
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" />
+        <path d="M14 3v5h5M9 13h6M9 17h4" />
+      </svg>
+    ),
+  },
+  {
     to: '/configuracao',
     label: 'Configuração',
     icon: (
