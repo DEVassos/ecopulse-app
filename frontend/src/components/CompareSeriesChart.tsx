@@ -1,6 +1,7 @@
 import { useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent } from 'react';
 import type { CompareHighlight } from './CompareChart';
+import { compareSeriesLabel } from '../utils/compare-series';
 import type { CompareBucket, CompareSeries } from '../utils/compare-series';
 import { BUCKET_LABEL, BUCKET_MS, formatPointTime, formatShort, formatTimeTick, niceTicks, timeTicks } from '../utils/emissions';
 import { CHAR_WIDTH, freeBaseline, labelBox } from '../utils/chart-labels';
@@ -45,10 +46,6 @@ function nearestIndex(times: number[], t: number): number {
   }
   if (lo > 0 && t - times[lo - 1] < times[lo] - t) return lo - 1;
   return lo;
-}
-
-function truncate(name: string, maxChars: number): string {
-  return name.length <= maxChars ? name : `${name.slice(0, Math.max(maxChars - 1, 1))}…`;
 }
 
 interface Props {
@@ -156,11 +153,7 @@ export default function CompareSeriesChart({ series, bucket, fromMs, toMs, highl
       const px = at(series.times[last]);
       const py = y(value);
       // Nome na ponta da linha, sempre dentro do plot: à direita do último ponto ou, sem espaço, à esquerda dele
-      const room = MARGIN.left + plotW - (px + LABEL_GAP);
-      const right = room >= 60;
-      const anchor: 'start' | 'end' = right ? 'start' : 'end';
-      const anchorX = right ? px + LABEL_GAP : px - LABEL_GAP;
-      const text = truncate(row.name, Math.max(Math.floor(Math.min(room, 120) / CHAR_WIDTH.sans11), 3));
+      const { anchor, anchorX, text } = compareSeriesLabel(row.name, px, MARGIN.left, MARGIN.left + plotW, LABEL_GAP);
       const baselines = [py - 4, py - 18, py + 14, py - 32, py + 28, py - 46, py + 42, py - 60, py + 56];
       const baseline = freeBaseline(
         baselines.filter((candidate) => candidate >= top + 11 && candidate <= bottom - 2),

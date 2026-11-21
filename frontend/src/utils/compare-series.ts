@@ -1,6 +1,7 @@
 // Alinhamento das séries de CO₂e de vários serviços (#406): uma linha por serviço no mesmo eixo do tempo, a partir
 // das séries que a API já devolve por serviço (GET /api/collections/series, #189). Nada de rota nova no backend.
 
+import { CHAR_WIDTH } from './chart-labels';
 import type { EmissionPoint, EmissionsBucket } from '../services/emissions.types';
 
 /** Agrupamento da comparação: o período de até 31 dias em 15 min daria milhares de pontos por serviço. */
@@ -79,4 +80,17 @@ export function alignCompareSeries(inputs: CompareSeriesInput[]): CompareSeries 
   });
 
   return { times, rows, max };
+}
+
+/** Posiciona o rótulo no lado disponível da ponta da série. */
+export function compareSeriesLabel(name: string, x: number, left: number, right: number, gap: number) {
+  const roomRight = right - x - gap;
+  const roomLeft = x - gap - left;
+  const placeRight = roomRight >= 60 || roomRight >= roomLeft;
+  const room = placeRight ? roomRight : roomLeft;
+  const maxChars = Math.max(1, Math.floor(Math.min(room, 120) / CHAR_WIDTH.sans11));
+  const text = name.length <= maxChars ? name : `${name.slice(0, maxChars - 1)}…`;
+  const anchor: 'start' | 'end' = placeRight ? 'start' : 'end';
+
+  return { text, anchor, anchorX: placeRight ? x + gap : x - gap };
 }

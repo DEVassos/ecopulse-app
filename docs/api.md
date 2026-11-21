@@ -132,7 +132,7 @@ Cada região sempre traz coordenadas, intensidade de carbono e percentual renov�
 
 ## GET /api/services/summary
 
-Indicadores agregados do dashboard (RF08, #175). Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`.
+Indicadores agregados do dashboard (RF08, #234). Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`.
 
 `GET /api/services/summary?from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z`
 
@@ -145,20 +145,24 @@ Regras:
 
 - Sem `from` e `to`, o período são as **últimas 24 h** até o instante da requisição. Enviar só um dos dois devolve 400.
 - O período é fechado no início e aberto no fim: entra a coleta de `from` e fica de fora a de `to`, como em `GET /api/collections/series` e `GET /api/services/compare`.
+- `from` e `to` no topo da resposta ecoam o período resolvido em UTC. `previous` sempre contém o intervalo imediatamente anterior, com a mesma duração.
+- `collections` conta todas as coletas no intervalo; `failed` conta `status <> 'ok'`; `notCalculated` conta `calculation_status <> 'disponivel'`. As duas últimas contagens podem se sobrepor.
 - `energyKwh` e `co2eGrams` somam **só as coletas com cálculo disponível** no período. Sem nenhuma, vêm `null` ("não calculado"), nunca `0`; `0` é um total calculado igual a zero.
-- `services` é o **estado atual** de cada serviço, contado uma vez por serviço, e **não depende do período**.
-- O dashboard chama a rota duas vezes por ciclo: as últimas 24 h e as 24 h anteriores a elas, para a variação percentual.
+- `carbonIntensityGco2ePerKwh` é `co2eGrams ÷ energyKwh`; vem `null` sem energia calculada ou quando a energia é zero.
+- `servicesByStatus` conta o estado **atual** dos serviços e não depende do período. Os quatro estados sempre aparecem; `total` soma `ativo`, `indisponivel` e `sem_metricas`, sem os removidos.
+- `previous.totals` usa as mesmas regras do período atual. A variação percentual é calculada pelo frontend.
+- O dashboard consulta esta rota uma vez por ciclo para obter os totais atuais e anteriores.
 
 Resposta 200:
 
 ```json
-{"period":{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z"},"energyKwh":0.0124,"co2eGrams":1.05,"services":{"active":3,"unavailable":0,"withoutMetrics":0,"removed":1}}
+{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z","totals":{"collections":23040,"failed":90,"notCalculated":90,"energyKwh":11.016,"co2eGrams":936.36,"carbonIntensityGco2ePerKwh":85},"previous":{"from":"2026-10-19T00:00:00.000Z","to":"2026-10-20T00:00:00.000Z","totals":{"collections":22980,"failed":12,"notCalculated":12,"energyKwh":10.512,"co2eGrams":893.52,"carbonIntensityGco2ePerKwh":85}},"servicesByStatus":{"ativo":6,"indisponivel":1,"sem_metricas":1,"removido":2,"total":8}}
 ```
 
 Sem coleta calculada no período:
 
 ```json
-{"period":{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z"},"energyKwh":null,"co2eGrams":null,"services":{"active":3,"unavailable":0,"withoutMetrics":0,"removed":1}}
+{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z","totals":{"collections":0,"failed":0,"notCalculated":0,"energyKwh":null,"co2eGrams":null,"carbonIntensityGco2ePerKwh":null},"previous":{"from":"2026-10-19T00:00:00.000Z","to":"2026-10-20T00:00:00.000Z","totals":{"collections":0,"failed":0,"notCalculated":0,"energyKwh":null,"co2eGrams":null,"carbonIntensityGco2ePerKwh":null}},"servicesByStatus":{"ativo":3,"indisponivel":0,"sem_metricas":0,"removido":1,"total":3}}
 ```
 
 Erros:
@@ -166,13 +170,14 @@ Erros:
 | HTTP | Código | Situação |
 |---|---|---|
 | 400 | VALIDATION_ERROR | só `from` ou só `to`; data sem hora, inexistente (30/02) ou texto; `from` igual ou posterior a `to`; período acima de 31 dias |
+| 401 | UNAUTHORIZED | JWT ausente, inválido ou expirado |
 | 500 | DATABASE_ERROR | falha de conexão ou de consulta no PostgreSQL |
 
 ```json
 {"error":{"code":"VALIDATION_ERROR","message":"from deve ser anterior a to."}}
 ```
 
-O formato desta rota (`period{}` e `services{}`) é diferente do de `GET /api/collections/series` e `GET /api/services/compare` (`from`/`to` no topo, contagens `collections`/`failed`/`notCalculated`). O alinhamento ao contrato combinado na #175 ficou para a Sprint 3.
+Erros usam o envelope global `{"error":{"code":"VALIDATION_ERROR","message":"from deve ser anterior a to."}}`. O `previous` é sempre incluído, mesmo quando não há coleta calculada no período anterior.
 
 ## GET /api/collections
 
@@ -254,10 +259,12 @@ Compara de 2 a 10 serviços no mesmo período. Requer autenticação; sem token 
 - `ids`: ids inteiros positivos, distintos e separados por vírgula;
 - `from` e `to`: instantes ISO 8601 obrigatórios, com intervalo `[from, to)` de até 31 dias.
 
-Resposta 200 ecoa `from` e `to` e traz, por serviço, contagens de coletas, falhas e coletas sem cálculo, médias de CPU/memória/disco/rede ponderadas por `collection_interval_seconds`, a decomposição `avgPowerBreakdown` dessas médias e somas de energia e CO₂e. As médias usam as coletas com `status = 'ok'`; `avgPowerBreakdown` é `null` quando não há as quatro médias. Um serviço sem coleta permanece na resposta com `collections: 0` e métricas agregadas `null`; um id inexistente devolve 404. Entrada inválida devolve 400 `VALIDATION_ERROR`.
+Resposta 200 ecoa `from` e `to` e traz, por serviço, contagens de coletas, falhas e coletas sem cálculo, médias de CPU/memória/disco/rede ponderadas por `collection_interval_seconds`, a decomposição `avgPowerBreakdown` dessas médias, somas de energia e CO₂e e o tempo monitorado (`monitoredSeconds`, #329). As médias usam as coletas com `status = 'ok'`; `avgPowerBreakdown` é `null` quando não há as quatro médias. Um serviço sem coleta permanece na resposta com `collections: 0` e métricas agregadas `null`; um id inexistente devolve 404. Entrada inválida devolve 400 `VALIDATION_ERROR`.
+
+`monitoredSeconds` (#329) é a soma dos `collection_interval_seconds` das **mesmas coletas** que entram em `energyKwh` e `co2eGrams` (`calculation_status = 'disponivel'`): inteiro ≥ 0, ou `null` quando nenhuma coleta do período foi calculada. Com ele e `energyKwh` sai a potência média do período em W, `energyKwh × 3 600 000 ÷ monitoredSeconds` — a eficiência energética e de carbono descrita em [calculos.md](calculos.md#eficiência-energética-e-de-carbono). Essa média **não** é `AVG(power_watts)` (conjunto diferente de coletas, só `status = 'ok'`) nem a carga de trabalho do serviço.
 
 ```json
-{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z","services":[{"id":"1","name":"Demo","region":"Sul","collections":12,"failed":0,"notCalculated":0,"avgCpuPercent":42.5,"avgMemoryGb":2.1,"avgDiskGb":10,"avgNetworkGb":0.3,"avgPowerBreakdown":{"cpuW":42.5,"memoryW":0.7875,"diskW":0.1,"networkW":0.006},"energyKwh":0.01,"co2eGrams":0.85}]}
+{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z","services":[{"id":"1","name":"Demo","region":"Sul","collections":12,"failed":0,"notCalculated":0,"avgCpuPercent":42.5,"avgMemoryGb":2.1,"avgDiskGb":10,"avgNetworkGb":0.3,"avgPowerBreakdown":{"cpuW":42.5,"memoryW":0.7875,"diskW":0.1,"networkW":0.006},"energyKwh":0.01,"co2eGrams":0.85,"monitoredSeconds":43200}]}
 ```
 
 ## GET /api/services/ranking
@@ -274,7 +281,7 @@ Ordena os serviços pelo consumo de energia ou pelas emissões de CO₂e no per�
 
 Sem limites, usa as últimas 24 horas até o instante da consulta. A resposta ecoa o período em UTC. Inclui os serviços atuais; um serviço removido só aparece se tiver ao menos uma coleta no período, e seu estado atual é mantido.
 
-As duas somas são sempre devolvidas. Entram apenas coletas com `calculation_status = 'disponivel'`; `null` significa que não houve cálculo disponível, enquanto zero é um total calculado. `collections` conta todas as coletas no período, `failed` conta status diferente de `ok` e `notCalculated` conta cálculo diferente de `disponivel` (essas duas contagens podem se sobrepor, conforme `/api/services/compare`).
+As duas somas são sempre devolvidas, junto do tempo monitorado `monitoredSeconds` (#329): a soma dos `collection_interval_seconds` das mesmas coletas com `calculation_status = 'disponivel'`, inteiro ≥ 0 ou `null` quando nenhuma foi calculada. `energyKwh × 3 600 000 ÷ monitoredSeconds` é a potência média do período em W ([calculos.md](calculos.md#eficiência-energética-e-de-carbono)), usada na coluna "Potência média (W)" da lista de serviços. Entram apenas coletas com `calculation_status = 'disponivel'`; `null` significa que não houve cálculo disponível, enquanto zero é um total calculado. `collections` conta todas as coletas no período, `failed` conta status diferente de `ok` e `notCalculated` conta cálculo diferente de `disponivel` (essas duas contagens podem se sobrepor, conforme `/api/services/compare`).
 
 A ordenação usa a métrica escolhida em ordem decrescente, com desempate por `name` crescente e depois `id` crescente. Valores `null` ficam ao final com `position: null`; os demais recebem posições sequenciais. IDs são strings para preservar `bigint`.
 
@@ -284,8 +291,8 @@ A ordenação usa a métrica escolhida em ordem decrescente, com desempate por `
   "from": "2026-11-02T03:00:00.000Z",
   "to": "2026-11-03T03:00:00.000Z",
   "services": [
-    { "position": 1, "id": "3", "name": "Fraud Detector", "region": "us-east", "status": "ativo", "energyKwh": 1.712, "co2eGrams": 645.4, "collections": 2880, "failed": 0, "notCalculated": 0 },
-    { "position": null, "id": "7", "name": "Inventory Sync", "region": "ca-central", "status": "sem_metricas", "energyKwh": null, "co2eGrams": null, "collections": 2880, "failed": 0, "notCalculated": 2880 }
+    { "position": 1, "id": "3", "name": "Fraud Detector", "region": "us-east", "status": "ativo", "energyKwh": 1.712, "co2eGrams": 645.4, "monitoredSeconds": 172800, "collections": 2880, "failed": 0, "notCalculated": 0 },
+    { "position": null, "id": "7", "name": "Inventory Sync", "region": "ca-central", "status": "sem_metricas", "energyKwh": null, "co2eGrams": null, "monitoredSeconds": null, "collections": 2880, "failed": 0, "notCalculated": 2880 }
   ]
 }
 ```

@@ -8,11 +8,11 @@ import { factorMissing, intervalText, resourcesText } from '../utils/service-rea
 import { formatQuantity } from '../utils/units';
 import { statusReasonText } from '../utils/status';
 import CollectionsHistoryTable from './CollectionsHistoryTable';
-import CpuHistoryChart from './CpuHistoryChart';
 import EmptyState from './EmptyState';
 import ErrorState from './ErrorState';
 import LastUpdated from './LastUpdated';
 import LoadingState from './LoadingState';
+import MetricHistoryChart from './MetricHistoryChart';
 import MissingValue from './MissingValue';
 import StatusBadge from './StatusBadge';
 import './ServiceDetailsDialog.css';
@@ -158,7 +158,7 @@ export default function ServiceDetailsDialog({ service, onClose }: Props) {
 
           {data && data.collections.length > 0 && (
             <>
-              <CpuHistoryChart collections={data.collections} />
+              <MetricHistoryChart collections={data.collections} />
               <CollectionsHistoryTable collections={data.collections} />
             </>
           )}

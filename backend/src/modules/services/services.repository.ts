@@ -22,7 +22,14 @@ export interface ServiceWithLastReading {
   power_watts: string | null;
   carbon_intensity_gco2e_per_kwh: string | null;
 }
-export interface ServicesSummaryRow { energy_kwh: string | null; co2e_grams: string | null; active: string; unavailable: string; without_metrics: string; removed: string }
+export interface ServiceSummaryTotalsRow {
+  collections: string;
+  failed: string;
+  not_calculated: string;
+  energy_kwh: string | null;
+  co2e_grams: string | null;
+}
+export interface ServicesByStatusRow { status: ServiceStatus; count: string }
 
 export interface ServiceComparisonRow {
   id: DatabaseId; name: string; region: string | null;
@@ -30,6 +37,8 @@ export interface ServiceComparisonRow {
   /** Médias ponderadas pelo intervalo de coleta (#327): Σ(recurso × Δt) ÷ ΣΔt, não `AVG(recurso)`. */
   avg_cpu_percent: string | null; avg_memory_gb: string | null; avg_disk_gb: string | null; avg_network_gb: string | null;
   energy_kwh: string | null; co2e_grams: string | null;
+  /** Σ do intervalo, em segundos, das coletas com cálculo — o denominador da potência média (#329). */
+  monitored_seconds: string | null;
 }
 
 export type ServiceRankingMetric = 'energy' | 'co2e';
@@ -37,6 +46,7 @@ export interface ServiceRankingRow {
   id: DatabaseId; name: string; region: string | null; status: ServiceStatus;
   collections: string; failed: string; not_calculated: string;
   energy_kwh: string | null; co2e_grams: string | null;
+  monitored_seconds: string | null;
 }
 
 export interface MonitoredServicesByRegionRow { region_code: string; monitored_services: string }
@@ -66,18 +76,23 @@ export class ServiceRepository {
       ) AS latest ON true
       ORDER BY s.name ASC, s.id ASC`)).rows;
   }
-  async findSummary(from: Date, to: Date): Promise<ServicesSummaryRow> {
-    const result = await this.db.query<ServicesSummaryRow>(`
+  async findSummaryTotals(from: Date, to: Date): Promise<ServiceSummaryTotalsRow> {
+    const result = await this.db.query<ServiceSummaryTotalsRow>(`
       SELECT
+        COUNT(c.id)::text AS collections,
+        COUNT(c.id) FILTER (WHERE c.status <> 'ok')::text AS failed,
+        COUNT(c.id) FILTER (WHERE c.calculation_status <> 'disponivel')::text AS not_calculated,
         (SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel'))::text AS energy_kwh,
-        (SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel'))::text AS co2e_grams,
-        COUNT(DISTINCT s.id) FILTER (WHERE s.status = 'ativo')::text AS active,
-        COUNT(DISTINCT s.id) FILTER (WHERE s.status = 'indisponivel')::text AS unavailable,
-        COUNT(DISTINCT s.id) FILTER (WHERE s.status = 'sem_metricas')::text AS without_metrics,
-        COUNT(DISTINCT s.id) FILTER (WHERE s.status = 'removido')::text AS removed
-      FROM services AS s
-      LEFT JOIN collections AS c ON c.service_id = s.id AND c.collected_at >= $1 AND c.collected_at < $2`, [from, to]);
-    return result.rows[0] ?? { energy_kwh: null, co2e_grams: null, active: '0', unavailable: '0', without_metrics: '0', removed: '0' };
+        (SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel'))::text AS co2e_grams
+      FROM collections AS c
+      WHERE c.collected_at >= $1 AND c.collected_at < $2`, [from, to]);
+    return result.rows[0];
+  }
+  async countServicesByStatus(): Promise<ServicesByStatusRow[]> {
+    return (await this.db.query<ServicesByStatusRow>(`
+      SELECT status, COUNT(*)::text AS count
+      FROM services
+      GROUP BY status`)).rows;
   }
 
   async compareByIds(ids: DatabaseId[], from: Date, to: Date): Promise<ServiceComparisonRow[]> {
@@ -96,7 +111,9 @@ export class ServiceRepository {
         SUM(c.network_gb * c.collection_interval_seconds) FILTER (WHERE c.status = 'ok')
           / SUM(c.collection_interval_seconds) FILTER (WHERE c.status = 'ok') AS avg_network_gb,
         SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel') AS energy_kwh,
-        SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel') AS co2e_grams
+        SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel') AS co2e_grams,
+        -- Mesmo conjunto de coletas de energy_kwh: o tempo só entra quando a energia entrou (#329, docs/calculos.md).
+        SUM(c.collection_interval_seconds) FILTER (WHERE c.calculation_status = 'disponivel')::text AS monitored_seconds
       FROM services AS s
       LEFT JOIN collections AS c ON c.service_id = s.id AND c.collected_at >= $2 AND c.collected_at < $3
       WHERE s.id = ANY($1::bigint[])
@@ -110,7 +127,8 @@ export class ServiceRepository {
         COUNT(c.id) FILTER (WHERE c.status <> 'ok')::text AS failed,
         COUNT(c.id) FILTER (WHERE c.calculation_status <> 'disponivel')::text AS not_calculated,
         SUM(c.energy_kwh) FILTER (WHERE c.calculation_status = 'disponivel') AS energy_kwh,
-        SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel') AS co2e_grams
+        SUM(c.co2e_grams) FILTER (WHERE c.calculation_status = 'disponivel') AS co2e_grams,
+        SUM(c.collection_interval_seconds) FILTER (WHERE c.calculation_status = 'disponivel')::text AS monitored_seconds
       FROM services AS s
       LEFT JOIN collections AS c ON c.service_id = s.id AND c.collected_at >= $1 AND c.collected_at < $2
       WHERE s.status <> 'removido' OR c.id IS NOT NULL

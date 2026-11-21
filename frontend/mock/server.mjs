@@ -219,6 +219,15 @@ function sumOrNull(items, field) {
   return values.length === 0 ? null : values.reduce((total, value) => total + value, 0);
 }
 
+/**
+ * Segundos monitorados das coletas calculadas — a base da potência média, como o `FILTER (WHERE calculation_status =
+ * 'disponivel')` da rota real (#329). `null` quando nenhuma coleta do período foi calculada.
+ */
+function monitoredSecondsOf(items) {
+  const seconds = items.filter((item) => item.calculationStatus === 'disponivel').map((item) => item.collectionIntervalSeconds);
+  return seconds.length === 0 ? null : seconds.reduce((total, value) => total + value, 0);
+}
+
 /** Média do campo entre os itens que têm valor, ou null quando nenhum tem. */
 function averageOrNull(items, field) {
   const total = sumOrNull(items, field);
@@ -461,16 +470,34 @@ const routes = {
       return validationError(res, 'Informe from e to com data e hora (ISO 8601), from antes de to e até 31 dias.');
     }
     const services = listedServices();
-    const collections = services.flatMap((service) => collectionsBetween(service, from, to));
-    const count = (status) => services.filter((service) => service.status === status).length;
-    const summary = {
-      period: { from: new Date(from).toISOString(), to: new Date(to).toISOString() },
-      // Só as coletas calculadas têm energia e CO₂e; as outras vêm null e ficam fora da soma
-      energyKwh: sumOrNull(collections, 'energyKwh'),
-      co2eGrams: sumOrNull(collections, 'co2eGrams'),
-      services: { active: count('ativo'), unavailable: count('indisponivel'), withoutMetrics: count('sem_metricas'), removed: count('removido') },
+    // Mesmas regras de docs/api.md § GET /api/services/summary: energia e CO₂e só das coletas calculadas, null sem nenhuma
+    const totalsBetween = (start, end) => {
+      const items = services.flatMap((service) => collectionsBetween(service, start, end));
+      const energyKwh = sumOrNull(items, 'energyKwh');
+      const co2eGrams = sumOrNull(items, 'co2eGrams');
+      return {
+        collections: items.length,
+        failed: items.filter((item) => item.status !== 'ok').length,
+        notCalculated: items.filter((item) => item.calculationStatus !== 'disponivel').length,
+        energyKwh,
+        co2eGrams,
+        carbonIntensityGco2ePerKwh: energyKwh === null || energyKwh === 0 || co2eGrams === null ? null : co2eGrams / energyKwh,
+      };
     };
-    if (SERVICES_SCENARIO === 'resumo-texto') summary.energyKwh = String(summary.energyKwh);
+    const previousFrom = from - (to - from);
+    const count = (status) => services.filter((service) => service.status === status).length;
+    const ativo = count('ativo');
+    const indisponivel = count('indisponivel');
+    const sem_metricas = count('sem_metricas');
+    const removido = count('removido');
+    const summary = {
+      from: new Date(from).toISOString(),
+      to: new Date(to).toISOString(),
+      totals: totalsBetween(from, to),
+      previous: { from: new Date(previousFrom).toISOString(), to: new Date(from).toISOString(), totals: totalsBetween(previousFrom, from) },
+      servicesByStatus: { ativo, indisponivel, sem_metricas, removido, total: ativo + indisponivel + sem_metricas },
+    };
+    if (SERVICES_SCENARIO === 'resumo-texto') summary.totals.energyKwh = String(summary.totals.energyKwh);
     return send(res, 200, summary);
   },
 
@@ -521,7 +548,8 @@ const routes = {
           co2eGrams,
           collections: items.length,
           failed: items.filter((item) => item.status !== 'ok').length,
-          notCalculated: items.filter((item) => item.status === 'ok' && item.co2eGrams === null).length,
+          notCalculated: items.filter((item) => item.calculationStatus !== 'disponivel').length,
+          monitoredSeconds: monitoredSecondsOf(items),
         };
         // MOCK_SERVICES=ranking-texto: o 1º lugar vem com o CO₂e em texto, para ver a tela recusar a resposta
         if (SERVICES_SCENARIO === 'ranking-texto' && entry.position === 1) entry.co2eGrams = String(entry.co2eGrams);
@@ -554,7 +582,8 @@ const routes = {
           region: service.region,
           collections: items.length,
           failed: items.filter((item) => item.status !== 'ok').length,
-          notCalculated: items.filter((item) => item.status === 'ok' && item.co2eGrams === null).length,
+          notCalculated: items.filter((item) => item.calculationStatus !== 'disponivel').length,
+          monitoredSeconds: monitoredSecondsOf(items),
           avgCpuPercent: averageOrNull(items, 'cpuPercent'),
           avgMemoryGb: averageOrNull(items, 'memoryGb'),
           avgDiskGb: averageOrNull(items, 'diskGb'),

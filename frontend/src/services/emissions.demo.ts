@@ -5,6 +5,7 @@
 import type { PowerBreakdown, ServicesComparison } from './compare.types';
 import { demoServices } from './demo-data';
 import type { EmissionPoint, EmissionsQuery, EmissionsSeries } from './emissions.types';
+import type { ServiceSummaryTotals, ServicesSummaryResponse } from './services.types';
 import { groupPoints, totalsOf } from '../utils/emissions';
 
 /** Intervalo entre coletas do worker (POLLING_INTERVAL_MS do .env.example). */
@@ -54,6 +55,8 @@ function emptyPoint(t: number, failed: boolean): EmissionPoint {
     t,
     collections: 1,
     failed: failed ? 1 : 0,
+    // Regra da série (GET /api/collections/series): `notCalculated` só conta coleta com status "ok", então as duas
+    // contagens não se sobrepõem aqui. Quem soma as duas é o resumo, que segue a rota dele (ver summaryTotalsOf).
     notCalculated: failed ? 0 : 1,
     energyKwh: null,
     co2eGrams: null,
@@ -122,7 +125,10 @@ export function demoEmissions(query: EmissionsQuery): Promise<EmissionsSeries> {
 export function demoComparison(ids: string[], from: string, to: string): Promise<ServicesComparison> {
   const known = new Map(demoServices().services.map((service) => [service.id, service]));
   const services = ids.map((id) => {
-    const totals = totalsOf(demoCollections(id, Date.parse(from), Date.parse(to)), null);
+    const points = demoCollections(id, Date.parse(from), Date.parse(to));
+    const totals = totalsOf(points, null);
+    // Só as coletas com cálculo entram no tempo monitorado, como no backend (#329)
+    const calculated = points.filter((point) => point.energyKwh !== null).length;
     const profile = totals.collections > totals.failed ? PROFILES[id] : undefined;
     return {
       id,
@@ -130,7 +136,9 @@ export function demoComparison(ids: string[], from: string, to: string): Promise
       region: known.get(id)?.region ?? null,
       collections: totals.collections,
       failed: totals.failed,
-      notCalculated: totals.notCalculated,
+      // GET /api/services/compare conta cálculo diferente de 'disponivel', e a coleta com falha também não foi
+      // calculada: as contagens se sobrepõem, como no SQL da rota
+      notCalculated: totals.notCalculated + totals.failed,
       avgCpuPercent: profile?.cpu ?? null,
       avgMemoryGb: profile?.memoryGb ?? null,
       avgDiskGb: profile?.diskGb ?? null,
@@ -138,7 +146,56 @@ export function demoComparison(ids: string[], from: string, to: string): Promise
       avgPowerBreakdown: profile === undefined ? null : breakdownOf(profile),
       energyKwh: totals.energyKwh,
       co2eGrams: totals.co2eGrams,
+      monitoredSeconds: calculated === 0 ? null : (calculated * INTERVAL_MS) / 1000,
     };
   });
   return Promise.resolve({ from, to, services });
+}
+
+/** Totais de um período com as regras de GET /api/services/summary: energia e CO₂e só das coletas calculadas, null sem nenhuma. */
+function summaryTotalsOf(points: EmissionPoint[]): ServiceSummaryTotals {
+  const sum = (values: number[]) => values.reduce((total, value) => total + value, 0);
+  const energies = points.flatMap((point) => (point.energyKwh === null ? [] : [point.energyKwh]));
+  const emissions = points.flatMap((point) => (point.co2eGrams === null ? [] : [point.co2eGrams]));
+  const energyKwh = energies.length === 0 ? null : sum(energies);
+  const co2eGrams = emissions.length === 0 ? null : sum(emissions);
+  return {
+    collections: sum(points.map((point) => point.collections)),
+    failed: sum(points.map((point) => point.failed)),
+    // GET /api/services/summary conta cálculo diferente de 'disponivel', então a coleta com falha entra nas duas
+    // contagens; na série cada ponto conta só a dele, e a soma repõe a sobreposição
+    notCalculated: sum(points.map((point) => point.notCalculated + point.failed)),
+    energyKwh,
+    co2eGrams,
+    carbonIntensityGco2ePerKwh: energyKwh === null || energyKwh === 0 || co2eGrams === null ? null : co2eGrams / energyKwh,
+  };
+}
+
+/**
+ * Resumo ilustrativo do painel de indicadores (GET /api/services/summary): mesmo formato e mesmas regras da rota,
+ * com a série sintética da página Emissões e os estados do demo-data.
+ */
+export function demoSummary(from: string, to: string): Promise<ServicesSummaryResponse> {
+  const fromMs = Date.parse(from);
+  const toMs = Date.parse(to);
+  const previousFromMs = fromMs - (toMs - fromMs);
+  const services = demoServices().services;
+  const totalsBetween = (start: number, end: number) =>
+    summaryTotalsOf(services.flatMap((service) => demoCollections(service.id, start, end)));
+  const countOf = (status: string) => services.filter((service) => service.status === status).length;
+  const ativo = countOf('ativo');
+  const indisponivel = countOf('indisponivel');
+  const sem_metricas = countOf('sem_metricas');
+  const removido = countOf('removido');
+  return Promise.resolve({
+    from: new Date(fromMs).toISOString(),
+    to: new Date(toMs).toISOString(),
+    totals: totalsBetween(fromMs, toMs),
+    previous: {
+      from: new Date(previousFromMs).toISOString(),
+      to: new Date(fromMs).toISOString(),
+      totals: totalsBetween(previousFromMs, fromMs),
+    },
+    servicesByStatus: { ativo, indisponivel, sem_metricas, removido, total: ativo + indisponivel + sem_metricas },
+  });
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { EmissionPoint } from '../services/emissions.types';
-import { alignCompareSeries, compareBucket } from './compare-series';
+import { alignCompareSeries, compareBucket, compareSeriesLabel } from './compare-series';
 
 const MIN = 60_000;
 
@@ -66,5 +66,23 @@ describe('alignCompareSeries', () => {
 
   it('sem serviços, a linha do tempo fica vazia', () => {
     expect(alignCompareSeries([])).toEqual({ times: [], rows: [], max: 0 });
+  });
+});
+
+describe('compareSeriesLabel', () => {
+  it('usa o espaço à esquerda quando o último ponto toca a borda direita', () => {
+    expect(compareSeriesLabel('Billing API', 359, 64, 359, 6)).toEqual({
+      text: 'Billing API',
+      anchor: 'end',
+      anchorX: 353,
+    });
+  });
+
+  it('mantém o rótulo à direita quando há espaço desse lado', () => {
+    expect(compareSeriesLabel('Billing API', 80, 64, 359, 6)).toEqual({
+      text: 'Billing API',
+      anchor: 'start',
+      anchorX: 86,
+    });
   });
 });
