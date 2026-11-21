@@ -4,7 +4,7 @@ Contrato de dados do RF07, previsto para a Sprint 2 (#18) e adiantado na issue #
 
 ## Fonte e fórmula
 
-Fonte original: [documentação do desafio](contexto/greener-documentacao-do-desafio.pdf), pp. 5–7. Modelo simplificado padronizado, não medição elétrica direta. Constantes usadas no exemplo oficial: CPU_MAX_WATTS = 100 W; RAM_WATTS_PER_GB = 0,375 W/GB; DISK_WATTS_PER_GB = 0,01 W/GB; NETWORK_WATTS_PER_GB = 0,02 W/GB. Sem versionamento/configuração de coeficientes nesta tarefa.
+Fonte original: [documentação do desafio](contexto/greener-documentacao-do-desafio.pdf), pp. 5–7. Modelo simplificado padronizado, não medição elétrica direta. Constantes usadas no exemplo oficial: CPU_MAX_WATTS = 100 W; RAM_WATTS_PER_GB = 0,375 W/GB; DISK_WATTS_PER_GB = 0,01 W/GB; NETWORK_WATTS_PER_GB = 0,02 W/GB. Sem versionamento/configuração de coeficientes nesta tarefa. As mesmas constantes estão em `frontend/src/utils/model.ts` (aba **Fórmulas** da Ajuda, nota da potência na Comparação e modo demonstração, #404), cujo teste fixa o exemplo da seção seguinte: mudou um coeficiente aqui ou no backend, mude lá.
 
 ```text
 P (W) = (cpu_percent / 100) × 100
