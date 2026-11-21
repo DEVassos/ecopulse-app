@@ -330,10 +330,13 @@ export default function ServicesTable({
                   <button
                     type="button"
                     onClick={() => sortBy(column)}
+                    // O tooltip fica no próprio botão (#329): o TooltipLayer abre pelo focusin com closest('[data-tooltip]'),
+                    // que sobe a partir do elemento focado — num <span> interno, o teclado não o alcançaria
+                    data-tooltip={column.tooltip}
                     // 24 px de altura (#262): alvo mínimo de toque; o cabeçalho tira 4 px de cada lado para não crescer
                     className={`min-h-6 cursor-pointer border-0 bg-transparent p-0 font-sans text-xs font-medium hover:text-text ${sortKey === column.key ? 'text-text' : 'text-muted'}`}
                   >
-                    <span data-tooltip={column.tooltip}>
+                    <span>
                       {column.quantity ? `${column.label} (${scales[column.quantity].unit})` : column.label}
                     </span>
                     <span aria-hidden="true">{' '}{sortKey === column.key ? (direction === 1 ? '↑' : '↓') : '↕'}</span>

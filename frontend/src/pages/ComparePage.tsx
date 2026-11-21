@@ -160,7 +160,12 @@ function rowsFor(services: ComparedService[]): RowGroup[] {
             service.monitoredSeconds === null ? (
               <MissingValue label="sem coleta calculada" title="Nenhuma coleta do período foi calculada" />
             ) : (
-              <span title={`Soma dos intervalos das coletas calculadas: ${formatNumber(service.monitoredSeconds, 0)} s`}>
+              // Os segundos exatos no tooltip (#329): é a duração que entra na conta da potência média, e a linha
+              // mostra a duração arredondada, que não fecha a conta de cabeça
+              <span
+                data-tooltip="Soma dos intervalos das coletas calculadas no período: é o divisor da potência média"
+                data-tooltip-value={`${formatNumber(service.monitoredSeconds, 0)} s`}
+              >
                 {formatDurationSeconds(service.monitoredSeconds)}
               </span>
             ),

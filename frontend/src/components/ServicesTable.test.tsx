@@ -300,6 +300,9 @@ describe('ServicesTable', () => {
     // A unidade fica no cabeçalho da coluna (#329); a definição vai no tooltip dele, que o teclado alcança
     expect(html).toContain('Potência média (W)');
     expect(html).toContain('>Potência média (W)</span>');
+    // O tooltip tem de ser atributo do próprio <button> (#329): o TooltipLayer abre pelo focusin e procura o alvo com
+    // closest('[data-tooltip]') subindo a partir do elemento focado, então num <span> interno o teclado não o alcança
+    expect(html).toMatch(/<button[^>]*data-tooltip="Potência média das 24 h[^>]*>/);
     // 0,48 kWh em 86 400 s = 20 W (exemplo de docs/calculos.md), e não a média de power_watts da última leitura
     expect(html).toContain('data-tooltip-value="20,0 W">20,0<');
     expect(html).toContain('data-tooltip-value="10,0 W">10,0<');
