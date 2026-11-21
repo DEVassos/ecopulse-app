@@ -167,6 +167,25 @@
 
   /* Por coleta (ou intervalo) / Acumulado: botões colados, o escolhido em destaque */
   /* Forma de exibir o gráfico, no card e à direita, logo acima dele (#267) */
+  /* Exportação do período (#24): botões à direita, com o progresso e o aviso ao lado */
+  .emissions__export {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .emissions__export-progress,
+  .emissions__export-error {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .emissions__export-error {
+    color: var(--danger);
+  }
+
   .emissions__chart-bar {
     display: flex;
     flex-wrap: wrap;
