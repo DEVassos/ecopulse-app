@@ -6,7 +6,11 @@ Contrato do backend. A execução integrada usa os containers backend e PostgreS
 
 O dashboard roda em outra origem (`http://localhost:5173`) e chama a API pelo navegador. O backend envia `Access-Control-Allow-Origin` só para as origens de `CORS_ORIGIN` (padrão `http://localhost:5173`, lista separada por vírgula) e responde o preflight `OPTIONS` com `204`, liberando `Content-Type` e `Authorization`. Outra origem não recebe o cabeçalho, e o navegador bloqueia a resposta. Chamadas sem navegador (`curl`) não são afetadas.
 
-As rotas de dados abaixo exigem `Authorization: Bearer <JWT>` obtido em `POST /api/auth/login`. Token ausente, inválido ou expirado devolve `401 UNAUTHORIZED`. Permanecem públicas `GET /health`, `POST /api/auth/login` e `GET /api/monitoring-settings` (o `PUT` exige JWT).
+As rotas de dados abaixo exigem `Authorization: Bearer <JWT>` obtido em `POST /api/auth/login`. Token ausente, inválido ou expirado devolve `401 UNAUTHORIZED`. Permanecem públicas `GET /health`, `POST /api/auth/login`, `GET /api/monitoring-settings` (o `PUT` exige JWT), `GET /api/invitations/:token` e `POST /api/auth/register` (estas duas exigem um convite válido).
+
+### Papéis (#196)
+
+Cada conta tem o papel `admin` ou `usuario`, que vai no JWT emitido pelo login. As duas leem todas as rotas de dados. Só `admin` altera o que é compartilhado: `PUT /api/monitoring-settings` e `POST /api/invitations` devolvem `403 FORBIDDEN` para `usuario`. Token emitido antes da #196, sem papel, é recusado com `401` e a pessoa entra de novo.
 
 ## GET /api/services
 
@@ -87,7 +91,7 @@ Sem registro, esse é o padrão e nenhuma linha é inserida. Tabela ausente ou b
 
 ## PUT /api/monitoring-settings
 
-Exige `Authorization: Bearer <JWT>` do login existente. Corpo JSON:
+Exige `Authorization: Bearer <JWT>` de uma conta `admin` (#196). Corpo JSON:
 
 ```json
 {"refreshIntervalSeconds":60}
@@ -103,6 +107,7 @@ Somente números inteiros 15, 30 ou 60 são aceitos. Campo ausente, string, bool
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | Corpo ou intervalo inválido |
 | 401 | `UNAUTHORIZED` | PUT sem JWT, inválido ou expirado |
+| 403 | `FORBIDDEN` | conta com papel `usuario` |
 | 500 | `DATABASE_ERROR` | Falha no banco, inclusive migração não aplicada |
 
 Erros seguem `{"error":{"code":"VALIDATION_ERROR","message":"refreshIntervalSeconds deve ser 15, 30 ou 60."}}`; respostas não expõem SQL ou stack. Aplicação em volumes existentes: [migração do banco](../database/README.md#configuração-de-monitoramento-250).
@@ -321,25 +326,83 @@ Erros seguem o envelope global `{"error":{"code":"VALIDATION_ERROR","message":"f
 
 ## POST /api/auth/login
 
-Autentica o administrador sem expor senha ou hash. Use as credenciais `ADMIN_EMAIL` e `ADMIN_PASSWORD` definidas no `.env`; o `.env.example` contém apenas valores de desenvolvimento. Corpo JSON obrigatório:
+Autentica uma conta sem expor senha ou hash. O administrador inicial usa as credenciais `ADMIN_EMAIL` e `ADMIN_PASSWORD` definidas no `.env`; o `.env.example` contém apenas valores de desenvolvimento. Contas criadas por convite entram com o e-mail do convite e a senha escolhida no cadastro. Corpo JSON obrigatório:
 
 ```json
 {"email":"admin@ecopulse.local","password":"admin1234"}
 ```
 
-Com credenciais válidas, devolve `200`; e-mail inexistente e senha incorreta devolvem o mesmo `401 UNAUTHORIZED`; corpo sem `email` ou `password` devolve `400 VALIDATION_ERROR`. O token é assinado com HS256 usando `JWT_SECRET` e expira conforme `JWT_EXPIRES_IN`.
+Com credenciais válidas, devolve `200`; e-mail inexistente e senha incorreta devolvem o mesmo `401 UNAUTHORIZED`; corpo sem `email` ou `password` devolve `400 VALIDATION_ERROR`. O token é assinado com HS256 usando `JWT_SECRET`, leva o e-mail e o papel (`role`) e expira conforme `JWT_EXPIRES_IN`. A resposta traz também a conta, sem hash de senha (#196):
 
 ```json
-{"token":"<JWT>"}
+{"token":"<JWT>","user":{"id":"1","email":"admin@ecopulse.local","name":"Administrador","role":"admin"}}
 ```
 
 ## GET /api/auth/me
 
-Rota mínima protegida para verificar o middleware. Envie `Authorization: Bearer <JWT>`; token ausente, inválido ou expirado devolve `401 UNAUTHORIZED`. Com token válido, devolve `200` com o `id` e o `email` do usuário autenticado.
+Confirma a sessão no banco. Envie `Authorization: Bearer <JWT>`; token ausente, inválido ou expirado devolve `401 UNAUTHORIZED`, e conta que não existe mais também. Com token válido, devolve `200` com a conta lida do banco: `id`, `email`, `name` e `role` (#196).
 
 ```json
-{"id":"1","email":"admin@ecopulse.local"}
+{"id":"1","email":"admin@ecopulse.local","name":"Administrador","role":"admin"}
 ```
+
+## POST /api/invitations
+
+Emite um convite de cadastro (#196). Exige `Authorization: Bearer <JWT>` de uma conta `admin`. Corpo JSON, com `role` igual a `admin` ou `usuario`:
+
+```json
+{"email":"ana@exemplo.com","role":"usuario"}
+```
+
+O e-mail é gravado em minúsculas. O token do link tem 32 bytes aleatórios (`crypto.randomBytes`, base64url); o banco guarda só o SHA-256 dele. O link usa a primeira origem de `CORS_ORIGIN` e vale `INVITATION_TTL_HOURS` horas (padrão 72). Sem envio de e-mail: o administrador copia o link. Resposta `201`:
+
+```json
+{"inviteUrl":"http://localhost:5173/cadastro?convite=jav-t9mhiWzKLvkFREXj6hyLzCcvzrf8dGCLAxrFQpY","expiresAt":"2026-11-24T03:05:31.492Z"}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | e-mail ausente ou inválido; `role` diferente de `admin` e `usuario` |
+| 401 | `UNAUTHORIZED` | JWT ausente, inválido ou expirado |
+| 403 | `FORBIDDEN` | conta com papel `usuario` |
+| 409 | `CONFLICT` | já existe conta com esse e-mail |
+| 500 | `DATABASE_ERROR` | falha no PostgreSQL |
+
+## GET /api/invitations/:token
+
+Público: quem abre o link ainda não tem conta. `:token` é o valor de `convite=` do link. Devolve o que a tela de cadastro mostra em somente leitura:
+
+```json
+{"email":"ana@exemplo.com","role":"usuario","expiresAt":"2026-11-24T03:05:31.492Z"}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 404 | `NOT_FOUND` | convite inexistente ou token fora do formato |
+| 410 | `GONE` | convite já usado (`Este convite já foi usado.`) ou expirado |
+| 500 | `DATABASE_ERROR` | falha no PostgreSQL |
+
+## POST /api/auth/register
+
+Cria uma conta a partir de um convite (#196). Público, mas sem convite válido não há cadastro. Corpo JSON:
+
+```json
+{"token":"jav-t9mhiWzKLvkFREXj6hyLzCcvzrf8dGCLAxrFQpY","name":"Ana","password":"senha1234"}
+```
+
+O e-mail e o papel vêm do convite; campos `email` ou `role` no corpo são ignorados. `name` tem de 1 a 100 caracteres (espaços nas pontas são removidos). A senha tem de 8 a 72 caracteres, com pelo menos uma letra e um número, e é gravada com bcrypt (10 rounds). A conta é criada e o convite é marcado como usado na mesma transação: duas tentativas simultâneas com o mesmo link criam uma conta só. Resposta `201`, sem hash:
+
+```json
+{"id":"2","email":"ana@exemplo.com","name":"Ana","role":"usuario"}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | corpo sem `token`, `name` ou `password`; nome vazio ou longo; senha fora da regra |
+| 404 | `NOT_FOUND` | convite inexistente |
+| 409 | `CONFLICT` | o e-mail do convite ganhou conta depois da emissão (o convite continua disponível) |
+| 410 | `GONE` | convite já usado ou expirado |
+| 500 | `DATABASE_ERROR` | falha no PostgreSQL |
 
 ## GET /health
 
@@ -364,8 +427,11 @@ Health comprova conectividade, não valida existência de tabelas, persistência
 | HTTP | Código | Situação |
 |---|---|---|
 | 400 | VALIDATION_ERROR | JSON inválido com Content-Type application/json; parâmetro inválido em `GET /api/collections`, `GET /api/collections/series`, `GET /api/services/summary`, `GET /api/services/compare`, `GET /api/services/ranking` ou no login |
-| 401 | UNAUTHORIZED | credenciais inválidas no login; token ausente, inválido ou expirado nas rotas de dados e em `GET /api/auth/me` |
-| 404 | NOT_FOUND | rota não registrada, incluindo métodos não registrados; `service_id` inexistente em `GET /api/collections` e em `GET /api/collections/series` |
+| 401 | UNAUTHORIZED | credenciais inválidas no login; token ausente, inválido, expirado ou sem papel nas rotas de dados, em `GET /api/auth/me` e nas rotas de alteração |
+| 403 | FORBIDDEN | conta `usuario` em `PUT /api/monitoring-settings` ou `POST /api/invitations` |
+| 404 | NOT_FOUND | rota não registrada, incluindo métodos não registrados; `service_id` inexistente em `GET /api/collections` e em `GET /api/collections/series`; convite inexistente |
+| 409 | CONFLICT | e-mail que já tem conta em `POST /api/invitations` ou `POST /api/auth/register` |
+| 410 | GONE | convite já usado ou expirado |
 | 500 | DATABASE_ERROR | falha de conexão ou de consulta no PostgreSQL |
 | 500 | INTERNAL_ERROR | erro inesperado, sem detalhes internos |
 
