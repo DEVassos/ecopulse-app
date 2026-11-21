@@ -279,6 +279,16 @@ A definição nova em `schema.sql` vale para banco vazio. Banco já inicializado
 
 É um retrato: a API é externa e pode mudar sem aviso. O fator que vale para uma coleta continua sendo o gravado em `collections.carbon_intensity_gco2e_per_kwh` no momento da coleta, com cache de 1 h por região; esta tabela serve para comparar regiões e para a simulação, nunca para substituir o fator já persistido. A ordem "mais limpa primeiro" usada nas telas é a desta tabela; empate desempata por `code` em ordem alfabética.
 
+### Intensidade efetiva de uma região no período
+
+A dispersão "Carga ou região?" da Comparação (#399) traça uma reta por região saindo da origem, porque CO₂e = energia × intensidade não tem termo fixo. A inclinação é a intensidade **efetiva do período** dos serviços comparados daquela região, e não o retrato da tabela acima:
+
+```text
+intensidade efetiva (região) = Σ CO₂e_período ÷ Σ E_período   (serviços comparados da região, coletas calculadas)
+```
+
+Exemplo: Fraud Detector com 0,7116 kWh e 268,98 g e Checkout Worker com 0,5120 kWh e 193,54 g, os dois em `us-east`: (268,98 + 193,54) ÷ (0,7116 + 0,5120) = 462,52 ÷ 1,2236 = **378,00 g CO₂e/kWh**, a intensidade de cada um, e os dois pontos ficam sobre a mesma reta. Se o fator da região mudou dentro do período (o cache é de 1 h), dois serviços da mesma região podem ter intensidades um pouco diferentes: a reta é a média ponderada pela energia, e cada ponto fica perto dela, não exatamente sobre ela; a conta da dica usa a intensidade do próprio serviço, a da matriz. Os eixos começam em zero, e o eixo Y vai até o teto do eixo X × a maior intensidade, para toda reta sair inteira pela borda direita.
+
 ## Simulação de migração regional
 
 A pergunta é qual o impacto de mover um serviço para uma região mais limpa. A simulação troca **somente** o fator regional: carga de trabalho, hardware e intervalo de coleta ficam iguais, então a energia do período é preservada.
