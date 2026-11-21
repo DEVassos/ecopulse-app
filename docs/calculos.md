@@ -431,6 +431,59 @@ Execution Time: 0.230 ms
 
 O plano completo também contém Sort e Hash Left Join. A janela seletiva favoreceu o índice de data; a tabela de serviços pequena recebeu Seq Scan. O tempo é uma observação local, não garantia de latência. Nenhuma alteração de schema foi necessária. [Evidência e reprodução regional](arquitetura/verificacao-regions-summary.md) registram a massa, o SELECT independente e os comandos para rodar com bancos descartáveis.
 
+## Relatório do período
+
+O relatório (#402, US13 #54) é gerado por **regras fixas, sem IA**, em `frontend/src/utils/insights.ts`. A entrada são duas chamadas a `GET /api/services/ranking?metric=co2e`: o período escolhido `[from, to)` e o anterior de mesma duração, `[from − (to − from), from)`. A soma do ranking é a mesma de `GET /api/services/summary`, porque as duas rotas usam o mesmo período e o mesmo filtro `calculation_status = 'disponivel'` (seção [Fórmula de cada agregação](#fórmula-de-cada-agregação)).
+
+```text
+E   = Σ energyKwh dos serviços com cálculo              (kWh)
+C   = Σ co2eGrams dos serviços com cálculo              (g CO₂e)
+I   = C ÷ E                                             (g CO₂e/kWh, a média das intensidades ponderada pela energia)
+coletas com cálculo = Σ (collections − notCalculated)   (no ranking, notCalculated já inclui as falhas)
+cobertura = coletas com cálculo ÷ collections
+variação  = (C₁ − C₀) ÷ C₀                              (0 = período anterior, 1 = período escolhido)
+ΔC  = ΔE × I₀ + E₁ × ΔI                                 (efeito energia + efeito intensidade média)
+```
+
+A decomposição é uma identidade exata: `(E₁ − E₀)·I₀ + E₁·(I₁ − I₀) = E₁·I₁ − E₀·I₀ = C₁ − C₀`. O primeiro termo diz quanto o CO₂e mudaria só pela energia, com a intensidade do período anterior; o segundo, quanto mudou porque a energia passou a ter outra intensidade média. Esse segundo termo mistura duas coisas: o fator de cada região (que a Carbon API atualiza e o backend guarda em cache por 1 h) e a **parte da energia gasta em cada região**. Mais energia numa região mais suja sobe a média mesmo sem nenhum fator mudar, como no exemplo abaixo. Para um serviço só, numa região só, o segundo termo é só o fator da região.
+
+Quando os dois efeitos têm o **mesmo sinal**, eles somam a variação e a parte de cada um é "% da variação" (no exemplo abaixo, 13,3 g e 56,3 g de 69,6 g: 19,1% e 80,9%). Quando têm **sinais opostos**, a variação é o saldo e o efeito que venceu passa de 100% dela (um serviço que foi de 1 kWh a 100 g/kWh para 0,9 kWh a 130 g/kWh tem −10 g de energia e +27 g de intensidade, saldo de +17 g; os 27 g são 159% da variação). Nesse caso o relatório não fala em percentual: diz qual efeito venceu e qual foi o contrário, em gramas, e a página desenha os dois em barras divergentes a partir do zero, nunca como partes de um todo. O critério de efeito dominante (tabela abaixo) continua sobre a soma dos módulos, que só decide qual efeito é citado primeiro.
+
+### Regras e limiares
+
+| Regra | Limiar | Por quê |
+|---|---|---|
+| Tendência: estável | variação < 0,5% | o mesmo corte do ±0% do card de emissões do Dashboard (`SummaryPanel`) |
+| Tendência: alta (alerta) ou queda | variação ≥ 10%; entre 0,5% e 10% o achado diz "estável" e explica a diferença | abaixo disso, a oscilação da coleta e o cache de 1 h do fator explicam a diferença |
+| Efeito dominante na decomposição | ≥ 60% de \|ΔE·I₀\| + \|E₁·ΔI\| | abaixo disso, o texto cita os dois efeitos |
+| Períodos comparáveis | menor ÷ maior número de coletas com cálculo ≥ 0,8 | senão a variação mede o tempo monitorado, e o achado vira contexto com ressalva, sem impacto |
+| Amostra mínima para tendência | 20 coletas com cálculo em cada período | cerca de 10 min de um serviço coletado a cada 30 s |
+| Alta ou queda de um serviço | ≥ 20% do próprio CO₂e **e** ≥ 5% do CO₂e total anterior, com amostra e razão de coletas do serviço nos mesmos limites acima | não destacar serviço pequeno; a causa é a decomposição do próprio serviço (energia ou intensidade da região dele) |
+| Concentração | o primeiro serviço com ≥ 50%; senão, quantos somam 80%; só com 3 ou mais serviços com cálculo | Pareto: com mais da metade dos serviços para chegar a 80%, o achado diz que o CO₂e está espalhado |
+| Confiança dos dados | ressalva com cobertura < 95%; alerta com < 80%, citando os serviços | 5% equivalem a 72 min por dia sem cálculo; coleta sem cálculo deixa o total abaixo do real |
+
+Os achados de serviço, concentração e confiança vêm em ordem de |ΔC| (variação de CO₂e que o achado explica); os que não são variação (concentração e confiança) ficam no fim, a confiança primeiro. A tendência abre o relatório e não se repete na lista. Os limiares são constantes exportadas de `insights.ts` (`STABLE_CHANGE`, `RELEVANT_CHANGE`, `DOMINANT_EFFECT`, `COMPARABLE_RATIO`, `MIN_SAMPLE`, `LEADER_SHARE`, `PARETO_SHARE`, `SERVICE_CHANGE`, `SERVICE_MATERIALITY`, `COVERAGE_CAVEAT`, `COVERAGE_ALERT`): mudou um número aqui, mude lá.
+
+### Exemplo numérico conferido
+
+O mesmo de `frontend/src/utils/insights.test.ts`. Nenhum fator mudou entre os dois períodos; a energia saiu de Quebec (40 g/kWh) para Virgínia (378 g/kWh).
+
+| Serviço (região) | Período anterior | Período escolhido |
+|---|---|---|
+| Fraud Detector (Virgínia, 378 g/kWh) | 0,50 kWh · 189 g · 2.880 coletas | 0,70 kWh · 264,6 g · 2.880 coletas |
+| Audit Stream (Kanto, 465 g/kWh) | 0,40 kWh · 186 g · 2.880 coletas | 0,40 kWh · 186 g · 2.880 coletas |
+| Reporting Batch (Quebec, 40 g/kWh) | 0,60 kWh · 24 g · 2.880 coletas | 0,45 kWh · 18 g · 2.880 coletas |
+| Email Dispatcher (Sudeste) | — | sem cálculo · 600 coletas, 600 com falha |
+| **Total** | **1,50 kWh · 399 g · I₀ = 266 g/kWh** | **1,55 kWh · 468,6 g · I₁ = 302,32 g/kWh** |
+
+- Variação: 468,6 − 399 = **+69,6 g**, 69,6 ÷ 399 = **+17,4%** (≥ 10%: alerta). Coletas com cálculo: 8.640 nos dois períodos (razão 1).
+- Efeito energia: (1,55 − 1,50) × 266 = **+13,3 g**. Efeito intensidade média: 1,55 × (302,32 − 266) = 468,6 − 1,55 × 266 = **+56,3 g**. Soma: 13,3 + 56,3 = 69,6 g. A intensidade explica 56,3 ÷ 69,6 = **80,9%** (≥ 60%): "A alta vem da intensidade média".
+- Fraud Detector: +75,6 g, +40,0% (≥ 20%) e 75,6 g ≥ 5% de 399 g (19,95 g); a decomposição dele é (0,70 − 0,50) × 378 = 75,6 g de energia e 0 de intensidade: "A causa é energia, de 500 Wh para 700 Wh". Reporting Batch caiu 25%, mas 6 g não chegam a 19,95 g e não vira achado.
+- Concentração: 264,6 ÷ 468,6 = **56,5%** (≥ 50%): "Fraud Detector concentra 56,5% do CO₂e do período"; cada 10% a menos nele tira 26,5 g do total.
+- Confiança: 8.640 ÷ 9.240 = **93,5%** de cobertura (< 95%): ressalva citando "Email Dispatcher: 600 de 600 sem cálculo (600 com falha)".
+
+O total subiu pela troca de região da energia, não por um fator novo: no serviço, a causa é energia; no total, é a intensidade média. Como verificar: `cd frontend && npx vitest run src/utils/insights.test.ts`.
+
 ## Como verificar e migrar
 
 [Roteiro reproduzível](arquitetura/verificacao-schema.md) usa PostgreSQL descartável: exemplos acima, agregações, limites, NULL, estados e índices. Schema inicial não migra banco populado: a versão anterior com escala seis é recusada pelo guard. Migração futura deverá ampliar os tipos explicitamente e preservar dados; não consegue recuperar energia já arredondada para zero sem entradas originais confiáveis. Nenhuma migração em banco do usuário foi executada.
