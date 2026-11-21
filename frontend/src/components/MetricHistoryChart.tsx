@@ -1,34 +1,40 @@
 import { useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import type { ServiceCollection } from '../services/collections.types';
-import { buildCpuChart, type CpuChartPoint } from '../utils/cpu-chart';
-import { formatDayTime, formatNumber } from '../utils/format';
-import './CpuHistoryChart.css';
+import { CHAR_WIDTH } from '../utils/chart-labels';
+import { formatDayTime } from '../utils/format';
+import {
+  buildMetricChart,
+  CHART_METRICS,
+  formatMetricValue,
+  METRICS,
+  type ChartMetric,
+  type MetricChartData,
+  type MetricChartPoint,
+} from '../utils/metric-chart';
+import './MetricHistoryChart.css';
 
 // Geometria em px reais: o SVG é desenhado na largura medida do contêiner, então texto e traço não se deformam
-const PAD_LEFT = 40;
+const PAD_LEFT_MIN = 40;
 const PAD_RIGHT = 12;
 const PLOT_TOP = 8;
 const PLOT_HEIGHT = 140;
-const MARK_Y = PLOT_TOP + PLOT_HEIGHT + 10; // faixa das falhas, abaixo do 0% para não parecer um valor
+const MARK_Y = PLOT_TOP + PLOT_HEIGHT + 10; // faixa das falhas, abaixo do zero para não parecer um valor
 const LABEL_Y = MARK_Y + 20;
 const HEIGHT = LABEL_Y + 4;
-const Y_TICKS = [0, 50, 100];
-
-const percent = (value: number) => `${formatNumber(value, 1)}%`;
 
 /** Erro e sem métricas têm cores próximas (laranja e vermelho): a forma também diferencia (× e anel). */
-function FailureMark({ status, x, y }: { status: CpuChartPoint['status']; x: number; y: number }) {
+function FailureMark({ status, x, y }: { status: MetricChartPoint['status']; x: number; y: number }) {
   if (status === 'erro') {
-    return <path className="cpu-chart__mark cpu-chart__mark--erro" d={`M${x - 4} ${y - 4}l8 8m0 -8l-8 8`} />;
+    return <path className="metric-chart__mark metric-chart__mark--erro" d={`M${x - 4} ${y - 4}l8 8m0 -8l-8 8`} />;
   }
-  return <circle className="cpu-chart__mark cpu-chart__mark--sem-metricas" cx={x} cy={y} r={3.5} />;
+  return <circle className="metric-chart__mark metric-chart__mark--sem-metricas" cx={x} cy={y} r={3.5} />;
 }
 
-function readout(point: CpuChartPoint) {
-  if (point.cpuPercent !== null) return `CPU ${percent(point.cpuPercent)}`;
+function readout(point: MetricChartPoint, metric: ChartMetric) {
+  if (point.value !== null) return `${METRICS[metric].label} ${formatMetricValue(metric, point.value)}`;
   if (point.status === 'erro') return 'Erro na coleta';
   if (point.status === 'sem_metricas') return 'Sem métricas';
-  return 'Sem CPU nesta coleta';
+  return `Sem ${METRICS[metric].name} nesta coleta`;
 }
 
 interface Props {
@@ -36,15 +42,53 @@ interface Props {
   collections: ServiceCollection[];
 }
 
-/** Evolução da CPU (%) no histórico do serviço (RF10). A tabela abaixo continua sendo a fonte acessível dos dados. */
-export default function CpuHistoryChart({ collections }: Props) {
+/** Evolução de uma métrica no histórico do serviço (RF09, RF10). A tabela abaixo continua sendo a fonte acessível. */
+export default function MetricHistoryChart({ collections }: Props) {
+  const [metric, setMetric] = useState<ChartMetric>('cpu');
+  const data = buildMetricChart(collections, metric);
+  const definition = METRICS[metric];
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="metric-chart__picker" role="group" aria-label="Métrica do gráfico">
+        {CHART_METRICS.map((option) => (
+          <button
+            key={option}
+            type="button"
+            className="metric-chart__btn"
+            aria-pressed={option === metric}
+            onClick={() => setMetric(option)}
+          >
+            {METRICS[option].label}
+          </button>
+        ))}
+      </div>
+
+      {data.plotted.length >= 2 ? (
+        <MetricChartFigure data={data} metric={metric} />
+      ) : (
+        <p className="m-0 rounded-xl border border-border px-4 py-3 text-sm text-muted">
+          O gráfico de {definition.name} aparece quando houver pelo menos 2 coletas com {definition.name} no histórico;
+          agora há {data.plotted.length}.
+        </p>
+      )}
+    </div>
+  );
+}
+
+interface FigureProps {
+  data: MetricChartData;
+  metric: ChartMetric;
+}
+
+function MetricChartFigure({ data, metric }: FigureProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(640);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const { points, segments, plotted, errors, noMetrics } = buildCpuChart(collections);
-  const canDraw = plotted.length >= 2;
+  const { points, segments, plotted, errors, noMetrics, axis } = data;
+  const definition = METRICS[metric];
 
-  // Mede a largura antes da pintura; religa quando o gráfico aparece depois do aviso de "menos de 2 coletas"
+  // Mede a largura antes da pintura; o gráfico já nasce com pelo menos 2 coletas, e o observer acompanha o resto
   useLayoutEffect(() => {
     const element = containerRef.current;
     if (!element) return;
@@ -53,32 +97,25 @@ export default function CpuHistoryChart({ collections }: Props) {
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
     observer.observe(element);
     return () => observer.disconnect();
-  }, [canDraw]);
+  }, []);
 
-  if (!canDraw) {
-    return (
-      <p className="m-0 rounded-xl border border-border px-4 py-3 text-sm text-muted">
-        O gráfico da CPU aparece quando houver pelo menos 2 coletas com CPU no histórico; agora há {plotted.length}.
-      </p>
-    );
-  }
-
+  const padLeft = Math.max(PAD_LEFT_MIN, ...axis.labels.map((label) => Math.round(label.length * CHAR_WIDTH.sans11) + 12));
   const first = points[0];
   const last = points[points.length - 1];
-  const plotWidth = Math.max(width - PAD_LEFT - PAD_RIGHT, 1);
+  const plotWidth = Math.max(width - padLeft - PAD_RIGHT, 1);
   const span = last.time - first.time;
-  const x = (time: number) => PAD_LEFT + (span === 0 ? plotWidth / 2 : ((time - first.time) / span) * plotWidth);
-  const y = (cpu: number) => PLOT_TOP + (1 - Math.min(Math.max(cpu, 0), 100) / 100) * PLOT_HEIGHT;
+  const x = (time: number) => padLeft + (span === 0 ? plotWidth / 2 : ((time - first.time) / span) * plotWidth);
+  const y = (value: number) => PLOT_TOP + (1 - Math.min(Math.max(value, 0), axis.ceiling) / axis.ceiling) * PLOT_HEIGHT;
 
-  const cpuValues = plotted.map((point) => point.cpuPercent ?? 0);
-  const min = Math.min(...cpuValues);
-  const max = Math.max(...cpuValues);
+  const values = plotted.map((point) => point.value ?? 0);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
   const latest = plotted[plotted.length - 1];
   const interrupted = errors + noMetrics;
   const summary =
-    `CPU entre ${percent(min)} e ${percent(max)} em ${plotted.length} coletas, ` +
+    `${definition.label} entre ${formatMetricValue(metric, min)} e ${formatMetricValue(metric, max)} em ${plotted.length} coletas, ` +
     `de ${formatDayTime(first.collectedAt)} a ${formatDayTime(last.collectedAt)}` +
-    (interrupted > 0 ? `; linha interrompida em ${interrupted} coletas sem CPU.` : '.');
+    (interrupted > 0 ? `; linha interrompida em ${interrupted} coletas sem ${definition.name}.` : '.');
 
   const activeIndex = points.findIndex((point) => point.id === activeId);
   const active = activeIndex >= 0 ? points[activeIndex] : null;
@@ -112,23 +149,25 @@ export default function CpuHistoryChart({ collections }: Props) {
   return (
     <figure className="m-0 flex flex-col gap-2 rounded-xl border border-border px-4 py-3">
       <figcaption className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-sm">
-        <span className="font-display font-semibold">CPU (%)</span>
+        <span className="font-display font-semibold">
+          {definition.label} ({definition.unit})
+        </span>
         <span className="text-muted">
-          {latest.id === last.id ? 'última ' : 'última com CPU '}
-          <strong className="font-data font-medium text-text">{percent(latest.cpuPercent ?? 0)}</strong>
+          {latest.id === last.id ? 'última ' : `última com ${definition.name} `}
+          <strong className="font-data font-medium text-text">{formatMetricValue(metric, latest.value ?? 0)}</strong>
           {' · faixa '}
           <span className="font-data">
-            {percent(min)}–{percent(max)}
+            {formatMetricValue(metric, min)}–{formatMetricValue(metric, max)}
           </span>
         </span>
       </figcaption>
 
       <div
         ref={containerRef}
-        className="cpu-chart"
+        className="metric-chart"
         tabIndex={0}
         role="group"
-        aria-label="Gráfico da CPU. Use as setas para percorrer as coletas."
+        aria-label={`Gráfico da métrica ${definition.name}. Use as setas para percorrer as coletas.`}
         onKeyDown={handleKeyDown}
         onFocus={() => setActiveId((id) => id ?? last.id)}
         onBlur={() => setActiveId(null)}
@@ -142,23 +181,23 @@ export default function CpuHistoryChart({ collections }: Props) {
           onPointerMove={handlePointerMove}
           onPointerLeave={() => setActiveId(null)}
         >
-          {Y_TICKS.map((tick) => (
+          {axis.ticks.map((tick, index) => (
             <g key={tick}>
-              <line className="cpu-chart__grid" x1={PAD_LEFT} x2={PAD_LEFT + plotWidth} y1={y(tick)} y2={y(tick)} />
-              <text className="cpu-chart__axis" x={PAD_LEFT - 8} y={y(tick)} textAnchor="end" dominantBaseline="middle">
-                {tick}%
+              <line className="metric-chart__grid" x1={padLeft} x2={padLeft + plotWidth} y1={y(tick)} y2={y(tick)} />
+              <text className="metric-chart__axis" x={padLeft - 8} y={y(tick)} textAnchor="end" dominantBaseline="middle">
+                {axis.labels[index]}
               </text>
             </g>
           ))}
 
           {segments.map((segment) =>
             segment.length === 1 ? (
-              <circle key={segment[0].id} className="cpu-chart__dot" cx={x(segment[0].time)} cy={y(segment[0].cpuPercent ?? 0)} r={4} />
+              <circle key={segment[0].id} className="metric-chart__dot" cx={x(segment[0].time)} cy={y(segment[0].value ?? 0)} r={4} />
             ) : (
               <path
                 key={segment[0].id}
-                className="cpu-chart__line"
-                d={segment.map((point, index) => `${index === 0 ? 'M' : 'L'}${x(point.time)} ${y(point.cpuPercent ?? 0)}`).join('')}
+                className="metric-chart__line"
+                d={segment.map((point, index) => `${index === 0 ? 'M' : 'L'}${x(point.time)} ${y(point.value ?? 0)}`).join('')}
               />
             ),
           )}
@@ -171,25 +210,25 @@ export default function CpuHistoryChart({ collections }: Props) {
 
           {active && (
             <g>
-              <line className="cpu-chart__crosshair" x1={x(active.time)} x2={x(active.time)} y1={PLOT_TOP} y2={MARK_Y} />
-              {active.cpuPercent !== null && <circle className="cpu-chart__dot" cx={x(active.time)} cy={y(active.cpuPercent)} r={4} />}
+              <line className="metric-chart__crosshair" x1={x(active.time)} x2={x(active.time)} y1={PLOT_TOP} y2={MARK_Y} />
+              {active.value !== null && <circle className="metric-chart__dot" cx={x(active.time)} cy={y(active.value)} r={4} />}
             </g>
           )}
 
-          <text className="cpu-chart__axis" x={PAD_LEFT} y={LABEL_Y} textAnchor="start">
+          <text className="metric-chart__axis" x={padLeft} y={LABEL_Y} textAnchor="start">
             {formatDayTime(first.collectedAt)}
           </text>
-          <text className="cpu-chart__axis" x={PAD_LEFT + plotWidth} y={LABEL_Y} textAnchor="end">
+          <text className="metric-chart__axis" x={padLeft + plotWidth} y={LABEL_Y} textAnchor="end">
             {formatDayTime(last.collectedAt)}
           </text>
         </svg>
 
-        <div className="cpu-chart__tooltip" aria-live="polite" hidden={!active} style={{ left: tooltipLeft }}>
+        <div className="metric-chart__tooltip" aria-live="polite" hidden={!active} style={{ left: tooltipLeft }}>
           {active && (
             <>
               <strong className="flex items-center gap-2 font-data font-medium text-[var(--tooltip-text)]">
-                {active.cpuPercent !== null && <span className="cpu-chart__key" aria-hidden="true" />}
-                {readout(active)}
+                {active.value !== null && <span className="metric-chart__key" aria-hidden="true" />}
+                {readout(active, metric)}
               </strong>
               <span className="font-data">{formatDayTime(active.collectedAt)}</span>
               {active.errorMessage && <span>{active.errorMessage}</span>}
@@ -200,7 +239,7 @@ export default function CpuHistoryChart({ collections }: Props) {
 
       {interrupted > 0 && (
         <p className="m-0 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
-          <span>A linha é interrompida nas coletas sem CPU:</span>
+          <span>A linha é interrompida nas coletas sem {definition.name}:</span>
           {errors > 0 && (
             <span className="inline-flex items-center gap-1.5">
               <svg width="10" height="10" aria-hidden="true">

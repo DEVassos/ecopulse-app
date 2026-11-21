@@ -24,6 +24,7 @@ function compared(changes: Partial<ComparedService> & { id: string }): ComparedS
     avgPowerBreakdown: { cpuW: 42.5, memoryW: 0.7875, diskW: 0.1, networkW: 0.006 },
     energyKwh: 0.161,
     co2eGrams: 60.7,
+    monitoredSeconds: 86_400,
     ...changes,
   };
 }
