@@ -3,6 +3,7 @@ import { hash } from 'bcryptjs';
 import type { Database } from '../../db/connection';
 import { withTransaction } from '../../db/transaction.repository';
 import { Invitation } from '../../domain/invitation';
+import { BCRYPT_ROUNDS } from '../../shared/account-rules';
 import { ConflictError, GoneError, NotFoundError } from '../../shared/errors';
 import type { StoredInvitation, UserRole } from '../../shared/persistence.types';
 import { UserRepository } from '../usuarios/usuarios.repository';
@@ -20,7 +21,6 @@ export interface InvitationView { email: string; role: UserRole; expiresAt: stri
 
 /** 32 bytes aleatórios em base64url: 43 caracteres. Qualquer outro formato nem chega ao banco. */
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-const BCRYPT_ROUNDS = 10;
 
 export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');

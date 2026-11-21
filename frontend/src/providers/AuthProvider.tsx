@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { setAuthToken, setSessionExpiredHandler } from '../services/api';
 import * as authService from '../services/auth.service';
@@ -52,21 +52,38 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     return saved;
   });
   const [sessionExpired, setSessionExpired] = useState(false);
+  const activeSession = useRef(session);
+
+  const saveSession = useCallback((next: Session | null) => {
+    activeSession.current = next;
+    writeSession(next);
+    setSession(next);
+  }, []);
 
   const logout = useCallback(() => {
-    writeSession(null);
     setAuthToken(null);
-    setSession(null);
-  }, []);
+    saveSession(null);
+  }, [saveSession]);
 
   const login = useCallback(async (email: string, password: string) => {
     const { token, user } = await authService.login({ email, password });
     const next: Session = { token, user: { email: user.email, name: user.name, role: user.role } };
-    writeSession(next);
     setAuthToken(token);
     setSessionExpired(false);
-    setSession(next);
-  }, []);
+    saveSession(next);
+  }, [saveSession]);
+
+  // Perfil (#401): o mesmo token, com o nome que o backend devolveu; o sessionStorage acompanha para o F5 não voltar
+  // ao nome antigo
+  const updateUser = useCallback(
+    (user: AuthUser) => {
+      // A resposta do perfil só pode atualizar a sessão que iniciou a solicitação.
+      if (!session || activeSession.current !== session) return;
+      const next: Session = { token: session.token, user: { email: user.email, name: user.name, role: user.role } };
+      saveSession(next);
+    },
+    [saveSession, session],
+  );
 
   // Token recusado (expirou ou foi trocado o segredo): encerra a sessão. Sem usuário, o ProtectedRoute leva a
   // pessoa ao login guardando a tela atual, e as páginas desmontam, o que para o polling (#257)
@@ -78,8 +95,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   }, [logout]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user: session?.user ?? null, sessionExpired, login, logout }),
-    [session, sessionExpired, login, logout],
+    () => ({ user: session?.user ?? null, sessionExpired, login, logout, updateUser }),
+    [session, sessionExpired, login, logout, updateUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

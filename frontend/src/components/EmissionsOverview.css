@@ -1,0 +1,37 @@
+/* Miniatura do período inteiro durante o zoom (EmissionsOverview, #410) — cores só pelos tokens de global.css */
+@layer components {
+  /* Mesmas margens laterais da área do gráfico (64 px do eixo Y e 20 px à direita): a miniatura fica alinhada ao tempo */
+  .emissions-overview {
+    padding: 0 20px 0 64px;
+  }
+
+  .emissions-overview svg {
+    display: block;
+    width: 100%;
+  }
+
+  /* Fora do trecho, as barras recuam; dentro dele, ficam no verde do CO₂e */
+  .emissions-overview__bar {
+    fill: var(--muted);
+    fill-opacity: 0.35;
+  }
+
+  .emissions-overview__bar--in {
+    fill: var(--accent);
+    fill-opacity: 0.75;
+  }
+
+  /* O desenho estica só na horizontal: sem isto, o contorno da janela engrossaria junto */
+  .emissions-overview__window {
+    fill: color-mix(in srgb, var(--accent) 14%, transparent);
+    stroke: var(--accent);
+    stroke-width: 1.5px;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .emissions-overview p {
+    margin: 2px 0 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+}

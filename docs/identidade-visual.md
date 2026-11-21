@@ -36,7 +36,7 @@ Os valores ficam em `frontend/src/styles/global.css`, fonte única das cores no 
 | **Alerta** | Estados de aviso (ex: serviço sem métricas) e a seta ▲ de energia ou CO₂e que subiu contra o período anterior (#271), porque nessas métricas menos é melhor; a seta ▼ fica em `--accent-hover` e a variação abaixo de 0,5% ("±0%") em `--muted` | Laranja | `#F97316` | `--warning` | 6,7:1 |
 | **Erro** | Estados críticos (ex: serviço indisponível/caído) | Vermelho | `#EF4444` | `--error` | 5,0:1 |
 | **Texto** | Cor padrão para textos e títulos | Cinza-claro | `#E2E8F0` | `--text` | 15,2:1 |
-| **Neon** | Só no que pede atenção: maior impacto, pico, "ao vivo" e pulso do logo, e um destaque por vez na tela. Na página Emissões ele fica com o tile de pico ("Pico de uma coleta" ou, agrupado, "Maior intervalo"), o mesmo pico do chip do gráfico (#271, #272); o maior ponto do gráfico fica em `--text`, sem brilho (#258). Nunca em texto corrido, fundo de card ou linha de gráfico | Verde-neon | `#5CFFB8` | `--neon` | 14,7:1 |
+| **Neon** | Só no que pede atenção: maior impacto, pico, "ao vivo" e pulso do logo, e um destaque por vez na tela. Na página Emissões ele fica com o tile de pico ("Pico de uma coleta" ou, agrupado, "Maior intervalo"), o mesmo pico do chip do gráfico (#271, #272); a maior barra do gráfico fica em `--accent-hover`, o verde em tom cheio, sem brilho (#258, #410). Nunca em texto corrido, fundo de card ou linha de gráfico | Verde-neon | `#5CFFB8` | `--neon` | 14,7:1 |
 
 > **Nota de Usabilidade:** O amarelo (`#FACC15`) é utilizado restritivamente para elementos da marca. Alertas de sistema utilizam obrigatoriamente o laranja (`#F97316`) para garantir que problemas operacionais sejam imediatamente identificados sem ambiguidade.
 

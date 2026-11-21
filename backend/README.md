@@ -11,6 +11,8 @@ API REST em Node.js com Express 5 e TypeScript estrito, persistência no Postgre
 
 Papéis e convites (#196): o JWT leva o papel da conta (`admin` ou `usuario`), e `requireAdmin` (`middlewares/auth.ts`) deixa só administradores alterarem a configuração e emitirem convites (403 para `usuario`). `modules/invitations` emite o convite (`POST /api/invitations`), mostra o convite para a tela de cadastro (`GET /api/invitations/:token`) e cria a conta (`POST /api/auth/register`) dentro de `withTransaction`. Variável nova: `INVITATION_TTL_HOURS`. Volumes existentes exigem a [migração 003](../database/README.md#papéis-e-convites-196).
 
+Perfil (#400): qualquer papel altera o próprio nome (`PATCH /api/auth/me`) e a própria senha (`PUT /api/auth/me/password`) no módulo `usuarios`, com `authMiddleware` e sem `requireAdmin`. A senha atual errada responde 400, não 401, para o frontend não encerrar a sessão; a troca não revoga os JWTs já emitidos, que valem até `JWT_EXPIRES_IN`. As regras de nome e senha e as rodadas do bcrypt ficam em `shared/account-rules.ts`, usado pelo cadastro por convite e pelo perfil. Sem mudança de schema: as duas rotas gravam `users.updated_at`. Testes HTTP em `tests/profile.test.ts`, com o banco em memória dos convites.
+
 `GET /api/services` também devolve `statusReason` seguro somente para `indisponivel` (#251). Os 14 casos de `status-reason.test.ts` e o caso PostgreSQL em `repositories.integration.test.ts` cobrem estados, mensagens sensíveis, recuperação e desempate; a apresentação na tela é da #176 (frontend). Contrato em [API](../docs/api.md#get-apiservices).
 
 ## Organização
@@ -28,7 +30,7 @@ src/
 ├── jobs/collector.ts       descoberta, reconciliação e coleta periódica (worker)
 ├── middlewares/            auth.ts (JWT), cors.ts e error-handler.ts
 ├── modules/                health, services, collections, usuarios, invitations e monitoring-settings em routes/controller/service/repository
-└── shared/                 errors.ts (AppError e subclasses) e persistence.types.ts (tipos das linhas do banco)
+└── shared/                 errors.ts (AppError e subclasses), persistence.types.ts (tipos das linhas do banco) e account-rules.ts (regras de nome e senha)
 ```
 
 SQL só existe nos arquivos `*.repository.ts`, sempre com parâmetros `$1…$n`. `modules/usuarios/` contém repository, service, controller e rotas de autenticação; `middlewares/auth.ts` protege também o PUT de `monitoring-settings`, que exige papel `admin` (`requireAdmin`). `modules/invitations/` contém os convites e o cadastro por convite (#196).
@@ -46,6 +48,8 @@ Contrato completo, com exemplos e erros, em [`docs/api.md`](../docs/api.md).
 | `GET /api/collections` | histórico de coletas, com filtros `service_id`, `from`, `to` e `limit` (1–500, padrão 50) ([#112](https://github.com/DEVassos/ecopulse-app/issues/112)) | 200 `{ collections, period }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 404 `NOT_FOUND`; 500 |
 | `POST /api/auth/login` | valida e-mail e senha com bcrypt e emite JWT HS256 com o papel da conta | 200 `{ token, user }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 |
 | `GET /api/auth/me` | devolve a conta do JWT, lida do banco ([#196](https://github.com/DEVassos/ecopulse-app/issues/196)) | 200 `{ id, email, name, role }`; 401 `UNAUTHORIZED`; 500 |
+| `PATCH /api/auth/me` | a própria conta, de qualquer papel, troca o nome; e-mail e papel não mudam ([#400](https://github.com/DEVassos/ecopulse-app/issues/400)) | 200 `{ id, email, name, role }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 |
+| `PUT /api/auth/me/password` | a própria conta troca a senha, conferindo a atual com bcrypt; outros JWTs continuam valendo até expirar ([#400](https://github.com/DEVassos/ecopulse-app/issues/400)) | 204 sem corpo; 400 `VALIDATION_ERROR` (inclusive senha atual errada); 401 `UNAUTHORIZED`; 500 |
 | `POST /api/invitations` | emite convite de cadastro com papel `admin` ou `usuario`; só administrador ([#196](https://github.com/DEVassos/ecopulse-app/issues/196)) | 201 `{ inviteUrl, expiresAt }`; 400; 401; 403 `FORBIDDEN`; 409 `CONFLICT`; 500 |
 | `GET /api/invitations/:token` | público; e-mail, papel e validade do convite para a tela de cadastro | 200 `{ email, role, expiresAt }`; 404 `NOT_FOUND`; 410 `GONE`; 500 |
 | `POST /api/auth/register` | público; cria a conta do convite e marca o convite como usado na mesma transação | 201 `{ id, email, name, role }`; 400; 404; 409; 410; 500 |
@@ -146,7 +150,7 @@ Antes do INSERT, as medidas são validadas contra as faixas das colunas e arredo
 
 - `ServiceRepository` (`modules/services`): lista com a última coleta, busca por ID, upsert por `external_id`, atualização de estado e marcação de ausentes como removidos.
 - `CollectionRepository` (`modules/collections`): insere coletas (com os campos de cálculo) e lista o histórico com filtros; `findSeries` agrupa as coletas de um serviço por `date_bin` e devolve os intervalos e o total do período na mesma consulta, com `GROUPING SETS`.
-- `UserRepository` (`modules/usuarios`): busca por e-mail sem distinção de caixa e por ID; insere a conta criada por convite; o hash é interno, nunca vai para resposta HTTP nem log.
+- `UserRepository` (`modules/usuarios`): busca por e-mail sem distinção de caixa e por ID; insere a conta criada por convite; troca o nome e o hash da senha com `UPDATE users … updated_at = now() WHERE id = $1` (#400); o hash é interno, nunca vai para resposta HTTP nem log.
 - `InvitationRepository` (`modules/invitations`): insere o convite com validade calculada pelo banco, busca pelo hash do token e reivindica o convite com `UPDATE … WHERE used_at IS NULL AND expires_at > now() RETURNING *`; no cadastro, roda na mesma transação que o `INSERT` em `users`.
 - `MonitoringSettingsRepository` (`modules/monitoring-settings`): consulta e upsert parametrizado da configuração única; leitura sem registro não insere o padrão.
 - `withTransaction(database, async tx => { ... })` (`db/transaction.repository.ts`) executa BEGIN/COMMIT/ROLLBACK na mesma conexão; os repositories do callback são criados com `tx`, nunca com o pool. Erros do PostgreSQL viram `DatabaseError` com a causa preservada.
@@ -172,6 +176,7 @@ Com o compose da raiz (`cp .env.example .env && docker compose up --build -d`):
 5. Queda da API de carbono: `CARBON_API_URL=http://127.0.0.1:9 docker compose up -d --force-recreate backend`. As coletas seguintes ficam com `calculation_status = indisponivel`, e `curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/services` devolve `energyKwh: null` e `emissionsG: null` com o serviço `ativo`. Para restaurar: `docker compose up -d --force-recreate backend`.
 6. Banco fora: `docker compose stop postgres` → `/health` responde 500 `DATABASE_ERROR` e o backend continua no ar; `docker compose start postgres` → volta a 200.
 7. `curl -i http://localhost:3000/inexistente` → 404 `NOT_FOUND`.
+8. Perfil (#400), com o `TOKEN` do passo 2: `curl -s -X PATCH http://localhost:3000/api/auth/me -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"name":"Novo Nome"}'` → 200 com `"name":"Novo Nome"`, e `GET /api/auth/me` devolve o nome novo. `curl -s -o /dev/null -w '%{http_code}\n' -X PUT http://localhost:3000/api/auth/me/password -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"currentPassword":"errada","newPassword":"nova12345"}'` → 400; com `"currentPassword":"admin1234"` → 204; o login com `nova12345` → 200 e com `admin1234` → 401; sem o cabeçalho `Authorization` → 401. No banco, `docker compose exec postgres psql -U ecopulse -d ecopulse_db -c "SELECT email, updated_at, char_length(password_hash) FROM users"` mostra `updated_at` novo e o hash com 60 caracteres.
 
 ## Testes
 
