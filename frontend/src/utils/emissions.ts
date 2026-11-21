@@ -143,9 +143,14 @@ export function timeZoneLabel(value: string): string {
 
 // ── Agrupamento ─────────────────────────────────────────────────────────────
 
-export const BUCKET_MS: Record<EmissionsBucket, number> = { coleta: 30_000, '15min': 15 * 60_000, '1h': 60 * 60_000 };
+export const BUCKET_MS: Record<EmissionsBucket, number> = { coleta: 30_000, '15min': 15 * 60_000, '1h': 60 * 60_000, '1d': DAY_MS };
 
-export const BUCKET_LABEL: Record<EmissionsBucket, string> = { coleta: 'Cada coleta', '15min': '15 min', '1h': '1 hora' };
+export const BUCKET_LABEL: Record<EmissionsBucket, string> = {
+  coleta: 'Cada coleta',
+  '15min': '15 min',
+  '1h': '1 hora',
+  '1d': '1 dia',
+};
 
 /** Agrupamento automático pelo tamanho do período: até 2 h, cada coleta; até 1 dia, 15 min; mais que isso, 1 h. */
 export function autoBucket(fromMs: number, toMs: number): EmissionsBucket {
