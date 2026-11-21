@@ -59,6 +59,36 @@ describe('IndicatorsPanel — variação contra o período anterior (mesma respo
     expect(html).not.toContain('100%');
   });
 
+  it('afirma o percentual exato de cada métrica, com o sentido lido por leitor de tela', () => {
+    const previous = { ...TOTALS, energyKwh: 0.01, co2eGrams: 2000 };
+    const html = renderToStaticMarkup(<IndicatorsPanel summary={summary(TOTALS, previous)} staleSince={null} />);
+    // (0,0087 − 0,01) / 0,01 = −13,0%: menos energia é melhor
+    expect(html).toContain('caiu ');
+    expect(html).toContain('13,0%');
+    // (2128,68 − 2000) / 2000 = +6,4% em CO₂e
+    expect(html).toContain('subiu ');
+    expect(html).toContain('6,4%');
+  });
+
+  it('com o período anterior zerado mostra o traço e o motivo no tooltip, nunca divisão por zero', () => {
+    const previous = { ...TOTALS, energyKwh: 0, co2eGrams: 0 };
+    const html = renderToStaticMarkup(<IndicatorsPanel summary={summary(TOTALS, previous)} staleSince={null} />);
+    expect(html).toContain('— vs. 24 h anteriores');
+    expect(html).toContain('O total das 24 h anteriores foi zero: não há base para a variação');
+    expect(html).not.toContain('Infinity');
+    expect(html).not.toContain('NaN');
+  });
+
+  it('sem cálculo no período atual, o valor é o traço do MissingValue e a nota diz o motivo', () => {
+    const html = renderToStaticMarkup(
+      <IndicatorsPanel summary={summary({ ...TOTALS, energyKwh: null, co2eGrams: null }, TOTALS)} staleSince={null} />,
+    );
+    expect(html).toContain('sr-only">sem cálculo');
+    expect(html).toContain('Sem cálculo neste período');
+    expect(html).not.toContain('NaN');
+    expect(html).not.toContain('ordem de grandeza');
+  });
+
   it('antes da primeira resposta mostra o estado de cálculo, sem valores', () => {
     const html = renderToStaticMarkup(<IndicatorsPanel summary={null} staleSince={null} />);
     expect(html).toContain('calculando');

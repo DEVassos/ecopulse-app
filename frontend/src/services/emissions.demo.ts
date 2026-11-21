@@ -55,7 +55,8 @@ function emptyPoint(t: number, failed: boolean): EmissionPoint {
     t,
     collections: 1,
     failed: failed ? 1 : 0,
-    notCalculated: failed ? 0 : 1,
+    // Mesma regra da rota: coleta com falha também está sem cálculo, então as duas contagens se sobrepõem.
+    notCalculated: 1,
     energyKwh: null,
     co2eGrams: null,
     co2eMinGrams: null,
