@@ -9,11 +9,16 @@ function point(t: number, co2eGrams: number | null): EmissionPoint {
   return { t, collections: 3, failed: 0, notCalculated: 0, energyKwh: 0.01, co2eGrams, co2eMinGrams: null, co2eMaxGrams: null };
 }
 
+const DAY = 86_400_000;
+
 describe('compareBucket', () => {
-  it('usa 15 min até dois dias e 1 hora acima disso', () => {
-    expect(compareBucket(0, 2 * 86_400_000)).toBe('15min');
-    expect(compareBucket(0, 2 * 86_400_000 + 1)).toBe('1h');
+  it('usa 15 min até dois dias, 1 hora até dez dias e 1 dia acima disso', () => {
     expect(compareBucket(0, MIN)).toBe('15min');
+    expect(compareBucket(0, 2 * DAY)).toBe('15min');
+    expect(compareBucket(0, 2 * DAY + 1)).toBe('1h');
+    expect(compareBucket(0, 10 * DAY)).toBe('1h');
+    expect(compareBucket(0, 10 * DAY + 1)).toBe('1d');
+    expect(compareBucket(0, 31 * DAY)).toBe('1d');
   });
 });
 
@@ -28,6 +33,7 @@ describe('alignCompareSeries', () => {
     expect(series.rows.map((row) => row.name)).toEqual(['checkout', 'auditoria']);
     expect(series.rows[0].values).toEqual([null, 5, 7]);
     expect(series.rows[1].values).toEqual([4, null, 9]);
+    expect(series.rows.map((row) => row.missing)).toEqual([1, 1]);
   });
 
   it('soma o período de cada serviço e guarda o maior intervalo para o eixo', () => {
@@ -45,7 +51,17 @@ describe('alignCompareSeries', () => {
 
     expect(series.rows[0].total).toBeNull();
     expect(series.rows[0].values).toEqual([null]);
+    expect(series.rows[0].missing).toBe(1);
     expect(series.max).toBe(0);
+  });
+
+  it('leva a região do serviço para a legenda, e null quando o agregador não informa', () => {
+    const series = alignCompareSeries([
+      { service: { id: '1', name: 'a', region: 'us-east-1' }, points: [point(MIN, 5)] },
+      { service: { id: '2', name: 'b', region: null }, points: [point(MIN, 6)] },
+    ]);
+
+    expect(series.rows.map((row) => row.region)).toEqual(['us-east-1', null]);
   });
 
   it('sem serviços, a linha do tempo fica vazia', () => {

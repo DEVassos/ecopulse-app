@@ -4,21 +4,25 @@
 import type { EmissionPoint, EmissionsBucket } from '../services/emissions.types';
 
 /** Agrupamento da comparação: o período de até 31 dias em 15 min daria milhares de pontos por serviço. */
-export type CompareBucket = Extract<EmissionsBucket, '15min' | '1h'>;
+export type CompareBucket = Extract<EmissionsBucket, '15min' | '1h' | '1d'>;
 
 const DAY_MS = 86_400_000;
 
 /**
- * Agrupamento pelo tamanho do período: até 2 dias, 15 min; acima disso, 1 hora. É o corte de `autoBucket` (#189) sem
- * o agrupamento por coleta, que traria até 15 000 pontos por serviço.
+ * Agrupamento pelo tamanho do período: até 2 dias, 15 min; até 10 dias, 1 hora; acima disso, 1 dia. É o corte de
+ * `autoBucket` (#189) sem o agrupamento por coleta, que traria até 15 000 pontos por serviço.
  */
 export function compareBucket(fromMs: number, toMs: number): CompareBucket {
-  return toMs - fromMs <= 2 * DAY_MS ? '15min' : '1h';
+  const span = toMs - fromMs;
+  if (span <= 2 * DAY_MS) return '15min';
+  return span <= 10 * DAY_MS ? '1h' : '1d';
 }
 
 export interface CompareServiceRef {
   id: string;
   name: string;
+  /** Região do serviço, como na matriz; null quando o agregador não informa. */
+  region?: string | null;
 }
 
 /** A série de um serviço como a API devolveu: só os intervalos com coleta (a #189 omite os vazios). */
@@ -30,8 +34,11 @@ export interface CompareSeriesInput {
 export interface CompareSeriesRow {
   id: string;
   name: string;
+  region: string | null;
   /** Um valor por instante de `times`, em g CO₂e; null quando o serviço não teve cálculo naquele intervalo. */
   values: Array<number | null>;
+  /** Intervalos de `times` em que o serviço não teve cálculo: a linha é interrompida ali, e a legenda diz quantos são. */
+  missing: number;
   /** Soma do período, em g CO₂e; null quando nenhum intervalo do serviço foi calculado. */
   total: number | null;
 }
@@ -67,7 +74,8 @@ export function alignCompareSeries(inputs: CompareSeriesInput[]): CompareSeries 
       total = (total ?? 0) + point.co2eGrams;
       if (point.co2eGrams > max) max = point.co2eGrams;
     }
-    return { id: service.id, name: service.name, values, total };
+    const missing = values.filter((value) => value === null).length;
+    return { id: service.id, name: service.name, region: service.region ?? null, values, missing, total };
   });
 
   return { times, rows, max };

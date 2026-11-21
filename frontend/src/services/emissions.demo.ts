@@ -10,7 +10,7 @@ import { groupPoints, totalsOf } from '../utils/emissions';
 /** Intervalo entre coletas do worker (POLLING_INTERVAL_MS do .env.example). */
 const INTERVAL_MS = 30_000;
 
-const BUCKET_MS = { '15min': 15 * 60_000, '1h': 60 * 60_000 } as const;
+const BUCKET_MS = { '15min': 15 * 60_000, '1h': 60 * 60_000, '1d': 86_400_000 } as const;
 
 /** Perfil de cada serviço do demo-data: carga média de CPU, memória, disco, rede e intensidade da região (g/kWh). */
 const PROFILES: Record<string, { cpu: number; memoryGb: number; diskGb: number; networkGb: number; intensity: number }> = {

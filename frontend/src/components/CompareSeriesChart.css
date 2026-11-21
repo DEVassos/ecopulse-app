@@ -146,10 +146,29 @@
     gap: 6px;
   }
 
+  .compare-series__legend-name {
+    color: var(--text-2);
+  }
+
+  .compare-series__legend-region {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
   .compare-series__legend-total {
     color: var(--text-2);
     font-family: var(--sans);
     font-variant-numeric: tabular-nums;
+  }
+
+  /* Serviço sem nenhuma coleta calculada: fica só aqui, com o quadrado vazado e o motivo escrito */
+  .compare-series__legend-gap {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .compare-series__swatch--empty {
+    border: 1px dashed var(--border);
   }
 
   .compare-series__flag--lowest {

@@ -222,7 +222,12 @@ export default function CompareSeriesChart({ series, bucket, fromMs, toMs, highl
   const total = (value: number | null) => (value === null ? 'sem cálculo' : `${formatInScale(value, scale)} ${scale.unit}`);
   const nameOf = (id: string) => series.rows.find((row) => row.id === id)?.name ?? '';
   const reading = `CO₂e de cada serviço a cada ${BUCKET_LABEL[bucket]}, de ${formatPointTime(fromMs)} a ${formatPointTime(toMs)}. ${series.rows
-    .map((row) => `${row.name}: ${total(row.total)} no período.`)
+    .map((row) => {
+      const where = row.region ? `${row.name} (${row.region})` : row.name;
+      if (row.total === null) return `${where}: sem coletas calculadas no período.`;
+      const gaps = row.missing > 0 ? `, ${row.missing} ${row.missing === 1 ? 'intervalo' : 'intervalos'} sem cálculo` : '';
+      return `${where}: ${total(row.total)} no período${gaps}.`;
+    })
     .join(' ')}`;
 
   return (
@@ -359,20 +364,33 @@ export default function CompareSeriesChart({ series, bucket, fromMs, toMs, highl
         {reading}
       </p>
 
-      {/* Legenda: a cor identifica a linha, e o total do período fica escrito para bater com a matriz */}
+      {/* Legenda: nome, região, total do período e quantos intervalos ficaram sem cálculo; a cor só reforça */}
       <ul className="compare-series__legend">
         {series.rows.map((row, index) => {
           const highlight = highlightOf(row.id);
+          const drawn = row.total !== null;
+          const gap = row.missing === 1 ? '1 intervalo sem cálculo' : `${row.missing} intervalos sem cálculo`;
           return (
-            <li key={row.id} title={`${nameOf(row.id)}: ${total(row.total)} no período`}>
-              <span className="compare-series__swatch" style={{ background: colorOf(index) }} aria-hidden="true" />
+            <li
+              key={row.id}
+              title={`${nameOf(row.id)}${row.region ? ` (${row.region})` : ''}: ` +
+                (drawn ? `${total(row.total)} no período` : 'sem coletas calculadas no período') +
+                (drawn && row.missing > 0 ? `, ${gap}` : '')}
+            >
+              <span
+                className={`compare-series__swatch${drawn ? '' : ' compare-series__swatch--empty'}`}
+                style={{ background: drawn ? colorOf(index) : 'transparent' }}
+                aria-hidden="true"
+              />
               {highlight && (
                 <span className={`compare-series__flag compare-series__flag--${highlight.kind}`} aria-label={highlight.label}>
                   <span aria-hidden="true">{highlight.arrow}</span>
                 </span>
               )}
-              {row.name}
-              <span className="compare-series__legend-total">{total(row.total)}</span>
+              <span className="compare-series__legend-name">{row.name}</span>
+              {row.region && <span className="compare-series__legend-region">{row.region}</span>}
+              <span className="compare-series__legend-total">{drawn ? total(row.total) : 'sem coletas calculadas'}</span>
+              {drawn && row.missing > 0 && <span className="compare-series__legend-gap">{gap}</span>}
             </li>
           );
         })}

@@ -224,7 +224,7 @@ export default function ComparePage() {
   // gráfico refaria as buscas a cada resposta nova da comparação
   const seriesKey = data?.services.map((service) => service.id).join(',') ?? '';
   const seriesServices = useMemo(
-    () => (data?.services ?? []).map((service) => ({ id: service.id, name: service.name })),
+    () => (data?.services ?? []).map((service) => ({ id: service.id, name: service.name, region: service.region })),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- derivado de `data`: a chave basta e evita busca a cada refetch
     [seriesKey],
   );
