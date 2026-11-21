@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { ServicesSummaryResponse } from '../services/services.types';
-import { formatNumber } from '../utils/format';
+import { formatDayTime, formatNumber } from '../utils/format';
 import { EQUIVALENTS_DISCLAIMER, describeEquivalents, equivalentsSources } from '../utils/equivalents';
 import { scaleFor } from '../utils/units';
 import MetricTile, { metricIconProps } from './MetricTile';
@@ -11,30 +11,26 @@ import './KpiPanel.css';
 interface Props {
   /** null enquanto a primeira resposta não chega: o painel já ocupa o lugar dele, sem a página pular (#259). */
   summary: ServicesSummaryResponse | null;
-  previousSummary: ServicesSummaryResponse | null;
-  comparisonLoading: boolean;
-  stale: boolean;
+  /**
+   * Fim do período dos números na tela (ISO 8601) quando a última busca falhou; null quando eles estão em dia (#234).
+   * A faixa de falha explica o motivo; aqui fica desde quando os valores que continuam na tela valem.
+   */
+  staleSince: string | null;
 }
 
-/** Base da comparação, em poucas palavras; o detalhe fica no tooltip. */
-const BASELINE = 'vs 24 h anteriores';
+/** Base da comparação, como no contrato de GET /api/services/summary; o detalhe fica no tooltip. */
+const BASELINE = 'vs. 24 h anteriores';
 
 /**
- * Variação contra as 24 h anteriores (#271). Energia e CO₂e são métricas em que menos é melhor: ▲ em alerta, ▼ em
- * verde, ±0% em cinza abaixo de 0,5%. Sem base, "—" com o motivo no tooltip, nunca um zero ou um 100% enganoso.
+ * Variação contra o período anterior, que vem na mesma resposta (#271). Energia e CO₂e são métricas em que menos é
+ * melhor: ▲ em alerta, ▼ em verde, ±0% em cinza abaixo de 0,5%. Sem base, o texto diz o motivo e o tooltip explica;
+ * nunca um zero ou um 100% enganoso.
  */
-function variation(current: number | null, previous: number | null, hasPreviousPeriod: boolean, loading: boolean): ReactNode {
-  // Só mostra "Comparando…" na primeira busca: nos ciclos seguintes a variação anterior fica até chegar a nova
-  if (loading && !hasPreviousPeriod) return 'Comparando…';
-  const noBase = (reason: string) => (
-    <span data-tooltip={reason}>
-      — {BASELINE}
-    </span>
-  );
-  if (current === null) return noBase('Sem cálculo neste período');
-  if (!hasPreviousPeriod) return noBase('A comparação com as 24 h anteriores não foi carregada');
-  if (previous === null) return noBase('Sem cálculo nas 24 h anteriores: não há base para a variação');
-  if (previous === 0) return noBase('O total das 24 h anteriores foi zero: não há base para a variação');
+function variation(current: number | null, previous: number | null): ReactNode {
+  const noBase = (text: string, reason: string) => <span data-tooltip={reason}>{text}</span>;
+  if (current === null) return noBase(`— ${BASELINE}`, 'Sem cálculo neste período');
+  if (previous === null) return noBase('Sem cálculo no período anterior', 'Sem cálculo nas 24 h anteriores: não há base para a variação');
+  if (previous === 0) return noBase(`— ${BASELINE}`, 'O total das 24 h anteriores foi zero: não há base para a variação');
   const percent = ((current - previous) / previous) * 100;
   const exact = `${percent > 0 ? '+' : ''}${formatNumber(percent, 1)}% ${BASELINE}`;
   if (Math.abs(percent) < 0.5) {
@@ -72,25 +68,25 @@ function formatBrasilia(iso: string): string {
 }
 
 /**
- * Energia e CO₂e das últimas 24 h (RF08, #175), com a variação contra as 24 h anteriores. O estado dos serviços fica
- * nos cards da #21 (KpiPanel); sem cálculo no período, o valor é o traço do MissingValue, nunca zero.
+ * Energia e CO₂e das últimas 24 h (RF08, #175), com a variação contra as 24 h anteriores. Os dois períodos vêm da
+ * mesma resposta de GET /api/services/summary. O estado dos serviços fica nos cards do KpiPanel; sem cálculo no
+ * período, o valor é o traço do MissingValue, nunca zero.
  */
-export default function SummaryPanel({ summary, previousSummary, comparisonLoading, stale }: Props) {
+export default function IndicatorsPanel({ summary, staleSince }: Props) {
+  const stale = staleSince !== null;
   // Antes da primeira resposta: reticências e "Calculando…", nunca "—" (que quer dizer "sem cálculo") nem zero
   const pending = (
     <span className="text-muted">
       …<span className="sr-only">calculando</span>
     </span>
   );
-  const energyChange = summary
-    ? variation(summary.energyKwh, previousSummary?.energyKwh ?? null, previousSummary !== null, comparisonLoading)
-    : 'Calculando o período…';
-  const emissionsChange = summary
-    ? variation(summary.co2eGrams, previousSummary?.co2eGrams ?? null, previousSummary !== null, comparisonLoading)
-    : 'Calculando o período…';
+  const current = summary?.totals ?? null;
+  const previous = summary?.previous.totals ?? null;
+  const energyChange = summary ? variation(current?.energyKwh ?? null, previous?.energyKwh ?? null) : 'Calculando o período…';
+  const emissionsChange = summary ? variation(current?.co2eGrams ?? null, previous?.co2eGrams ?? null) : 'Calculando o período…';
   const missing = <MissingValue label="sem cálculo" title="Sem cálculo no período" />;
   // Equivalência do CO₂e (#333): só com valor conhecido, com os fatores e a fonte no tooltip
-  const equivalents = summary ? describeEquivalents(summary.co2eGrams) : null;
+  const equivalents = current ? describeEquivalents(current.co2eGrams) : null;
   // O leitor de tela e o toque não têm hover: as fontes também vão no texto lido, como no EstimateTag (#272)
   const equivalentsText = `${EQUIVALENTS_DISCLAIMER} ${equivalentsSources()}`;
   const equivalentsNote = equivalents && (
@@ -100,8 +96,8 @@ export default function SummaryPanel({ summary, previousSummary, comparisonLoadi
     </span>
   );
   // Escala única (#271): "841 Wh" em vez de "0,8413 kWh"
-  const energyScale = scaleFor('energy', [summary?.energyKwh ?? null]);
-  const co2eScale = scaleFor('co2e', [summary?.co2eGrams ?? null]);
+  const energyScale = scaleFor('energy', [current?.energyKwh ?? null]);
+  const co2eScale = scaleFor('co2e', [current?.co2eGrams ?? null]);
   return (
     <section className="flex flex-col gap-3" aria-labelledby="summary-title" aria-busy={summary === null}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
@@ -111,23 +107,29 @@ export default function SummaryPanel({ summary, previousSummary, comparisonLoadi
         {/* Período sempre na tela, com o fuso: os números valem para esta janela */}
         {summary && (
           <p className="m-0 text-sm text-muted">
-            {formatBrasilia(summary.period.from)} a {formatBrasilia(summary.period.to)} (horário de Brasília)
+            {formatBrasilia(summary.from)} a {formatBrasilia(summary.to)} (horário de Brasília)
           </p>
         )}
       </div>
+      {/* Falha não apaga o número, mas ele não pode parecer atual (#234): a faixa acima diz o que falhou */}
+      {staleSince && (
+        <p className="m-0 text-sm text-warning">
+          Desatualizado desde {formatDayTime(staleSince)} · valores da última busca bem-sucedida.
+        </p>
+      )}
       <div className="kpis kpis--wide">
         <MetricTile
           label="Energia no período"
           value={
-            !summary ? (
+            !current ? (
               pending
-            ) : summary.energyKwh === null ? (
+            ) : current.energyKwh === null ? (
               missing
             ) : (
-              <CompactValue quantity="energy" value={summary.energyKwh} scale={energyScale} label="Energia nas últimas 24 h" />
+              <CompactValue quantity="energy" value={current.energyKwh} scale={energyScale} label="Energia nas últimas 24 h" />
             )
           }
-          unit={!summary || summary.energyKwh === null ? undefined : energyScale.unit}
+          unit={!current || current.energyKwh === null ? undefined : energyScale.unit}
           note={energyChange}
           stale={stale}
           icon={
@@ -139,15 +141,15 @@ export default function SummaryPanel({ summary, previousSummary, comparisonLoadi
         <MetricTile
           label="Emissões no período"
           value={
-            !summary ? (
+            !current ? (
               pending
-            ) : summary.co2eGrams === null ? (
+            ) : current.co2eGrams === null ? (
               missing
             ) : (
-              <CompactValue quantity="co2e" value={summary.co2eGrams} scale={co2eScale} label="CO₂e nas últimas 24 h" />
+              <CompactValue quantity="co2e" value={current.co2eGrams} scale={co2eScale} label="CO₂e nas últimas 24 h" />
             )
           }
-          unit={!summary || summary.co2eGrams === null ? undefined : `${co2eScale.unit} CO₂e`}
+          unit={!current || current.co2eGrams === null ? undefined : `${co2eScale.unit} CO₂e`}
           note={emissionsChange}
           detail={equivalentsNote}
           stale={stale}
@@ -158,6 +160,12 @@ export default function SummaryPanel({ summary, previousSummary, comparisonLoadi
           }
         />
       </div>
+      {/* Falhas de coleta no período: o número que explica uma variação alta ou um total baixo */}
+      {current && (
+        <p className="m-0 text-sm text-muted">
+          Coletas com falha no período: {formatNumber(current.failed, 0)} de {formatNumber(current.collections, 0)}
+        </p>
+      )}
     </section>
   );
 }
