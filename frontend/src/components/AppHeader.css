@@ -75,6 +75,14 @@
     font-weight: 600;
   }
 
+  /* Faixa entre 600 e 639 px: com o Relatório (#403) e a Ajuda (#398), são seis páginas, e os 13 px de cada lado faziam a
+     faixa rolar 33 px e cortar a última; com 9 px, as seis cabem a partir de 600 px */
+  @media (max-width: 639px) {
+    .nav a {
+      padding-inline: 9px;
+    }
+  }
+
   /* Em tela estreita a caixa das ações não conta na disposição: os filhos viram itens do .topbar-inner */
   .topbar-actions {
     display: contents;
