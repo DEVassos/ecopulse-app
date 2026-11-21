@@ -521,7 +521,8 @@ const routes = {
           co2eGrams,
           collections: items.length,
           failed: items.filter((item) => item.status !== 'ok').length,
-          notCalculated: items.filter((item) => item.status === 'ok' && item.co2eGrams === null).length,
+          // Como no backend (docs/api.md): sem cálculo inclui as falhas, então calculadas = collections − notCalculated
+          notCalculated: items.filter((item) => item.calculationStatus !== 'disponivel').length,
         };
         // MOCK_SERVICES=ranking-texto: o 1º lugar vem com o CO₂e em texto, para ver a tela recusar a resposta
         if (SERVICES_SCENARIO === 'ranking-texto' && entry.position === 1) entry.co2eGrams = String(entry.co2eGrams);
