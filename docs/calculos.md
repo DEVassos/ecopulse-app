@@ -321,7 +321,7 @@ P_média (W)           = E_período (kWh) × 3 600 000 ÷ segundos monitorados
 eficiência de carbono = intensidade da região (g CO₂e/kWh), menor é melhor
 ```
 
-`P_média` é a média **ponderada pelo tempo**, não `AVG(power_watts)`: como `E = P × Δt ÷ 3 600 000`, somando as coletas `Σ P·Δt = E × 3 600 000` e `P_média = Σ P·Δt ÷ Σ Δt`. Com intervalos iguais as duas contas coincidem; com intervalos diferentes, só a ponderada está certa — e é por isso que a rota precisa devolver os segundos monitorados, coisa que nenhuma rota faz hoje.
+`P_média` é a média **ponderada pelo tempo**, não `AVG(power_watts)`: como `E = P × Δt ÷ 3 600 000`, somando as coletas `Σ P·Δt = E × 3 600 000` e `P_média = Σ P·Δt ÷ Σ Δt`. Com intervalos iguais as duas contas coincidem; com intervalos diferentes, só a ponderada está certa — e é por isso que a rota precisa devolver os segundos monitorados junto da energia: `GET /api/services/compare` e `GET /api/services/ranking` devolvem `monitoredSeconds` desde a #329 ([api.md](api.md#get-apiservicescompare)).
 
 Numerador e denominador têm de sair do **mesmo conjunto de coletas**, e o conjunto é o de `E_período` (`calculation_status = 'disponivel'`). Somar o tempo das coletas `status = 'ok'` e a energia das calculadas mistura dois conjuntos: uma coleta `ok` sem fator tem energia `NULL`, entra no tempo e não entra na energia. Com 1 h da API de carbono fora em 24 h a 20 W, a conta misturada dá 0,46 × 3 600 000 ÷ 86 400 = 19,17 W em vez de 20 W — o serviço parece mais eficiente exatamente quando a medição falhou.
 
@@ -330,8 +330,11 @@ Exemplos conferíveis à mão:
 - 0,48 kWh em 24 h monitoradas: 0,48 × 3 600 000 ÷ 86 400 = **20 W**.
 - De volta ao exemplo oficial: 1.000 coletas de 60 s com P = 50,87 W dão `E` = 0,847833333 kWh e 60 000 s; 0,847833333 × 3 600 000 ÷ 60 000 = **50,87 W**, a potência de origem.
 - Eficiência de carbono, com o exemplo da seção de simulação (`us-east`, `E_período` 0,050 kWh, `CO₂e_real` 18,90 g): 18,90 ÷ 0,050 = **378 g CO₂e/kWh**, o fator da região. O mesmo serviço em `br-sudeste` daria 4,25 ÷ 0,050 = **85 g CO₂e/kWh**.
+- Cobertura parcial, o caso comum: um período de 24 h com 5 h 24 min (19 440 s) de coletas calculadas e `E_período` 0,218 kWh dá 0,218 × 3 600 000 ÷ 19 440 = **40,37 W**. Dividir pelo período inteiro daria 9,08 W — a mesma energia espalhada por horas em que não houve medição, e o serviço pareceria quatro vezes mais eficiente. É por isso que a tela mostra o tempo monitorado junto da potência.
 
 `segundos monitorados = 0` (período só com coletas `erro` ou `sem_metricas`) não é potência zero: é "sem dado no período".
+
+Onde aparece na interface (#329): a coluna **"Potência média (W)"** da lista de serviços do dashboard — ordenável, com o mesmo critério de ausência das colunas de energia e CO₂e, e o selo "menor é melhor" no tooltip — e a linha **"Potência média (W)"** da Comparação, que destaca "mais eficiente" só quando há ao menos dois serviços medidos e um único menor valor — o empate é contado no número exibido, com as duas casas da linha, para o selo não ir a um dos lados de um par que a tela mostra igual. A Comparação traz ainda a linha **"Tempo monitorado"** (a soma dos intervalos das coletas calculadas, acima), para a conta ser reproduzível na tela.
 
 ### Por que W por % de CPU foi descartado
 
@@ -367,7 +370,7 @@ avg(x) = Σ(x × collection_interval_seconds) ÷ Σ(collection_interval_seconds)
 
 `GET /api/services/compare` devolve as quatro médias ponderadas pelo intervalo das coletas com `status = 'ok'` e `avgPowerBreakdown`, com uma parcela em W por recurso. A função aplica os mesmos coeficientes oficiais e arredonda cada parcela a seis casas. Não é necessária coluna ou migration.
 
-As médias de recursos usam `status = 'ok'`, enquanto `energyKwh` soma apenas as coletas com `calculation_status = 'disponivel'`. Portanto uma métrica válida cuja emissão não pôde ser calculada entra nas médias e fica fora da energia; `avgPowerBreakdown` não deve ser interpretado como potência média inferida da energia total. A rota ainda não devolve o tempo monitorado necessário para reconciliar esses conjuntos; esse ajuste fica fora da #327.
+As médias de recursos usam `status = 'ok'`, enquanto `energyKwh` soma apenas as coletas com `calculation_status = 'disponivel'`. Portanto uma métrica válida cuja emissão não pôde ser calculada entra nas médias e fica fora da energia; `avgPowerBreakdown` não deve ser interpretado como potência média inferida da energia total. Desde a #329 a rota devolve também `monitoredSeconds`, mas ele pertence ao conjunto da energia (coletas calculadas): serve para a potência média de `E_período`, não para reconciliar as médias de recursos, que continuam sendo as das coletas `status = 'ok'`.
 
 Enquanto `cpu_percent = 0` for valor válido, a parcela de CPU é 0 W e a de RAM pode ser a maior: a barra não pode assumir CPU dominante.
 
