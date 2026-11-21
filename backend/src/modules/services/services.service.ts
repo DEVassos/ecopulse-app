@@ -102,14 +102,17 @@ export interface ServiceComparisonResponse {
     avgCpuPercent: number | null; avgMemoryGb: number | null; avgDiskGb: number | null; avgNetworkGb: number | null;
     /** Composição da potência média do período, em W (#327); `null` quando falta alguma das quatro médias. */
     avgPowerBreakdown: PowerBreakdown | null;
-    energyKwh: number | null; co2eGrams: number | null }>;
+    energyKwh: number | null; co2eGrams: number | null;
+    /** Segundos monitorados das mesmas coletas de `energyKwh`: base da potência média do período (#329). */
+    monitoredSeconds: number | null }>;
 }
 function comparison(row: ServiceComparisonRow): ServiceComparisonResponse['services'][number] {
   return { id: row.id, name: row.name, region: row.region, collections: Number(row.collections), failed: Number(row.failed), notCalculated: Number(row.not_calculated),
     avgCpuPercent: numberOrNull(row.avg_cpu_percent), avgMemoryGb: numberOrNull(row.avg_memory_gb), avgDiskGb: numberOrNull(row.avg_disk_gb),
     avgNetworkGb: numberOrNull(row.avg_network_gb),
     avgPowerBreakdown: breakdownOf(row.avg_cpu_percent, row.avg_memory_gb, row.avg_disk_gb, row.avg_network_gb),
-    energyKwh: numberOrNull(row.energy_kwh), co2eGrams: numberOrNull(row.co2e_grams) };
+    energyKwh: numberOrNull(row.energy_kwh), co2eGrams: numberOrNull(row.co2e_grams),
+    monitoredSeconds: numberOrNull(row.monitored_seconds) };
 }
 export async function getServiceComparison(repository: ServiceRepository, input: ServiceComparisonInput): Promise<ServiceComparisonResponse> {
   const rows = await repository.compareByIds(input.ids, input.from, input.to);
@@ -126,6 +129,8 @@ export interface ServiceRankingResponse {
     position: number | null; id: string; name: string; region: string | null; status: ServiceStatus;
     energyKwh: number | null; co2eGrams: number | null;
     collections: number; failed: number; notCalculated: number;
+    /** Segundos monitorados das mesmas coletas de `energyKwh` (#329). */
+    monitoredSeconds: number | null;
   }>;
 }
 
@@ -142,6 +147,7 @@ function rankedService(row: ServiceRankingRow, metric: ServiceRankingMetric, pos
     collections: Number(row.collections),
     failed: Number(row.failed),
     notCalculated: Number(row.not_calculated),
+    monitoredSeconds: numberOrNull(row.monitored_seconds),
   };
 }
 
