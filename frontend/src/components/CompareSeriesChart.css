@@ -1,0 +1,187 @@
+@layer components {
+  /*
+   * Linhas de CO₂e por serviço na Comparação (#406). Cada linha tem a cor da sua série (--series-1 a --series-10) e o
+   * nome escrito na ponta; grade, eixo e cursor são neutros, como no gráfico de Emissões, para a cor ficar só com a
+   * identificação da série.
+   */
+  .compare-series {
+    position: relative;
+    outline: none;
+  }
+
+  .compare-series:focus-visible {
+    outline: 2px solid var(--sky);
+    outline-offset: 4px;
+    border-radius: 4px;
+  }
+
+  .compare-series svg {
+    display: block;
+  }
+
+  .compare-series__grid {
+    stroke: var(--border);
+    stroke-width: 1;
+    stroke-dasharray: 2 4;
+  }
+
+  .compare-series__grid--x {
+    stroke-dasharray: none;
+    opacity: 0.6;
+  }
+
+  .compare-series__axis {
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+
+  .compare-series__tick {
+    fill: var(--muted);
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+  }
+
+  .compare-series__axis-title {
+    fill: var(--muted);
+    font-size: 11px;
+  }
+
+  .compare-series__line {
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .compare-series__single {
+    stroke: none;
+  }
+
+  /* Nome na ponta da linha: o halo na cor do painel mantém o texto legível sobre as outras linhas e a grade */
+  .compare-series__name {
+    font-size: 11px;
+    font-weight: 500;
+    paint-order: stroke;
+    stroke: var(--surface);
+    stroke-width: 3px;
+    stroke-linejoin: round;
+  }
+
+  .compare-series__cursor {
+    stroke: var(--text-2);
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+    opacity: 0.7;
+  }
+
+  .compare-series__dot {
+    fill: var(--surface);
+    stroke-width: 2;
+  }
+
+  .compare-series__tooltip {
+    position: absolute;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 180px;
+    padding: 8px 10px;
+    /* O mesmo cartão escuro do tooltip único (#274) */
+    background: var(--tooltip-bg);
+    border: 1px solid var(--tooltip-border);
+    border-radius: 8px;
+    box-shadow: 0 12px 28px -14px rgb(0 0 0 / 0.65);
+    font-size: 12px;
+    color: var(--tooltip-muted);
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* o display: flex acima venceria o atributo hidden */
+  .compare-series__tooltip[hidden] {
+    display: none;
+  }
+
+  .compare-series__tooltip strong {
+    color: var(--tooltip-text);
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+  }
+
+  .compare-series__tooltip-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .compare-series__tooltip-gap {
+    color: var(--tooltip-warning);
+  }
+
+  .compare-series__swatch {
+    flex: none;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+
+  .compare-series__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 16px;
+    margin: 4px 0 0;
+    padding: 0 0 0 64px;
+    list-style: none;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .compare-series__legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .compare-series__legend-name {
+    color: var(--text-2);
+  }
+
+  .compare-series__legend-region {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .compare-series__legend-total {
+    color: var(--text-2);
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Serviço sem nenhuma coleta calculada: fica só aqui, com o quadrado vazado e o motivo escrito */
+  .compare-series__legend-gap {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .compare-series__swatch--empty {
+    border: 1px dashed var(--border);
+  }
+
+  .compare-series__flag--lowest {
+    color: var(--accent-hover);
+  }
+
+  .compare-series__flag--highest {
+    color: var(--warning);
+  }
+
+  @media (max-width: 599px) {
+    .compare-series__legend {
+      padding-left: 0;
+    }
+  }
+}

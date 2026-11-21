@@ -67,7 +67,7 @@ No exemplo oficial periódico, 1.000 linhas de energia já persistida somam 0,84
 
 ## Consultas agregadas por período
 
-O ranking, a comparação, o resumo e o gráfico de um serviço agregam `collections` por período. As consultas estão em `backend/src/modules/services/services.repository.ts` (`findSummary`, `compareByIds`, `rankByPeriod`) e em `backend/src/modules/collections/collections.repository.ts` (`findSeries`), sempre dentro de um `*.repository.ts` e sempre com o período recebido como parâmetro (`$1`–`$3`), nunca interpolado no texto do SQL.
+O ranking, a comparação, o resumo e o gráfico de um serviço agregam `collections` por período. As consultas estão em `backend/src/modules/services/services.repository.ts` (`findSummaryTotals`, `countServicesByStatus`, `compareByIds`, `rankByPeriod`) e em `backend/src/modules/collections/collections.repository.ts` (`findSeries`), sempre dentro de um `*.repository.ts` e sempre com o período recebido como parâmetro (`$1`–`$3`), nunca interpolado no texto do SQL.
 
 ### Período: fechado no início, aberto no fim
 
@@ -443,6 +443,6 @@ Exibição: dois algarismos significativos no padrão brasileiro (`1,0565` → "
 
 Exemplo numérico (o mesmo do critério de aceite da #333): 258 g CO₂e no período → 258 / 244,2 = 1,0565 → "≈ 1,1 km de carro a gasolina"; 258 / 12,4 = 20,806 → "≈ 21 cargas de celular".
 
-Onde isso vive: `frontend/src/utils/equivalents.ts` (fatores, arredondamento e texto), com teste em `frontend/src/utils/equivalents.test.ts`, e a linha no card em `frontend/src/components/SummaryPanel.tsx`. Mudou um fator aqui, mude lá — o teste fixa a conta dos dois lados.
+Onde isso vive: `frontend/src/utils/equivalents.ts` (fatores, arredondamento e texto), com teste em `frontend/src/utils/equivalents.test.ts`, e a linha no card em `frontend/src/components/IndicatorsPanel.tsx`. Mudou um fator aqui, mude lá — o teste fixa a conta dos dois lados.
 
 Como verificar: `cd frontend && npx vitest run src/utils/equivalents.test.ts` e, com o dashboard aberto, conferir que o card "Emissões no período" mostra a linha de equivalências coerente com o valor em gramas formatado acima dela.
