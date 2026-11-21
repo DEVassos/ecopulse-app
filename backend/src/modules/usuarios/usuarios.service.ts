@@ -1,6 +1,7 @@
-import { compare } from 'bcryptjs';
+import { compare, hash } from 'bcryptjs';
 import { sign, verify, type SignOptions } from 'jsonwebtoken';
-import { AppError, UnauthorizedError } from '../../shared/errors';
+import { BCRYPT_ROUNDS } from '../../shared/account-rules';
+import { AppError, UnauthorizedError, ValidationError } from '../../shared/errors';
 import { isUserRole, type StoredUser, type UserRole } from '../../shared/persistence.types';
 import { UserRepository } from './usuarios.repository';
 
@@ -41,9 +42,34 @@ export function readToken(token: string, config: AuthConfig): AuthenticatedUser 
   }
 }
 
+/** Token válido de uma conta que não existe mais: a sessão acabou, como em GET /api/auth/me. */
+function accountGone(): UnauthorizedError {
+  return new UnauthorizedError('Token ausente, inválido ou expirado.');
+}
+
 /** GET /api/auth/me: confirma no banco que a conta do token ainda existe e devolve nome e papel atuais. */
 export async function currentUser(users: UserRepository, auth: AuthenticatedUser): Promise<PublicUser> {
   const user = await users.findById(auth.id);
-  if (user === null) throw new UnauthorizedError('Token ausente, inválido ou expirado.');
+  if (user === null) throw accountGone();
   return toPublicUser(user);
+}
+
+/** PATCH /api/auth/me (#400): a própria conta troca o nome; e-mail e papel não mudam por aqui. */
+export async function updateProfile(users: UserRepository, auth: AuthenticatedUser, name: string): Promise<PublicUser> {
+  const user = await users.updateName(auth.id, name);
+  if (user === null) throw accountGone();
+  return toPublicUser(user);
+}
+
+/**
+ * PUT /api/auth/me/password (#400). Senha atual errada é 400, não 401: o frontend encerra a sessão em qualquer 401.
+ * Não revoga outros tokens: o JWT não tem lista de revogação e vale até JWT_EXPIRES_IN.
+ */
+export async function changePassword(users: UserRepository, auth: AuthenticatedUser,
+  currentPassword: string, newPassword: string): Promise<void> {
+  const user = await users.findById(auth.id);
+  if (user === null) throw accountGone();
+  if (!await compare(currentPassword, user.password_hash)) throw new ValidationError('A senha atual não confere.');
+  if (newPassword === currentPassword) throw new ValidationError('A nova senha deve ser diferente da atual.');
+  if (!await users.updatePassword(user.id, await hash(newPassword, BCRYPT_ROUNDS))) throw accountGone();
 }

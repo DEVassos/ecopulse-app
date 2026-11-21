@@ -144,7 +144,7 @@
 
   /*
    * Celular (#274): abaixo de 600 px, a faixa do menu some e o botão "Menu" abre uma grade de duas colunas, logo abaixo
-   * do cabeçalho, sobre o fundo apagado. A partir de 600 px as quatro páginas cabem na faixa, sem rolar de lado.
+   * do cabeçalho, sobre o fundo apagado. A partir de 600 px as cinco páginas cabem na faixa, sem rolar de lado.
    */
   .topbar-theme {
     display: flex;
@@ -331,27 +331,29 @@
     }
   }
 
-  /* Tela larga: marca, menu e ações na mesma linha; 10 px na vertical deixa o cabeçalho com cerca de 56 px */
+  /* Tela larga: marca, menu e ações na mesma linha; 10 px na vertical deixa o cabeçalho com cerca de 56 px. As ações
+     partem de largura zero e ficam com o espaço que sobra, encolhendo o texto como antes; só quando nem encolhidas
+     cabem (no dashboard, com o selo de atualização, abaixo de cerca de 1.215 px) descem inteiras para uma segunda
+     linha, à direita, em vez de sair da tela e criar rolagem lateral (#398) */
   @media (min-width: 961px) {
     .topbar-inner {
-      flex-wrap: nowrap;
+      flex-wrap: wrap;
       padding: 10px 24px;
-      gap: 32px;
+      gap: 8px 32px;
     }
 
     .nav {
       order: 0;
       flex-basis: auto;
-      flex-grow: 1;
       overflow-x: visible;
     }
 
     .topbar-actions {
       display: flex;
+      flex: 1 1 0;
       justify-content: flex-end;
       align-items: center;
       gap: 16px;
-      margin-left: auto;
     }
 
     .topbar-user,

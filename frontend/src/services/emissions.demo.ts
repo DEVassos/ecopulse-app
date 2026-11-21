@@ -6,6 +6,7 @@ import type { PowerBreakdown, ServicesComparison } from './compare.types';
 import { demoServices } from './demo-data';
 import type { EmissionPoint, EmissionsQuery, EmissionsSeries } from './emissions.types';
 import { groupPoints, totalsOf } from '../utils/emissions';
+import { estimateCollection, powerBreakdown } from '../utils/model';
 
 /** Intervalo entre coletas do worker (POLLING_INTERVAL_MS do .env.example). */
 const INTERVAL_MS = 30_000;
@@ -24,17 +25,11 @@ const PROFILES: Record<string, { cpu: number; memoryGb: number; diskGb: number; 
 };
 
 /**
- * Mesmos coeficientes e mesma precisão de `backend/src/domain/carbon-calculator.ts`, para o demo não divergir do
- * contrato de GET /api/services/compare (`docs/api.md`).
+ * Mesmos coeficientes e mesma precisão de `backend/src/domain/carbon-calculator.ts` (via `utils/model.ts`), para o demo
+ * não divergir do contrato de GET /api/services/compare (`docs/api.md`).
  */
 function breakdownOf(profile: (typeof PROFILES)[string]): PowerBreakdown {
-  const watts = (value: number) => Number(value.toFixed(6));
-  return {
-    cpuW: watts(profile.cpu),
-    memoryW: watts(profile.memoryGb * 0.375),
-    diskW: watts(profile.diskGb * 0.01),
-    networkW: watts(profile.networkGb * 0.02),
-  };
+  return powerBreakdown({ cpuPercent: profile.cpu, memoryGb: profile.memoryGb, diskGb: profile.diskGb, networkGb: profile.networkGb });
 }
 
 /** Ruído determinístico em [0, 1) a partir de um número. */
@@ -64,7 +59,7 @@ function emptyPoint(t: number, failed: boolean): EmissionPoint {
 
 /** Uma coleta sintética por intervalo do worker, entre `from` (incluído) e `to` ou agora (excluídos). */
 function demoCollections(serviceId: string, fromMs: number, toMs: number): EmissionPoint[] {
-  const profile = PROFILES[serviceId] ?? { cpu: 40, memoryGb: 2, diskGb: 20, intensity: 100 };
+  const profile = PROFILES[serviceId] ?? { cpu: 40, memoryGb: 2, diskGb: 20, networkGb: 0, intensity: 100 };
   const seed = hash(serviceId);
   const end = Math.min(toMs, Date.now());
   const points: EmissionPoint[] = [];
@@ -93,9 +88,12 @@ function demoCollections(serviceId: string, fromMs: number, toMs: number): Emiss
     const daily = 0.75 + 0.35 * Math.sin(((hour - 9) / 24) * 2 * Math.PI);
     const spike = noise(slot * 3 + seed) > 0.995 ? 1.6 : 1;
     const cpu = Math.min(100, profile.cpu * daily * spike * (0.9 + 0.2 * noise(slot + seed)));
-    const watts = cpu + profile.memoryGb * 0.375 + profile.diskGb * 0.01;
-    const energyKwh = (watts * INTERVAL_MS) / 1000 / 3_600_000;
-    const co2eGrams = energyKwh * profile.intensity;
+    const { energyKwh, co2eGrams } = estimateCollection({
+      ...profile,
+      cpuPercent: cpu,
+      intervalSeconds: INTERVAL_MS / 1000,
+      intensityGco2ePerKwh: profile.intensity,
+    });
     points.push({ t, collections: 1, failed: 0, notCalculated: 0, energyKwh, co2eGrams, co2eMinGrams: co2eGrams, co2eMaxGrams: co2eGrams });
   }
   return points;
@@ -122,7 +120,10 @@ export function demoEmissions(query: EmissionsQuery): Promise<EmissionsSeries> {
 export function demoComparison(ids: string[], from: string, to: string): Promise<ServicesComparison> {
   const known = new Map(demoServices().services.map((service) => [service.id, service]));
   const services = ids.map((id) => {
-    const totals = totalsOf(demoCollections(id, Date.parse(from), Date.parse(to)), null);
+    const points = demoCollections(id, Date.parse(from), Date.parse(to));
+    const totals = totalsOf(points, null);
+    // Só as coletas com cálculo entram no tempo monitorado, como no backend (#329)
+    const calculated = points.filter((point) => point.energyKwh !== null).length;
     const profile = totals.collections > totals.failed ? PROFILES[id] : undefined;
     return {
       id,
@@ -138,6 +139,7 @@ export function demoComparison(ids: string[], from: string, to: string): Promise
       avgPowerBreakdown: profile === undefined ? null : breakdownOf(profile),
       energyKwh: totals.energyKwh,
       co2eGrams: totals.co2eGrams,
+      monitoredSeconds: calculated === 0 ? null : (calculated * INTERVAL_MS) / 1000,
     };
   });
   return Promise.resolve({ from, to, services });

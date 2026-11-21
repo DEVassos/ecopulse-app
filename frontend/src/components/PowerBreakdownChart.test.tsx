@@ -18,6 +18,7 @@ function compared(id: string, name: string, breakdown: ComparedService['avgPower
     avgNetworkGb: null,
     avgPowerBreakdown: breakdown,
     energyKwh: null,
+    monitoredSeconds: null,
     co2eGrams: null,
   };
 }

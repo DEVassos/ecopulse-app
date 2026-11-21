@@ -2,7 +2,7 @@
 // respostas e o pior estado vêm da #321 (`utils/regions.ts`); aqui ficam só o nome, o lugar e a ordem da tela.
 import type { RegionStatus, RegionsResponse, RegionsSummaryResponse } from '../services/regions.types';
 import { bubbleRadius, estimateMigration, joinRegions } from './regions';
-import type { RegionWithTotals } from './regions';
+import type { MigrationChange, RegionWithTotals } from './regions';
 import { formatQuantity } from './units';
 
 /** Uma região pronta para a lista (e, na #322, para o mapa). */
@@ -136,6 +136,49 @@ export function formatMigrationPercent(percent: number): string {
 export function migrationMath(energyKwh: number, intensity: number, grams: number): string {
   const precise = (value: number) => value.toLocaleString('pt-BR', { maximumSignificantDigits: 4 });
   return `${precise(energyKwh)} kWh × ${precise(intensity)} g/kWh = ${precise(grams)} g`;
+}
+
+/**
+ * Veredito da simulação numa frase que diz o achado (#395): "Mover para Montreal reduziria o CO₂e desta região em cerca
+ * de 89,42%". Sempre com número positivo e o verbo dizendo o sentido; sem CO₂e de origem, a diferença vai em gramas.
+ */
+export function migrationVerdict(change: MigrationChange, destination: string): string {
+  if (change.kind === 'igual') return `Mover para ${destination} manteria o CO₂e desta região`;
+  const verb = change.kind === 'reducao' ? 'reduziria' : 'aumentaria';
+  const amount = change.percent === null ? formatQuantity('co2e', change.grams) : `cerca de ${formatMigrationPercent(change.percent)}`;
+  return `Mover para ${destination} ${verb} o CO₂e desta região em ${amount}`;
+}
+
+/**
+ * Largura das duas barras do antes e depois (#395), em % da maior das duas: mesmo eixo, começando em zero. Valor
+ * positivo pequeno demais para aparecer ganha 1%, para a barra não sumir; zero fica zero.
+ */
+export function migrationBars(originGrams: number, simulatedGrams: number): { origin: number; simulated: number } {
+  const max = Math.max(originGrams, simulatedGrams);
+  const width = (grams: number) => (max <= 0 || grams <= 0 ? 0 : Math.max(1, Math.round((grams / max) * 1000) / 10));
+  return { origin: width(originGrams), simulated: width(simulatedGrams) };
+}
+
+/**
+ * Intensidade efetiva da origem no período (#395): CO₂e ÷ energia das coletas, a mesma base da simulação, que usa o CO₂e
+ * gravado e não o fator de agora. Sem energia ou sem CO₂e, não há conta: null.
+ */
+export function periodIntensity(energyKwh: number | null, co2eGrams: number | null): number | null {
+  if (energyKwh === null || co2eGrams === null || energyKwh <= 0) return null;
+  return co2eGrams / energyKwh;
+}
+
+/**
+ * Quantas vezes a rede do destino é mais limpa ou mais suja que a da origem (#395): "9,5 vezes menor", "1,2 vez maior",
+ * ou "praticamente a mesma" quando a diferença fica abaixo de 5%. null sem uma das duas intensidades.
+ */
+export function intensityRatioText(originIntensity: number | null, destinationIntensity: number | null): string | null {
+  if (originIntensity === null || destinationIntensity === null || originIntensity <= 0 || destinationIntensity <= 0) return null;
+  const ratio = originIntensity / destinationIntensity;
+  if (ratio < 1.05 && ratio > 1 / 1.05) return 'praticamente a mesma';
+  const times = ratio >= 1 ? ratio : 1 / ratio;
+  const label = times.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
+  return `${label} ${times < 2 ? 'vez' : 'vezes'} ${ratio >= 1 ? 'menor' : 'maior'}`;
 }
 
 /** Destino da simulação no mapa (#326): a região escolhida e o CO₂e que a energia da origem emitiria nela. */
