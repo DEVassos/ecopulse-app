@@ -1,0 +1,146 @@
+@layer components {
+  /*
+   * Gráfico de métricas (CPU, memória, disco e rede) da janela de detalhes. Uma série por vez: linha de 2 px em
+   * --sky (o verde fica para ação e o neon nunca vai em linha, docs/identidade-visual.md), grade e eixos discretos
+   * em --border e --muted. Os botões trocam de métrica sem recarregar nada: só o campo lido muda.
+   */
+  .metric-chart {
+    position: relative;
+    border-radius: 8px;
+  }
+
+  .metric-chart:focus-visible {
+    outline: 2px solid var(--sky);
+    outline-offset: 4px;
+  }
+
+  .metric-chart svg {
+    display: block;
+    touch-action: pan-y;
+  }
+
+  .metric-chart__grid {
+    stroke: var(--border);
+    stroke-width: 1;
+  }
+
+  .metric-chart__axis {
+    fill: var(--muted);
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+  }
+
+  .metric-chart__line {
+    fill: none;
+    stroke: var(--sky);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+
+  /* Ponto isolado entre duas falhas e marcador do crosshair: anel da superfície para destacar da linha */
+  .metric-chart__dot {
+    fill: var(--sky);
+    stroke: var(--surface);
+    stroke-width: 2;
+  }
+
+  .metric-chart__crosshair {
+    stroke: var(--muted);
+    stroke-width: 1;
+  }
+
+  .metric-chart__mark {
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+  }
+
+  .metric-chart__mark--erro {
+    stroke: var(--danger);
+  }
+
+  .metric-chart__mark--sem-metricas {
+    stroke: var(--warning);
+  }
+
+  .metric-chart__tooltip {
+    position: absolute;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    /* max-content: perto da borda a caixa não encolhe nem quebra o valor e o horário; só a mensagem de erro quebra */
+    width: max-content;
+    max-width: 240px;
+    padding: 6px 10px;
+    /* O mesmo cartão escuro do tooltip único (#274) */
+    border: 1px solid var(--tooltip-border);
+    border-radius: 8px;
+    background: var(--tooltip-bg);
+    box-shadow: 0 12px 28px -14px rgb(0 0 0 / 0.65);
+    color: var(--tooltip-muted);
+    font-size: 12px;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
+  .metric-chart__tooltip[hidden] {
+    display: none;
+  }
+
+  .metric-chart__picker {
+    display: inline-flex;
+    gap: 0;
+    /* Grupo de botões do tamanho do conteúdo, e não da coluna do diálogo */
+    align-self: flex-start;
+    max-width: 100%;
+  }
+
+  .metric-chart__btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    font-size: 14px;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .metric-chart__btn:first-child {
+    border-radius: 8px 0 0 8px;
+  }
+
+  .metric-chart__btn:last-child {
+    border-radius: 0 8px 8px 0;
+    border-left: none;
+  }
+
+  .metric-chart__btn:hover {
+    border-color: var(--muted);
+    color: var(--text);
+  }
+
+  .metric-chart__btn:focus-visible {
+    outline: 2px solid var(--sky);
+    outline-offset: 2px;
+  }
+
+  .metric-chart__btn[aria-pressed='true'] {
+    background: var(--surface-3);
+    color: var(--text);
+  }
+
+  .metric-chart__key {
+    width: 12px;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--sky);
+  }
+}
