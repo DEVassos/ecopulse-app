@@ -124,10 +124,13 @@ export default function CompareScatter({ services, highlightOf }: Props) {
             onBlur={() => setActiveId(null)}
           >
             {width > 0 && (
+              // viewBox do mesmo tamanho: na tela nada muda; impresso, o desenho encolhe inteiro até a largura da folha
+              // em vez de sair cortado (o print.css põe largura máxima de 100% e altura automática nos gráficos)
               <svg
                 className="block touch-pan-y"
                 width={width}
                 height={HEIGHT}
+                viewBox={`0 0 ${width} ${HEIGHT}`}
                 role="img"
                 aria-label={`Energia por CO₂e de ${placed.length} serviços, com uma reta por região: ${rays.map((ray) => `${ray.region}, ${rayValue(ray.intensity)}`).join('; ')}.`}
                 onPointerMove={handlePointer}
