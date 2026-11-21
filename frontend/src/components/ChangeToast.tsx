@@ -6,6 +6,43 @@ import './StatusChanges.css';
 /** Tempo na tela de cada lote; depois, o mesmo texto continua em "Últimas mudanças". */
 const TOAST_MS = 8000;
 const TOAST_LINES = 3;
+/** Até aqui o Dashboard põe o mapa das regiões no rodapé da tela; o aviso sai de baixo e encurta (#388). */
+const NARROW_QUERY = '(max-width: 599px)';
+
+const BOX =
+  'flex items-start gap-2 rounded-[10px] border border-l-[3px] border-border border-l-primary bg-surface ' +
+  'text-[var(--text-2)] shadow-[0_8px_24px_rgb(0_0_0/0.25)] motion-safe:animate-[change-toast-in_180ms_ease-out]';
+
+/** Onde o aviso aparece e quantas frases cabem, por largura da janela (#388). */
+export function toastLayout(narrow: boolean): { lines: number; wrapper: string; box: string } {
+  return narrow
+    ? {
+        lines: 1,
+        // Topo, abaixo dos 69 px do cabeçalho do celular: o rodapé é do mapa, onde ficam o "+" e o "−" do zoom
+        wrapper: 'fixed top-[76px] right-4 left-4 z-30',
+        box: `${BOX} py-2 pr-2 pl-3 text-[13px]`,
+      }
+    : {
+        lines: TOAST_LINES,
+        wrapper: 'fixed right-4 bottom-4 z-30 w-[min(360px,calc(100vw-32px))]',
+        box: `${BOX} py-2.5 pr-2 pl-3.5 text-sm`,
+      };
+}
+
+/** Largura da janela acompanhada ao vivo: girar o celular ou encolher a janela troca o layout sem recarregar. */
+function useNarrowViewport(): boolean {
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia(NARROW_QUERY).matches);
+
+  useEffect(() => {
+    const media = window.matchMedia(NARROW_QUERY);
+    const update = () => setNarrow(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  return narrow;
+}
 
 /**
  * Aviso discreto das mudanças da última atualização (#331): some sozinho, não recebe foco e é anunciado uma vez pelo
@@ -13,6 +50,7 @@ const TOAST_LINES = 3;
  */
 export default function ChangeToast({ toast }: { toast: StatusChangesState['toast'] }) {
   const [closedId, setClosedId] = useState<string | null>(null);
+  const layout = toastLayout(useNarrowViewport());
 
   useEffect(() => {
     if (!toast) return;
@@ -21,19 +59,15 @@ export default function ChangeToast({ toast }: { toast: StatusChangesState['toas
   }, [toast]);
 
   const open = toast !== null && closedId !== toast.id;
-  const extra = open ? toast.changes.length - TOAST_LINES : 0;
-  const box =
-    'flex items-start gap-2 rounded-[10px] border border-l-[3px] border-border border-l-primary bg-surface py-2.5 pr-2 pl-3.5 ' +
-    'text-sm text-[var(--text-2)] shadow-[0_8px_24px_rgb(0_0_0/0.25)] motion-safe:animate-[change-toast-in_180ms_ease-out]';
+  const extra = open ? toast.changes.length - layout.lines : 0;
 
   return (
-    // No canto inferior direito; no celular, a largura da tela menos as margens de 16 px
-    <div className={`fixed right-4 bottom-4 z-30 w-[min(360px,calc(100vw-32px))] ${open ? box : ''}`}>
+    <div className={`${layout.wrapper} ${open ? layout.box : ''}`}>
       <div role="status" aria-live="polite" className="flex-1">
         {open && (
           <>
             <ul className="m-0 grid list-none gap-0.5 p-0">
-              {toast.changes.slice(0, TOAST_LINES).map((change) => (
+              {toast.changes.slice(0, layout.lines).map((change) => (
                 <ChangeLine key={change.key} change={change} />
               ))}
             </ul>
