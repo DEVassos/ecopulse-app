@@ -122,11 +122,11 @@ function summaryTotals(row: ServiceSummaryTotalsRow): ServiceSummaryTotals {
 export async function getServicesSummary(repository: ServiceRepository, period: { from: Date; to: Date }): Promise<ServicesSummaryResponse> {
   const duration = period.to.getTime() - period.from.getTime();
   const previous = { from: new Date(period.from.getTime() - duration), to: period.from };
-  const [currentTotals, previousTotals, statusRows] = await Promise.all([
-    repository.findSummaryTotals(period.from, period.to),
-    repository.findSummaryTotals(previous.from, previous.to),
-    repository.countServicesByStatus(),
-  ]);
+  // Em sequência de propósito: o repositório pode estar sobre um único client (withClient) e o pg desaconselha
+  // enfileirar consultas concorrentes nele.
+  const currentTotals = await repository.findSummaryTotals(period.from, period.to);
+  const previousTotals = await repository.findSummaryTotals(previous.from, previous.to);
+  const statusRows = await repository.countServicesByStatus();
   const counts = new Map(statusRows.map(row => [row.status, Number(row.count)]));
   const ativo = counts.get('ativo') ?? 0;
   const indisponivel = counts.get('indisponivel') ?? 0;
