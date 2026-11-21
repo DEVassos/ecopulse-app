@@ -21,6 +21,8 @@ describe('ambiente', () => {
       jwtSecret: 'development-secret-123',
       jwtExpiresIn: '8h',
       corsOrigins: ['http://localhost:5173'],
+      appUrl: 'http://localhost:5173',
+      invitationTtlHours: 72,
     });
     expect(readEnvironment({ ...environment, PORT: '4321' }).port).toBe(4321);
   });
@@ -33,6 +35,14 @@ describe('ambiente', () => {
   it('lê a lista de origens do CORS', () => {
     expect(readEnvironment({ ...environment, CORS_ORIGIN: 'http://localhost:5173, https://ecopulse.example/' })
       .corsOrigins).toEqual(['http://localhost:5173', 'https://ecopulse.example']);
+  });
+  it('usa a primeira origem do CORS nos links de convite e lê a validade (#196)', () => {
+    const env = readEnvironment({ ...environment, CORS_ORIGIN: 'https://ecopulse.example, http://localhost:5173', INVITATION_TTL_HOURS: '24' });
+    expect(env.appUrl).toBe('https://ecopulse.example');
+    expect(env.invitationTtlHours).toBe(24);
+  });
+  it.each(['', '0', '-1', '1.5', '721', 'abc'])('recusa INVITATION_TTL_HOURS %j', INVITATION_TTL_HOURS => {
+    expect(() => readEnvironment({ ...environment, INVITATION_TTL_HOURS })).toThrow('INVITATION_TTL_HOURS');
   });
   it.each(['', ' , ', 'localhost:5173', 'ftp://host', 'http://localhost:5173/app', 'http://u:p@host'])
     ('recusa origem de CORS inválida %j', CORS_ORIGIN => {
