@@ -214,6 +214,8 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _O link aberto sem sessão: e-mail e papel vêm do convite; a conta criada entra com a senha escolhida e vê a Configuração só para leitura ([print](docs/img/sprint-3-configuracao-usuario.png))._
 
+- **Diferencial (fora do edital) — Impressão / PDF no Dashboard e na Comparação (ES08, DW04; #408, dentro de US13 [#54](https://github.com/DEVassos/ecopulse-app/issues/54)):** as duas páginas ganham o botão **Imprimir / PDF**, que abre a impressão do navegador para salvar em PDF (o mesmo que o Ctrl+P). Cada uma tem a sua folha A4 no `frontend/src/styles/print.css`, com cabeçalho de relatório (logo, título, período) e pé de página próprio: o painel sai com os cards, a lista de regiões e a tabela de serviços inteira, sem o mapa (é um canvas) e sem o campo de busca; a comparação sai com o gráfico de CO₂e, a decomposição de potência e a matriz completa, sem os chips de serviço. O relatório sai sempre no tema claro. Os detalhes estão no [README do frontend](frontend/README.md#impressão-e-pdf-no-dashboard-e-na-comparação-408).
+
 ## 4. Escopo planejado
 
 > Planejado, **ainda não implementado**. O andamento real está no [quadro do projeto](https://github.com/orgs/DEVassos/projects/6) e no [plano de entregas](docs/plano-de-entregas.md).

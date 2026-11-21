@@ -12,8 +12,11 @@ import EfficiencyBadge from '../components/EfficiencyBadge';
 import MissingValue from '../components/MissingValue';
 import PeriodPicker from '../components/PeriodPicker';
 import PowerBreakdownChart from '../components/PowerBreakdownChart';
+import PrintButton from '../components/PrintButton';
+import { PrintPageHeader } from '../components/PrintReport';
 import { useComparison } from '../hooks/useComparison';
 import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow';
+import { usePrintReport } from '../hooks/usePrintReport';
 import { useServices } from '../hooks/useServices';
 import type { ComparedService } from '../services/compare.types';
 import { isDemoMode } from '../services/services.service';
@@ -231,6 +234,8 @@ const EXTREME: Record<Extreme['kind'], Extreme> = {
  */
 export default function ComparePage() {
   const { data: servicesData, loading: servicesLoading, error: servicesError, refresh: refreshServices } = useServices();
+  // Relatório impresso / PDF (#408): a folha A4 com o rodapé da comparação, sempre no tema claro
+  usePrintReport('compare');
   const [params, setParams] = useSearchParams();
   const today = todayInput();
   const services = useMemo(() => servicesData?.services ?? [], [servicesData]);
@@ -331,7 +336,7 @@ export default function ComparePage() {
 
         {/* Chips com região (#267): marcar um serviço é um clique, e a região ao lado lembra o efeito da matriz elétrica */}
         {services.length > 0 && (
-          <form className="panel flex flex-col gap-4 p-4" onSubmit={handleSubmit}>
+          <form className="compare-form panel flex flex-col gap-4 p-4" onSubmit={handleSubmit}>
             <fieldset className="m-0 min-w-0 border-0 p-0" aria-describedby={formError === SERVICES_ERROR ? FORM_ERROR_ID : undefined}>
               <legend className="float-left mb-2 p-0 text-xs text-muted">
                 Serviços <span className="text-text">· {draftIds.length} de {MAX_SERVICES} selecionados</span>
@@ -405,15 +410,31 @@ export default function ComparePage() {
         {error && <ErrorState message={error} onRetry={refresh} />}
         {loading && <LoadingState message="Comparando os serviços…" />}
 
+        {/* Cabeçalho do relatório impresso (#408): logo, título e período, no lugar do cabeçalho da tela, que some no papel */}
+        {data && (
+          <PrintPageHeader
+            label="Relatório de comparação · DEVassos"
+            title={`Comparação de ${data.services.length} serviços`}
+            items={[
+              { label: 'Período', value: `${formatMoment(data.from)} a ${formatMoment(data.to)}` },
+              { label: 'Fuso', value: timeZoneLabel(start) },
+            ]}
+          />
+        )}
+
         {data && (
           <section className="panel" aria-labelledby="compare-title">
-            <header className="border-b border-border px-5 py-3">
+            <header className="compare__header border-b border-border px-5 py-3">
               {/* O método da estimativa fica no tooltip da etiqueta, não numa frase no rodapé (#272) */}
               <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
                 <h2 id="compare-title" className="m-0 font-display text-lg font-semibold">
                   Comparação de {data.services.length} serviços
                 </h2>
                 <EstimateTag note="Energia e CO₂e somam só as coletas calculadas." />
+                {/* Impressão / PDF da comparação (#408): o papel sai pelo print.css, sem os filtros acima */}
+                <div className="print-toolbar ml-auto">
+                  <PrintButton />
+                </div>
               </div>
               <p className="mt-1 mb-0 text-sm text-muted">
                 Período: {formatMoment(data.from)} a {formatMoment(data.to)} ({timeZoneLabel(start)})
