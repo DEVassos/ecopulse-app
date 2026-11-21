@@ -1,5 +1,5 @@
 /*
- * Relatórios impressos / em PDF (#13, #408): as páginas Emissões, Dashboard e Comparação viram uma folha A4. O tema claro
+ * Relatórios impressos / em PDF (#13, #408, #403): as páginas Emissões, Dashboard, Comparação e Relatório viram uma folha A4. O tema claro
  * na impressão vem do usePrintReport (troca o data-theme), então aqui só entram layout e o que some no papel.
  * Este arquivo entra no CSS do app inteiro: cada regra de impressão começa por .has-print-report, a classe que o
  * usePrintReport põe no <html> só enquanto uma página com relatório está aberta, mais a classe daquela página
@@ -42,6 +42,25 @@
 
       @bottom-left {
         content: 'EcoPulse · DEVassos — painel das últimas 24 h';
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        font-size: 8pt;
+        color: #526072;
+      }
+
+      @bottom-right {
+        content: 'Página ' counter(page) ' de ' counter(pages);
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        font-size: 8pt;
+        color: #526072;
+      }
+    }
+
+    @page relatorio-periodo {
+      size: A4 portrait;
+      margin: 14mm 12mm 16mm;
+
+      @bottom-left {
+        content: 'EcoPulse · DEVassos — relatório do período (estimativa)';
         font-family: 'IBM Plex Sans', system-ui, sans-serif;
         font-size: 8pt;
         color: #526072;
@@ -269,6 +288,7 @@
     .has-print-report--emissions .emissions__filters,
     .has-print-report--emissions .emissions__export,
     .has-print-report--emissions .emissions__chart-bar,
+    .has-print-report--emissions .emissions__zoom-band,
     .has-print-report--emissions .emissions__header {
       display: none !important;
     }
@@ -425,6 +445,22 @@
 
     .has-print-report--compare .compare-series:focus-visible {
       outline: none;
+    }
+
+    /* ------------------------------------------------------------------------------------------------------------
+     * Relatório do período (#403): filtros e botões são de tela; nenhum achado partido entre duas páginas
+     * --------------------------------------------------------------------------------------------------------- */
+    .has-print-report--report .page {
+      page: relatorio-periodo;
+    }
+
+    .has-print-report--report .report__filters,
+    .has-print-report--report .report__no-print {
+      display: none !important;
+    }
+
+    .has-print-report--report .insight {
+      break-inside: avoid;
     }
   }
 }

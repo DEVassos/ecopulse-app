@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 export const PRINT_REPORT_CLASS = 'has-print-report';
 
 /** Páginas que viram relatório impresso; cada uma tem a sua classe, a sua folha A4 e o seu rodapé no `print.css`. */
-export const PRINT_PAGES = ['emissions', 'dashboard', 'compare'] as const;
+export const PRINT_PAGES = ['emissions', 'dashboard', 'compare', 'report'] as const;
 
 export type PrintPage = (typeof PRINT_PAGES)[number];
 

@@ -1,5 +1,5 @@
 import { ApiError, apiRequest, unexpectedFormat } from './api';
-import type { CurrentUser, LoginRequest, LoginResponse, UserRole } from './auth.types';
+import type { CurrentUser, LoginRequest, LoginResponse, PasswordChange, PasswordField, ProfileUpdate, UserRole } from './auth.types';
 import { readId, readRecord, readText } from './contract';
 import { isDemoMode } from './services.service';
 
@@ -38,4 +38,28 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
 /** Rota privada: o api.ts envia o token da sessão em Authorization: Bearer; 401 encerra a sessão. */
 export async function fetchCurrentUser(signal?: AbortSignal): Promise<CurrentUser> {
   return readUser(await apiRequest<unknown>('/auth/me', { signal }), 'me');
+}
+
+/** PATCH /auth/me (#400): a própria conta troca o nome; devolve a conta conferida, como no login. */
+export async function updateProfile(update: ProfileUpdate): Promise<CurrentUser> {
+  return readUser(await apiRequest<unknown>('/auth/me', { method: 'PATCH', body: update }), 'me');
+}
+
+/**
+ * PUT /auth/me/password (#400): 204 sem corpo. Senha atual errada volta como 400 (não 401), então não encerra a
+ * sessão: o ApiError traz a mensagem do backend, e `passwordErrorField` diz em que campo mostrá-la.
+ */
+export async function changePassword(change: PasswordChange): Promise<void> {
+  await apiRequest<unknown>('/auth/me/password', { method: 'PUT', body: change });
+}
+
+/** Mensagens do 400 de PUT /auth/me/password (docs/api.md): o backend não diz o campo, só a mensagem. */
+const CURRENT_PASSWORD_MESSAGE = 'A senha atual não confere.';
+const NEW_PASSWORD_MESSAGES = ['A nova senha deve ser diferente da atual.', 'A senha deve ter de 8 a 72 caracteres'];
+
+/** Campo em que a tela mostra o 400 da troca de senha; null quando é outro erro (vai para o aviso do formulário). */
+export function passwordErrorField(error: unknown): PasswordField | null {
+  if (!(error instanceof ApiError) || error.status !== 400) return null;
+  if (error.message === CURRENT_PASSWORD_MESSAGE) return 'currentPassword';
+  return NEW_PASSWORD_MESSAGES.some((message) => error.message.startsWith(message)) ? 'newPassword' : null;
 }

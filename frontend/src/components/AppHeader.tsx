@@ -9,7 +9,7 @@ import ThemeToggle from './ThemeToggle';
 import './AppHeader.css';
 
 /**
- * Nome e botão de sair. Sem sessão o cabeçalho não aparece (as páginas exigem login, #257); a exceção é o modo
+ * Nome (link para o Perfil, #401) e botão de sair. Sem sessão o cabeçalho não aparece (as páginas exigem login, #257); a exceção é o modo
  * demonstração, sem backend nem login, em que o menu fica vazio.
  */
 function UserMenu() {
@@ -19,8 +19,11 @@ function UserMenu() {
 
   return (
     <div className="user-menu">
-      <span data-tooltip={`${user.email} · ${ROLE_LABELS[user.role]}`}>
-        Olá, <strong>{user.name}</strong>
+      {/* O nome leva ao Perfil (#401), fora do menu de páginas: é a conta da pessoa, não uma tela de dados */}
+      <span>
+        <NavLink to="/perfil" className="user-menu__profile" data-tooltip={`${user.email} · ${ROLE_LABELS[user.role]} · abrir o perfil`}>
+          Olá, <strong>{user.name}</strong>
+        </NavLink>
       </span>
       {/* Sem sessão, o ProtectedRoute leva ao login e as páginas desmontam, o que para o polling */}
       <button type="button" className="btn-outline" onClick={logout}>
@@ -77,11 +80,31 @@ const PAGES: Array<{ to: string; label: string; end?: boolean; icon: ReactNode }
     ),
   },
   {
+    to: '/relatorio',
+    label: 'Relatório',
+    icon: (
+      <svg {...iconProps}>
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5Z" />
+        <path d="M14 3v5h5M9 13h6M9 17h4" />
+      </svg>
+    ),
+  },
+  {
     to: '/configuracao',
     label: 'Configuração',
     icon: (
       <svg {...iconProps}>
         <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
+      </svg>
+    ),
+  },
+  {
+    to: '/ajuda',
+    label: 'Ajuda',
+    icon: (
+      <svg {...iconProps}>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01" />
       </svg>
     ),
   },
@@ -143,14 +166,15 @@ function MobileMenu() {
             </nav>
             {/* No celular, quem entrou e o tema moram aqui (#257, #265 + #274): na linha da marca só cabem Menu e Sair */}
             {user && (
-              <p className="mobile-menu__user">
+              <NavLink to="/perfil" className="mobile-menu__user" onClick={() => setOpenAt(null)}>
                 <span>
                   Olá, <strong>{user.name}</strong>
                 </span>
                 <span className="mobile-menu__email">
                   {user.email} · {ROLE_LABELS[user.role]}
                 </span>
-              </p>
+                <span className="mobile-menu__profile">Perfil: nome e senha ›</span>
+              </NavLink>
             )}
             <div className="mobile-menu__theme">
               <span>{theme === 'dark' ? 'Tema escuro' : 'Tema claro'}</span>
