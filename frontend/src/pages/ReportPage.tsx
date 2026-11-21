@@ -32,6 +32,7 @@ import {
   STABLE_CHANGE,
   buildReport,
   coverage,
+  decompositionBars,
   formatIntensity,
   headline,
   previousWindow,
@@ -42,6 +43,9 @@ import {
 import '../styles/print.css';
 
 const CALCULOS_URL = 'https://github.com/DEVassos/ecopulse-app/blob/develop/docs/calculos.md#relatório-do-período';
+
+/** Rótulo de cada barra de "De onde veio a variação". */
+const EFFECT_LABEL = { energia: 'Energia consumida', intensidade: 'Intensidade média', total: 'Variação do CO₂e' } as const;
 
 const moment = (ms: number) => new Date(ms).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
 /** Parte medida, com uma casa, como nas frases dos achados ("80,9%"). */
@@ -112,7 +116,7 @@ export default function ReportPage() {
   const change = report && prev ? relativeChange(report.totals.co2eGrams, prev.co2eGrams) : null;
   // A barra só explica variação real entre períodos comparáveis: a tendência traz impacto só nesse caso
   const decomposed = d !== null && report?.trend?.impactGrams != null && change !== null && Math.abs(change) >= STABLE_CHANGE;
-  const share = d && decomposed ? Math.abs(d.energyGrams) / (Math.abs(d.energyGrams) + Math.abs(d.intensityGrams)) : 0;
+  const bars = d && decomposed ? decompositionBars(d) : [];
   const trendLink = report?.trend ? link(report.trend.target) : null;
 
   return (
@@ -219,27 +223,49 @@ export default function ReportPage() {
                 <>
                   <p className="m-0 text-sm text-muted">
                     CO₂e = energia × intensidade. A variação se divide em quanto mudou a energia (com a intensidade de antes) e
-                    quanto mudou a intensidade média (com a energia de agora); as duas partes somam a variação.
+                    quanto mudou a intensidade média (com a energia de agora); as duas partes somam a variação. À direita da linha
+                    do zero fica o que aumentou o CO₂e; à esquerda, o que reduziu.
                   </p>
                   <div
-                    className="flex h-5 gap-0.5"
+                    className="report__effects grid gap-2"
                     role="img"
-                    aria-label={`Efeito energia ${signedGrams(d.energyGrams)}, ${pct(share)} da variação; efeito intensidade média ${signedGrams(d.intensityGrams)}, ${pct(1 - share)}.`}
+                    aria-label={bars.map((bar) => `${EFFECT_LABEL[bar.key]}: ${signedGrams(bar.grams)}`).join('; ') + '.'}
                   >
-                    <span className="block min-w-[3px] rounded-sm bg-secondary" style={{ width: `${share * 100}%` }} />
-                    <span className="block min-w-[3px] rounded-sm bg-brand" style={{ width: `${(1 - share) * 100}%` }} />
+                    {bars.map((bar) => (
+                      <div
+                        key={bar.key}
+                        className={`grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-0.5 text-sm min-[600px]:grid-cols-[minmax(0,10rem)_minmax(0,1fr)_auto] ${bar.key === 'total' ? 'border-t border-border pt-2 font-semibold' : ''}`}
+                      >
+                        {/* No celular o rótulo sobe para cima da barra, para ela ter a largura toda */}
+                        <span className="col-span-2 text-[var(--text-2)] min-[600px]:col-span-1">{EFFECT_LABEL[bar.key]}</span>
+                        <span className="grid h-3 grid-cols-2" aria-hidden="true">
+                          <span className="flex justify-end border-r-2 border-[var(--text-2)]">
+                            {bar.direction === 'queda' && (
+                              <span className="block h-full rounded-l-sm bg-primary" style={{ width: `${bar.widthPercent}%` }} />
+                            )}
+                          </span>
+                          <span className="flex justify-start">
+                            {bar.direction === 'alta' && (
+                              <span className="block h-full rounded-r-sm bg-warning" style={{ width: `${bar.widthPercent}%` }} />
+                            )}
+                          </span>
+                        </span>
+                        <strong className="font-data text-right">
+                          {signedGrams(bar.grams)}
+                          <span className="sr-only"> ({bar.direction === 'alta' ? 'aumentou' : bar.direction === 'queda' ? 'reduziu' : 'sem efeito'})</span>
+                        </strong>
+                      </div>
+                    ))}
                   </div>
-                  <ul className="m-0 flex list-none flex-col gap-1.5 p-0 text-sm">
+                  <ul className="m-0 flex list-disc flex-col gap-1.5 pl-5 text-sm">
                     <li>
-                      <span className="mr-1.5 inline-block size-2.5 rounded-sm bg-secondary" aria-hidden="true" />
-                      <strong className="font-data">{signedGrams(d.energyGrams)} ({pct(share)})</strong> efeito energia: de{' '}
-                      {formatKwh(prev.energyKwh)} para {formatKwh(totals.energyKwh)}, a {formatIntensity(prev.intensity)}
+                      <strong>Energia consumida, {signedGrams(d.energyGrams)}:</strong> de {formatKwh(prev.energyKwh)} para{' '}
+                      {formatKwh(totals.energyKwh)}, com a intensidade de antes ({formatIntensity(prev.intensity)}).
                     </li>
                     <li>
-                      <span className="mr-1.5 inline-block size-2.5 rounded-sm bg-brand" aria-hidden="true" />
-                      <strong className="font-data">{signedGrams(d.intensityGrams)} ({pct(1 - share)})</strong> efeito intensidade
-                      média: de {formatIntensity(prev.intensity)} para {formatIntensity(totals.intensity)}, com{' '}
-                      {formatKwh(totals.energyKwh)}. A média mistura o fator de cada região com a parte da energia gasta em cada uma.
+                      <strong>Intensidade média, {signedGrams(d.intensityGrams)}:</strong> de {formatIntensity(prev.intensity)} para{' '}
+                      {formatIntensity(totals.intensity)}, com a energia de agora ({formatKwh(totals.energyKwh)}). A média mistura o
+                      fator de cada região com a parte da energia gasta em cada uma.
                     </li>
                   </ul>
                   {report.trend && (
@@ -292,7 +318,8 @@ export default function ReportPage() {
               <ul className="m-0 flex flex-col gap-1 pl-5 text-[var(--text-2)]">
                 <li>
                   Tendência: estável abaixo de {limit(STABLE_CHANGE)}; alta ou queda a partir de {limit(RELEVANT_CHANGE)}; um
-                  efeito explica a variação sozinho com {limit(DOMINANT_EFFECT)} ou mais.
+                  efeito é a causa principal com {limit(DOMINANT_EFFECT)} ou mais da soma dos dois efeitos. Quando os dois têm
+                  sentidos opostos, a variação é o saldo, e o relatório cita os dois em gramas.
                 </li>
                 <li>
                   Períodos comparáveis: pelo menos {MIN_SAMPLE} coletas com cálculo em cada um, e o menor número de coletas com
