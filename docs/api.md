@@ -12,6 +12,8 @@ As rotas de dados abaixo exigem `Authorization: Bearer <JWT>` obtido em `POST /a
 
 Cada conta tem o papel `admin` ou `usuario`, que vai no JWT emitido pelo login. As duas leem todas as rotas de dados. Só `admin` altera o que é compartilhado: `PUT /api/monitoring-settings` e `POST /api/invitations` devolvem `403 FORBIDDEN` para `usuario`. Token emitido antes da #196, sem papel, é recusado com `401` e a pessoa entra de novo.
 
+Os dois papéis alteram a própria conta (#400): o nome em [`PATCH /api/auth/me`](#patch-apiauthme) e a senha em [`PUT /api/auth/me/password`](#put-apiauthmepassword). O e-mail e o papel não mudam por essas rotas.
+
 ## GET /api/services
 
 Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`. Não recebe parâmetros ou corpo. O prefixo `/api` corresponde ao padrão de `VITE_API_URL=http://localhost:3000/api` usado pelo frontend; `/health` permanece na raiz.
@@ -346,6 +348,45 @@ Confirma a sessão no banco. Envie `Authorization: Bearer <JWT>`; token ausente,
 {"id":"1","email":"admin@ecopulse.local","name":"Administrador","role":"admin"}
 ```
 
+## PATCH /api/auth/me
+
+Altera o nome da própria conta (#400), para os papéis `admin` e `usuario`. Exige `Authorization: Bearer <JWT>`. Corpo JSON:
+
+```json
+{"name":"Ana Souza"}
+```
+
+`name` segue a regra do cadastro: de 1 a 100 caracteres, sem os espaços das pontas. O e-mail e o papel não mudam por esta rota, porque o e-mail identifica a conta e vai dentro do JWT, e o papel vem do convite; campos `email` ou `role` no corpo são ignorados. A alteração grava `users.updated_at`. Resposta `200` com a conta atualizada, sem hash; a partir daí `GET /api/auth/me` devolve o nome novo, e o JWT da sessão continua valendo.
+
+```json
+{"id":"2","email":"usuario@ecopulse.local","name":"Ana Souza","role":"usuario"}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | corpo sem `name` ou com `name` que não é texto (`Informe name.`); nome vazio ou com mais de 100 caracteres |
+| 401 | `UNAUTHORIZED` | JWT ausente, inválido ou expirado; conta que não existe mais |
+| 500 | `DATABASE_ERROR` | falha no PostgreSQL |
+
+## PUT /api/auth/me/password
+
+Troca a senha da própria conta (#400), para os papéis `admin` e `usuario`. Exige `Authorization: Bearer <JWT>`. Corpo JSON:
+
+```json
+{"currentPassword":"usuario1234","newPassword":"nova12345"}
+```
+
+A nova senha segue a regra do cadastro (8 a 72 caracteres, com pelo menos uma letra e um número), precisa ser diferente da atual e é gravada com bcrypt (10 rounds), junto com `updated_at`. Resposta `204`, sem corpo; a partir daí o login aceita só a senha nova.
+
+- **Senha atual errada responde `400`, não `401`.** O `401` quer dizer sessão inválida, e o frontend encerra a sessão quando o recebe; quem só errou a senha atual continua logado e vê o erro no campo.
+- **Trocar a senha não encerra as outras sessões.** O JWT não tem lista de revogação: os tokens emitidos antes da troca, o desta sessão e os de outros navegadores, continuam valendo até expirar (`JWT_EXPIRES_IN`, padrão 8 h). Encerrar todas as sessões antes disso exige trocar `JWT_SECRET` e reiniciar o backend, o que vale para todas as contas.
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | corpo sem `currentPassword` ou `newPassword`; nova senha fora da regra; senha atual errada (`A senha atual não confere.`); nova igual à atual (`A nova senha deve ser diferente da atual.`) |
+| 401 | `UNAUTHORIZED` | JWT ausente, inválido ou expirado; conta que não existe mais |
+| 500 | `DATABASE_ERROR` | falha no PostgreSQL |
+
 ## POST /api/invitations
 
 Emite um convite de cadastro (#196). Exige `Authorization: Bearer <JWT>` de uma conta `admin`. Corpo JSON, com `role` igual a `admin` ou `usuario`:
@@ -426,7 +467,7 @@ Health comprova conectividade, não valida existência de tabelas, persistência
 
 | HTTP | Código | Situação |
 |---|---|---|
-| 400 | VALIDATION_ERROR | JSON inválido com Content-Type application/json; parâmetro inválido em `GET /api/collections`, `GET /api/collections/series`, `GET /api/services/summary`, `GET /api/services/compare`, `GET /api/services/ranking` ou no login |
+| 400 | VALIDATION_ERROR | JSON inválido com Content-Type application/json; parâmetro inválido em `GET /api/collections`, `GET /api/collections/series`, `GET /api/services/summary`, `GET /api/services/compare`, `GET /api/services/ranking` ou no login; corpo inválido ou senha atual errada em `PATCH /api/auth/me` e `PUT /api/auth/me/password` |
 | 401 | UNAUTHORIZED | credenciais inválidas no login; token ausente, inválido, expirado ou sem papel nas rotas de dados, em `GET /api/auth/me` e nas rotas de alteração |
 | 403 | FORBIDDEN | conta `usuario` em `PUT /api/monitoring-settings` ou `POST /api/invitations` |
 | 404 | NOT_FOUND | rota não registrada, incluindo métodos não registrados; `service_id` inexistente em `GET /api/collections` e em `GET /api/collections/series`; convite inexistente |
