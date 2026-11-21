@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { PASSWORD_RULE, validateName, validateNewPassword, validatePasswordConfirmation } from './validation';
+import {
+  PASSWORD_RULE,
+  validateChangedPassword,
+  validateCurrentPassword,
+  validateName,
+  validateNewPassword,
+  validatePasswordConfirmation,
+} from './validation';
 
 describe('cadastro por convite (#197): mesmas regras do backend', () => {
   it.each([
@@ -27,5 +34,22 @@ describe('cadastro por convite (#197): mesmas regras do backend', () => {
     expect(validatePasswordConfirmation('senha1234', '')).toBe('Repita a senha.');
     expect(validatePasswordConfirmation('senha1234', 'senha12345')).toBe('As senhas não são iguais.');
     expect(validatePasswordConfirmation('senha1234', 'senha1234')).toBe('');
+  });
+});
+
+describe('troca de senha no perfil (#401): mesmas regras de PUT /auth/me/password (#400)', () => {
+  it('senha atual: só obrigatória (quem confere é o backend)', () => {
+    expect(validateCurrentPassword('')).toBe('Informe a senha atual.');
+    expect(validateCurrentPassword('qualquer')).toBe('');
+  });
+
+  it.each([
+    ['usuario1234', '', 'Informe a nova senha.'],
+    ['usuario1234', 'curta1', PASSWORD_RULE],
+    ['usuario1234', 'somenteletras', PASSWORD_RULE],
+    ['usuario1234', 'usuario1234', 'A nova senha deve ser diferente da atual.'],
+    ['usuario1234', 'nova12345', ''],
+  ])('atual %j e nova %j → %j', (current, next, expected) => {
+    expect(validateChangedPassword(current, next)).toBe(expected);
   });
 });

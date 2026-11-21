@@ -1,6 +1,7 @@
 import type { Request, RequestHandler, Response } from 'express';
 import type { Database } from '../../db/connection';
 import type { AuthLocals } from '../../middlewares/auth';
+import { isValidPassword, PASSWORD_RULE, validName } from '../../shared/account-rules';
 import { ValidationError } from '../../shared/errors';
 import { isUserRole, type UserRole } from '../../shared/persistence.types';
 import type { UserRepository } from '../usuarios/usuarios.repository';
@@ -8,10 +9,6 @@ import type { InvitationRepository } from './invitations.repository';
 import { createInvitation, readInvitation, register, type InvitationConfig } from './invitations.service';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const NAME_MAX_LENGTH = 100;
-/** bcrypt considera só os primeiros 72 bytes: senha maior seria aceita sem valer por inteiro. */
-const PASSWORD_MAX_BYTES = 72;
-export const PASSWORD_RULE = 'A senha deve ter de 8 a 72 caracteres, com pelo menos uma letra e um número.';
 
 function record(body: unknown, message: string): Record<string, unknown> {
   if (typeof body !== 'object' || body === null || Array.isArray(body)) throw new ValidationError(message);
@@ -27,20 +24,12 @@ function invitationBody(body: unknown): { email: string; role: UserRole } {
   return { email: normalized, role };
 }
 
-export function isValidPassword(password: string): boolean {
-  return password.length >= 8 && Buffer.byteLength(password, 'utf8') <= PASSWORD_MAX_BYTES
-    && /\p{L}/u.test(password) && /\d/.test(password);
-}
-
 function registerBody(body: unknown): { token: string; name: string; password: string } {
   const { token, name, password } = record(body, 'Informe token, name e password.');
   if (typeof token !== 'string' || typeof name !== 'string' || typeof password !== 'string') {
     throw new ValidationError('Informe token, name e password.');
   }
-  const trimmedName = name.trim();
-  if (trimmedName === '' || trimmedName.length > NAME_MAX_LENGTH) {
-    throw new ValidationError(`O nome deve ter de 1 a ${NAME_MAX_LENGTH} caracteres.`);
-  }
+  const trimmedName = validName(name);
   if (!isValidPassword(password)) throw new ValidationError(PASSWORD_RULE);
   return { token, name: trimmedName, password };
 }

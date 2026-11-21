@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authMiddleware } from '../../middlewares/auth';
-import { loginController, meController } from './usuarios.controller';
+import { changePasswordController, loginController, meController, updateProfileController } from './usuarios.controller';
 import { UserRepository } from './usuarios.repository';
 import type { AuthConfig } from './usuarios.service';
 
@@ -8,5 +8,8 @@ export function authRoutes(users: UserRepository, config: AuthConfig): Router {
   const router = Router();
   router.post('/api/auth/login', loginController(users, config));
   router.get('/api/auth/me', authMiddleware(config), meController(users));
+  // Perfil (#400): qualquer papel altera a própria conta, por isso sem requireAdmin
+  router.patch('/api/auth/me', authMiddleware(config), updateProfileController(users));
+  router.put('/api/auth/me/password', authMiddleware(config), changePasswordController(users));
   return router;
 }
