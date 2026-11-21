@@ -297,10 +297,12 @@ describe('ServicesTable', () => {
     const html = renderToStaticMarkup(
       <ServicesTable services={[service('a', 'ativo', 1), service('b', 'ativo', 1)]} onSelect={() => undefined} shares={shares} />,
     );
+    // A unidade fica no cabeçalho da coluna (#329); a definição vai no tooltip dele, que o teclado alcança
     expect(html).toContain('Potência média (W)');
+    expect(html).toContain('>Potência média (W)</span>');
     // 0,48 kWh em 86 400 s = 20 W (exemplo de docs/calculos.md), e não a média de power_watts da última leitura
-    expect(html).toContain('data-tooltip-value="20,0 W">20,0 W');
-    expect(html).toContain('data-tooltip-value="10,0 W">10,0 W');
+    expect(html).toContain('data-tooltip-value="20,0 W">20,0<');
+    expect(html).toContain('data-tooltip-value="10,0 W">10,0<');
     expect(html).toContain('não é a média de power_watts');
   });
 

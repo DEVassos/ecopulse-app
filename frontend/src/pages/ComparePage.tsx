@@ -21,7 +21,7 @@ import { CAUSE_LABEL, carbonIntensity, lowestCo2eCause } from '../utils/comparis
 import type { ResourceKey } from '../utils/comparison';
 import { averagePowerFromEnergy, mostEfficient } from '../utils/efficiency';
 import { isInputDate, spanDays, timeZoneLabel, todayInput } from '../utils/emissions';
-import { formatFixed, formatNumber } from '../utils/format';
+import { formatDurationSeconds, formatFixed, formatNumber } from '../utils/format';
 import { scaleFor } from '../utils/units';
 
 /**
@@ -153,6 +153,18 @@ function rowsFor(services: ComparedService[]): RowGroup[] {
     {
       title: 'Detalhe das métricas',
       rows: [
+        {
+          // Base da potência média (#329): sem este número na tela, a conta energia ÷ tempo não é reproduzível
+          label: 'Tempo monitorado',
+          cell: (service) =>
+            service.monitoredSeconds === null ? (
+              <MissingValue label="sem coleta calculada" title="Nenhuma coleta do período foi calculada" />
+            ) : (
+              <span title={`Soma dos intervalos das coletas calculadas: ${formatNumber(service.monitoredSeconds, 0)} s`}>
+                {formatDurationSeconds(service.monitoredSeconds)}
+              </span>
+            ),
+        },
         { label: 'Coletas', cell: collectionsCell },
         {
           label: 'CPU média',

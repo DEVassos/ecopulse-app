@@ -25,7 +25,17 @@ interface Column {
   numeric?: boolean;
   /** Energia ou CO₂e: a unidade da escala da coluna entra no cabeçalho (#271). */
   quantity?: Quantity;
+  /** Definição no tooltip do cabeçalho (#329): o botão de ordenar é focável, a célula não — o teclado alcança o texto. */
+  tooltip?: string;
 }
+
+/**
+ * Tooltip da potência média (#329): a definição oficial de `docs/calculos.md` § Eficiência energética e de carbono. O
+ * número não é a média de `power_watts` (outro conjunto de coletas) nem carrega a carga de trabalho do serviço.
+ */
+const POWER_TOOLTIP =
+  'Potência média das 24 h: energia do período ÷ segundos monitorados das mesmas coletas calculadas. '
+  + 'Menor é melhor; não é a média de power_watts nem a carga de trabalho do serviço. Definição em docs/calculos.md.';
 
 /** Estados que pedem investigação: a linha ganha o botão de ver o histórico ao lado do selo (#272). */
 const NEEDS_ACTION: ReadonlySet<ServiceStatus> = new Set<ServiceStatus>(['indisponivel', 'sem_metricas']);
@@ -40,7 +50,7 @@ const COLUMNS: Column[] = [
   { key: 'co2e24h', label: 'CO₂e 24 h', numeric: true, quantity: 'co2e' },
   { key: 'share', label: 'Parte do CO₂e (24 h)', numeric: true },
   // Potência média das mesmas 24 h (#329): energia ÷ segundos monitorados, a eficiência energética de docs/calculos.md
-  { key: 'averageWatts', label: 'Potência média (W)', numeric: true },
+  { key: 'averageWatts', label: 'Potência média (W)', numeric: true, tooltip: POWER_TOOLTIP },
   // A leitura mais recente fica junta: CPU, o fator que ela usou e o horário dela. A energia e o CO₂e dessa leitura
   // (Wh e mg) estão na janela de detalhes (#330)
   { key: 'cpuPercent', label: 'CPU', numeric: true },
@@ -205,14 +215,6 @@ function ShareCell({
 }
 
 /**
- * Tooltip da potência média (#329): a definição oficial de `docs/calculos.md` § Eficiência energética e de carbono. O
- * número não é a média de `power_watts` (outro conjunto de coletas) nem carrega a carga de trabalho do serviço.
- */
-const POWER_TOOLTIP =
-  'Potência média das 24 h: energia do período ÷ segundos monitorados das mesmas coletas calculadas. '
-  + 'Menor é melhor; não é a média de power_watts nem a carga de trabalho do serviço. Definição em docs/calculos.md.';
-
-/**
  * Potência média do período em W (#329), a eficiência energética de docs/calculos.md § Eficiência energética e de
  * carbono. As ausências são as mesmas das outras colunas do período, mais uma: energia calculada sem segundos
  * monitorados (denominador zero) também não vira potência, e nenhuma delas aparece como 0 W.
@@ -226,8 +228,10 @@ function PowerCell({ share, ranked }: { share: RankingShare | undefined; ranked:
     : periodMissing(share, ranked, value);
   if (missing || value === null) return <MissingValue {...missing} />;
   return (
+    // A unidade fica no cabeçalho da coluna, como nas outras: a célula repete só o número e o tooltip traz o valor com a
+    // unidade (#329)
     <span data-tooltip={POWER_TOOLTIP} data-tooltip-value={`${formatNumber(value, 1)} W`}>
-      {formatNumber(value, 1)} W
+      {formatNumber(value, 1)}
     </span>
   );
 }
@@ -329,7 +333,9 @@ export default function ServicesTable({
                     // 24 px de altura (#262): alvo mínimo de toque; o cabeçalho tira 4 px de cada lado para não crescer
                     className={`min-h-6 cursor-pointer border-0 bg-transparent p-0 font-sans text-xs font-medium hover:text-text ${sortKey === column.key ? 'text-text' : 'text-muted'}`}
                   >
-                    {column.quantity ? `${column.label} (${scales[column.quantity].unit})` : column.label}
+                    <span data-tooltip={column.tooltip}>
+                      {column.quantity ? `${column.label} (${scales[column.quantity].unit})` : column.label}
+                    </span>
                     <span aria-hidden="true">{' '}{sortKey === column.key ? (direction === 1 ? '↑' : '↓') : '↕'}</span>
                   </button>
                 </th>
