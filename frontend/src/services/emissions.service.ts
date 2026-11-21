@@ -189,8 +189,17 @@ async function fetchSeries(query: EmissionsQuery, signal?: AbortSignal): Promise
   return parseSeriesResponse(await apiRequest<unknown>(`/collections/series?${params}`, { signal }), query.bucket);
 }
 
+/**
+ * Série somada de um serviço no período e no agrupamento pedidos. É a busca da página Emissões (#190) e, uma por
+ * serviço, a das linhas da Comparação (#406): mesma rota, mesmo contrato.
+ */
+export async function fetchServiceSeries(query: EmissionsQuery, signal?: AbortSignal): Promise<EmissionsSeries> {
+  if (isDemoMode) return demoEmissions(query);
+  return fetchSeries(query, signal);
+}
+
 /** Emissão de um serviço no período, no agrupamento pedido. */
 export async function fetchEmissions(query: EmissionsQuery, signal?: AbortSignal): Promise<EmissionsSeries> {
-  if (isDemoMode) return demoEmissions(query);
-  return query.bucket === 'coleta' ? fetchEachCollection(query, signal) : fetchSeries(query, signal);
+  if (query.bucket === 'coleta') return isDemoMode ? demoEmissions(query) : fetchEachCollection(query, signal);
+  return fetchServiceSeries(query, signal);
 }
