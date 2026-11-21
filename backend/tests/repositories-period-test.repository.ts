@@ -2,12 +2,17 @@ import { randomUUID } from 'node:crypto';
 import type { QueryExecutor } from '../src/db/connection';
 
 /**
- * Ids explícitos e aleatórios (#349): a suíte de integração compartilha o mesmo banco entre arquivos, e
- * `repositories.integration.test.ts` fixa a sequence de `services` em 9007199254740993. Inserindo com id próprio, este
- * teste não disputa a sequence nem colide com os serviços dos outros arquivos, e pode rodar em paralelo.
+ * Ids explícitos (#349): `repositories.integration.test.ts` fixa a sequence de `services` em 9007199254740993, então o
+ * teste insere com id próprio para não disputar a sequence. Como tudo roda dentro de uma transação desfeita com
+ * `ROLLBACK`, nem esses ids nem as linhas ficam visíveis para os outros arquivos.
  */
 export function periodServiceId(): string {
   return (1_000_000_000_000_000n + BigInt(Math.floor(Math.random() * 1_000_000))).toString();
+}
+
+/** Abre (`true`) ou desfaz (`false`) a transação que isola o seed do resto da suíte. */
+export async function transaction(db: QueryExecutor, begin: boolean): Promise<void> {
+  await db.query(begin ? 'BEGIN' : 'ROLLBACK');
 }
 
 export async function seedService(db: QueryExecutor, id: string, name: string): Promise<void> {
@@ -47,7 +52,7 @@ export interface ManualTotalsRow {
 
 /**
  * Oráculo do teste (#349): os totais por serviço escritos à mão aqui, sem passar pelo repository, para comparar com
- * `rankByPeriod`/`compareByIds`. Só os serviços deste teste entram, então os outros arquivos não interferem.
+ * `rankByPeriod`/`compareByIds`. Precisa rodar na mesma transação do seed, onde as linhas ainda existem.
  */
 export async function manualTotals(db: QueryExecutor, ids: string[], from: Date, to: Date): Promise<ManualTotalsRow[]> {
   return (await db.query<ManualTotalsRow>(`
@@ -59,10 +64,4 @@ export async function manualTotals(db: QueryExecutor, ids: string[], from: Date,
     WHERE c.service_id = ANY($1::bigint[])
       AND c.collected_at >= $2 AND c.collected_at < $3
     GROUP BY c.service_id`, [ids, from, to])).rows;
-}
-
-/** Remove o que o teste criou: o banco é compartilhado e reaproveitado entre execuções. */
-export async function clearPeriod(db: QueryExecutor, ids: string[]): Promise<void> {
-  await db.query('DELETE FROM collections WHERE service_id = ANY($1::bigint[])', [ids]);
-  await db.query('DELETE FROM services WHERE id = ANY($1::bigint[])', [ids]);
 }
