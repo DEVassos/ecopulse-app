@@ -203,6 +203,16 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
 - **DW06 / RP06 / RNF05 — Aplicação inteira com login (#257):** o backend exige `Authorization: Bearer <JWT>` em `/api/services` e `/api/collections` e responde 401 sem token válido; `/health`, o login e `GET /api/monitoring-settings` continuam públicos. No frontend, `/login` é a única página aberta sem sessão: o dashboard, Emissões, Comparação e Configuração levam ao login e, depois dele, voltam para a mesma tela, com os filtros da URL. Sem sessão não há busca nem polling; um token expirado encerra a sessão e o login avisa "Sua sessão expirou.". O modo demonstração, sem backend, continua abrindo direto com dados ilustrativos ([ADR 0009](docs/adr/0009-aplicacao-inteira-com-login.md)).
 
+- **DW06 / RP06 / RNF05 — Cadastro por convite e papéis (US15 [#195](https://github.com/DEVassos/ecopulse-app/issues/195); #196, PR #392; #197, PR #393):** cada conta tem o papel **Administrador** ou **Usuário**, levado no JWT. As duas consultam todas as telas; só o administrador altera a configuração e convida, e o backend responde 403 à conta usuário. Na **Configuração**, o administrador gera um convite com e-mail e papel e copia o link (uso único, validade de `INVITATION_TTL_HOURS` horas, só o hash do token no banco; não há envio de e-mail). O link abre `/cadastro`, sem sessão, com o e-mail e o papel do convite e a regra de senha conferida antes de enviar; a conta é criada e o convite marcado como usado na mesma transação. Convite usado, expirado ou inexistente mostra o motivo, sem formulário. Volumes criados antes da #196 recebem a [migração 003](database/README.md#papéis-e-convites-196). [Contratos](docs/api.md#post-apiinvitations).
+
+  ![Convidar pessoa na Configuração, com o link gerado](docs/img/sprint-3-convite.png)
+
+  _Compose isolado com o backend da #196 em 21/11/2026, 1280 px: convite para `ana@exemplo.com` como usuário, depois de **Copiar**._
+
+  ![Cadastro por convite](docs/img/sprint-3-cadastro.png)
+
+  _O link aberto sem sessão: e-mail e papel vêm do convite; a conta criada entra com a senha escolhida e vê a Configuração só para leitura ([print](docs/img/sprint-3-configuracao-usuario.png))._
+
 ## 4. Escopo planejado
 
 > Planejado, **ainda não implementado**. O andamento real está no [quadro do projeto](https://github.com/orgs/DEVassos/projects/6) e no [plano de entregas](docs/plano-de-entregas.md).

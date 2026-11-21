@@ -5,7 +5,7 @@ import AuthLayout from '../components/AuthLayout';
 import FormField from '../components/FormField';
 import { useAuth } from '../hooks/useAuth';
 import { ApiError } from '../services/api';
-import { loginDestination } from '../utils/login-redirect';
+import { loginDestination, registeredEmail } from '../utils/login-redirect';
 import { validateEmail, validatePassword } from '../utils/validation';
 
 interface FieldErrors {
@@ -17,7 +17,9 @@ export default function LoginPage() {
   const { user, sessionExpired, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [email, setEmail] = useState('');
+  // Vindo do cadastro por convite (#197): a conta acabou de ser criada, e o e-mail já vem preenchido
+  const [registered] = useState(() => registeredEmail(location.state));
+  const [email, setEmail] = useState(registered ?? '');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({ email: '', password: '' });
   const [submitError, setSubmitError] = useState('');
@@ -58,7 +60,12 @@ export default function LoginPage() {
   return (
     <AuthLayout title="Entrar" description="Entre para acompanhar o monitoramento dos serviços.">
       <form onSubmit={handleSubmit} noValidate>
-        {sessionExpired && !submitError && (
+        {registered && !submitError && (
+          <div className="auth-notice" role="status">
+            Conta criada. Entre com seu e-mail e senha.
+          </div>
+        )}
+        {sessionExpired && !registered && !submitError && (
           <div className="auth-alert" role="status">
             Sua sessão expirou. Entre novamente para continuar de onde parou.
           </div>
