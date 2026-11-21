@@ -1,8 +1,11 @@
 // Série de emissão de CO₂e de um serviço (estação de coleta), usada pela página Emissões (#190).
 // Fontes: GET /api/collections (#188), para ver cada coleta, e GET /api/collections/series (#189), que soma no banco.
 
-/** Agrupamento da série: `coleta` é cada coleta (30 s); os outros somam as coletas de cada intervalo. */
-export type EmissionsBucket = 'coleta' | '15min' | '1h';
+/**
+ * Agrupamento da série: `coleta` é cada coleta (30 s); os outros somam as coletas de cada intervalo. A rota
+ * `GET /api/collections/series` aceita `15min`, `1h` e `1d`; `coleta` é lido de `GET /api/collections` (#189, #406).
+ */
+export type EmissionsBucket = 'coleta' | '15min' | '1h' | '1d';
 
 /** Um intervalo da série (ou uma coleta, no agrupamento `coleta`), em ordem cronológica. */
 export interface EmissionPoint {

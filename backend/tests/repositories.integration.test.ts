@@ -8,7 +8,7 @@ import { UserRepository } from '../src/modules/usuarios/usuarios.repository';
 import type { DiscoveredService, NewCollection } from '../src/shared/persistence.types';
 import { DatabaseError } from '../src/shared/errors';
 import { prepare } from './repositories-test.repository';
-import { getServiceComparison, getServices } from '../src/modules/services/services.service';
+import { getServiceComparison, getServices, getServicesSummary } from '../src/modules/services/services.service';
 
 // URL exclusiva de teste; schema aplicado antes em banco descartável vazio, fixture no beforeAll.
 const url = process.env.REPOSITORY_TEST_DATABASE_URL;
@@ -109,32 +109,52 @@ describe.skipIf(!url)('repositories em PostgreSQL descartável', () => {
     const rows = await collections.findAll({ serviceId: saved.id, from, to, limit: 10 });
     expect(rows.map(row => row.collected_at.toISOString())).toEqual([from.toISOString()]);
   });
-  it('resumo soma só coletas calculadas em [from, to) e conta cada serviço uma vez no estado atual', async () => {
-    // Janela própria: as outras coletas desta suíte são de 11/10 e não entram nos totais
-    const from = new Date('2026-09-01T10:00:00Z');
-    const to = new Date('2026-09-01T10:10:00Z');
-    const calculated = (service_id: string, minute: number, energy: string, co2e: string): NewCollection => ({
-      ...reading(service_id), collected_at: new Date(from.getTime() + minute * 60_000),
-      calculation_status: 'disponivel', carbon_intensity_gco2e_per_kwh: '100', power_watts: '10',
+  it('resume totais e contagens por estado em janelas [from, to) e previous', async () => {
+    const from = new Date('2040-09-01T10:00:00Z');
+    const to = new Date('2040-09-01T10:10:00Z');
+    const duration = to.getTime() - from.getTime();
+    const previousFrom = new Date(from.getTime() - duration);
+    const calculated = (service_id: string, collected_at: Date, energy: string, co2e: string): NewCollection => ({
+      ...reading(service_id), collected_at, calculation_status: 'disponivel',
+      carbon_intensity_gco2e_per_kwh: '100', power_watts: '10',
       energy_kwh: energy, co2e_grams: co2e, calculation_error_message: null });
-    const a = await services.upsert(service('summary-a'), first);
-    const b = await services.upsert(service('summary-b'), first);
-    for (const minute of [0, 3, 6]) await collections.insert(calculated(a.id, minute, '0.001', '0.1'));
-    for (const minute of [1, 4]) await collections.insert(calculated(b.id, minute, '0.002', '0.2'));
-    await collections.insert({ ...reading(b.id), collected_at: new Date(from.getTime() + 5 * 60_000) });
-    await collections.insert(calculated(a.id, 10, '9', '900')); // em `to`: fica de fora
+    const a = await services.upsert(service(`summary-a-${randomUUID()}`), first);
+    const b = await services.upsert(service(`summary-b-${randomUUID()}`), first);
+    const c = await services.upsert(service(`summary-c-${randomUUID()}`), first);
+    await services.updateStatus(a.id, 'indisponivel');
     await services.updateStatus(b.id, 'removido');
-    const row = await services.findSummary(from, to);
-    expect(Number(row.energy_kwh)).toBeCloseTo(0.007, 12);
-    expect(Number(row.co2e_grams)).toBeCloseTo(0.7, 12);
-    // Contagem pelo estado atual de cada serviço, sem multiplicar pelas coletas do join
+    await services.updateStatus(c.id, 'sem_metricas');
+
+    await collections.insert(calculated(a.id, from, '0.001', '0.1'));
+    await collections.insert(calculated(a.id, new Date(from.getTime() + 3 * 60_000), '0.001', '0.1'));
+    await collections.insert({ ...reading(b.id), collected_at: new Date(from.getTime() + 5 * 60_000),
+      status: 'erro', error_message: 'Timeout', collection_interval_seconds: null, cpu_percent: null,
+      memory_gb: null, disk_gb: null, network_gb: null, metrics: {}, ...notCalculated });
+    await collections.insert({ ...reading(c.id), collected_at: new Date(from.getTime() + 7 * 60_000),
+      status: 'sem_metricas', collection_interval_seconds: null, cpu_percent: null, memory_gb: null,
+      disk_gb: null, network_gb: null, metrics: {}, ...notCalculated });
+    await collections.insert(calculated(a.id, to, '9', '900'));
+    await collections.insert(calculated(b.id, previousFrom, '0.004', '0.4'));
+
+    const summary = await getServicesSummary(services, { from, to });
+    expect(summary.from).toBe(from.toISOString());
+    expect(summary.to).toBe(to.toISOString());
+    // failed e notCalculated se sobrepõem (docs/api.md): erro e sem_metricas contam nas duas
+    expect(summary.totals).toEqual({
+      collections: 4, failed: 2, notCalculated: 2, energyKwh: 0.002, co2eGrams: 0.2,
+      carbonIntensityGco2ePerKwh: 100,
+    });
+    expect(summary.previous).toEqual({
+      from: previousFrom.toISOString(), to: from.toISOString(),
+      totals: { collections: 1, failed: 0, notCalculated: 0, energyKwh: 0.004, co2eGrams: 0.4,
+        carbonIntensityGco2ePerKwh: 100 },
+    });
     const all = await services.findAll();
-    const count = (status: string) => String(all.filter(service => service.status === status).length);
-    expect(row).toMatchObject({ active: count('ativo'), unavailable: count('indisponivel'),
-      without_metrics: count('sem_metricas'), removed: count('removido') });
-    expect(Number(row.removed)).toBeGreaterThanOrEqual(1);
-    const empty = await services.findSummary(new Date('2026-08-01T00:00:00Z'), new Date('2026-08-02T00:00:00Z'));
-    expect(empty).toMatchObject({ energy_kwh: null, co2e_grams: null });
+    const count = (status: string) => all.filter(row => row.status === status).length;
+    expect(summary.servicesByStatus).toEqual({
+      ativo: count('ativo'), indisponivel: count('indisponivel'), sem_metricas: count('sem_metricas'),
+      removido: count('removido'), total: count('ativo') + count('indisponivel') + count('sem_metricas'),
+    });
   });
   it('série e ranking ignoram emissão de coleta indisponível', async () => {
     const from = new Date('2026-09-05T00:00:00Z');

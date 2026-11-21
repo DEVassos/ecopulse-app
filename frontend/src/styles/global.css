@@ -36,6 +36,17 @@
   /* Neon: só no que pede atenção (maior impacto, pico, "ao vivo", pulso do logo) */
   --neon: #5cffb8;
   --neon-glow: rgb(92 255 184 / 0.35);
+  /* Séries do gráfico de linhas da Comparação (#406): uma cor por serviço, todas acima de 6:1 sobre --surface */
+  --series-1: #10b981;
+  --series-2: #38bdf8;
+  --series-3: #a78bfa;
+  --series-4: #f472b6;
+  --series-5: #fbbf24;
+  --series-6: #93c5fd;
+  --series-7: #5eead4;
+  --series-8: #fca5a5;
+  --series-9: #c4b5fd;
+  --series-10: #94a3b8;
   /* Sombra da borda de rolagem (.scroll-edge): no escuro, a própria cor do fundo; cada tema pode trocar */
   --edge-shadow: var(--bg);
   /* Texto no papel do neon (ex.: número do tile do pico): no escuro é o próprio neon; no claro, um tom que passa no AA (#265) */
@@ -85,6 +96,17 @@
   --danger: #b91c1c;
   --neon: #009966;
   --neon-glow: rgb(0 153 102 / 0.28);
+  /* Séries da Comparação (#406) no claro: os mesmos dez papéis em tons escuros, todos acima de 4,6:1 sobre --surface */
+  --series-1: #047857;
+  --series-2: #0369a1;
+  --series-3: #6d28d9;
+  --series-4: #be185d;
+  --series-5: #b45309;
+  --series-6: #1d4ed8;
+  --series-7: #0f766e;
+  --series-8: #b91c1c;
+  --series-9: #7e22ce;
+  --series-10: #475569;
   --neon-text: #00754e;
   --scrim: rgb(15 23 42 / 0.45);
   /* Sombra da borda de rolagem (.scroll-edge): no claro, cinza translúcido em vez da cor do fundo */

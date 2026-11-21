@@ -2,7 +2,7 @@ import type { ServiceStatus } from '../../shared/persistence.types';
 import { powerBreakdown, type PowerBreakdown } from '../../domain/carbon-calculator';
 import { MonitoringStatus } from '../../domain/monitoring-status';
 import { NotFoundError } from '../../shared/errors';
-import { ServiceRepository, type ServiceComparisonRow, type ServiceRankingMetric, type ServiceRankingRow, type ServiceWithLastReading } from './services.repository';
+import { ServiceRepository, type ServiceComparisonRow, type ServiceRankingMetric, type ServiceRankingRow, type ServiceSummaryTotalsRow, type ServiceWithLastReading } from './services.repository';
 
 export interface MonitoredService {
   id: string;
@@ -88,11 +88,61 @@ export async function getServices(repository: ServiceRepository): Promise<Servic
   return { services: (await repository.findAllWithLastReading()).map(toMonitoredService), period: PERIOD };
 }
 
-export interface ServicesSummaryResponse { period: { from: string; to: string }; energyKwh: number | null; co2eGrams: number | null; services: { active: number; unavailable: number; withoutMetrics: number; removed: number } }
+export interface ServiceSummaryTotals {
+  collections: number;
+  failed: number;
+  notCalculated: number;
+  energyKwh: number | null;
+  co2eGrams: number | null;
+  carbonIntensityGco2ePerKwh: number | null;
+}
+export interface ServicesSummaryResponse {
+  from: string;
+  to: string;
+  totals: ServiceSummaryTotals;
+  previous: { from: string; to: string; totals: ServiceSummaryTotals };
+  servicesByStatus: { ativo: number; indisponivel: number; sem_metricas: number; removido: number; total: number };
+}
+
+function summaryTotals(row: ServiceSummaryTotalsRow): ServiceSummaryTotals {
+  const energyKwh = numberOrNull(row.energy_kwh);
+  const co2eGrams = numberOrNull(row.co2e_grams);
+  return {
+    collections: Number(row.collections),
+    failed: Number(row.failed),
+    notCalculated: Number(row.not_calculated),
+    energyKwh,
+    co2eGrams,
+    carbonIntensityGco2ePerKwh: energyKwh === null || energyKwh === 0 || co2eGrams === null
+      ? null
+      : co2eGrams / energyKwh,
+  };
+}
 
 export async function getServicesSummary(repository: ServiceRepository, period: { from: Date; to: Date }): Promise<ServicesSummaryResponse> {
-  const row = await repository.findSummary(period.from, period.to);
-  return { period: { from: period.from.toISOString(), to: period.to.toISOString() }, energyKwh: numberOrNull(row.energy_kwh), co2eGrams: numberOrNull(row.co2e_grams), services: { active: Number(row.active), unavailable: Number(row.unavailable), withoutMetrics: Number(row.without_metrics), removed: Number(row.removed) } };
+  const duration = period.to.getTime() - period.from.getTime();
+  const previous = { from: new Date(period.from.getTime() - duration), to: period.from };
+  // Em sequência de propósito: o repositório pode estar sobre um único client (withClient) e o pg desaconselha
+  // enfileirar consultas concorrentes nele.
+  const currentTotals = await repository.findSummaryTotals(period.from, period.to);
+  const previousTotals = await repository.findSummaryTotals(previous.from, previous.to);
+  const statusRows = await repository.countServicesByStatus();
+  const counts = new Map(statusRows.map(row => [row.status, Number(row.count)]));
+  const ativo = counts.get('ativo') ?? 0;
+  const indisponivel = counts.get('indisponivel') ?? 0;
+  const sem_metricas = counts.get('sem_metricas') ?? 0;
+  const removido = counts.get('removido') ?? 0;
+  return {
+    from: period.from.toISOString(),
+    to: period.to.toISOString(),
+    totals: summaryTotals(currentTotals),
+    previous: {
+      from: previous.from.toISOString(),
+      to: previous.to.toISOString(),
+      totals: summaryTotals(previousTotals),
+    },
+    servicesByStatus: { ativo, indisponivel, sem_metricas, removido, total: ativo + indisponivel + sem_metricas },
+  };
 }
 
 export interface ServiceComparisonInput { ids: string[]; from: Date; to: Date }
