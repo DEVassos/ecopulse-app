@@ -332,7 +332,7 @@ Autentica uma conta sem expor senha ou hash. O administrador inicial usa as cred
 {"email":"admin@ecopulse.local","password":"admin1234"}
 ```
 
-Com credenciais válidas, devolve `200`; e-mail inexistente e senha incorreta devolvem o mesmo `401 UNAUTHORIZED`; corpo sem `email` ou `password` devolve `400 VALIDATION_ERROR`. O token é assinado com HS256 usando `JWT_SECRET`, leva o e-mail e o papel (`role`) e expira conforme `JWT_EXPIRES_IN`. A resposta traz também a conta, sem hash de senha (#196):
+Com credenciais válidas, devolve `200`; e-mail inexistente e senha incorreta devolvem o mesmo `401 UNAUTHORIZED`; corpo sem `email` ou `password` devolve `400 VALIDATION_ERROR`. Em volume criado antes da #196, sem a coluna `role`, o login devolve `500 DATABASE_ERROR` com a mensagem que aponta a migração `003-users-role-invitations.sql`, em vez de emitir um token sem papel. O token é assinado com HS256 usando `JWT_SECRET`, leva o e-mail e o papel (`role`) e expira conforme `JWT_EXPIRES_IN`. A resposta traz também a conta, sem hash de senha (#196):
 
 ```json
 {"token":"<JWT>","user":{"id":"1","email":"admin@ecopulse.local","name":"Administrador","role":"admin"}}

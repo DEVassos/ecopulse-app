@@ -72,6 +72,17 @@ describe('autenticacao', () => {
     }
   });
 
+  it('login em banco sem a migração 003 responde 500 apontando a migração, sem emitir token', async () => {
+    const password = 'senha-segura';
+    const url = await authApp([{ id: '7', email: 'admin@ecopulse.dev', password_hash: await hash(password, 10), created_at: new Date(), updated_at: new Date() }]);
+    const response = await fetch(url + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'admin@ecopulse.dev', password }) });
+    expect(response.status).toBe(500);
+    const body = await response.json() as { token?: string; error: { message: string } };
+    expect(body.token).toBeUndefined();
+    expect(body.error.message).toContain('003-users-role-invitations.sql');
+  });
+
   it('/me com conta que não existe mais responde 401', async () => {
     const url = await authApp([]);
     const token = sign({ email: 'saiu@ecopulse.dev', role: 'usuario' }, config.jwtSecret, { subject: '9', expiresIn: '1h' });

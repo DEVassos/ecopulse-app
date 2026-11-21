@@ -1,6 +1,6 @@
 import { compare } from 'bcryptjs';
 import { sign, verify, type SignOptions } from 'jsonwebtoken';
-import { UnauthorizedError } from '../../shared/errors';
+import { AppError, UnauthorizedError } from '../../shared/errors';
 import { isUserRole, type StoredUser, type UserRole } from '../../shared/persistence.types';
 import { UserRepository } from './usuarios.repository';
 
@@ -20,6 +20,10 @@ export async function login(users: UserRepository, email: string, password: stri
   const user = await users.findByEmail(email);
   const passwordHash = user?.password_hash ?? DUMMY_PASSWORD_HASH;
   if (!await compare(password, passwordHash) || user === null) throw new UnauthorizedError('Credenciais inválidas.');
+  // Volume criado antes da #196: sem a coluna, o token sairia sem papel e toda rota responderia 401 sem explicar
+  if (!isUserRole(user.role)) {
+    throw new AppError('DATABASE_ERROR', 500, 'O banco não tem o papel dos usuários: aplique database/migrations/003-users-role-invitations.sql.');
+  }
   const token = sign({ email: user.email, role: user.role }, config.jwtSecret,
     { subject: user.id, expiresIn: config.jwtExpiresIn, algorithm: 'HS256' });
   return { token, user: toPublicUser(user) };
