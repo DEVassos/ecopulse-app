@@ -5,6 +5,7 @@ import ComparePage from './pages/ComparePage';
 import DashboardPage from './pages/DashboardPage';
 import EmissionsPage from './pages/EmissionsPage';
 import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
 import SettingsPage from './pages/SettingsPage';
 import AuthProvider from './providers/AuthProvider';
 import MonitoringProvider from './providers/MonitoringProvider';
@@ -14,8 +15,9 @@ export default function App() {
     <AuthProvider>
       <MonitoringProvider>
         <Routes>
-          {/* Única página aberta sem sessão */}
+          {/* Abertas sem sessão: o login e o cadastro por convite (#197), que só funciona com um convite válido */}
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/cadastro" element={<RegisterPage />} />
 
           {/* Aplicação inteira exige sessão (#257): sem ela, o ProtectedRoute manda para /login */}
           <Route element={<ProtectedRoute />}>
