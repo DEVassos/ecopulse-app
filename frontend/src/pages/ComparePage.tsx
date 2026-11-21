@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import AppHeader from '../components/AppHeader';
 import CompareChart from '../components/CompareChart';
+import CompareScatter from '../components/CompareScatter';
 import CompareSeriesChart from '../components/CompareSeriesChart';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
@@ -567,6 +568,7 @@ export default function ComparePage() {
             </figure>
 
             <CompareChart services={data.services} highlightOf={extremeOf} />
+            <CompareScatter services={data.services} highlightOf={extremeOf} />
 
             {/* Composição da potência média: mesma ordem de colunas da tabela (#328) */}
             <PowerBreakdownChart services={data.services} />
