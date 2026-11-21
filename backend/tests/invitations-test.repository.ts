@@ -3,8 +3,8 @@ import type { Database, QueryExecutor } from '../src/db/connection';
 import type { StoredInvitation, StoredUser } from '../src/shared/persistence.types';
 
 /**
- * Banco em memória só para os testes HTTP dos convites (#196): reconhece as consultas de UserRepository e
- * InvitationRepository pelo início do texto e imita BEGIN/COMMIT/ROLLBACK com uma cópia do estado.
+ * Banco em memória para os testes HTTP dos convites (#196) e do perfil (#400): reconhece as consultas de
+ * UserRepository e InvitationRepository pelo início do texto e imita BEGIN/COMMIT/ROLLBACK com uma cópia do estado.
  * O comportamento real do SQL é conferido em invitations.integration.test.ts, com PostgreSQL.
  */
 export interface MemoryState { users: StoredUser[]; invitations: StoredInvitation[]; statements: string[] }
@@ -42,6 +42,15 @@ export function memoryDatabase(initial: Partial<MemoryState> = {}, now: () => Da
         const user: StoredUser = { id: String(nextId++), email: String(first), name: String(second), password_hash: String(third),
           role: fourth === 'admin' ? 'admin' : 'usuario', created_at: now(), updated_at: now() };
         state.users.push(user);
+        return result<T>([user]);
+      }
+      const updateUser = /^UPDATE users SET (name|password_hash) = \$2/.exec(sql);
+      if (updateUser !== null) {
+        const user = state.users.find(item => item.id === first);
+        if (user === undefined) return result<T>([]);
+        if (updateUser[1] === 'password_hash' && user.password_hash !== third) return result<T>([]);
+        if (updateUser[1] === 'name') user.name = String(second); else user.password_hash = String(second);
+        user.updated_at = now();
         return result<T>([user]);
       }
       if (sql.startsWith('INSERT INTO invitations')) {
