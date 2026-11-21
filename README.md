@@ -78,7 +78,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Dashboard com o backend real (`docker compose`) em 06/11/2026: 7 serviços ativos, sem contar 1 removido, e Indisponíveis e Sem métricas zerados, nos cards compactos abaixo dos indicadores do período (#259). Nenhum card tem cor: Ativos é estado saudável e fica neutro, e os outros dois só ganham cor com contagem acima de zero (#272)._
 
-- **RF08 — Indicadores agregados e comparação por período (#175, PR #215):** no topo do dashboard, logo abaixo do cabeçalho (#259), a tela mostra a energia e o CO₂e das últimas 24 h, na unidade que o valor pede (Wh ou kWh, mg ou g), com o período em horário de Brasília, e a variação contra as 24 h anteriores: ▲ em laranja quando subiu, ▼ em verde quando caiu e ±0% em cinza (#271). Sem cálculo no período, o valor é "—", nunca zero; sem base para a variação, a nota é "—" e o motivo fica no tooltip. A API usa `GET /api/services/summary?from=&to=`, documentada em [docs/api.md](docs/api.md).
+- **RF08 — Indicadores agregados e comparação por período (#175, PR #215):** no topo do dashboard, logo abaixo do cabeçalho (#259), a tela mostra a energia e o CO₂e das últimas 24 h, na unidade que o valor pede (Wh ou kWh, mg ou g), com o período em horário de Brasília, e a variação contra as 24 h anteriores: ▲ em laranja quando subiu, ▼ em verde quando caiu e ±0% em cinza (#271). Sem cálculo no período, o valor é "—", nunca zero; sem base para a variação, a nota diz o motivo em vez de inventar um percentual (#234, abaixo). A API usa `GET /api/services/summary?from=&to=`, documentada em [docs/api.md](docs/api.md).
 
   ![Indicadores agregados com comparação às 24 h anteriores](docs/img/sprint-2-indicadores-agregados.png)
 
@@ -213,6 +213,10 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
   ![Cadastro por convite](docs/img/sprint-3-cadastro.png)
 
   _O link aberto sem sessão: e-mail e papel vêm do convite; a conta criada entra com a senha escolhida e vê a Configuração só para leitura ([print](docs/img/sprint-3-configuracao-usuario.png))._
+
+- **RF08 — Indicadores com período anterior (#234, PR #390):** o painel de energia e emissões mostra as últimas 24 h e a variação contra as 24 h anteriores, vindas de uma única resposta de `GET /api/services/summary` (com `totals`, `previous` e `servicesByStatus`); sem cálculo no período anterior, o painel diz isso em vez de mostrar 100%. As coletas com falha do período aparecem embaixo dos indicadores.
+
+  ![Indicadores com variação contra o período anterior](docs/img/sprint-3-indicadores-agregados.png)
 
 - **Diferencial (fora do edital) — Impressão / PDF no Dashboard e na Comparação (ES08, DW04; #408, dentro de US13 [#54](https://github.com/DEVassos/ecopulse-app/issues/54)):** as duas páginas ganham o botão **Imprimir / PDF**, que abre a impressão do navegador para salvar em PDF (o mesmo que o Ctrl+P). Cada uma tem a sua folha A4 no `frontend/src/styles/print.css`, com cabeçalho de relatório (logo, título, período) e pé de página próprio: o painel sai com os cards, a lista de regiões e a tabela de serviços inteira, sem o mapa (é um canvas) e sem o campo de busca; a comparação sai com o gráfico de CO₂e, a decomposição de potência e a matriz completa, sem os chips de serviço. O relatório sai sempre no tema claro. Os detalhes estão no [README do frontend](frontend/README.md#impressão-e-pdf-no-dashboard-e-na-comparação-408).
 
