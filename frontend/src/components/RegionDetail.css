@@ -166,13 +166,158 @@
     font-weight: 600;
   }
 
+  /*
+   * Cartão da simulação (#395): veredito, antes e depois no mesmo eixo e a diferença. Borda e fundo no tom do resultado
+   * (redução em verde, aumento em laranja), sempre com o verbo do veredito e a palavra da diferença ao lado.
+   */
+  /* Mesma largura máxima da tabela de destinos: no computador, as barras não se esticam pela tela toda */
+  .region-detail__reco {
+    display: grid;
+    gap: 10px;
+    max-width: 720px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+
+  .region-detail__reco--reducao {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  }
+
+  .region-detail__reco--aumento {
+    border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+    background: color-mix(in srgb, var(--warning) 7%, var(--surface));
+  }
+
+  .region-detail__verdict {
+    margin: 0;
+    font-family: var(--display);
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text);
+    text-wrap: balance;
+  }
+
+  .region-detail__badge {
+    margin-left: 8px;
+    vertical-align: 2px;
+  }
+
+  /* Duas linhas, rótulo · barra · valor; no celular o rótulo sobe para cima da barra */
+  .region-detail__bars {
+    display: grid;
+    grid-template-columns: minmax(110px, auto) minmax(80px, 1fr) auto;
+    align-items: center;
+    gap: 6px 10px;
+    font-size: 13px;
+  }
+
+  .region-detail__bar-label {
+    color: var(--text-2);
+  }
+
+  .region-detail__bar-value {
+    font-weight: 600;
+    text-align: right;
+    color: var(--text);
+  }
+
+  .region-detail__track {
+    display: block;
+    height: 12px;
+    overflow: hidden;
+    border-radius: 4px;
+    background: var(--surface-3);
+  }
+
+  .region-detail__fill {
+    display: block;
+    height: 100%;
+    border-radius: 0 4px 4px 0;
+    background: var(--faint);
+  }
+
+  .region-detail__fill--reducao {
+    background: var(--accent);
+  }
+
+  .region-detail__fill--aumento {
+    background: var(--warning);
+  }
+
+  .region-detail__delta {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .region-detail__reco--reducao .region-detail__delta {
+    color: var(--accent-hover);
+  }
+
+  .region-detail__reco--aumento .region-detail__delta {
+    color: var(--warning);
+  }
+
+  .region-detail__why-title {
+    margin: 4px 0 4px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .region-detail__why-list {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding-left: 18px;
+    font-size: 13px;
+    color: var(--text-2);
+  }
+
+  .region-detail__why-list strong {
+    color: var(--text);
+  }
+
+  .region-detail__diff--reducao {
+    color: var(--accent-hover);
+  }
+
+  .region-detail__diff--aumento {
+    color: var(--warning);
+  }
+
+  @media (max-width: 599px) {
+    .region-detail__bars {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .region-detail__bar-label {
+      grid-column: 1 / -1;
+      margin-bottom: -4px;
+    }
+  }
+
   /* Dado da atualização anterior: apagado, como a lista e o mapa (#261) */
   .region-detail--stale .region-detail__sentence,
+  .region-detail--stale .region-detail__verdict,
+  .region-detail--stale .region-detail__delta,
+  .region-detail--stale .region-detail__bar-value,
+  .region-detail--stale .region-detail__diff,
   .region-detail--stale .region-detail__table td {
     color: var(--muted);
   }
 
+  .region-detail--stale .region-detail__fill {
+    background: var(--faint);
+  }
+
+  .region-detail--stale .region-detail__reco,
   .region-detail--stale .region-detail__row--cleanest {
+    border-color: var(--border);
     background: transparent;
   }
 }

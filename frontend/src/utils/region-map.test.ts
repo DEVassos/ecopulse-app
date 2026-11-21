@@ -10,8 +10,12 @@ import {
   co2eScaleMax,
   fitZoom,
   formatMigrationPercent,
+  intensityRatioText,
   intensityTime,
   mapDestination,
+  migrationBars,
+  migrationVerdict,
+  periodIntensity,
   mapScale,
   nextPresentationCode,
   presentationOrder,
@@ -156,6 +160,42 @@ describe('simulação de migração na tela (#326)', () => {
   it('linha da conta em kWh e g/kWh (critério 1: 0,118 kWh × 40 g/kWh = 4,72 g)', () => {
     expect(migrationMath(0.118, 40, 0.118 * 40)).toBe('0,118 kWh × 40 g/kWh = 4,72 g');
     expect(migrationMath(0.00123456, 465, 0.00123456 * 465)).toBe('0,001235 kWh × 465 g/kWh = 0,5741 g');
+  });
+});
+
+describe('cartão da recomendação de região (#395)', () => {
+  it('migrationVerdict: verbo pelo sentido, percentual com 2 casas, gramas sem percentual e "manteria" no empate', () => {
+    expect(migrationVerdict({ kind: 'reducao', grams: 39.88, percent: 89.417 }, 'Montreal'))
+      .toBe('Mover para Montreal reduziria o CO₂e desta região em cerca de 89,42%');
+    expect(migrationVerdict({ kind: 'aumento', grams: 10.27, percent: 23.03 }, 'Tóquio'))
+      .toBe('Mover para Tóquio aumentaria o CO₂e desta região em cerca de 23,03%');
+    expect(migrationVerdict({ kind: 'aumento', grams: 4.72, percent: null }, 'Montreal'))
+      .toBe('Mover para Montreal aumentaria o CO₂e desta região em 4,72 g');
+    expect(migrationVerdict({ kind: 'igual', grams: 0, percent: 0 }, 'Quebec')).toBe('Mover para Quebec manteria o CO₂e desta região');
+  });
+
+  it('migrationBars: mesmo eixo a partir de zero, maior com 100%, pequeno visível com 1% e zero com 0', () => {
+    expect(migrationBars(44.6, 4.72)).toEqual({ origin: 100, simulated: 10.6 });
+    expect(migrationBars(44.6, 54.87)).toEqual({ origin: 81.3, simulated: 100 });
+    expect(migrationBars(1000, 0.5)).toEqual({ origin: 100, simulated: 1 });
+    expect(migrationBars(0, 4.72)).toEqual({ origin: 0, simulated: 100 });
+    expect(migrationBars(0, 0)).toEqual({ origin: 0, simulated: 0 });
+  });
+
+  it('periodIntensity: CO₂e ÷ energia do período; sem energia ou sem CO₂e, null', () => {
+    expect(periodIntensity(0.118, 44.6)).toBeCloseTo(377.97, 2);
+    expect(periodIntensity(null, 44.6)).toBeNull();
+    expect(periodIntensity(0.118, null)).toBeNull();
+    expect(periodIntensity(0, 0)).toBeNull();
+  });
+
+  it('intensityRatioText: menor ou maior, "vez" abaixo de 2 e "praticamente a mesma" abaixo de 5%', () => {
+    expect(intensityRatioText(377.97, 40)).toBe('9,4 vezes menor');
+    expect(intensityRatioText(377.97, 465)).toBe('1,2 vez maior');
+    expect(intensityRatioText(100, 98)).toBe('praticamente a mesma');
+    expect(intensityRatioText(85, 40)).toBe('2,1 vezes menor');
+    expect(intensityRatioText(null, 40)).toBeNull();
+    expect(intensityRatioText(0, 40)).toBeNull();
   });
 });
 

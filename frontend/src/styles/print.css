@@ -1,10 +1,11 @@
 /*
- * Relatório do período impresso / em PDF (#13, US13 #54): a página Emissões vira um relatório A4. O tema claro na
- * impressão vem do usePrintReport (troca o data-theme), então aqui só entram layout e o que some no papel.
+ * Relatórios impressos / em PDF (#13, #408): as páginas Emissões, Dashboard e Comparação viram uma folha A4. O tema claro
+ * na impressão vem do usePrintReport (troca o data-theme), então aqui só entram layout e o que some no papel.
  * Este arquivo entra no CSS do app inteiro: cada regra de impressão começa por .has-print-report, a classe que o
- * usePrintReport põe no <html> só enquanto a página Emissões está aberta, e a folha A4 com rodapé é uma página nomeada
- * (relatorio). Nas outras páginas, o Ctrl+P continua como antes. Fora da impressão, só o .print-only (cabeçalho e
- * tabela do relatório) fica escondido.
+ * usePrintReport põe no <html> só enquanto uma página com relatório está aberta, mais a classe daquela página
+ * (has-print-report--dashboard). Cada relatório tem a sua folha A4 nomeada, com o seu rodapé. Nas outras páginas (Login,
+ * Configuração), o Ctrl+P continua como antes. Fora da impressão, só o .print-only (cabeçalho e tabela do relatório)
+ * fica escondido.
  */
 @layer components {
   .print-only {
@@ -12,11 +13,14 @@
   }
 
   @media print {
+    /* ------------------------------------------------------------------------------------------------------------
+     * Folhas A4: uma por relatório, com o pé de página de cada um. As margens da página não herdam a fonte do app;
+     * sem isto, o rodapé sai em fonte serifada.
+     * --------------------------------------------------------------------------------------------------------- */
     @page relatorio {
       size: A4 portrait;
       margin: 14mm 12mm 16mm;
 
-      /* As margens da página não herdam a fonte do app: sem isto, o rodapé sai em fonte serifada */
       @bottom-left {
         content: 'EcoPulse · DEVassos — relatório de emissões (estimativa)';
         font-family: 'IBM Plex Sans', system-ui, sans-serif;
@@ -32,10 +36,47 @@
       }
     }
 
-    .has-print-report .page {
-      page: relatorio;
+    @page relatorio-dashboard {
+      size: A4 portrait;
+      margin: 14mm 12mm 16mm;
+
+      @bottom-left {
+        content: 'EcoPulse · DEVassos — painel das últimas 24 h';
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        font-size: 8pt;
+        color: #526072;
+      }
+
+      @bottom-right {
+        content: 'Página ' counter(page) ' de ' counter(pages);
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        font-size: 8pt;
+        color: #526072;
+      }
     }
 
+    @page relatorio-comparacao {
+      size: A4 portrait;
+      margin: 14mm 12mm 16mm;
+
+      @bottom-left {
+        content: 'EcoPulse · DEVassos — comparação entre serviços';
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        font-size: 8pt;
+        color: #526072;
+      }
+
+      @bottom-right {
+        content: 'Página ' counter(page) ' de ' counter(pages);
+        font-family: 'IBM Plex Sans', system-ui, sans-serif;
+        font-size: 8pt;
+        color: #526072;
+      }
+    }
+
+    /* ------------------------------------------------------------------------------------------------------------
+     * Comum às três páginas
+     * --------------------------------------------------------------------------------------------------------- */
     .has-print-report * {
       print-color-adjust: exact;
       -webkit-print-color-adjust: exact;
@@ -49,53 +90,20 @@
       display: block;
     }
 
-    /* O que é da tela, não do relatório: menu, filtros, botões, selo de atualização, rodapé e tooltip */
+    /* O que é da tela, não do relatório: menu, botão de imprimir, selo de atualização, rodapé, avisos e tooltip */
     .has-print-report .topbar,
     .has-print-report .skip-link,
-    .has-print-report .emissions__filters,
-    .has-print-report .emissions__export,
-    .has-print-report .emissions__chart-bar,
-    .has-print-report .emissions__zoom-band,
-    .has-print-report .emissions__header,
+    .has-print-report .print-toolbar,
     .has-print-report .last-updated,
     .has-print-report .page-footer,
+    .has-print-report .demo-banner,
+    .has-print-report .change-toast,
+    .has-print-report .service-dialog,
     .has-print-report .tooltip {
       display: none !important;
     }
 
-    .has-print-report .emissions__card {
-      border: 0;
-      box-shadow: none;
-      padding: 0;
-    }
-
-    .has-print-report .emissions__stats > div,
-    .has-print-report .emissions__chart {
-      break-inside: avoid;
-    }
-
-    /* KPIs no papel: duas linhas de 3 (com o auto-fit da tela, 700 px davam 4 + 2), sem o fundo cinza e sem a sombra
-       do pico, que gastam tinta e parecem tela */
-    .has-print-report .emissions__stats {
-      grid-template-columns: repeat(3, 1fr);
-    }
-
-    .has-print-report .emissions__stats > div {
-      background: none;
-      box-shadow: none;
-    }
-
-    /* O gráfico é redesenhado na largura da folha no beforeprint (EmissionsChart); se o navegador imprimir sem o aviso,
-       o viewBox faz o desenho encolher inteiro até a folha em vez de sair cortado */
-    .has-print-report .emissions__chart {
-      height: auto;
-    }
-
-    .has-print-report .emissions__chart svg {
-      max-width: 100%;
-      height: auto;
-    }
-
+    /* Cabeçalho do relatório (PrintHeader na página Emissões, PrintPageHeader no Dashboard) */
     .has-print-report .print-report__header {
       margin-bottom: 10pt;
       padding-bottom: 8pt;
@@ -171,6 +179,14 @@
       margin-top: 12pt;
     }
 
+    /* Respiro de tela entre os cards não diz nada no papel: a folha já tem as suas margens (#408) */
+    .has-print-report--dashboard .content,
+    .has-print-report--compare .content {
+      max-width: none;
+      padding: 0;
+      gap: 10pt;
+    }
+
     /* Largura fixa (126 mm dos 186 mm da folha): com 100%, as colunas se espalhavam e Coletas ficava longe de Início */
     .has-print-report .print-report__table {
       width: 126mm;
@@ -241,6 +257,175 @@
       margin: 8pt 0 0;
       font-size: 8pt;
       color: var(--muted);
+    }
+
+    /* ------------------------------------------------------------------------------------------------------------
+     * Emissões (#13): o card vira a folha; filtros e exportação são de tela
+     * --------------------------------------------------------------------------------------------------------- */
+    .has-print-report--emissions .page {
+      page: relatorio;
+    }
+
+    .has-print-report--emissions .emissions__filters,
+    .has-print-report--emissions .emissions__export,
+    .has-print-report--emissions .emissions__chart-bar,
+    .has-print-report--emissions .emissions__zoom-band,
+    .has-print-report--emissions .emissions__header {
+      display: none !important;
+    }
+
+    .has-print-report--emissions .emissions__card {
+      border: 0;
+      box-shadow: none;
+      padding: 0;
+    }
+
+    .has-print-report--emissions .emissions__stats > div,
+    .has-print-report--emissions .emissions__chart {
+      break-inside: avoid;
+    }
+
+    /* KPIs no papel: duas linhas de 3 (com o auto-fit da tela, 700 px davam 4 + 2), sem o fundo cinza e sem a sombra
+       do pico, que gastam tinta e parecem tela */
+    .has-print-report--emissions .emissions__stats {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .has-print-report--emissions .emissions__stats > div {
+      background: none;
+      box-shadow: none;
+    }
+
+    /* O gráfico é redesenhado na largura da folha no beforeprint (EmissionsChart); se o navegador imprimir sem o aviso,
+       o viewBox faz o desenho encolher inteiro até a folha em vez de sair cortado */
+    .has-print-report--emissions .emissions__chart {
+      height: auto;
+    }
+
+    .has-print-report--emissions .emissions__chart svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* ------------------------------------------------------------------------------------------------------------
+     * Dashboard (#408): painéis, regiões e a tabela de serviços inteiros na folha, sem rolagem lateral
+     * --------------------------------------------------------------------------------------------------------- */
+    .has-print-report--dashboard .page {
+      page: relatorio-dashboard;
+    }
+
+    /* O mapa é um canvas WebGL: no papel sai em branco ou num tamanho imprevisível, e a lista ao lado tem os mesmos
+       números, com nome e CO₂e de cada região */
+    .has-print-report--dashboard .region-map {
+      display: none !important;
+    }
+
+    /* Dez colunas em 186 mm: sem a largura mínima da tela (960 px), sem o respiro de 20 px de cada lado (px-5) e sem a
+       rolagem horizontal, que cortaria as últimas colunas */
+    .has-print-report--dashboard .overflow-x-auto {
+      overflow: visible !important;
+    }
+
+    .has-print-report--dashboard .scroll-edge::after {
+      display: none !important;
+    }
+
+    .has-print-report--dashboard table {
+      min-width: 0 !important;
+      font-size: 8pt !important;
+    }
+
+    .has-print-report--dashboard table th,
+    .has-print-report--dashboard table td {
+      padding-left: 3pt !important;
+      padding-right: 3pt !important;
+      font-size: 8pt;
+    }
+
+    .has-print-report--dashboard tr {
+      break-inside: avoid;
+    }
+
+    /* Campo de busca: no papel só sobraria a moldura vazia */
+    .has-print-report--dashboard input {
+      display: none !important;
+    }
+
+    /* A lista de regiões rola dentro da altura do mapa na tela; na folha, aparece inteira */
+    .has-print-report--dashboard .region-list {
+      max-height: none !important;
+      overflow: visible !important;
+    }
+
+    /* ------------------------------------------------------------------------------------------------------------
+     * Comparação (#408): o resultado na folha; chips de serviço e seletor de período são de tela
+     * --------------------------------------------------------------------------------------------------------- */
+    .has-print-report--compare .page {
+      page: relatorio-comparacao;
+    }
+
+    /* Filtros, botão e cabeçalho de tela: no papel o PrintPageHeader já traz título, período e fuso */
+    .has-print-report--compare .compare-form,
+    .has-print-report--compare .compare__header {
+      display: none !important;
+    }
+
+    /* A moldura do painel e a sombra de rolagem são de tela */
+    .has-print-report--compare .panel {
+      border: 0;
+      border-radius: 0;
+    }
+
+    .has-print-report--compare .overflow-x-auto {
+      overflow: visible !important;
+    }
+
+    .has-print-report--compare .scroll-edge::after {
+      display: none !important;
+    }
+
+    /* Matriz de até 10 serviços em 186 mm: mesma fonte e o mesmo respiro enxuto da tabela do Dashboard */
+    .has-print-report--compare table {
+      font-size: 8pt !important;
+    }
+
+    .has-print-report--compare table th,
+    .has-print-report--compare table td {
+      padding-left: 3pt !important;
+      padding-right: 3pt !important;
+      font-size: 8pt;
+    }
+
+    .has-print-report--compare tr {
+      break-inside: avoid;
+    }
+
+    /* Os gráficos são desenhados na largura da tela: com o viewBox, encolhem inteiros até a folha em vez de sair
+       cortados, e cada um fica numa página só */
+    .has-print-report--compare .compare-chart,
+    .has-print-report--compare figure {
+      break-inside: avoid;
+    }
+
+    .has-print-report--compare svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* O "Ver em tabela" é um gatilho de tela: clicar não faz nada no papel. Com a tabela aberta antes de imprimir,
+       ela sai inteira e só o gatilho some */
+    .has-print-report--compare details > summary {
+      display: none !important;
+    }
+
+    /* Gráfico de séries de CO₂e (CompareSeriesChart, #406): o desenho e a legenda entram na folha; o tooltip segue o
+       ponteiro e o realce de foco não existe no papel. Fica pronto aqui para o gráfico chegar pronto à impressão */
+    .has-print-report--compare .compare-series__tooltip {
+      display: none !important;
+    }
+
+    .has-print-report--compare .compare-series:focus-visible {
+      outline: none;
     }
   }
 }
