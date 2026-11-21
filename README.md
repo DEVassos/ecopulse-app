@@ -156,9 +156,10 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _A mesma sessão depois que o aviso sumiu: **Últimas mudanças** guarda as duas frases, a mais grave em cima (#331)._
 
-  ![Aviso de mudança no topo da tela do celular, sem cobrir o mapa](docs/img/sprint-3-aviso-mudancas-celular.png)
+  ![Aviso de mudança no topo da tela do celular, sem cobrir o mapa](docs/img/sprint-3-avisos-mudancas-celular.png)
 
-  _Em 390 px, com o aviso "Checkout Worker voltou a ficar ativo" (#388): o aviso fica no topo, abaixo do cabeçalho, com uma frase e o resto em **Últimas mudanças**, e os botões + e − do mapa continuam visíveis e clicáveis. Em 1366 px ele volta ao canto inferior direito com até 3 frases ([print](docs/img/sprint-3-aviso-mudancas-desktop.png))._
+  _Em 390 px, com o mapa das regiões no rodapé da tela e o aviso "Checkout Worker voltou a ficar ativo" (#388): o aviso fica no topo, com uma frase e o resto em **Últimas mudanças**, e os botões + e − do mapa continuam visíveis e clicáveis. Com a página no topo, ele aparece logo abaixo do cabeçalho, sem cobrir **Atualizar agora**. Em 1366 px ele volta ao canto inferior direito com até 3 frases ([print](docs/img/sprint-3-avisos-mudancas-desktop.png))._
+
 - **RF12, RF13 — Regiões por CO₂e e mapa de bolhas com o backend real (#342, #322, #351, PR #373):** entre a frase **Quem pesa mais** e a tabela, o dashboard mostra um globo com uma bolha por região e, ao lado, a lista **Regiões por CO₂e** das últimas 24 h, as mesmas dos cards do topo: a soma da lista é igual ao card **Emissões no período**. O tamanho da bolha cresce com o CO₂e, o anel pela energia e a cor do pior estado dos serviços da região; regiões sem serviço hoje viram um ponto neutro. Escolher uma região no mapa, na lista ou na tabela destaca a mesma região nos três lugares e leva o mapa até ela. Os dados vêm de `GET /api/regions` (coordenadas, intensidade e % renovável, #319) e `GET /api/regions/summary` (energia, CO₂e e estados por região no período, #320); se só essas rotas falham, o lugar da lista mostra "Regiões indisponíveis" com a mensagem do erro, ou "Regiões desatualizadas" com o último dado em cinza. No celular, o mapa fica em cima da lista e o globo e as bolhas encolhem para caber ([detalhes](frontend/README.md#mapa-das-regiões-rf13-322)).
 
   ![Globo com as bolhas das regiões e a lista Regiões por CO₂e ao lado](docs/img/sprint-3-dashboard-regioes.png)
