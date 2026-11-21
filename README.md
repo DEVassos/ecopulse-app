@@ -188,6 +188,12 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Página Emissões com o backend real (`docker compose`) em 12/11/2026, em 1280 px, com o período "Ontem" (11/11) do Audit Stream: o monitoramento começou entre 19:30 e 19:45, e a linha tracejada marca o início; à esquerda dela, quase todo o dia ficou sem dados. O botão **Ajustar ao trecho com dados** fica acima do gráfico._
 
+- **RF10, RNF01 — Zoom no gráfico de Emissões (#396):** **Aproximar**, **Afastar**, **◀** e **▶**, acima do gráfico, mostram um trecho do período no mesmo eixo, sem nova busca, encaixado nos intervalos do agrupamento. Durante o zoom, os cards dizem "no trecho", pico, média e dica valem para o trecho, e uma faixa mostra o trecho, quanto ele representa do período e os totais do período inteiro, com **Restaurar período**. Trocar o serviço ou o período restaura; o **Tempo real** mantém o trecho; no **Acumulado** a curva recomeça no trecho; a impressão sai com o trecho e o cabeçalho diz qual é; o CSV continua com o período inteiro ([detalhes](frontend/README.md#página-emissões-190)).
+
+  ![Emissões com um trecho de 4 h 45 min ampliado e os cards no trecho](docs/img/sprint-3-emissoes-zoom.png)
+
+  _Página Emissões com o backend falso (`npm run mock`), em 1280 px, com o relógio do navegador em 20/11/2026 18:30 (para o "Hoje" ter 18 h 30 min de coletas): Fraud Detector depois de dois **Aproximar** e um **▶**. Os cards dizem "no trecho" (122 g de CO₂e, 324 Wh, 570 coletas), a faixa mostra o trecho 09:30 → 14:15 e os totais do período inteiro (478 g, 1,27 kWh, 2.221 coletas), e o gráfico vai de 09:30 a 14:15._
+
 - **RF07, DW05 — Equivalências do CO₂e no card de emissões (#333, PR #350):** abaixo do total de **Emissões no período**, o dashboard mostra a mesma conta em duas unidades do dia a dia — quilômetros de carro a gasolina e cargas de celular — com a etiqueta **ordem de grandeza** e os dois fatores, a fonte e a data de consulta no tooltip da linha. São dois algarismos significativos no padrão brasileiro; abaixo de 0,01 a unidade vira "< 0,01", nunca zero, e sem CO₂e calculado a linha não aparece. A conta é só de apresentação e não é gravada ([fatores, contas e exemplo em docs/calculos.md](docs/calculos.md#equivalências); [detalhes em frontend/README.md](frontend/README.md#indicadores-agregados-rf08)).
 
   ![Emissões no período com a linha de equivalência abaixo do valor](docs/img/sprint-3-equivalencias.png)
