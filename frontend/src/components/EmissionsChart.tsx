@@ -25,7 +25,9 @@ import {
 } from '../utils/emissions';
 import { CHAR_WIDTH, freeBaseline, labelBox, labelsOverlap } from '../utils/chart-labels';
 import { scaleFor } from '../utils/units';
+import { describeWindow, dragSpan } from '../utils/zoom';
 import type { LabelAnchor, LabelBox } from '../utils/chart-labels';
+import type { ZoomWindow } from '../utils/zoom';
 import './EmissionsChart.css';
 
 /** `intervalo`: a emissão de cada ponto (coleta ou intervalo); `acumulado`: a soma ao longo do período. */
@@ -44,6 +46,11 @@ interface Props {
   stale?: boolean;
   /** Início do monitoramento depois de boa parte do período (#332): linha tracejada no instante, com o texto da marca. */
   startMark?: { t: number; label: string };
+  /** Arrastar com o mouse ou a caneta seleciona um trecho (#397), que a página amplia; sem a prop, não há arrasto. */
+  onZoom?: (span: ZoomWindow) => void;
+  /** Duplo clique e Esc (depois de fechar a dica) restauram o período, quando há um trecho ampliado (#397). */
+  onZoomReset?: () => void;
+  zoomed?: boolean;
 }
 
 const MARGIN = { top: 16, right: 20, bottom: 50, left: 64 };
@@ -124,9 +131,23 @@ function nearestIndex(times: number[], t: number): number {
 /** Sem trechos sem coleta: a mesma referência em toda renderização. */
 const NO_SPANS: TimeSpan[] = [];
 
-export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, missing = NO_SPANS, stale = false, startMark }: Props) {
+export default function EmissionsChart({
+  points,
+  bucket,
+  mode,
+  fromMs,
+  toMs,
+  missing = NO_SPANS,
+  stale = false,
+  startMark,
+  onZoom,
+  onZoomReset,
+  zoomed = false,
+}: Props) {
   const [containerRef, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
+  // Arrasto do mouse (#397): onde começou e onde está, em px a partir da borda esquerda da área do gráfico
+  const [drag, setDrag] = useState<{ x0: number; x1: number; width: number } | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [tooltipW, setTooltipW] = useState(0);
   // useId traz caracteres que não servem em url(#…): fica só o que é letra, número ou hífen
@@ -254,13 +275,43 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
   function handlePointer(event: PointerEvent<SVGRectElement>) {
     if (points.length === 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
+    if (drag) setDrag({ ...drag, x1: event.clientX - rect.left });
     setHover(nearestIndex(times, fromMs + ((event.clientX - rect.left) / rect.width) * span));
+  }
+
+  // Trecho do arrasto, já encaixado: null enquanto o arrasto não passa do limiar (aí ainda é um clique)
+  const selection = drag ? dragSpan(drag.x0, drag.x1, drag.width, { fromMs, toMs }, stepMs) : null;
+  // "20/11 12:00 → 16:00 (4 h)" no alto da faixa, sem passar das bordas do gráfico
+  const selectionLabel = selection ? describeWindow(selection) : '';
+  const selectionHalf = (selectionLabel.length * CHAR_WIDTH.sans11) / 2;
+  const selectionX = selection
+    ? Math.min(Math.max((x(selection.fromMs) + x(selection.toMs)) / 2, MARGIN.left + selectionHalf), MARGIN.left + plotW - selectionHalf)
+    : 0;
+
+  /** Só mouse e caneta: no toque, o arrasto continua percorrendo os pontos, e os botões da página cobrem o zoom. */
+  function startDrag(event: PointerEvent<SVGRectElement>) {
+    handlePointer(event);
+    if (!onZoom || event.pointerType === 'touch' || event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const rect = event.currentTarget.getBoundingClientRect();
+    setDrag({ x0: event.clientX - rect.left, x1: event.clientX - rect.left, width: rect.width });
+  }
+
+  function endDrag() {
+    if (selection && onZoom) {
+      setHover(null);
+      onZoom(selection);
+    }
+    setDrag(null);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (points.length === 0) return;
+    // Esc fecha primeiro o que já fechava (o arrasto, a dica); depois, com um trecho ampliado, restaura o período
     if (event.key === 'Escape') {
-      setHover(null);
+      if (drag) setDrag(null);
+      else if (hover !== null) setHover(null);
+      else if (zoomed) onZoomReset?.();
       return;
     }
     const current = hover ?? points.length - 1;
@@ -346,7 +397,9 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
       ref={containerRef}
       tabIndex={0}
       role="group"
-      aria-label="Gráfico de emissões. Use as setas para percorrer os pontos; Esc fecha o detalhe."
+      aria-label={`Gráfico de emissões. Use as setas para percorrer os pontos; Esc fecha o detalhe${
+        zoomed ? ' e, de novo, restaura o período' : ''
+      }.${onZoom ? ' Com o mouse, arraste para ampliar um trecho; duplo clique restaura o período.' : ''}`}
       onKeyDown={handleKeyDown}
       onFocus={(event) => {
         // Só o foco pelo teclado abre o último ponto; no clique, o ponteiro já escolhe o ponto
@@ -497,21 +550,38 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
             />
           ))}
 
-          {/* Cursor */}
-          {hovered && hover !== null && (
+          {/* Cursor (some durante o arrasto, como a dica) */}
+          {hovered && hover !== null && !selection && (
             <g pointerEvents="none">
               <line className="emissions-chart__cursor" x1={hoverX} x2={hoverX} y1={MARGIN.top} y2={MARGIN.top + plotH} />
               {hoveredValue !== null && <circle className="emissions-chart__dot" cx={hoverX} cy={y(hoveredValue)} r={4} />}
             </g>
           )}
+          {/* Trecho que o arrasto vai ampliar (#397): faixa sombreada com início, fim e duração */}
+          {selection && (
+            <g className="emissions-chart__selection" pointerEvents="none">
+              <rect x={x(selection.fromMs)} y={MARGIN.top} width={Math.max(1, x(selection.toMs) - x(selection.fromMs))} height={plotH} />
+              <text x={selectionX} y={MARGIN.top + 14} textAnchor="middle">
+                {selectionLabel}
+              </text>
+            </g>
+          )}
           <rect
+            className={onZoom ? 'emissions-chart__hit emissions-chart__hit--zoom' : 'emissions-chart__hit'}
             x={MARGIN.left}
             y={MARGIN.top}
             width={plotW}
             height={plotH + STRIP_H + 6}
             fill="transparent"
             onPointerMove={handlePointer}
-            onPointerDown={handlePointer}
+            onPointerDown={startDrag}
+            onPointerUp={endDrag}
+            onPointerCancel={() => setDrag(null)}
+            onDoubleClick={() => {
+              if (!zoomed || !onZoomReset) return;
+              setHover(null);
+              onZoomReset();
+            }}
             // No toque, o dedo saindo da tela não fecha o detalhe: ele fica até o próximo toque
             onPointerLeave={(event) => event.pointerType !== 'touch' && setHover(null)}
           />
@@ -537,7 +607,13 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
         </svg>
       )}
 
-      <div ref={tooltipRef} className="emissions-chart__tooltip" aria-live="polite" hidden={!hovered} style={{ left: tooltipLeft, top: MARGIN.top }}>
+      <div
+        ref={tooltipRef}
+        className="emissions-chart__tooltip"
+        aria-live="polite"
+        hidden={!hovered || selection !== null}
+        style={{ left: tooltipLeft, top: MARGIN.top }}
+      >
         {hovered && hover !== null && (
           <>
             <strong>

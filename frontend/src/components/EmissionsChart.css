@@ -207,6 +207,29 @@
     opacity: 0.14;
   }
 
+  /* Zoom por arrasto (#397): a mira indica que dá para selecionar com o mouse; a faixa do trecho fica em --sky */
+  .emissions-chart__hit--zoom {
+    cursor: crosshair;
+  }
+
+  .emissions-chart__selection rect {
+    fill: color-mix(in srgb, var(--sky) 16%, transparent);
+    stroke: var(--sky);
+    stroke-width: 1;
+  }
+
+  .emissions-chart__selection text {
+    fill: var(--text);
+    paint-order: stroke;
+    stroke: var(--surface);
+    stroke-width: 4px;
+    stroke-linejoin: round;
+    font-family: var(--sans);
+    font-variant-numeric: tabular-nums;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
   /* Falhas: coleta com falha ou sem métricas (vermelho), cálculo indisponível (cinza) */
   .emissions-chart__gap--falha {
     fill: var(--error);

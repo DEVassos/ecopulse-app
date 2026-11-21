@@ -3,6 +3,7 @@ import type { EmissionPoint } from '../services/emissions.types';
 import { seriesStats, totalsOf } from './emissions';
 import {
   describeWindow,
+  dragSpan,
   formatShare,
   gridStepMs,
   minWindowMs,
@@ -117,6 +118,31 @@ describe('recorte do trecho (#396)', () => {
   it('recorta os trechos sem coleta ao trecho ampliado', () => {
     const spans = [{ start: at(3), end: at(10) }, { start: at(20), end: at(21) }];
     expect(spansInWindow(spans, { fromMs: at(6), toMs: at(18) })).toEqual([{ start: at(6), end: at(10) }]);
+  });
+});
+
+describe('dragSpan (#397)', () => {
+  // 960 px para 24 h: 1 px = 1,5 min
+  const W = 960;
+
+  it('converte o arrasto em horas encaixadas nos intervalos, em qualquer direção', () => {
+    expect(dragSpan(480, 640, W, DAY, STEP)).toEqual({ fromMs: at(12), toMs: at(16) });
+    expect(dragSpan(640, 480, W, DAY, STEP)).toEqual({ fromMs: at(12), toMs: at(16) });
+    expect(dragSpan(482, 638, W, DAY, STEP)).toEqual({ fromMs: at(12), toMs: at(16) });
+  });
+
+  it('abaixo de 8 px é clique; a partir de 8 px, ao menos um intervalo', () => {
+    expect(dragSpan(480, 487, W, DAY, STEP)).toBeNull();
+    expect(dragSpan(480, 488, W, DAY, STEP)).toEqual({ fromMs: at(12), toMs: at(12, 15) });
+    expect(dragSpan(952, 1000, W, DAY, STEP)).toEqual({ fromMs: at(23, 45), toMs: at(24) });
+  });
+
+  it('não sai do eixo e, no período de hoje, o fim do eixo ("agora") também é borda', () => {
+    expect(dragSpan(-50, 2000, W, DAY, STEP)).toEqual(DAY);
+    const today = { fromMs: at(0), toMs: at(18, 37) };
+    // 1117 px para 18 h 37 min: 1 px = 1 min
+    expect(dragSpan(1080, 1117, 1117, today, STEP)).toEqual({ fromMs: at(18), toMs: at(18, 37) });
+    expect(snapWindow({ fromMs: at(18), toMs: at(18, 37) }, today, STEP)).toEqual({ fromMs: at(17, 45), toMs: at(18, 45) });
   });
 });
 

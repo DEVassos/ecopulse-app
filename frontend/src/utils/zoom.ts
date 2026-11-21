@@ -72,6 +72,26 @@ export function panWindow(window: ZoomWindow, period: ZoomWindow, stepMs: number
   return snapWindow({ fromMs: window.fromMs + shift, toMs: window.toMs + shift }, period, stepMs);
 }
 
+/** Abaixo desta distância, em px, soltar o mouse é um clique (a dica do ponto), não uma seleção (#397). */
+export const DRAG_THRESHOLD_PX = 8;
+
+/**
+ * Trecho selecionado arrastando o mouse de `x0` a `x1` (px a partir da borda esquerda da área do gráfico, de largura
+ * `width`), em qualquer direção, sobre o eixo `domain`: encaixado nos intervalos contados do início do eixo (o fim do
+ * eixo, "agora" no período de hoje, também vale como borda), com pelo menos um intervalo e sem sair do eixo. Null
+ * abaixo do limiar de arrasto.
+ */
+export function dragSpan(x0: number, x1: number, width: number, domain: ZoomWindow, stepMs: number): ZoomWindow | null {
+  if (width <= 0 || Math.abs(x1 - x0) < DRAG_THRESHOLD_PX) return null;
+  const at = (x: number) => domain.fromMs + (Math.min(Math.max(x, 0), width) / width) * (domain.toMs - domain.fromMs);
+  const snap = (t: number) => {
+    const grid = domain.fromMs + Math.round((t - domain.fromMs) / stepMs) * stepMs;
+    return grid > domain.toMs || domain.toMs - t < Math.abs(t - grid) ? domain.toMs : grid;
+  };
+  const from = Math.max(domain.fromMs, Math.min(snap(at(Math.min(x0, x1))), domain.toMs - stepMs));
+  return { fromMs: from, toMs: Math.max(snap(at(Math.max(x0, x1))), Math.min(domain.toMs, from + stepMs)) };
+}
+
 /** Hora do fim do trecho: meia-noite do dia seguinte vira "24:00", como no período ("até 24:00 da data final"). */
 function endClock(window: ZoomWindow, withDay: boolean): string {
   const end = new Date(window.toMs);
