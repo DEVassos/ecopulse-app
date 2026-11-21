@@ -86,7 +86,8 @@ export interface Decomposition {
 
 const percent = (ratio: number) => `${formatNumber(ratio * 100, 1)}%`;
 const sign = (value: number) => (value > 0 ? '+' : value < 0 ? '−' : '±');
-export const signedPercent = (ratio: number) => `${sign(ratio)}${percent(Math.abs(ratio))}`;
+/** "+17,4%"; abaixo de 0,05% o sinal some ("±0,0%"), para não sair um "−0,0%". */
+export const signedPercent = (ratio: number) => `${sign(Math.abs(ratio) < 0.0005 ? 0 : ratio)}${percent(Math.abs(ratio))}`;
 export const signedGrams = (grams: number) => `${grams === 0 ? '' : sign(grams)}${formatGrams(Math.abs(grams))}`;
 export const formatIntensity = (value: number) => `${value.toLocaleString('pt-BR', { maximumFractionDigits: 1 })} g/kWh`;
 const count = (value: number) => value.toLocaleString('pt-BR');
@@ -370,8 +371,8 @@ export function concentrationInsight(services: readonly ReportService[]): Insigh
     topic: 'concentracao',
     title,
     evidence: [
-      ...group.slice(0, 3).map((service) => ({ label: service.name, value: `${formatGrams(service.co2eGrams)} (${percent(service.co2eGrams / total)})` })),
-      ...(size > 3 ? [{ label: `Mais ${size - 3} do grupo`, value: percent(group.slice(3).reduce((s, x) => s + x.co2eGrams, 0) / total) }] : []),
+      ...group.slice(0, 4).map((service) => ({ label: service.name, value: `${formatGrams(service.co2eGrams)} (${percent(service.co2eGrams / total)})` })),
+      ...(size > 4 ? [{ label: `Mais ${size - 4} do grupo`, value: percent(group.slice(4).reduce((s, x) => s + x.co2eGrams, 0) / total) }] : []),
       ...(rest > 0 ? [{ label: `Demais ${rest} serviços`, value: `${formatGrams(total - groupGrams)} (${percent((total - groupGrams) / total)})` }] : []),
     ],
     cause: concentrated

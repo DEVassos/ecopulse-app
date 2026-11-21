@@ -10,6 +10,7 @@ import {
   relativeChange,
   reportTotals,
   serviceChangeInsights,
+  signedPercent,
   sortInsights,
   targetLink,
   trendInsight,
@@ -216,6 +217,8 @@ describe('ordem, relatório e links', () => {
     expect(previousWindow(1000, 1600)).toEqual({ fromMs: 400, toMs: 1000 });
     expect(relativeChange(110, 100)).toBeCloseTo(0.1, 10);
     expect(relativeChange(110, 0)).toBeNull();
+    expect(signedPercent(0.174436)).toBe('+17,4%');
+    expect(signedPercent(-0.0002)).toBe('±0,0%');
   });
 
   it('leva o período ao link do "O que fazer"', () => {
