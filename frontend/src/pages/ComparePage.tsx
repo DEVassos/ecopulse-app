@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import AppHeader from '../components/AppHeader';
 import CompareChart from '../components/CompareChart';
+import CompareSeriesChart from '../components/CompareSeriesChart';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import EstimateTag from '../components/EstimateTag';
@@ -11,6 +12,7 @@ import CompactValue from '../components/CompactValue';
 import MissingValue from '../components/MissingValue';
 import PeriodPicker from '../components/PeriodPicker';
 import PowerBreakdownChart from '../components/PowerBreakdownChart';
+import { useCompareSeries } from '../hooks/useCompareSeries';
 import { useComparison } from '../hooks/useComparison';
 import { useHorizontalOverflow } from '../hooks/useHorizontalOverflow';
 import { useServices } from '../hooks/useServices';
@@ -18,7 +20,7 @@ import type { ComparedService } from '../services/compare.types';
 import { isDemoMode } from '../services/services.service';
 import { CAUSE_LABEL, carbonIntensity, lowestCo2eCause } from '../utils/comparison';
 import type { ResourceKey } from '../utils/comparison';
-import { isInputDate, spanDays, timeZoneLabel, todayInput } from '../utils/emissions';
+import { BUCKET_LABEL, isInputDate, spanDays, timeZoneLabel, todayInput } from '../utils/emissions';
 import { formatFixed, formatNumber } from '../utils/format';
 import { scaleFor } from '../utils/units';
 
@@ -217,6 +219,19 @@ export default function ComparePage() {
   }
 
   const { data, loading, error, refresh } = useComparison(ids, start, end);
+
+  // Séries de CO₂e dos serviços comparados (#406): a lista só troca de identidade quando a composição muda, senão o
+  // gráfico refaria as buscas a cada resposta nova da comparação
+  const seriesKey = data?.services.map((service) => service.id).join(',') ?? '';
+  const seriesServices = useMemo(
+    () => (data?.services ?? []).map((service) => ({ id: service.id, name: service.name })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- derivado de `data`: a chave basta e evita busca a cada refetch
+    [seriesKey],
+  );
+  const compareSeries = useCompareSeries(seriesServices, start, end);
+  // Só há linha a desenhar quando ao menos um serviço tem cálculo no período (intervalo sem cálculo não vale zero)
+  const seriesHasValues = compareSeries.data?.rows.some((row) => row.total !== null) ?? false;
+  const seriesNames = new Map((data?.services ?? []).map((service) => [service.id, service.name]));
   const extremes = data ? co2eExtremes(data.services) : null;
   // Por que o serviço de menor CO₂e emite menos; null quando os dados não sustentam uma causa
   const cause = data ? lowestCo2eCause(data.services) : null;
@@ -432,6 +447,44 @@ export default function ComparePage() {
               </table>
             </div>
             </div>
+
+            {/* CO₂e no tempo (#406): a matriz e as barras comparam o período inteiro, a linha mostra quando */}
+            <figure className="m-0 flex flex-col gap-3 border-t border-border px-5 py-4">
+              <figcaption className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <span className="font-display text-sm font-semibold text-text">CO₂e ao longo do período</span>
+                <span className="text-xs text-muted">
+                  uma linha por serviço, a cada {BUCKET_LABEL[compareSeries.bucket]}
+                </span>
+              </figcaption>
+
+              {compareSeries.loading && <LoadingState message="Carregando as linhas de CO₂e…" />}
+              {!compareSeries.loading && compareSeries.error !== '' && (
+                <ErrorState message={compareSeries.error} onRetry={compareSeries.refresh} />
+              )}
+              {!compareSeries.loading && compareSeries.data && !seriesHasValues && (
+                <EmptyState
+                  title="Sem cálculo de CO₂e no período"
+                  description="As linhas aparecem quando as coletas dos serviços escolhidos têm CO₂e calculado neste período; intervalo sem cálculo não vira zero."
+                />
+              )}
+              {!compareSeries.loading && compareSeries.data && seriesHasValues && (
+                <CompareSeriesChart
+                  series={compareSeries.data}
+                  bucket={compareSeries.bucket}
+                  fromMs={compareSeries.fromMs}
+                  toMs={compareSeries.toMs}
+                  highlightOf={extremeOf}
+                />
+              )}
+
+              {/* Falha isolada: a linha do serviço sai e a tela diz qual, sem esconder as demais */}
+              {compareSeries.failed.length > 0 && (
+                <p className="m-0 text-xs text-warning" role="status">
+                  Sem série de CO₂e no período para{' '}
+                  {compareSeries.failed.map((id) => seriesNames.get(id) ?? id).join(', ')}. As demais linhas continuam no gráfico.
+                </p>
+              )}
+            </figure>
 
             <CompareChart services={data.services} highlightOf={extremeOf} />
 
