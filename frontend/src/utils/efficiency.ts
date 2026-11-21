@@ -15,14 +15,27 @@ export function averagePowerFromEnergy(energyKwh: number | null, monitoredSecond
 }
 
 /**
+ * Casas decimais das linhas de eficiência da matriz de comparação (`formatNumber(valor, 2)` em `ComparePage`): o empate
+ * é decidido no número que a tela mostra. Comparar o valor bruto elegia um dos dois lados quando as duas células
+ * exibiam o mesmo número, por diferença na 9ª casa decimal (#329).
+ */
+const DISPLAY_DECIMALS = 2;
+
+/** O valor como a linha o mostra, para comparar empates pelo que está escrito na tela. */
+function asDisplayed(value: number): number {
+  const factor = 10 ** DISPLAY_DECIMALS;
+  return Math.round(value * factor) / factor;
+}
+
+/**
  * Id do serviço "mais eficiente" de uma linha (o de menor valor), para o selo da comparação. Exige pelo menos dois
- * serviços com valor e nenhum empate no menor: com empate, nenhum dos dois é "o mais eficiente". `null` quando não há
- * selo a dar — a linha fica sem destaque em vez de eleger quem não se distingue.
+ * serviços com valor e nenhum empate no menor — com empate, nenhum dos dois é "o mais eficiente". `null` quando não há
+ * selo a dar: a linha fica sem destaque em vez de eleger quem não se distingue.
  */
 export function mostEfficient<T extends { id: string }>(items: readonly T[], valueOf: (item: T) => number | null): string | null {
   const withValue = items.flatMap((item) => {
     const value = valueOf(item);
-    return value === null ? [] : [{ id: item.id, value }];
+    return value === null ? [] : [{ id: item.id, value: asDisplayed(value) }];
   });
   if (withValue.length < 2) return null;
   const lowest = Math.min(...withValue.map((item) => item.value));

@@ -43,4 +43,27 @@ describe('mostEfficient', () => {
     ];
     expect(mostEfficient(tied, (service) => service.watts)).toBeNull();
   });
+
+  it('decide o empate pelo número exibido: valores que a linha mostra iguais não elegem ninguém', () => {
+    // 378,0000000041535 e 378,00000000149345 aparecem como "378,00" na matriz: o selo não pode ir para um dos dois
+    const intensity = [
+      { id: 'checkout-worker', gPerKwh: 378.0000000041535 },
+      { id: 'fraud-detector', gPerKwh: 378.00000000149345 },
+      { id: 'inventory-sync', gPerKwh: 512 },
+    ];
+    expect(mostEfficient(intensity, (service) => service.gPerKwh)).toBeNull();
+    // O mesmo par de 40,00 visto na comparação de 20/11, com um terceiro serviço acima
+    const power = [
+      { id: 'inventory-sync', watts: 40.00000000094438 },
+      { id: 'reporting-batch', watts: 39.99999999895865 },
+      { id: 'billing-api', watts: 60.51 },
+    ];
+    expect(mostEfficient(power, (service) => service.watts)).toBeNull();
+    // A diferença que a tela mostra continua decidindo: 39,99 contra 40,00
+    const shownApart = [
+      { id: 'reporting-batch', watts: 39.994 },
+      { id: 'inventory-sync', watts: 40.00000000094438 },
+    ];
+    expect(mostEfficient(shownApart, (service) => service.watts)).toBe('reporting-batch');
+  });
 });
