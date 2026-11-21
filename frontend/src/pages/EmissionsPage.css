@@ -115,7 +115,8 @@
     color: var(--text);
   }
 
-  .emissions__btn:disabled {
+  .emissions__btn:disabled,
+  .emissions__btn[aria-disabled='true'] {
     opacity: 0.4;
     cursor: not-allowed;
   }
@@ -190,17 +191,67 @@
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    justify-content: flex-end;
   }
 
+  /* A forma de exibir fica sempre à direita; zoom e ajuste do eixo, à esquerda (#332, #396) */
   .emissions__segmented {
     display: inline-flex;
     gap: 0;
+    margin-left: auto;
   }
 
-  /* Ajuste do eixo ao trecho com dados (#332): à esquerda, longe da forma de exibir, que fica à direita */
-  .emissions__fit {
-    margin-right: auto;
+  /* Zoom (#396): Aproximar, Afastar, ◀ e ▶ juntos, à esquerda */
+  .emissions__zoom {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .emissions__btn:hover[aria-disabled='true'] {
+    border-color: var(--border);
+    color: var(--text-2);
+  }
+
+  /* Faixa do trecho ampliado: o que é, quanto pesa no período e os totais do período inteiro */
+  .emissions__zoom-band {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--sky) 40%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--sky) 8%, transparent);
+    font-size: 13px;
+    color: var(--text-2);
+  }
+
+  .emissions__zoom-band p {
+    margin: 0;
+  }
+
+  .emissions__zoom-band strong {
+    color: var(--text);
+  }
+
+  .emissions__zoom-total {
+    margin-top: 2px;
+    color: var(--muted);
+  }
+
+  /* Dica do arrasto (#397): só com mouse ou caneta, onde o arrasto amplia; fica fora da impressão */
+  .emissions__hint {
+    display: none;
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  @media screen and (hover: hover) and (pointer: fine) {
+    .emissions__hint {
+      display: block;
+    }
   }
 
   .emissions__segmented .emissions__btn {

@@ -1,11 +1,11 @@
 import type { ComparedService } from '../services/compare.types';
 import { RESOURCES, averagePower, resourceShares } from '../utils/comparison';
 import { formatFixed, formatNumber } from '../utils/format';
+import { COEFFICIENTS_TEXT } from '../utils/model';
 import './PowerBreakdownChart.css';
 
 /** Definição que acompanha a barra: a potência média é soma de parcelas, não uma medida de carga de trabalho. */
-export const POWER_NOTE =
-  'Potência média = soma das parcelas de CPU (1 W por ponto percentual), RAM (0,375 W/GB), disco (0,01 W/GB) e rede (0,02 W/GB), sobre as médias do período. Definição em docs/calculos.md.';
+export const POWER_NOTE = `Potência média = soma das parcelas de ${COEFFICIENTS_TEXT}, sobre as médias do período. Definição em docs/calculos.md.`;
 
 /**
  * "62,67 W · 97,8%" — valor e contribuição no mesmo rótulo, nunca só a cor do segmento. A resolução fixa evita que
