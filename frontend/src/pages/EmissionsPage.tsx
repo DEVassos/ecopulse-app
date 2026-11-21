@@ -45,7 +45,6 @@ import {
 } from '../utils/emissions';
 import { formatDayTime } from '../utils/format';
 import './EmissionsPage.css';
-import '../styles/print.css';
 
 /** Mensagem de erro do período, ligada aos dois campos de data por aria-describedby (#262). */
 const FORM_ERROR_ID = 'emissoes-erro-periodo';
@@ -71,8 +70,8 @@ function printLocation(service: MonitoredService): string {
 export default function EmissionsPage() {
   const { data: servicesData, loading: servicesLoading, error: servicesError, refresh: refreshServices } = useServices();
   const { refreshIntervalMs } = useMonitoring();
-  // Relatório impresso / PDF (#13): as regras de impressão valem só nesta página, e o papel sai sempre no tema claro
-  usePrintReport();
+  // Relatório impresso / PDF (#13): a folha do serviço, e o papel sai sempre no tema claro
+  usePrintReport('emissions');
   const [params, setParams] = useSearchParams();
   const today = todayInput();
   const services = useMemo(() => servicesData?.services ?? [], [servicesData]);

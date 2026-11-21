@@ -28,7 +28,7 @@ export default function ChangeToast({ toast }: { toast: StatusChangesState['toas
 
   return (
     // No canto inferior direito; no celular, a largura da tela menos as margens de 16 px
-    <div className={`fixed right-4 bottom-4 z-30 w-[min(360px,calc(100vw-32px))] ${open ? box : ''}`}>
+    <div className={`change-toast fixed right-4 bottom-4 z-30 w-[min(360px,calc(100vw-32px))] ${open ? box : ''}`}>
       <div role="status" aria-live="polite" className="flex-1">
         {open && (
           <>

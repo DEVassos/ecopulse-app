@@ -58,6 +58,38 @@ export function PrintHeader({ serviceName, location, periodLabel, bucketLabel, u
   );
 }
 
+interface PageHeaderProps {
+  /** Linha ao lado do logo, como "Relatório do painel · DEVassos". */
+  label: string;
+  title: string;
+  /** Período, última atualização, número de serviços: o que situa a folha antes dos números. */
+  items: { label: string; value: string }[];
+}
+
+/**
+ * Cabeçalho do relatório de uma página inteira (#408): o Dashboard não tem título na tela, e no papel o logo, o título e a
+ * linha de metadados situam a folha, como o PrintHeader faz em Emissões.
+ */
+export function PrintPageHeader({ label, title, items }: PageHeaderProps) {
+  return (
+    <header className="print-only print-report__header">
+      <div className="print-report__brand">
+        <Brand />
+        <p>{label}</p>
+      </div>
+      <h1 className="print-report__title">{title}</h1>
+      <dl className="print-report__meta">
+        {items.map((item) => (
+          <div key={item.label}>
+            <dt>{item.label}</dt>
+            <dd>{item.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </header>
+  );
+}
+
 interface TableProps {
   points: EmissionPoint[];
   bucket: EmissionsBucket;
