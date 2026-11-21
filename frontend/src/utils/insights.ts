@@ -153,8 +153,45 @@ function sampleRatio(previous: ReportTotals, current: ReportTotals): number | nu
 
 // ── Regra 1: tendência do total ─────────────────────────────────────────────
 
-/** Por que o total mudou, pelo efeito dominante. O efeito "intensidade média" mistura fator e mistura de regiões. */
+const MIX_NOTE =
+  'A intensidade média mistura o fator de cada região com a parte da energia gasta em cada uma: mais energia numa ' +
+  'região mais suja sobe a média mesmo sem nenhum fator mudar.';
+
+/** "de 847 Wh para 776 Wh" ou "de 242,3 g/kWh para 299 g/kWh"; vazio sem os dois valores. */
+function effectRange(effect: 'energia' | 'intensidade', previous: ReportTotals, current: ReportTotals): string {
+  if (effect === 'energia' && previous.energyKwh !== null && current.energyKwh !== null) {
+    return `de ${formatKwh(previous.energyKwh)} para ${formatKwh(current.energyKwh)}`;
+  }
+  if (effect === 'intensidade' && previous.intensity !== null && current.intensity !== null) {
+    return `de ${formatIntensity(previous.intensity)} para ${formatIntensity(current.intensity)}`;
+  }
+  return '';
+}
+
+/**
+ * Efeitos de sinais opostos: um empurra o CO₂e para cima e o outro para baixo, e a variação é o saldo. Aqui não existe
+ * "% da variação" (o efeito que venceu passa de 100% dela); a frase cita o que venceu e o contrário, em gramas.
+ */
+function opposingText(d: Decomposition, previous: ReportTotals, current: ReportTotals, change: string): string {
+  const name = { energia: 'energia consumida', intensidade: 'intensidade média' } as const;
+  const effect = (key: 'energia' | 'intensidade', grams: number) => {
+    const range = effectRange(key, previous, current);
+    return `${name[key]} (${signedGrams(grams)}${range ? `, ${range}` : ''})`;
+  };
+  const energia = effect('energia', d.energyGrams);
+  const intensidade = effect('intensidade', d.intensityGrams);
+  if (d.deltaGrams === 0) return `Os dois efeitos se anularam: ${energia} e ${intensidade}. ${MIX_NOTE}`;
+  const intensityWins = Math.sign(d.intensityGrams) === Math.sign(d.deltaGrams);
+  const [winner, loser] = intensityWins ? [intensidade, energia] : [energia, intensidade];
+  return `A ${change} vem da ${winner}, maior que o efeito contrário da ${loser}. ${MIX_NOTE}`;
+}
+
+/**
+ * Por que o total mudou, pelo efeito dominante. O efeito "intensidade média" mistura fator e mistura de regiões. Com os
+ * dois efeitos no mesmo sentido, a soma dos módulos é a própria variação, e a parte de cada um é "% da variação".
+ */
 function driverText(d: Decomposition, previous: ReportTotals, current: ReportTotals, change: string): string {
+  if (d.energyGrams * d.intensityGrams < 0) return opposingText(d, previous, current, change);
   const share = (grams: number) => percent(Math.abs(grams) / (Math.abs(d.energyGrams) + Math.abs(d.intensityGrams)));
   if (d.driver === 'energia' && previous.energyKwh !== null && current.energyKwh !== null) {
     return `A ${change} vem da energia consumida (${share(d.energyGrams)} da variação): de ${formatKwh(previous.energyKwh)} para ${formatKwh(current.energyKwh)}.`;

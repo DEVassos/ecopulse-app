@@ -102,6 +102,22 @@ describe('trendInsight', () => {
     expect(trendInsight(now, before)?.cause).toBe('A alta vem dos dois efeitos: energia +20,0 g (45,5%) e intensidade média +24,0 g (54,5%).');
   });
 
+  it('com efeitos de sinais opostos, cita o que venceu e o contrário em gramas, sem "% da variação"', () => {
+    // ΔE × I₀ = (0,9 − 1) × 100 = −10 g; E₁ × ΔI = 0,9 × (130 − 100) = +27 g; ΔC = +17 g. O efeito intensidade
+    // passa de 100% da variação (27 ÷ 17 = 159%): nenhum percentual "da variação" faz sentido aqui
+    const before = [service('A', 1, 100)];
+    const now = [service('A', 0.9, 117)];
+    const cause = trendInsight(now, before)?.cause ?? '';
+    expect(cause).toMatch(/^A alta vem da intensidade média \(\+27,0 g, de 100 g\/kWh para 130 g\/kWh\), maior que o efeito contrário da energia consumida \(−10,00 g, de 1,00 kWh para 900 Wh\)\./);
+    expect(cause).not.toContain('da variação');
+  });
+
+  it('com efeitos opostos e a energia vencendo, a energia vem primeiro', () => {
+    // ΔE × I₀ = 0,5 × 100 = +50 g; E₁ × ΔI = 1,5 × (90 − 100) = −15 g; ΔC = +35 g
+    const cause = trendInsight([service('A', 1.5, 135)], [service('A', 1, 100)])?.cause ?? '';
+    expect(cause).toMatch(/^A alta vem da energia consumida \(\+50,0 g, de .+\), maior que o efeito contrário da intensidade média \(−15,0 g, de 100 g\/kWh para 90 g\/kWh\)\./);
+  });
+
   it('queda de 10% ou mais é contexto, não alerta', () => {
     const [before, now] = pair(100, 80);
     const trend = trendInsight(now, before);

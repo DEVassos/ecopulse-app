@@ -434,6 +434,8 @@ variação  = (C₁ − C₀) ÷ C₀                              (0 = período
 
 A decomposição é uma identidade exata: `(E₁ − E₀)·I₀ + E₁·(I₁ − I₀) = E₁·I₁ − E₀·I₀ = C₁ − C₀`. O primeiro termo diz quanto o CO₂e mudaria só pela energia, com a intensidade do período anterior; o segundo, quanto mudou porque a energia passou a ter outra intensidade média. Esse segundo termo mistura duas coisas: o fator de cada região (que a Carbon API atualiza e o backend guarda em cache por 1 h) e a **parte da energia gasta em cada região**. Mais energia numa região mais suja sobe a média mesmo sem nenhum fator mudar, como no exemplo abaixo. Para um serviço só, numa região só, o segundo termo é só o fator da região.
 
+Quando os dois efeitos têm o **mesmo sinal**, eles somam a variação e a parte de cada um é "% da variação" (no exemplo abaixo, 13,3 g e 56,3 g de 69,6 g: 19,1% e 80,9%). Quando têm **sinais opostos**, a variação é o saldo e o efeito que venceu passa de 100% dela (um serviço que foi de 1 kWh a 100 g/kWh para 0,9 kWh a 130 g/kWh tem −10 g de energia e +27 g de intensidade, saldo de +17 g; os 27 g são 159% da variação). Nesse caso o relatório não fala em percentual: diz qual efeito venceu e qual foi o contrário, em gramas, e a página desenha os dois em barras divergentes a partir do zero, nunca como partes de um todo. O critério de efeito dominante (tabela abaixo) continua sobre a soma dos módulos, que só decide qual efeito é citado primeiro.
+
 ### Regras e limiares
 
 | Regra | Limiar | Por quê |
