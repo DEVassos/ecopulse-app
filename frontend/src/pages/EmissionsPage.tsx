@@ -184,6 +184,11 @@ export default function EmissionsPage() {
     if (zoomWindow && period && stepMs !== null) applyZoom(panWindow(zoomWindow, period, stepMs, direction));
   }
 
+  /** Trecho selecionado arrastando o mouse no gráfico (#397): o mesmo encaixe dos botões. */
+  function zoomToSpan(span: ZoomWindow) {
+    if (period && stepMs !== null) applyZoom(snapWindow(span, period, stepMs));
+  }
+
   /** "Restaurar período" some com a faixa do trecho: o foco do teclado vai para o Aproximar. */
   function resetZoom() {
     applyZoom(null);
@@ -491,7 +496,17 @@ export default function EmissionsPage() {
                     missing={missing}
                     stale={stale}
                     startMark={startMark}
+                    onZoom={zoomToSpan}
+                    // Duplo clique e Esc acontecem no gráfico: o foco fica nele, sem pular para o Aproximar
+                    onZoomReset={() => applyZoom(null)}
+                    zoomed={shown !== null}
                   />
+                )}
+                {/* Só aparece com mouse (CSS): no toque, o arrasto percorre os pontos e o zoom fica nos botões (#397) */}
+                {data !== null && points.length > 0 && (
+                  <p className="emissions__hint">
+                    Arraste sobre o gráfico para ampliar um trecho; duplo clique ou Esc volta ao período inteiro.
+                  </p>
                 )}
               </div>
               {noCalculation && (
