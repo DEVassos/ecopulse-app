@@ -269,6 +269,7 @@
     .has-print-report--emissions .emissions__filters,
     .has-print-report--emissions .emissions__export,
     .has-print-report--emissions .emissions__chart-bar,
+    .has-print-report--emissions .emissions__zoom-band,
     .has-print-report--emissions .emissions__header {
       display: none !important;
     }
