@@ -293,9 +293,10 @@ O `compose.yaml` lê o `.env` e repassa as variáveis aos containers ([#27](http
 | `CARBON_API_URL` | `https://carbon.unilaunch.org` | base da API de intensidade de carbono do parceiro |
 | `JWT_SECRET` | `dev-secret-change-me` | chave obrigatória (mínimo 16 caracteres) que assina os tokens JWT do login administrativo |
 | `JWT_EXPIRES_IN` | `8h` | validade positiva com unidade (`s`, `m`, `h` ou `d`) do token emitido no login |
+| `INVITATION_TTL_HOURS` | `72` | validade, em horas (1 a 720), do link de convite de cadastro emitido por um administrador |
 | `METRICS_API_URL` | `https://metrics.unilaunch.org` | base da API agregadora de métricas do parceiro |
 | `POLLING_INTERVAL_MS` | `30000` | intervalo da descoberta de serviços e prazo inicial/de recuperação da coleta (30 s); o prazo normal vem de `collection_interval_seconds`. Vale para o backend fora do Docker; no compose fica o padrão |
-| `CORS_ORIGIN` | `http://localhost:5173` | origem(ns) do dashboard liberadas pelo backend para chamar a API pelo navegador (CORS), separadas por vírgula |
+| `CORS_ORIGIN` | `http://localhost:5173` | origem(ns) do dashboard liberadas pelo backend para chamar a API pelo navegador (CORS), separadas por vírgula; a primeira também monta o link dos convites |
 | `VITE_API_URL` | `http://localhost:3000/api` | base da API consumida pelo dashboard; vazia, o frontend entra em modo demonstração |
 | `VITE_REFRESH_INTERVAL_MS` | `30000` | intervalo da atualização automática do dashboard em ms (mínimo 5000); entra no build do frontend |
 
