@@ -579,6 +579,7 @@ const routes = {
           co2eGrams,
           collections: items.length,
           failed: items.filter((item) => item.status !== 'ok').length,
+          // Como no backend (docs/api.md): sem cálculo inclui as falhas, então calculadas = collections − notCalculated
           notCalculated: items.filter((item) => item.calculationStatus !== 'disponivel').length,
           monitoredSeconds: monitoredSecondsOf(items),
         };
