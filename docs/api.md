@@ -380,7 +380,7 @@ Troca a senha da própria conta (#400), para os papéis `admin` e `usuario`. Exi
 
 A nova senha segue a regra do cadastro (8 a 72 caracteres, com pelo menos uma letra e um número), precisa ser diferente da atual e é gravada com bcrypt (10 rounds), junto com `updated_at`. Resposta `204`, sem corpo; a partir daí o login aceita só a senha nova.
 
-- **Senha atual errada responde `400`, não `401`.** O `401` quer dizer sessão inválida, e o frontend encerra a sessão quando o recebe; quem só errou a senha atual continua logado e vê o erro no campo.
+- **Senha atual errada responde `400`, não `401`.** O `401` quer dizer sessão inválida, e o frontend encerra a sessão quando o recebe; quem só errou a senha atual continua logado e vê o erro no campo. A resposta é a mesma se outra solicitação mudar a senha entre a conferência e a gravação.
 - **Trocar a senha não encerra as outras sessões.** O JWT não tem lista de revogação: os tokens emitidos antes da troca, o desta sessão e os de outros navegadores, continuam valendo até expirar (`JWT_EXPIRES_IN`, padrão 8 h). Encerrar todas as sessões antes disso exige trocar `JWT_SECRET` e reiniciar o backend, o que vale para todas as contas.
 
 | HTTP | Código | Situação |

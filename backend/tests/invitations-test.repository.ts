@@ -48,6 +48,7 @@ export function memoryDatabase(initial: Partial<MemoryState> = {}, now: () => Da
       if (updateUser !== null) {
         const user = state.users.find(item => item.id === first);
         if (user === undefined) return result<T>([]);
+        if (updateUser[1] === 'password_hash' && user.password_hash !== third) return result<T>([]);
         if (updateUser[1] === 'name') user.name = String(second); else user.password_hash = String(second);
         user.updated_at = now();
         return result<T>([user]);

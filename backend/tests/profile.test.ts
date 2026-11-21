@@ -102,6 +102,17 @@ describe('PATCH /api/auth/me', () => {
 });
 
 describe('PUT /api/auth/me/password', () => {
+  it('preserva a primeira troca quando o hash anterior já mudou', async () => {
+    const { database } = memoryDatabase({ users: [account('1', 'admin@ecopulse.local', 'Administrador', 'admin')] });
+    const users = new UserRepository(database);
+    const firstHash = await hash('primeira123', 10);
+    const secondHash = await hash('segunda123', 10);
+
+    expect(await users.updatePassword('1', firstHash, hashes.admin)).toBe(true);
+    expect(await users.updatePassword('1', secondHash, hashes.admin)).toBe(false);
+    expect((await users.findById('1'))?.password_hash).toBe(firstHash);
+  });
+
   it('com a senha atual certa responde 204; depois a nova entra e a antiga é recusada', async () => {
     const { url, stored } = await app();
     const response = await send(url + '/api/auth/me/password', 'PUT',
