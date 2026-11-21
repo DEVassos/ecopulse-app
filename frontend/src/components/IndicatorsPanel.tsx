@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import type { ServicesSummaryResponse } from '../services/services.types';
-import { formatNumber } from '../utils/format';
+import { formatDayTime, formatNumber } from '../utils/format';
 import { EQUIVALENTS_DISCLAIMER, describeEquivalents, equivalentsSources } from '../utils/equivalents';
 import { scaleFor } from '../utils/units';
 import MetricTile, { metricIconProps } from './MetricTile';
@@ -11,7 +11,11 @@ import './KpiPanel.css';
 interface Props {
   /** null enquanto a primeira resposta não chega: o painel já ocupa o lugar dele, sem a página pular (#259). */
   summary: ServicesSummaryResponse | null;
-  stale: boolean;
+  /**
+   * Fim do período dos números na tela (ISO 8601) quando a última busca falhou; null quando eles estão em dia (#234).
+   * A faixa de falha explica o motivo; aqui fica desde quando os valores que continuam na tela valem.
+   */
+  staleSince: string | null;
 }
 
 /** Base da comparação, como no contrato de GET /api/services/summary; o detalhe fica no tooltip. */
@@ -68,7 +72,8 @@ function formatBrasilia(iso: string): string {
  * mesma resposta de GET /api/services/summary. O estado dos serviços fica nos cards do KpiPanel; sem cálculo no
  * período, o valor é o traço do MissingValue, nunca zero.
  */
-export default function IndicatorsPanel({ summary, stale }: Props) {
+export default function IndicatorsPanel({ summary, staleSince }: Props) {
+  const stale = staleSince !== null;
   // Antes da primeira resposta: reticências e "Calculando…", nunca "—" (que quer dizer "sem cálculo") nem zero
   const pending = (
     <span className="text-muted">
@@ -106,6 +111,12 @@ export default function IndicatorsPanel({ summary, stale }: Props) {
           </p>
         )}
       </div>
+      {/* Falha não apaga o número, mas ele não pode parecer atual (#234): a faixa acima diz o que falhou */}
+      {staleSince && (
+        <p className="m-0 text-sm text-warning">
+          Desatualizado desde {formatDayTime(staleSince)} · valores da última busca bem-sucedida.
+        </p>
+      )}
       <div className="kpis kpis--wide">
         <MetricTile
           label="Energia no período"

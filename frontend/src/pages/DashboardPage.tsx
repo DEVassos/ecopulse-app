@@ -18,6 +18,7 @@ import { useStatusChanges } from '../hooks/useStatusChanges';
 import { isDemoMode } from '../services/services.service';
 import { fetchServicesRanking } from '../services/ranking.service';
 import type { ServicesRankingResponse } from '../services/ranking.types';
+import { pageWarnings } from '../utils/page-warnings';
 import { rankingIsStale, rankingShares, rankingSentence } from '../utils/ranking';
 import IndicatorsPanel from '../components/IndicatorsPanel';
 import { useSummary } from '../hooks/useSummary';
@@ -165,9 +166,18 @@ export default function DashboardPage() {
     onInteract: () => setPresenting((status) => (status === 'playing' ? 'paused' : status)),
     onArrive: setArrivedRegion,
   };
-  // Um aviso por página (#271): com a lista falhando e dados na tela, basta a faixa de falha; sem dados, o aviso grande;
-  // com a lista em dia, o primeiro erro entre resumo, comparação e ranking. Nunca avisos iguais empilhados.
-  const pageError = error ? (data ? '' : error) : summaryError || rankingError;
+  // Um aviso por página (#271): com dados na tela, basta a faixa de falha; sem dados, o aviso grande. O resumo entra na
+  // mesma regra da lista (#234): com energia e CO₂e antigos na tela, a faixa avisa e o painel diz desde quando eles valem
+  const warnings = pageWarnings({
+    services: error,
+    hasServices: data !== null,
+    servicesAt: updatedAt,
+    summary: summaryError,
+    summaryAt: summary?.to ?? null,
+    ranking: rankingError,
+  });
+  // Números do período parados: a lista falhou (o resumo só é rebuscado quando ela dá certo) ou a busca do resumo falhou
+  const summaryStaleSince = (error !== '' || summaryError !== '') && summary ? summary.to : null;
   // A janela usa a linha atual da lista: status, CPU e última leitura acompanham cada atualização
   const selected = data?.services.find((service) => service.id === selectedId) ?? null;
 
@@ -213,8 +223,8 @@ export default function DashboardPage() {
         <h1 className="sr-only">Dashboard de energia e emissões</h1>
 
         {/* Falha não apaga o que já estava na tela: com dados, faixa compacta junto do último dado; sem dados, o aviso grande */}
-        {data && <UpdateFailedBanner message={error} updatedAt={updatedAt} onRetry={refresh} />}
-        {pageError && <ErrorState message={pageError} onRetry={refresh} />}
+        {(data || summary) && <UpdateFailedBanner message={warnings.banner} updatedAt={warnings.bannerAt} onRetry={refresh} />}
+        {warnings.page && <ErrorState message={warnings.page} onRetry={refresh} />}
 
         {loading && !data && <LoadingState message="Carregando serviços…" />}
 
@@ -228,7 +238,7 @@ export default function DashboardPage() {
         {/* Impacto primeiro (#259): energia e CO₂e do período no topo. Com os serviços na tela e o resumo a caminho, o painel
             já ocupa o lugar dele em "Calculando…", para a página não pular quando a resposta chega */}
         {(summary || (data && data.services.length > 0 && !isDemoMode && !summaryError)) && (
-          <IndicatorsPanel summary={summary} stale={error !== '' || summaryError !== ''} />
+          <IndicatorsPanel summary={summary} staleSince={summaryStaleSince} />
         )}
 
         {/* Estado dos serviços logo abaixo, em cards compactos. Sem dado ainda, os cards não aparecem (nunca zeros inventados);
