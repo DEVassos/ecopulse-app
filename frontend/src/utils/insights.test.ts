@@ -4,6 +4,7 @@ import {
   buildReport,
   concentrationInsight,
   decompose,
+  decompositionBars,
   headline,
   previousWindow,
   qualityInsight,
@@ -67,6 +68,19 @@ describe('reportTotals e decompose — exemplo de docs/calculos.md', () => {
     expect((d?.energyGrams ?? 0) + (d?.intensityGrams ?? 0)).toBeCloseTo(d?.deltaGrams ?? NaN, 10);
     expect(d?.energyShare).toBeCloseTo(0.1911, 4);
     expect(d?.driver).toBe('intensidade');
+  });
+
+  it('barras divergentes: mesma escala para os três, sentido pelo sinal e nada de partes de um todo', () => {
+    const bars = decompositionBars({ deltaGrams: 26.7, energyGrams: -17.3, intensityGrams: 44, energyShare: 0.282, driver: 'intensidade' });
+    expect(bars.map((bar) => [bar.key, bar.direction, bar.widthPercent])).toEqual([
+      ['energia', 'queda', 39.3],
+      ['intensidade', 'alta', 100],
+      ['total', 'alta', 60.7],
+    ]);
+    const tiny = decompositionBars({ deltaGrams: 100.01, energyGrams: 100, intensityGrams: 0.01, energyShare: 0.9999, driver: 'energia' });
+    expect(tiny[1].widthPercent).toBe(1);
+    const none = decompositionBars({ deltaGrams: 0, energyGrams: 0, intensityGrams: 0, energyShare: null, driver: null });
+    expect(none.every((bar) => bar.widthPercent === 0 && bar.direction === 'nula')).toBe(true);
   });
 
   it('sem energia num dos períodos não decompõe', () => {
