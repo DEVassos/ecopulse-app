@@ -140,6 +140,31 @@ export function decompose(previous: ReportTotals, current: ReportTotals): Decomp
   return { deltaGrams: c1 - c0, energyGrams, intensityGrams, energyShare, driver };
 }
 
+/** Uma barra do gráfico divergente de "De onde veio a variação" (#403). */
+export interface EffectBar {
+  key: 'energia' | 'intensidade' | 'total';
+  grams: number;
+  /** Comprimento em % de meia faixa (de um lado do zero), na escala do maior dos três valores. */
+  widthPercent: number;
+  direction: 'alta' | 'queda' | 'nula';
+}
+
+/**
+ * Barras divergentes a partir do zero (#403): efeito energia, efeito intensidade média e a variação total, na mesma
+ * escala. Efeitos de sinais opostos não são partes de um todo, por isso nada de barra segmentada: quem sobe vai para a
+ * direita, quem desce para a esquerda, e a variação é o saldo. Valor diferente de zero pequeno demais ganha 1%.
+ */
+export function decompositionBars(d: Decomposition): EffectBar[] {
+  const max = Math.max(Math.abs(d.energyGrams), Math.abs(d.intensityGrams), Math.abs(d.deltaGrams));
+  const bar = (key: EffectBar['key'], grams: number): EffectBar => ({
+    key,
+    grams,
+    widthPercent: max === 0 || grams === 0 ? 0 : Math.max(1, Math.round((Math.abs(grams) / max) * 1000) / 10),
+    direction: grams > 0 ? 'alta' : grams < 0 ? 'queda' : 'nula',
+  });
+  return [bar('energia', d.energyGrams), bar('intensidade', d.intensityGrams), bar('total', d.deltaGrams)];
+}
+
 /** Janela anterior de mesma duração, imediatamente antes: [from − (to − from), from). */
 export function previousWindow(fromMs: number, toMs: number): { fromMs: number; toMs: number } {
   return { fromMs: fromMs - (toMs - fromMs), toMs: fromMs };

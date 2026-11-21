@@ -8,6 +8,7 @@ import HelpPage from './pages/HelpPage';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
 import RegisterPage from './pages/RegisterPage';
+import ReportPage from './pages/ReportPage';
 import SettingsPage from './pages/SettingsPage';
 import AuthProvider from './providers/AuthProvider';
 import MonitoringProvider from './providers/MonitoringProvider';
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/emissoes" element={<EmissionsPage />} />
             <Route path="/comparacao" element={<ComparePage />} />
             <Route path="/ajuda" element={<HelpPage />} />
+            <Route path="/relatorio" element={<ReportPage />} />
           </Route>
           {/* Configuração e Perfil (#401) exigem sessão até no modo demonstração, em que não há backend para entrar */}
           <Route element={<ProtectedRoute allowDemo={false} />}>
