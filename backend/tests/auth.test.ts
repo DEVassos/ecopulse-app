@@ -36,19 +36,21 @@ afterEach(async () => {
 describe('autenticacao', () => {
   it('emite token no login valido e identifica o usuario na rota protegida', async () => {
     const password = 'senha-segura';
-    const url = await authApp([{ id: '7', email: 'admin@ecopulse.dev', password_hash: await hash(password, 10), created_at: new Date(), updated_at: new Date() }]);
+    const url = await authApp([{ id: '7', email: 'admin@ecopulse.dev', name: 'Administrador', role: 'admin', password_hash: await hash(password, 10), created_at: new Date(), updated_at: new Date() }]);
     const login = await fetch(url + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: 'admin@ecopulse.dev', password }) });
     expect(login.status).toBe(200);
-    const { token } = await login.json() as { token: string };
+    const { token, user } = await login.json() as { token: string; user: unknown };
     expect(typeof token).toBe('string');
+    expect(user).toEqual({ id: '7', email: 'admin@ecopulse.dev', name: 'Administrador', role: 'admin' });
+    expect(JSON.stringify(user)).not.toContain('password');
     const me = await fetch(url + '/api/auth/me', { headers: { Authorization: `Bearer ${token}` } });
     expect(me.status).toBe(200);
-    expect(await me.json()).toEqual({ id: '7', email: 'admin@ecopulse.dev' });
+    expect(await me.json()).toEqual({ id: '7', email: 'admin@ecopulse.dev', name: 'Administrador', role: 'admin' });
   });
 
   it('devolve o mesmo 401 para email inexistente e senha incorreta', async () => {
-    const rows = [{ id: '7', email: 'admin@ecopulse.dev', password_hash: await hash('senha-segura', 10), created_at: new Date(), updated_at: new Date() }];
+    const rows = [{ id: '7', email: 'admin@ecopulse.dev', name: 'Administrador', role: 'admin', password_hash: await hash('senha-segura', 10), created_at: new Date(), updated_at: new Date() }];
     for (const [url, body] of [[await authApp([]), { email: 'nao@existe.dev', password: 'errada' }], [await authApp(rows), { email: 'admin@ecopulse.dev', password: 'errada' }]] as const) {
       const response = await fetch(url + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       expect(response.status).toBe(401);
@@ -61,10 +63,19 @@ describe('autenticacao', () => {
     const missing = await fetch(url + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'a@b.dev' }) });
     expect(missing.status).toBe(400);
     const expired = sign({ email: 'admin@ecopulse.dev' }, config.jwtSecret, { subject: '7', expiresIn: -1 });
-    for (const authorization of [undefined, 'Bearer invalido', `Bearer ${expired}`]) {
+    const withoutRole = sign({ email: 'admin@ecopulse.dev' }, config.jwtSecret, { subject: '7', expiresIn: '1h' });
+    const unknownRole = sign({ email: 'admin@ecopulse.dev', role: 'root' }, config.jwtSecret, { subject: '7', expiresIn: '1h' });
+    for (const authorization of [undefined, 'Bearer invalido', `Bearer ${expired}`, `Bearer ${withoutRole}`, `Bearer ${unknownRole}`]) {
       const response = await fetch(url + '/api/auth/me', authorization === undefined ? {} : { headers: { Authorization: authorization } });
       expect(response.status).toBe(401);
       expect((await response.json()).error.code).toBe('UNAUTHORIZED');
     }
+  });
+
+  it('/me com conta que não existe mais responde 401', async () => {
+    const url = await authApp([]);
+    const token = sign({ email: 'saiu@ecopulse.dev', role: 'usuario' }, config.jwtSecret, { subject: '9', expiresIn: '1h' });
+    const response = await fetch(url + '/api/auth/me', { headers: { Authorization: `Bearer ${token}` } });
+    expect(response.status).toBe(401);
   });
 });
