@@ -16,6 +16,8 @@ export interface RankedService {
   energyKwh: number | null;
   /** Soma das coletas com cálculo no período, em gramas de CO₂e; null como em `energyKwh`. */
   co2eGrams: number | null;
+  /** Segundos monitorados das mesmas coletas de `energyKwh` (#329); null como em `energyKwh`. */
+  monitoredSeconds: number | null;
   collections: number;
   failed: number;
   notCalculated: number;

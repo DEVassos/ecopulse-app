@@ -15,18 +15,22 @@ interface Props {
   hint?: string;
   placeholder?: string;
   autoComplete?: string;
+  /** Senha mostrada por um controle de fora ("Mostrar as senhas" do Perfil, #401); com ela, o campo fica sem o botão próprio. */
+  shown?: boolean;
 }
 
 /** Campo de formulário com rótulo, erro e, nas senhas, o botão de mostrar/ocultar. */
-export default function FormField({ id, label, type, value, onChange, onBlur, error = '', hint, placeholder, autoComplete }: Props) {
-  const [passwordVisible, setPasswordVisible] = useState(false);
+export default function FormField({ id, label, type, value, onChange, onBlur, error = '', hint, placeholder, autoComplete, shown }: Props) {
+  const [ownVisible, setPasswordVisible] = useState(false);
+  const passwordVisible = shown ?? ownVisible;
   const isPassword = type === 'password';
+  const hasToggle = isPassword && shown === undefined;
   const describedBy = error ? `error-${id}` : hint ? `hint-${id}` : undefined;
 
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
-      <div className={isPassword ? 'input-wrap input-wrap--password' : 'input-wrap'}>
+      <div className={hasToggle ? 'input-wrap input-wrap--password' : 'input-wrap'}>
         <input
           type={isPassword && passwordVisible ? 'text' : type}
           id={id}
@@ -39,7 +43,7 @@ export default function FormField({ id, label, type, value, onChange, onBlur, er
           aria-invalid={error !== ''}
           aria-describedby={describedBy}
         />
-        {isPassword && (
+        {hasToggle && (
           <button
             type="button"
             className="toggle-password"

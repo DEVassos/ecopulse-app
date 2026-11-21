@@ -219,6 +219,15 @@ function sumOrNull(items, field) {
   return values.length === 0 ? null : values.reduce((total, value) => total + value, 0);
 }
 
+/**
+ * Segundos monitorados das coletas calculadas — a base da potência média, como o `FILTER (WHERE calculation_status =
+ * 'disponivel')` da rota real (#329). `null` quando nenhuma coleta do período foi calculada.
+ */
+function monitoredSecondsOf(items) {
+  const seconds = items.filter((item) => item.calculationStatus === 'disponivel').map((item) => item.collectionIntervalSeconds);
+  return seconds.length === 0 ? null : seconds.reduce((total, value) => total + value, 0);
+}
+
 /** Média do campo entre os itens que têm valor, ou null quando nenhum tem. */
 function averageOrNull(items, field) {
   const total = sumOrNull(items, field);
@@ -311,6 +320,37 @@ const routes = {
     const user = sessionUser(req);
     if (!user) return send(res, 401, UNAUTHORIZED);
     return send(res, 200, publicUser(user));
+  },
+
+  // #400/#401 — perfil: qualquer papel troca o próprio nome; e-mail e papel não mudam
+  'PATCH /auth/me': async (req, res) => {
+    const user = sessionUser(req);
+    if (!user) return send(res, 401, UNAUTHORIZED);
+    const body = await readJson(req);
+    if (!body || typeof body.name !== 'string') return validationError(res, 'Informe name.');
+    const name = body.name.trim();
+    if (name === '' || name.length > 100) return validationError(res, 'O nome deve ter de 1 a 100 caracteres.');
+    user.name = name;
+    return send(res, 200, publicUser(user));
+  },
+
+  // #400/#401 — troca de senha: senha atual errada é 400 (não 401), para a tela não encerrar a sessão
+  'PUT /auth/me/password': async (req, res) => {
+    const user = sessionUser(req);
+    if (!user) return send(res, 401, UNAUTHORIZED);
+    const body = await readJson(req);
+    if (!body || typeof body.currentPassword !== 'string' || body.currentPassword === '' || typeof body.newPassword !== 'string') {
+      return validationError(res, 'Informe currentPassword e newPassword.');
+    }
+    const next = body.newPassword;
+    if (next.length < 8 || Buffer.byteLength(next) > 72 || !/\p{L}/u.test(next) || !/\d/.test(next)) {
+      return validationError(res, PASSWORD_RULE);
+    }
+    if (body.currentPassword !== user.password) return validationError(res, 'A senha atual não confere.');
+    if (next === body.currentPassword) return validationError(res, 'A nova senha deve ser diferente da atual.');
+    // Os tokens já emitidos continuam valendo, como no backend real (o JWT não tem revogação)
+    user.password = next;
+    return send(res, 204);
   },
 
   // #196 — convite de cadastro: só administrador; o link aponta para o Vite (MOCK_APP_URL, padrão http://localhost:5173)
@@ -523,6 +563,7 @@ const routes = {
           failed: items.filter((item) => item.status !== 'ok').length,
           // Como no backend (docs/api.md): sem cálculo inclui as falhas, então calculadas = collections − notCalculated
           notCalculated: items.filter((item) => item.calculationStatus !== 'disponivel').length,
+          monitoredSeconds: monitoredSecondsOf(items),
         };
         // MOCK_SERVICES=ranking-texto: o 1º lugar vem com o CO₂e em texto, para ver a tela recusar a resposta
         if (SERVICES_SCENARIO === 'ranking-texto' && entry.position === 1) entry.co2eGrams = String(entry.co2eGrams);
@@ -556,6 +597,7 @@ const routes = {
           collections: items.length,
           failed: items.filter((item) => item.status !== 'ok').length,
           notCalculated: items.filter((item) => item.status === 'ok' && item.co2eGrams === null).length,
+          monitoredSeconds: monitoredSecondsOf(items),
           avgCpuPercent: averageOrNull(items, 'cpuPercent'),
           avgMemoryGb: averageOrNull(items, 'memoryGb'),
           avgDiskGb: averageOrNull(items, 'diskGb'),
@@ -620,7 +662,7 @@ createServer(async (req, res) => {
   // CORS: o Vite roda em outra porta (5173)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, OPTIONS');
   if (req.method === 'OPTIONS') return send(res, 204);
 
   // Aceita as rotas com ou sem o prefixo /api (o .env.example usa VITE_API_URL=http://localhost:3000/api)
