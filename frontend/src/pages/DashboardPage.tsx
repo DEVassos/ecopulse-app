@@ -6,6 +6,8 @@ import ErrorState from '../components/ErrorState';
 import KpiPanel from '../components/KpiPanel';
 import LastUpdated from '../components/LastUpdated';
 import LoadingState from '../components/LoadingState';
+import PrintButton from '../components/PrintButton';
+import { PrintPageHeader } from '../components/PrintReport';
 import RecentChanges from '../components/RecentChanges';
 import RegionDetail from '../components/RegionDetail';
 import RegionList from '../components/RegionList';
@@ -13,12 +15,14 @@ import ServiceDetailsDialog from '../components/ServiceDetailsDialog';
 import ServicesTable from '../components/ServicesTable';
 import UpdateFailedBanner from '../components/UpdateFailedBanner';
 import { useMonitoring } from '../hooks/useMonitoring';
+import { usePrintReport } from '../hooks/usePrintReport';
 import { useServices } from '../hooks/useServices';
 import { useStatusChanges } from '../hooks/useStatusChanges';
 import { isDemoMode } from '../services/services.service';
 import { fetchServicesRanking } from '../services/ranking.service';
 import type { ServicesRankingResponse } from '../services/ranking.types';
 import { pageWarnings } from '../utils/page-warnings';
+import { formatDayTime } from '../utils/format';
 import { rankingIsStale, rankingShares, rankingSentence } from '../utils/ranking';
 import IndicatorsPanel from '../components/IndicatorsPanel';
 import { useSummary } from '../hooks/useSummary';
@@ -45,6 +49,8 @@ const RegionMap = lazy(() => import('../components/RegionMap'));
 export default function DashboardPage() {
   const { data, loading, error, updatedAt, refresh } = useServices();
   const { refreshIntervalMs } = useMonitoring();
+  // Relatório impresso / PDF (#408): a folha A4 com o cabeçalho e o rodapé do painel, sempre no tema claro
+  usePrintReport('dashboard');
   // Mudanças de estado entre uma lista e a seguinte (#331), com a mesma resposta do polling: nenhuma requisição nova
   const changes = useStatusChanges(data?.services ?? null, updatedAt);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -221,6 +227,21 @@ export default function DashboardPage() {
 
       <main id="conteudo" tabIndex={-1} className="content">
         <h1 className="sr-only">Dashboard de energia e emissões</h1>
+
+        {/* Papel (#408): o Dashboard não tem título na tela, então a folha ganha o cabeçalho do relatório e o botão que
+            abre a impressão do navegador ("Salvar como PDF"). Os dois somem na tela e no papel, respectivamente */}
+        <PrintPageHeader
+          label="Relatório do painel · DEVassos"
+          title="Dashboard de energia e emissões"
+          items={[
+            { label: 'Período', value: 'últimas 24 h' },
+            ...(updatedAt ? [{ label: 'Última atualização', value: formatDayTime(updatedAt) }] : []),
+            ...(data ? [{ label: 'Serviços', value: `${data.services.length} monitorados` }] : []),
+          ]}
+        />
+        <div className="print-toolbar">
+          <PrintButton />
+        </div>
 
         {/* Falha não apaga o que já estava na tela: com dados, faixa compacta junto do último dado; sem dados, o aviso grande */}
         {(data || summary) && <UpdateFailedBanner message={warnings.banner} updatedAt={warnings.bannerAt} onRetry={refresh} />}

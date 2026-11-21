@@ -548,7 +548,7 @@ const routes = {
           co2eGrams,
           collections: items.length,
           failed: items.filter((item) => item.status !== 'ok').length,
-          notCalculated: items.filter((item) => item.status === 'ok' && item.co2eGrams === null).length,
+          notCalculated: items.filter((item) => item.calculationStatus !== 'disponivel').length,
           monitoredSeconds: monitoredSecondsOf(items),
         };
         // MOCK_SERVICES=ranking-texto: o 1º lugar vem com o CO₂e em texto, para ver a tela recusar a resposta
@@ -582,7 +582,7 @@ const routes = {
           region: service.region,
           collections: items.length,
           failed: items.filter((item) => item.status !== 'ok').length,
-          notCalculated: items.filter((item) => item.status === 'ok' && item.co2eGrams === null).length,
+          notCalculated: items.filter((item) => item.calculationStatus !== 'disponivel').length,
           monitoredSeconds: monitoredSecondsOf(items),
           avgCpuPercent: averageOrNull(items, 'cpuPercent'),
           avgMemoryGb: averageOrNull(items, 'memoryGb'),

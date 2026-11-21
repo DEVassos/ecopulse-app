@@ -21,6 +21,13 @@
     opacity: 0.6;
   }
 
+  /* Barra da exportação impressa (#408): o botão fica à direita, na linha do título, e não entra no papel */
+  .print-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
   /*
    * Pista de "há mais colunas" (#263): sombra interna na borda direita de uma área com rolagem horizontal, só enquanto
    * há conteúdo escondido (useHorizontalOverflow). É sinal de estado, não elevação: some quando a rolagem chega ao fim.
