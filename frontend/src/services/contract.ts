@@ -81,6 +81,13 @@ export function readIntervalOrNull(value: unknown, field: string): number | null
   return interval;
 }
 
+/** Tempo monitorado: soma dos intervalos de coleta, inteiro ≥ 0 segundos, ou null quando nenhuma coleta entrou no cálculo. */
+export function readSecondsOrNull(value: unknown, field: string): number | null {
+  const seconds = readAmountOrNull(value, field);
+  if (seconds !== null && (!Number.isInteger(seconds) || seconds < 0)) throw unexpectedFormat(field);
+  return seconds;
+}
+
 export function readInstant(value: unknown, field: string): string {
   if (typeof value !== 'string' || instant(value) === undefined) throw unexpectedFormat(field);
   return value;

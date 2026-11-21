@@ -16,6 +16,8 @@ function ranking(values: Array<[string, number | null]>): ServicesRankingRespons
       status: co2eGrams === null ? 'sem_metricas' : 'ativo',
       energyKwh: co2eGrams === null ? null : co2eGrams / 400,
       co2eGrams,
+      // 86 400 s monitorados no período: a potência média do fixture é a energia das 24 h (#329)
+      monitoredSeconds: co2eGrams === null ? null : 86_400,
       collections: 2880,
       failed: 0,
       notCalculated: 0,
@@ -40,6 +42,16 @@ describe('rankingShares', () => {
   it('com total zero, quem tem cálculo fica com 0% e ninguém cai em "sem cálculo"', () => {
     const shares = rankingShares(ranking([['Audit Stream', 0], ['Fraud Detector', 0], ['Inventory Sync', null]]));
     expect([...shares.values()].map((item) => item.share)).toEqual([0, 0, null]);
+  });
+
+  it('dá a potência média do período: energia das 24 h ÷ segundos monitorados (#329)', () => {
+    // 0,675 kWh em 86 400 s = 28,125 W e 1,075 kWh = 44,79 W: energia e tempo das mesmas coletas (docs/calculos.md)
+    const shares = rankingShares(ranking([['Audit Stream', 270], ['Checkout Worker', 430], ['Inventory Sync', null]]));
+    expect(shares.get('audit-stream')?.averageWatts).toBeCloseTo(28.125);
+    expect(shares.get('checkout-worker')?.averageWatts).toBeCloseTo(44.7917, 3);
+    // Sem energia no período não há potência média, e o tempo monitorado também fica nulo
+    expect(shares.get('inventory-sync')?.averageWatts).toBeNull();
+    expect(shares.get('inventory-sync')?.monitoredSeconds).toBeNull();
   });
 
   it('arredonda pelo maior resto: três partes iguais exibem 33,4 + 33,3 + 33,3 = 100,0%', () => {
