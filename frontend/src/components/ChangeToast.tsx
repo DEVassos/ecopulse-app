@@ -108,7 +108,8 @@ export default function ChangeToast({ toast }: { toast: StatusChangesState['toas
   const extra = open ? toast.changes.length - layout.lines : 0;
 
   return (
-    <div className={`${layout.wrapper} ${open ? layout.box : ''}`} style={layout.style}>
+    // change-toast: a classe que a impressão do Dashboard (#408) usa para tirar o aviso do papel
+    <div className={`change-toast ${layout.wrapper} ${open ? layout.box : ''}`} style={layout.style}>
       <div role="status" aria-live="polite" className="flex-1">
         {open && (
           <>
