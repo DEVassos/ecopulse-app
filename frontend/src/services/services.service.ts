@@ -64,4 +64,3 @@ export async function fetchServices(signal?: AbortSignal): Promise<ServicesRespo
   if (isDemoMode) return demoServices();
   return parseServicesResponse(await apiRequest<unknown>('/services', { signal }));
 }
-

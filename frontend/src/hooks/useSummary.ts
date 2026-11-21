@@ -23,7 +23,11 @@ export function useSummary(updatedAt: string | null): { summary: ServicesSummary
         setSummary(current);
         setError('');
       } catch (reason: unknown) {
-        if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Não foi possível carregar os indicadores.');
+        // O prefixo diz o que parou: a faixa do #217 mostra esta mensagem ao lado de uma tabela que segue atualizando (#234)
+        if (!controller.signal.aborted) {
+          const detail = reason instanceof Error ? reason.message : 'não foi possível carregar os indicadores.';
+          setError(`Indicadores das 24 h: ${detail}`);
+        }
       }
     })();
     return () => controller.abort();

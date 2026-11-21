@@ -118,7 +118,7 @@ describe('IndicatorsPanel — números parados depois de uma falha (#234)', () =
     expect(html).not.toContain('metric--stale');
   });
 
-  it('antes da primeira resposta, o valor é o traço do MissingValue, não a linha de desatualizado', () => {
+  it('período sem coleta calculada usa o traço do MissingValue, não a linha de desatualizado', () => {
     const html = renderToStaticMarkup(<IndicatorsPanel summary={summary({ ...TOTALS, energyKwh: null })} staleSince={null} />);
     expect(html).toContain('sem cálculo');
     expect(html).not.toContain('Desatualizado desde');
