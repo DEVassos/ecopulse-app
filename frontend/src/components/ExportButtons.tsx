@@ -12,16 +12,18 @@ interface Props {
   /** Período do filtro em ms: início incluído, fim excluído. */
   fromMs: number;
   toMs: number;
+  /** Coletas do período segundo o card Coletas, para o progresso mostrar quanto falta ("500 de 897"); null sem dados. */
+  expectedCount?: number | null;
 }
 
 type CsvState = { kind: 'idle' } | { kind: 'loading'; received: number } | { kind: 'done'; count: number } | { kind: 'error'; message: string };
 
 /**
  * Exportação do período da página Emissões (#24, US13 #54): **Baixar CSV** com todas as coletas do serviço no período,
- * buscadas em partes (com progresso e cancelamento), e **Baixar PDF**, que abre a impressão do navegador ("Salvar como
- * PDF"). Uma falha no meio não entrega arquivo pela metade.
+ * buscadas em partes (com progresso e cancelamento), e **Imprimir / PDF**, que abre a impressão do navegador ("Salvar
+ * como PDF"). Uma falha no meio não entrega arquivo pela metade.
  */
-export default function ExportButtons({ serviceId, serviceName, start, end, fromMs, toMs }: Props) {
+export default function ExportButtons({ serviceId, serviceName, start, end, fromMs, toMs, expectedCount = null }: Props) {
   const [csv, setCsv] = useState<CsvState>({ kind: 'idle' });
   const controllerRef = useRef<AbortController | null>(null);
 
@@ -64,22 +66,28 @@ export default function ExportButtons({ serviceId, serviceName, start, end, from
 
   return (
     <div className="emissions__export" role="group" aria-label="Exportar o período">
-      {csv.kind === 'loading' ? (
-        <>
-          <span className="emissions__export-progress" role="status">
-            Baixando… {csv.received.toLocaleString('pt-BR')} coletas
-          </span>
-          <button type="button" className="emissions__btn" onClick={cancel}>
-            Cancelar
-          </button>
-        </>
-      ) : (
-        <button type="button" className="emissions__btn" onClick={() => void downloadCsv()}>
-          Baixar CSV
-        </button>
+      {csv.kind === 'loading' && (
+        <span className="emissions__export-progress" role="status">
+          Baixando… {csv.received.toLocaleString('pt-BR')}
+          {expectedCount !== null && expectedCount >= csv.received && ` de ${expectedCount.toLocaleString('pt-BR')}`} coletas
+        </span>
       )}
-      <button type="button" className="emissions__btn" onClick={() => window.print()}>
-        Baixar PDF
+      {/* Um botão só, que troca de rótulo: o foco do teclado fica nele ao começar e ao terminar (antes caía no body) */}
+      <button
+        type="button"
+        className="emissions__btn"
+        onClick={csv.kind === 'loading' ? cancel : () => void downloadCsv()}
+      >
+        {csv.kind === 'loading' ? 'Cancelar' : 'Baixar CSV'}
+      </button>
+      {/* Não baixa nada direto: abre a impressão, onde se escolhe "Salvar como PDF" ou a impressora */}
+      <button
+        type="button"
+        className="emissions__btn"
+        title="Abre a impressão do navegador: escolha Salvar como PDF"
+        onClick={() => window.print()}
+      >
+        Imprimir / PDF
       </button>
       {csv.kind === 'done' && (
         <span className="emissions__export-progress" role="status">

@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { KeyboardEvent, PointerEvent, RefObject } from 'react';
 import type { EmissionPoint, EmissionsBucket } from '../services/emissions.types';
 import type { TimeSpan } from '../utils/emissions';
@@ -69,7 +70,17 @@ function calculatedOf(point: EmissionPoint): number {
   return point.collections - point.failed - point.notCalculated;
 }
 
-/** Largura do contêiner, acompanhando o redimensionamento da janela. */
+/**
+ * Largura útil de uma folha A4 retrato com as margens do print.css (210 mm − 24 mm ≈ 186 mm ≈ 700 px a 96 dpi): o
+ * gráfico do relatório impresso (#13) é desenhado nesta largura, com letras do mesmo tamanho da tela.
+ */
+export const PRINT_CHART_WIDTH = 700;
+
+/**
+ * Largura do contêiner, acompanhando o redimensionamento da janela. Na impressão (#13), o ResizeObserver não roda:
+ * o `beforeprint` redesenha na largura da folha com flushSync (antes de o navegador montar a página), e o `afterprint`
+ * volta à largura da tela.
+ */
 function useWidth<T extends HTMLElement>(): [RefObject<T | null>, number] {
   const ref = useRef<T>(null);
   const [width, setWidth] = useState(0);
@@ -78,7 +89,15 @@ function useWidth<T extends HTMLElement>(): [RefObject<T | null>, number] {
     if (!element) return undefined;
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
     observer.observe(element);
-    return () => observer.disconnect();
+    const beforePrint = () => flushSync(() => setWidth(PRINT_CHART_WIDTH));
+    const afterPrint = () => setWidth(element.clientWidth);
+    window.addEventListener('beforeprint', beforePrint);
+    window.addEventListener('afterprint', afterPrint);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('beforeprint', beforePrint);
+      window.removeEventListener('afterprint', afterPrint);
+    };
   }, []);
   return [ref, width];
 }
@@ -338,9 +357,12 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
       onBlur={() => setHover(null)}
     >
       {width > 0 && (
+        // viewBox do mesmo tamanho: na tela nada muda; na impressão (#13), o CSS põe largura 100% e o gráfico encolhe
+        // inteiro até a folha, já que o ResizeObserver não roda durante a impressão
         <svg
           width={width}
           height={height}
+          viewBox={`0 0 ${width} ${height}`}
           role="img"
           aria-label={`Emissão de CO₂e ${mode === 'acumulado' ? 'acumulada' : unit} entre ${formatPointTime(fromMs)} e ${formatPointTime(toMs)}`}
           aria-describedby={reading.length > 0 ? `${ids}-reading` : undefined}
