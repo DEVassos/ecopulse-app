@@ -8,6 +8,7 @@ import ErrorState from '../components/ErrorState';
 import EstimateTag from '../components/EstimateTag';
 import LoadingState from '../components/LoadingState';
 import CompactValue from '../components/CompactValue';
+import EfficiencyBadge from '../components/EfficiencyBadge';
 import MissingValue from '../components/MissingValue';
 import PeriodPicker from '../components/PeriodPicker';
 import PowerBreakdownChart from '../components/PowerBreakdownChart';
@@ -18,9 +19,22 @@ import type { ComparedService } from '../services/compare.types';
 import { isDemoMode } from '../services/services.service';
 import { CAUSE_LABEL, carbonIntensity, lowestCo2eCause } from '../utils/comparison';
 import type { ResourceKey } from '../utils/comparison';
+import { averagePowerFromEnergy, mostEfficient } from '../utils/efficiency';
 import { isInputDate, spanDays, timeZoneLabel, todayInput } from '../utils/emissions';
-import { formatFixed, formatNumber } from '../utils/format';
+import { formatDurationSeconds, formatFixed, formatNumber } from '../utils/format';
 import { scaleFor } from '../utils/units';
+
+/**
+ * Tooltip das linhas de eficiência (#329): a definição e o aviso de que não há dado de carga de trabalho — a potência
+ * média diz quanto o serviço gasta por hora para estar no ar, não quanto ele gasta por tarefa.
+ */
+const POWER_NOTE =
+  'Eficiência energética: energia do período ÷ tempo monitorado (soma dos intervalos das coletas calculadas), em W. '
+  + 'Sem dado de carga de trabalho: compara quanto cada serviço gasta por hora para estar no ar, e não por tarefa. '
+  + 'Definição em docs/calculos.md.';
+const INTENSITY_NOTE =
+  'Eficiência de carbono: CO₂e do período ÷ energia do mesmo período, em g CO₂e/kWh; menor é melhor porque a energia '
+  + 'saiu de uma matriz mais limpa. Definição em docs/calculos.md.';
 
 /** Limites de GET /api/services/compare (docs/api.md). */
 const MIN_SERVICES = 2;
@@ -59,6 +73,12 @@ function collectionsCell(service: ComparedService): ReactNode {
 interface Row {
   label: string;
   cell: (service: ComparedService) => ReactNode;
+  /** Valor da linha para o selo "mais eficiente" (menor é melhor); sem ele, a linha não elege ninguém. */
+  efficiency?: (service: ComparedService) => number | null;
+  /** Definição no tooltip do rótulo: o que é a métrica e o que ela não diz. */
+  note?: string;
+  /** Texto do selo "mais eficiente" da linha; sem ele, a linha não elege ninguém mesmo com `efficiency`. */
+  badge?: string;
 }
 
 /** Bloco de linhas da matriz: "Impacto" abre a leitura, "Detalhe das métricas" aprofunda (#328). */
@@ -106,9 +126,22 @@ function rowsFor(services: ComparedService[]): RowGroup[] {
             amount(service.energyKwh, (value) => <CompactValue quantity="energy" value={value} scale={energy} label="Energia somada no período" />),
         },
         {
+          label: 'Potência média (W)',
+          // Eficiência energética (#329): energia do período ÷ tempo monitorado, a conta de docs/calculos.md
+          cell: (service) =>
+            amount(averagePowerFromEnergy(service.energyKwh, service.monitoredSeconds), (value) => formatNumber(value, 2)),
+          efficiency: (service) => averagePowerFromEnergy(service.energyKwh, service.monitoredSeconds),
+          note: POWER_NOTE,
+          badge: 'Menor potência média entre os serviços comparados: gasta menos energia por hora para estar no ar, sem dado de carga de trabalho.',
+        },
+        {
           label: 'Intensidade (g CO₂e/kWh)',
           cell: (service) =>
             amount(carbonIntensity(service.co2eGrams, service.energyKwh), (value) => formatNumber(value, 2)),
+          // Eficiência de carbono (#329): quanto CO₂e sai por kWh; menor é melhor
+          efficiency: (service) => carbonIntensity(service.co2eGrams, service.energyKwh),
+          note: INTENSITY_NOTE,
+          badge: 'Menor intensidade de carbono entre os serviços comparados: cada kWh do período saiu de uma matriz mais limpa.',
         },
         {
           label: `CO₂e (${co2e.unit})`,
@@ -120,6 +153,23 @@ function rowsFor(services: ComparedService[]): RowGroup[] {
     {
       title: 'Detalhe das métricas',
       rows: [
+        {
+          // Base da potência média (#329): sem este número na tela, a conta energia ÷ tempo não é reproduzível
+          label: 'Tempo monitorado',
+          cell: (service) =>
+            service.monitoredSeconds === null ? (
+              <MissingValue label="sem coleta calculada" title="Nenhuma coleta do período foi calculada" />
+            ) : (
+              // Os segundos exatos no tooltip (#329): é a duração que entra na conta da potência média, e a linha
+              // mostra a duração arredondada, que não fecha a conta de cabeça
+              <span
+                data-tooltip="Soma dos intervalos das coletas calculadas no período: é o divisor da potência média"
+                data-tooltip-value={`${formatNumber(service.monitoredSeconds, 0)} s`}
+              >
+                {formatDurationSeconds(service.monitoredSeconds)}
+              </span>
+            ),
+        },
         { label: 'Coletas', cell: collectionsCell },
         {
           label: 'CPU média',
@@ -414,18 +464,27 @@ export default function ComparePage() {
                         </th>
                       </tr>
                       {/* Linhas alternadas; a cor da coluna em destaque é translúcida e deixa a alternância aparecer */}
-                      {group.rows.map((row) => (
-                        <tr key={row.label} className="even:bg-surface-3">
-                          <th scope="row" className="whitespace-nowrap px-5 py-2 text-left font-medium text-muted">
-                            {row.label}
-                          </th>
-                          {data.services.map((service) => (
-                            <td key={service.id} className={`px-5 py-2 text-right font-data ${extremeOf(service.id)?.tint ?? ''}`}>
-                              {row.cell(service)}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
+                      {group.rows.map((row) => {
+                        // Selo "mais eficiente" da linha (#329): o menor valor entre os serviços com dado no período
+                        const best = row.efficiency ? mostEfficient(data.services, row.efficiency) : null;
+                        return (
+                          <tr key={row.label} className="even:bg-surface-3">
+                            <th
+                              scope="row"
+                              data-tooltip={row.note}
+                              className={`whitespace-nowrap px-5 py-2 text-left font-medium text-muted${row.note ? ' cursor-help' : ''}`}
+                            >
+                              {row.label}
+                            </th>
+                            {data.services.map((service) => (
+                              <td key={service.id} className={`px-5 py-2 text-right font-data ${extremeOf(service.id)?.tint ?? ''}`}>
+                                {row.cell(service)}
+                                {best === service.id && row.badge && <EfficiencyBadge title={row.badge} />}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
                     </Fragment>
                   ))}
                 </tbody>

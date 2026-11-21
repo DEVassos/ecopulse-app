@@ -223,8 +223,8 @@ describe('HTTP', () => {
   });
   it('compara serviços no período informado', async () => {
     const rows = [
-      { id: '1', name: 'Alpha', region: 'Sul', collections: '2', failed: '0', not_calculated: '0', avg_cpu_percent: '20', avg_memory_gb: '1.5', avg_disk_gb: '2', avg_network_gb: '0.3', energy_kwh: '0.02', co2e_grams: '1.7' },
-      { id: '2', name: 'Beta', region: null, collections: '0', failed: '0', not_calculated: '0', avg_cpu_percent: null, avg_memory_gb: null, avg_disk_gb: null, avg_network_gb: null, energy_kwh: null, co2e_grams: null },
+      { id: '1', name: 'Alpha', region: 'Sul', collections: '2', failed: '0', not_calculated: '0', avg_cpu_percent: '20', avg_memory_gb: '1.5', avg_disk_gb: '2', avg_network_gb: '0.3', energy_kwh: '0.02', co2e_grams: '1.7', monitored_seconds: '172800' },
+      { id: '2', name: 'Beta', region: null, collections: '0', failed: '0', not_calculated: '0', avg_cpu_percent: null, avg_memory_gb: null, avg_disk_gb: null, avg_network_gb: null, energy_kwh: null, co2e_grams: null, monitored_seconds: null },
     ];
     const { collections, services } = repositories([], rows);
     const base = await serve(createApp(async () => {}, collections, services));
@@ -232,8 +232,8 @@ describe('HTTP', () => {
     expect(response.status).toBe(200);
     expect((await response.json()).services).toEqual(expect.arrayContaining([
       expect.objectContaining({ id: '1', collections: 2, avgCpuPercent: 20,
-        avgPowerBreakdown: { cpuW: 20, memoryW: 0.5625, diskW: 0.02, networkW: 0.006 }, energyKwh: 0.02, co2eGrams: 1.7 }),
-      expect.objectContaining({ id: '2', collections: 0, avgCpuPercent: null, avgPowerBreakdown: null, energyKwh: null }),
+        avgPowerBreakdown: { cpuW: 20, memoryW: 0.5625, diskW: 0.02, networkW: 0.006 }, energyKwh: 0.02, co2eGrams: 1.7, monitoredSeconds: 172800 }),
+      expect.objectContaining({ id: '2', collections: 0, avgCpuPercent: null, avgPowerBreakdown: null, energyKwh: null, monitoredSeconds: null }),
     ]));
   });
   it('valida a comparação antes de consultar o banco', async () => {
