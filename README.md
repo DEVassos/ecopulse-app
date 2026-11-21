@@ -78,7 +78,7 @@ O desenvolvimento acontece na branch `develop`; cada funcionalidade entra nesta 
 
   _Dashboard com o backend real (`docker compose`) em 06/11/2026: 7 serviços ativos, sem contar 1 removido, e Indisponíveis e Sem métricas zerados, nos cards compactos abaixo dos indicadores do período (#259). Nenhum card tem cor: Ativos é estado saudável e fica neutro, e os outros dois só ganham cor com contagem acima de zero (#272)._
 
-- **RF08 — Indicadores agregados e comparação por período (#175, PR #215):** no topo do dashboard, logo abaixo do cabeçalho (#259), a tela mostra a energia e o CO₂e das últimas 24 h, na unidade que o valor pede (Wh ou kWh, mg ou g), com o período em horário de Brasília, e a variação contra as 24 h anteriores: ▲ em laranja quando subiu, ▼ em verde quando caiu e ±0% em cinza (#271). Sem cálculo no período, o valor é "—", nunca zero; sem base para a variação, a nota é "—" e o motivo fica no tooltip. A API usa `GET /api/services/summary?from=&to=`, documentada em [docs/api.md](docs/api.md).
+- **RF08 — Indicadores agregados e comparação por período (#175, PR #215):** no topo do dashboard, logo abaixo do cabeçalho (#259), a tela mostra a energia e o CO₂e das últimas 24 h, na unidade que o valor pede (Wh ou kWh, mg ou g), com o período em horário de Brasília, e a variação contra as 24 h anteriores: ▲ em laranja quando subiu, ▼ em verde quando caiu e ±0% em cinza (#271). Sem cálculo no período, o valor é "—", nunca zero; sem base para a variação, a nota diz o motivo em vez de inventar um percentual (#234, abaixo). A API usa `GET /api/services/summary?from=&to=`, documentada em [docs/api.md](docs/api.md).
 
   ![Indicadores agregados com comparação às 24 h anteriores](docs/img/sprint-2-indicadores-agregados.png)
 
