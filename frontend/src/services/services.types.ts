@@ -45,9 +45,21 @@ export interface ServicesResponse {
   period: string;
 }
 
-export interface ServicesSummaryResponse {
-  period: { from: string; to: string };
+/** Totais de um período de GET /api/services/summary (docs/api.md). Energia e CO₂e são null sem coleta calculada. */
+export interface ServiceSummaryTotals {
+  collections: number;
+  failed: number;
+  notCalculated: number;
   energyKwh: number | null;
   co2eGrams: number | null;
-  services: { active: number; unavailable: number; withoutMetrics: number; removed: number };
+  carbonIntensityGco2ePerKwh: number | null;
+}
+
+/** Corpo de GET /api/services/summary: período atual, período anterior de mesma duração e estado atual dos serviços. */
+export interface ServicesSummaryResponse {
+  from: string;
+  to: string;
+  totals: ServiceSummaryTotals;
+  previous: { from: string; to: string; totals: ServiceSummaryTotals };
+  servicesByStatus: { ativo: number; indisponivel: number; sem_metricas: number; removido: number; total: number };
 }
