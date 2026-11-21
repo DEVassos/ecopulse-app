@@ -71,23 +71,29 @@ export function parseRankingResponse(body: unknown, requested?: RankingMetric): 
   return { metric, from: readInstant(response.from, 'from'), to: readInstant(response.to, 'to'), services };
 }
 
-/** Modo demonstração: o ranking das 24 h sai da leitura ilustrativa, como se ela se repetisse a cada 30 s. */
+/** Modo demonstração: o ranking do período sai da leitura ilustrativa, repetida no intervalo dela (1 h no demo). */
 function demoRanking(metric: RankingMetric, from: string, to: string): ServicesRankingResponse {
-  const readingsPerPeriod = (Date.parse(to) - Date.parse(from)) / 30_000;
-  const services = demoServices().services.map((service) => ({
-    position: null,
-    id: service.id,
-    name: service.name,
-    region: service.region,
-    status: service.status,
-    energyKwh: service.energyKwh === null ? null : service.energyKwh * readingsPerPeriod,
-    co2eGrams: service.emissionsG === null ? null : service.emissionsG * readingsPerPeriod,
-    // O demo estima uma coleta calculada a cada 30 s: o tempo monitorado é o do período, em segundos (#329)
-    monitoredSeconds: service.energyKwh === null ? null : readingsPerPeriod * (30_000 / 1000),
-    collections: service.lastReadingAt === null ? 0 : readingsPerPeriod,
-    failed: 0,
-    notCalculated: 0,
-  }));
+  const spanSeconds = (Date.parse(to) - Date.parse(from)) / 1000;
+  const services = demoServices().services.map((service) => {
+    // A leitura ilustrativa vale `collectionIntervalSeconds` (1 h), então 24 h têm 24 leituras: repeti-la a cada 30 s
+    // multiplicava a energia por 120 e a potência média saía em 8 556 W para um serviço de 71,3 W (#329)
+    const intervalSeconds = service.collectionIntervalSeconds;
+    const readings = intervalSeconds === null ? 0 : Math.round(spanSeconds / intervalSeconds);
+    return {
+      position: null,
+      id: service.id,
+      name: service.name,
+      region: service.region,
+      status: service.status,
+      energyKwh: service.energyKwh === null ? null : service.energyKwh * readings,
+      co2eGrams: service.emissionsG === null ? null : service.emissionsG * readings,
+      // O tempo monitorado é o das mesmas leituras que entram na energia: energia ÷ ele devolve a potência da leitura (#329)
+      monitoredSeconds: service.energyKwh === null || intervalSeconds === null ? null : readings * intervalSeconds,
+      collections: service.lastReadingAt === null ? 0 : readings,
+      failed: 0,
+      notCalculated: 0,
+    };
+  });
   const value = (service: RankedService) => (metric === 'co2e' ? service.co2eGrams : service.energyKwh);
   services.sort((a, b) => (value(b) ?? -1) - (value(a) ?? -1) || a.name.localeCompare(b.name, 'pt-BR'));
   let position = 0;

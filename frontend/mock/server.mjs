@@ -177,6 +177,15 @@ function sumOrNull(items, field) {
   return values.length === 0 ? null : values.reduce((total, value) => total + value, 0);
 }
 
+/**
+ * Segundos monitorados das coletas calculadas — a base da potência média, como o `FILTER (WHERE calculation_status =
+ * 'disponivel')` da rota real (#329). `null` quando nenhuma coleta do período foi calculada.
+ */
+function monitoredSecondsOf(items) {
+  const seconds = items.filter((item) => item.calculationStatus === 'disponivel').map((item) => item.collectionIntervalSeconds);
+  return seconds.length === 0 ? null : seconds.reduce((total, value) => total + value, 0);
+}
+
 /** Média do campo entre os itens que têm valor, ou null quando nenhum tem. */
 function averageOrNull(items, field) {
   const total = sumOrNull(items, field);
@@ -434,6 +443,7 @@ const routes = {
           collections: items.length,
           failed: items.filter((item) => item.status !== 'ok').length,
           notCalculated: items.filter((item) => item.status === 'ok' && item.co2eGrams === null).length,
+          monitoredSeconds: monitoredSecondsOf(items),
         };
         // MOCK_SERVICES=ranking-texto: o 1º lugar vem com o CO₂e em texto, para ver a tela recusar a resposta
         if (SERVICES_SCENARIO === 'ranking-texto' && entry.position === 1) entry.co2eGrams = String(entry.co2eGrams);
@@ -467,6 +477,7 @@ const routes = {
           collections: items.length,
           failed: items.filter((item) => item.status !== 'ok').length,
           notCalculated: items.filter((item) => item.status === 'ok' && item.co2eGrams === null).length,
+          monitoredSeconds: monitoredSecondsOf(items),
           avgCpuPercent: averageOrNull(items, 'cpuPercent'),
           avgMemoryGb: averageOrNull(items, 'memoryGb'),
           avgDiskGb: averageOrNull(items, 'diskGb'),
