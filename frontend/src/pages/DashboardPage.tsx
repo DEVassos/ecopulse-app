@@ -211,8 +211,9 @@ export default function DashboardPage() {
           ]}
         />
         {/* Última atualização, intervalo e Atualizar agora à esquerda do Imprimir (#434): no cabeçalho, faziam o menu quebrar
-            em duas linhas em 1366 px. A barra some no papel, e o cabeçalho do relatório já traz a última atualização */}
-        <div className="print-toolbar">
+            em duas linhas em 1366 px. A barra some no papel, e o cabeçalho do relatório já traz a última atualização. No
+            celular, o aviso de mudança aparece abaixo dela (data-toast-anchor), sem cobrir o botão */}
+        <div className="print-toolbar" data-toast-anchor>
           <LastUpdated updatedAt={updatedAt} intervalSeconds={refreshIntervalMs / 1000} stale={error !== ''}>
             <button
               type="button"
