@@ -86,4 +86,13 @@
   .power-breakdown__key--networkW {
     background: var(--muted);
   }
+
+  /* Destaque cruzado (#431): o serviço apontado em qualquer bloco fica em evidência, os outros esmaecem */
+  .power-breakdown__row--dim {
+    opacity: 0.35;
+  }
+
+  .power-breakdown__row--active > div:first-child > span:first-child {
+    font-weight: 600;
+  }
 }
