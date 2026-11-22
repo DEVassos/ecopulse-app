@@ -186,6 +186,44 @@ export default function DashboardPage() {
   // A janela usa a linha atual da lista: status, CPU e última leitura acompanham cada atualização
   const selected = data?.services.find((service) => service.id === selectedId) ?? null;
 
+  // Última atualização, intervalo, Atualizar agora e Imprimir (#434). Com o painel de energia e emissões na tela, a barra
+  // entra na linha do título dele; sem o painel (carregando, falha, nenhum serviço, demonstração), fica sozinha no topo,
+  // para a última atualização nunca sumir (DW05). No celular, o aviso de mudança aparece abaixo dela (data-toast-anchor),
+  // sem cobrir o botão. No papel ela some, e o cabeçalho do relatório já traz a última atualização
+  const toolbar = (
+    <div className="print-toolbar" data-toast-anchor>
+      <LastUpdated updatedAt={updatedAt} intervalSeconds={refreshIntervalMs / 1000} stale={error !== ''}>
+        <button
+          type="button"
+          // aria-disabled em vez de disabled: o botão não perde o foco do teclado a cada ciclo
+          onClick={() => {
+            if (!loading) refresh();
+          }}
+          aria-disabled={loading}
+          aria-label="Atualizar agora"
+          data-tooltip="Atualizar agora"
+          className="btn-outline grid size-11 place-items-center"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            className={loading ? 'size-4 motion-safe:animate-spin' : 'size-4'}
+          >
+            <path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" />
+            <path d="M21 3v5h-5" />
+          </svg>
+        </button>
+      </LastUpdated>
+      <PrintButton />
+    </div>
+  );
+  const showIndicators = Boolean(summary || (data && data.services.length > 0 && !isDemoMode && !summaryError));
+
   return (
     <div className="page">
       {isDemoMode && (
@@ -210,39 +248,7 @@ export default function DashboardPage() {
             ...(data ? [{ label: 'Serviços', value: `${data.services.length} monitorados` }] : []),
           ]}
         />
-        {/* Última atualização, intervalo e Atualizar agora à esquerda do Imprimir (#434): no cabeçalho, faziam o menu quebrar
-            em duas linhas em 1366 px. A barra some no papel, e o cabeçalho do relatório já traz a última atualização. No
-            celular, o aviso de mudança aparece abaixo dela (data-toast-anchor), sem cobrir o botão */}
-        <div className="print-toolbar" data-toast-anchor>
-          <LastUpdated updatedAt={updatedAt} intervalSeconds={refreshIntervalMs / 1000} stale={error !== ''}>
-            <button
-              type="button"
-              // aria-disabled em vez de disabled: o botão não perde o foco do teclado a cada ciclo
-              onClick={() => {
-                if (!loading) refresh();
-              }}
-              aria-disabled={loading}
-              aria-label="Atualizar agora"
-              data-tooltip="Atualizar agora"
-              className="btn-outline grid size-11 place-items-center"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-                className={loading ? 'size-4 motion-safe:animate-spin' : 'size-4'}
-              >
-                <path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" />
-                <path d="M21 3v5h-5" />
-              </svg>
-            </button>
-          </LastUpdated>
-          <PrintButton />
-        </div>
+        {!showIndicators && toolbar}
 
         {/* Falha não apaga o que já estava na tela: com dados, faixa compacta junto do último dado; sem dados, o aviso grande */}
         {(data || summary) && <UpdateFailedBanner message={warnings.banner} updatedAt={warnings.bannerAt} onRetry={refresh} />}
@@ -259,9 +265,7 @@ export default function DashboardPage() {
 
         {/* Impacto primeiro (#259): energia e CO₂e do período no topo. Com os serviços na tela e o resumo a caminho, o painel
             já ocupa o lugar dele em "Calculando…", para a página não pular quando a resposta chega */}
-        {(summary || (data && data.services.length > 0 && !isDemoMode && !summaryError)) && (
-          <IndicatorsPanel summary={summary} staleSince={summaryStaleSince} />
-        )}
+        {showIndicators && <IndicatorsPanel summary={summary} staleSince={summaryStaleSince} actions={toolbar} />}
 
         {/* Estado dos serviços logo abaixo, em cards compactos. Sem dado ainda, os cards não aparecem (nunca zeros inventados);
             depois de uma falha, mostram o último dado */}
