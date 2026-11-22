@@ -55,31 +55,33 @@ export default function RegionList({ overview, selectedCode, onSelect, periodLab
   function item(region: ListedRegion) {
     const state = region.worstStatus;
     const share = region.co2eGrams === null || maxCo2e <= 0 ? 0 : Math.max(3, Math.round((region.co2eGrams / maxCo2e) * 100));
+    // Região sem serviço hoje e sem CO₂e: nem barra nem contagem, só a rede
+    const hasActivity = state !== null || region.co2eGrams !== null;
     return (
       <li key={region.code}>
         <button type="button" className="region-list__item" aria-pressed={region.code === selectedCode} onClick={() => onSelect(region.code)}>
           <span className="region-list__top">
+            {/* Selo de rede limpa (#324) ao lado do nome: é um atributo da região, e a linha de baixo fica livre para os
+                números (#434). A intensidade está no mesmo botão, então o leitor de tela não a repete no selo */}
             <span className="region-list__name">
               <i className={`region-list__key region-list__key--${state ?? 'idle'}`} aria-hidden="true" />
               {region.name}
               <small>{region.code}</small>
+              <CleanGridBadge grid={region} stale={stale} describe={false} />
             </span>
             <span className="region-list__value font-data">
               {region.co2eGrams !== null ? formatQuantity('co2e', region.co2eGrams) : state === null ? 'sem serviço hoje' : 'sem cálculo'}
             </span>
           </span>
-          {state !== null || region.co2eGrams !== null ? (
-            <>
-              <span className="region-list__bar" aria-hidden="true">
-                <i className={`region-list__fill region-list__fill--${state ?? 'idle'}`} style={{ width: `${share}%` }} />
-              </span>
-              <span className="region-list__meta">{countsText(region)}</span>
-            </>
-          ) : null}
-          {/* Selo de rede limpa (#324) antes da intensidade: os números já estão ao lado, o leitor de tela não os repete */}
-          <span className="region-list__meta region-list__grid">
-            <CleanGridBadge grid={region} stale={stale} describe={false} />
-            {gridText(region)}
+          {hasActivity && (
+            <span className="region-list__bar" aria-hidden="true">
+              <i className={`region-list__fill region-list__fill--${state ?? 'idle'}`} style={{ width: `${share}%` }} />
+            </span>
+          )}
+          {/* Serviços à esquerda e rede à direita numa linha só (#434); sem espaço, a rede desce alinhada à esquerda */}
+          <span className="region-list__foot">
+            {hasActivity && <span className="region-list__meta">{countsText(region)}</span>}
+            <span className="region-list__meta region-list__grid">{gridText(region)}</span>
           </span>
         </button>
       </li>
