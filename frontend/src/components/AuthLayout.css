@@ -13,9 +13,13 @@
   position: absolute;
   top: 16px;
   right: 16px;
+  /* Acima do vídeo de fundo (AuthBackdrop), que fica no nível 0 */
+  z-index: 2;
 }
 
 .auth-main {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 400px;
 }
@@ -140,6 +144,8 @@
 }
 
 .auth-footer {
+  position: relative;
+  z-index: 1;
   margin-top: 24px;
   text-align: center;
   /* --muted, como o rodapé do dashboard: --faint (3,9:1) não serve para texto de 13 px */
@@ -151,4 +157,19 @@
   .auth-card {
     padding: 22px 18px;
   }
+}
+
+/*
+ * Login com vídeo de fundo (AuthBackdrop): o botão de tema e o rodapé não ficam sobre uma superfície
+ * fixa, então ganham o próprio fundo na cor da página. Sem ele, o contraste do ícone e do texto de
+ * 13 px passaria a depender do quadro do vídeo — e cairia no meio de um quadro claro.
+ */
+.auth-page--media .auth-theme .btn-outline {
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+}
+
+.auth-page--media .auth-footer {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
 }

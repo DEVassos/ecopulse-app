@@ -1,0 +1,58 @@
+@layer components {
+  /* Fundo animado das telas de acesso: fixo na janela, atrás do cartão e sem capturar cliques */
+  .auth-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: var(--bg);
+    /* Quanto de --bg entra sobre o vídeo (ver .auth-backdrop-veil). Padrão = tema escuro, o do próprio vídeo */
+    --veil-top: 55%;
+    --veil-mid: 42%;
+    --veil-bottom: 72%;
+  }
+
+  /*
+   * O vídeo é escuro: no tema claro ele viraria um borrão cinza atrás da marca e do rodapé, que são
+   * escuros. Ali o véu quase fecha e o vídeo fica como textura — o movimento continua, mas discreto.
+   */
+  :root[data-theme='light'] .auth-backdrop {
+    --veil-top: 84%;
+    --veil-mid: 78%;
+    --veil-bottom: 88%;
+  }
+
+  .auth-backdrop-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* O desfoque tira a atenção do movimento; a escala esconde a borda clara que ele cria nas pontas */
+    filter: blur(2px) saturate(0.95);
+    transform: scale(1.04);
+  }
+
+  /*
+   * Véu entre o vídeo e a tela: o cartão é opaco (--surface), então o contraste do formulário não
+   * depende do quadro do vídeo. O véu só precisa baixar o contraste do vídeo o bastante para o
+   * rodapé e o botão de tema, que ficam sobre ele, lerem sem esforço (ver .auth-page--media).
+   * A cor vem de --bg: o tema claro recebe véu claro, o escuro, véu escuro.
+   */
+  .auth-backdrop-veil {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--bg) var(--veil-top), transparent) 0%,
+      color-mix(in srgb, var(--bg) var(--veil-mid), transparent) 40%,
+      color-mix(in srgb, var(--bg) var(--veil-mid), transparent) 70%,
+      color-mix(in srgb, var(--bg) var(--veil-bottom), transparent) 100%
+    );
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .auth-backdrop {
+      display: none;
+    }
+  }
+}

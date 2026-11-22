@@ -104,6 +104,11 @@ No tema escuro, `--neon-text` é o próprio `--neon`. Os dois só se separam no 
 * Ícones de navegação (‹ ›) são SVG, nunca caracteres.
 * Datas sempre em DD/MM/AAAA, com algarismos tabulares. O período se escolhe no seletor próprio (`PeriodPicker`, #273), nunca no campo de data nativo, que segue o idioma do navegador: uma pílula em `--surface-2` com borda `--border` (em `--accent`, com o anel de foco, enquanto o painel está aberto), o nome do atalho e as datas em `--muted`. O painel tem os atalhos (seleção com fundo `--accent` a 12% e anel fino, sem borda lateral) e um calendário de um mês com a semana na segunda-feira: início e fim são pontas cheias em `--accent` com texto `--on-accent`, os dias entre eles uma faixa em `--accent` a 14%, hoje é sublinhado e os dias que não podem ser escolhidos ficam em `--faint`. No celular, o painel abre de baixo para cima, sobre o fundo apagado, com dias de 44 px.
 
+### Fundo animado da tela de login (#436)
+* `AuthBackdrop` toca um vídeo em looping (1280×720, ~8 s) atrás do cartão do login: sem som, sem controles, `object-fit: cover`, `pointer-events: none` e `aria-hidden`, porque é ambientação e não conteúdo. O cartão é opaco (`--surface`), então o contraste do formulário não depende do quadro.
+* Um véu em gradiente (`180deg`) com `color-mix` de `--bg` fica entre o vídeo e a tela. O vídeo é escuro e saturado; no tema escuro o véu cobre 42–72% (o movimento aparece), no tema claro 78–88% (o vídeo vira textura, para não lavar a tela). O rodapé e o botão de tema, que ficam sobre o vídeo, ganham superfície translúcida (`auth-page--media`): medido nos dois temas, 7,3:1 e 5,7:1 no rodapé, 7,4:1 e 4,9:1 no ícone do botão.
+* Desfoque de 2 px e `scale(1.04)` tiram a atenção do movimento e escondem a borda clara que o desfoque cria nas pontas. Com `prefers-reduced-motion: reduce` o fundo não existe e o arquivo não é baixado.
+
 ### Item ativo (menu do topo)
 * Fundo `--accent` a 15%, borda `--accent` e texto `--accent-hover` em negrito. Os demais itens ficam em `--muted` e passam a `--text` no hover. A borda é uma `border` de 1 px (transparente nos itens inativos), para continuar visível no alto contraste do sistema.
 * Ainda não há abas na interface; quando houver, o item selecionado segue este mesmo padrão.
