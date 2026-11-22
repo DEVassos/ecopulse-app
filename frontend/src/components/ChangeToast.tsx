@@ -44,8 +44,9 @@ export function toastLayout(
 }
 
 /**
- * Base do cabeçalho na janela, medida antes da pintura e acompanhada ao rolar: o cabeçalho tem duas linhas no celular
- * (121 px em 390 px) e a faixa do modo demonstração o empurra para baixo, então um topo fixo cobria os controles dele.
+ * Base do cabeçalho na janela, medida antes da pintura e acompanhada ao rolar: a altura dele muda com a largura (e mudou
+ * quando a última atualização foi para a página, #434) e a faixa do modo demonstração o empurra para baixo, então um topo
+ * fixo cobria os controles dele.
  */
 function useHeaderBottom(active: boolean): number | null {
   const [bottom, setBottom] = useState<number | null>(null);

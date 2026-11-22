@@ -21,11 +21,14 @@
     opacity: 0.6;
   }
 
-  /* Barra da exportação impressa (#408): o botão fica à direita, na linha do título, e não entra no papel */
+  /* Barra da exportação impressa (#408): o botão fica à direita, na linha do título, e não entra no papel. No Dashboard,
+     a última atualização vem antes dele (#434); no celular, o botão desce para a linha de baixo */
   .print-toolbar {
     display: flex;
+    flex-wrap: wrap;
     justify-content: flex-end;
-    gap: 8px;
+    align-items: center;
+    gap: 8px 16px;
   }
 
   /*

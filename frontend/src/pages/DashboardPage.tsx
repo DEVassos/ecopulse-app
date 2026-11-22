@@ -194,35 +194,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <AppHeader updatedAt={updatedAt}>
-        <LastUpdated updatedAt={updatedAt} intervalSeconds={refreshIntervalMs / 1000} stale={error !== ''}>
-          <button
-            type="button"
-            // aria-disabled em vez de disabled: o botão não perde o foco do teclado a cada ciclo
-            onClick={() => {
-              if (!loading) refresh();
-            }}
-            aria-disabled={loading}
-            aria-label="Atualizar agora"
-            data-tooltip="Atualizar agora"
-            className="btn-outline grid size-11 place-items-center"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-              className={loading ? 'size-4 motion-safe:animate-spin' : 'size-4'}
-            >
-              <path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" />
-              <path d="M21 3v5h-5" />
-            </svg>
-          </button>
-        </LastUpdated>
-      </AppHeader>
+      <AppHeader updatedAt={updatedAt} />
 
       <main id="conteudo" tabIndex={-1} className="content">
         <h1 className="sr-only">Dashboard de energia e emissões</h1>
@@ -238,7 +210,36 @@ export default function DashboardPage() {
             ...(data ? [{ label: 'Serviços', value: `${data.services.length} monitorados` }] : []),
           ]}
         />
+        {/* Última atualização, intervalo e Atualizar agora à esquerda do Imprimir (#434): no cabeçalho, faziam o menu quebrar
+            em duas linhas em 1366 px. A barra some no papel, e o cabeçalho do relatório já traz a última atualização */}
         <div className="print-toolbar">
+          <LastUpdated updatedAt={updatedAt} intervalSeconds={refreshIntervalMs / 1000} stale={error !== ''}>
+            <button
+              type="button"
+              // aria-disabled em vez de disabled: o botão não perde o foco do teclado a cada ciclo
+              onClick={() => {
+                if (!loading) refresh();
+              }}
+              aria-disabled={loading}
+              aria-label="Atualizar agora"
+              data-tooltip="Atualizar agora"
+              className="btn-outline grid size-11 place-items-center"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                className={loading ? 'size-4 motion-safe:animate-spin' : 'size-4'}
+              >
+                <path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" />
+                <path d="M21 3v5h-5" />
+              </svg>
+            </button>
+          </LastUpdated>
           <PrintButton />
         </div>
 

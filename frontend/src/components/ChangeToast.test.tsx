@@ -37,7 +37,7 @@ describe('toastLayout', () => {
   });
 
   it('no celular vai para o topo, 8 px abaixo da base do cabeçalho, e mostra uma frase', () => {
-    // 121 px: o cabeçalho de duas linhas em 390 px, com "Atualizar agora" na segunda (#388)
+    // 121 px: uma base de cabeçalho medida no celular (#388); o valor real vem de header.topbar na hora
     const layout = toastLayout(true, 121);
     expect(layout.lines).toBe(1);
     expect(layout.style).toEqual({ top: 129 });
