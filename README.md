@@ -34,6 +34,12 @@ Setup do backend: [organização e validação](backend/README.md) e [contrato d
 
 ## 3. Funcionalidades implementadas
 
+- **RNF01 — Página inicial de apresentação ([#438](https://github.com/DEVassos/ecopulse-app/issues/438)):** quem abre `http://localhost:5173/` sem sessão chega em `/inicio`, uma página pública com a chamada do produto, o fluxo métrica → kWh → CO₂e, uma prévia do painel marcada como "Dados ilustrativos", os seis recursos já implementados e o atalho **Entrar no painel**, que passa pelo login e abre o Dashboard. Atrás da chamada toca o mesmo vídeo do login (#436), com véu mais fechado; com `prefers-reduced-motion: reduce`, nada de vídeo nem de animação. As outras telas protegidas continuam indo direto para o login. [Detalhes e verificação](frontend/README.md#página-inicial-438).
+
+  ![Página inicial no tema escuro, com a chamada sobre o vídeo e o fluxo métrica → kWh → CO₂e](docs/img/sprint-3-pagina-inicial.png)
+
+  _Build do `docker compose` em 22/11/2026, 1440 px, tema escuro._
+
 - **RNF01 — Tema claro alternável com o escuro (#265, PR #280):** o botão de tema no cabeçalho e na tela de login troca o atributo `data-theme` da página e guarda a escolha no navegador; os tokens de cor são redefinidos para o tema claro com o mesmo contraste mínimo, e as duas aparências valem para todas as páginas e gráficos.
 
 - **RNF01 — Acessibilidade: leitura do período, placeholder, alvos e teclado (#262, PR #278):** link **Pular para o conteúdo** no primeiro Tab, alvos de toque de pelo menos 24 px nos botões de ordenação e de atualizar, placeholder dos campos com contraste de texto pequeno, período do painel lido pelo leitor de tela e resumo do gráfico de Emissões sem anúncio a cada ciclo; **Atualizar agora** com 44 px.
