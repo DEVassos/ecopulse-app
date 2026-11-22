@@ -42,6 +42,12 @@
     height: 100%;
   }
 
+  /* O z-index das bolhas (200 menos o diâmetro) vale só entre elas: com o mapa aproximado, uma bolha no canto não cobre o
+     "+" e o "−" nem o botão "Visão geral", que aparece também depois do zoom manual (#376) */
+  .region-map__canvas .maplibregl-canvas-container {
+    isolation: isolate;
+  }
+
   .region-map__overview,
   .region-map__legend,
   .region-map__failed,

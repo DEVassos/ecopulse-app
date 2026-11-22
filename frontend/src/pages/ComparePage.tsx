@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import AppHeader from '../components/AppHeader';
 import CompareChart from '../components/CompareChart';
+import CompareRanking from '../components/CompareRanking';
 import CompareScatter from '../components/CompareScatter';
 import CompareSeriesChart from '../components/CompareSeriesChart';
 import EmptyState from '../components/EmptyState';
@@ -23,7 +24,10 @@ import { usePrintReport } from '../hooks/usePrintReport';
 import { useServices } from '../hooks/useServices';
 import type { ComparedService } from '../services/compare.types';
 import { isDemoMode } from '../services/services.service';
+import { DEFAULT_SORT, SORT_LABEL, collectionIssues, comparisonCsv, comparisonFileName, nextSort, sortServices } from '../utils/compare-ranking';
+import type { CompareSort, SortKey } from '../utils/compare-ranking';
 import { CAUSE_LABEL, carbonIntensity, lowestCo2eCause } from '../utils/comparison';
+import { downloadText } from '../utils/download';
 import type { ResourceKey } from '../utils/comparison';
 import { averagePowerFromEnergy, mostEfficient } from '../utils/efficiency';
 import { BUCKET_LABEL, isInputDate, spanDays, timeZoneLabel, todayInput } from '../utils/emissions';
@@ -85,6 +89,8 @@ interface Row {
   note?: string;
   /** Texto do selo "mais eficiente" da linha; sem ele, a linha não elege ninguém mesmo com `efficiency`. */
   badge?: string;
+  /** Com ela, o rótulo da linha vira o botão que ordena a comparação por esta métrica (#431). */
+  sortKey?: SortKey;
 }
 
 /** Bloco de linhas da matriz: "Impacto" abre a leitura, "Detalhe das métricas" aprofunda (#328). */
@@ -128,11 +134,13 @@ function rowsFor(services: ComparedService[]): RowGroup[] {
       rows: [
         {
           label: `Energia (${energy.unit})`,
+          sortKey: 'energy',
           cell: (service) =>
             amount(service.energyKwh, (value) => <CompactValue quantity="energy" value={value} scale={energy} label="Energia somada no período" />),
         },
         {
           label: 'Potência média (W)',
+          sortKey: 'power',
           // Eficiência energética (#329): energia do período ÷ tempo monitorado, a conta de docs/calculos.md
           cell: (service) =>
             amount(averagePowerFromEnergy(service.energyKwh, service.monitoredSeconds), (value) => formatNumber(value, 2)),
@@ -142,6 +150,7 @@ function rowsFor(services: ComparedService[]): RowGroup[] {
         },
         {
           label: 'Intensidade (g CO₂e/kWh)',
+          sortKey: 'intensity',
           cell: (service) =>
             amount(carbonIntensity(service.co2eGrams, service.energyKwh), (value) => formatNumber(value, 2)),
           // Eficiência de carbono (#329): quanto CO₂e sai por kWh; menor é melhor
@@ -151,6 +160,7 @@ function rowsFor(services: ComparedService[]): RowGroup[] {
         },
         {
           label: `CO₂e (${co2e.unit})`,
+          sortKey: 'co2e',
           cell: (service) =>
             amount(service.co2eGrams, (value) => <CompactValue quantity="co2e" value={value} scale={co2e} label="CO₂e somado no período" />),
         },
@@ -212,6 +222,30 @@ function co2eExtremes(services: ComparedService[]): { lowest: Set<string>; highe
   return { lowest: withValue(min), highest: withValue(max) };
 }
 
+/**
+ * Rótulo da matriz que ordena a comparação (#431): clicar na métrica ordena do menor para o maior, e clicar de novo
+ * inverte. A seta mostra a ordem vigente; o `aria-sort` fica na célula de cabeçalho.
+ */
+function SortButton({ label, sortKey, sort, onSort }: { label: string; sortKey: SortKey; sort: CompareSort; onSort: (key: SortKey) => void }) {
+  const current = sort.key === sortKey;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(sortKey)}
+      title={`Ordenar por ${SORT_LABEL[sortKey]}`}
+      className={`inline-flex min-h-6 cursor-pointer items-center gap-1 border-0 bg-transparent p-0 font-sans text-sm font-medium underline-offset-2 hover:underline ${current ? 'text-text' : 'text-muted'}`}
+    >
+      {label}
+      <span aria-hidden="true" className={current ? 'text-secondary' : 'text-faint'}>
+        {current ? (sort.direction === 'asc' ? '↑' : '↓') : '↕'}
+      </span>
+    </button>
+  );
+}
+
+const ariaSort = (sort: CompareSort, key: SortKey | undefined) =>
+  key !== undefined && sort.key === key ? (sort.direction === 'asc' ? 'ascending' : 'descending') : undefined;
+
 /** Destaque da coluna e da barra de CO₂e: sempre com o texto, nunca só a cor. */
 interface Extreme {
   kind: 'lowest' | 'highest';
@@ -263,6 +297,10 @@ export default function ComparePage() {
   const [draftEnd, setDraftEnd] = useState(end);
   const [formError, setFormError] = useState('');
   const [matrixScrollRef, matrixHasMore] = useHorizontalOverflow<HTMLDivElement>();
+  // Ordem da comparação (#431): estado de tela, não muda a consulta; ranking, matriz, gráficos e CSV seguem a mesma
+  const [sort, setSort] = useState<CompareSort>(DEFAULT_SORT);
+  // Serviço sob o ponteiro ou o foco em qualquer bloco: o mesmo fica destacado nos outros (#431)
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   // A URL também muda pelo "voltar" do navegador: o formulário acompanha (ajuste na renderização, sem efeito)
   const urlFilter = `${idsKey}|${start}|${end}`;
@@ -288,6 +326,8 @@ export default function ComparePage() {
   // Só há linha a desenhar quando ao menos um serviço tem cálculo no período (intervalo sem cálculo não vale zero)
   const seriesHasValues = compareSeries.data?.rows.some((row) => row.total !== null) ?? false;
   const seriesNames = new Map((data?.services ?? []).map((service) => [service.id, service.name]));
+  const ranked = useMemo(() => (data ? sortServices(data.services, sort) : []), [data, sort]);
+  const issues = collectionIssues(ranked);
   const extremes = data ? co2eExtremes(data.services) : null;
   // Por que o serviço de menor CO₂e emite menos; null quando os dados não sustentam uma causa
   const cause = data ? lowestCo2eCause(data.services) : null;
@@ -297,6 +337,10 @@ export default function ComparePage() {
     }
     return extremes?.highest.has(id) ? EXTREME.highest : null;
   };
+  // Coluna do serviço apontado: o destaque cruzado tem prioridade sobre a cor do menor e do maior CO₂e
+  const columnTint = (id: string) => (activeId === id ? 'bg-secondary/15' : extremeOf(id)?.tint ?? '');
+  const pointAt = (id: string) => ({ onPointerEnter: () => setActiveId(id), onPointerLeave: () => setActiveId(null) });
+  const sortBy = (key: SortKey) => setSort((current) => nextSort(current, key));
 
   function toggle(id: string) {
     setDraftIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
@@ -448,7 +492,16 @@ export default function ComparePage() {
                 </h2>
                 <EstimateTag note="Energia e CO₂e somam só as coletas calculadas." />
                 {/* Impressão / PDF da comparação (#408): o papel sai pelo print.css, sem os filtros acima */}
-                <div className="print-toolbar ml-auto">
+                <div className="print-toolbar ml-auto flex flex-wrap gap-2">
+                  {/* CSV da comparação (#431): as linhas da matriz, um serviço por linha, na ordem da tela */}
+                  <button
+                    type="button"
+                    className="btn-outline inline-flex min-h-8 cursor-pointer items-center gap-2 px-3 text-sm"
+                    title="Baixa as linhas da matriz em CSV, um serviço por linha, na ordem da tela"
+                    onClick={() => downloadText(comparisonCsv(ranked), comparisonFileName(start, end))}
+                  >
+                    Baixar CSV
+                  </button>
                   <PrintButton />
                 </div>
               </div>
@@ -457,6 +510,32 @@ export default function ComparePage() {
               </p>
             </header>
 
+            {/* Alerta agregado (#431): quem teve coleta com falha ou sem cálculo, antes de qualquer número do período */}
+            {issues.length > 0 && (
+              <p className="m-0 border-b border-border bg-warning/10 px-5 py-2.5 text-sm text-text" role="status">
+                <span className="font-semibold text-warning">Coletas com falha ou sem cálculo no período: </span>
+                {issues
+                  .map((issue) => {
+                    const parts = [
+                      issue.failed > 0 && `${issue.failed.toLocaleString('pt-BR')} com falha`,
+                      issue.notCalculated > 0 && `${issue.notCalculated.toLocaleString('pt-BR')} sem cálculo`,
+                    ].filter(Boolean);
+                    return `${issue.name} (${parts.join(' · ')})`;
+                  })
+                  .join(', ')}
+                . Energia e CO₂e somam só as coletas calculadas.
+              </p>
+            )}
+
+            <CompareRanking
+              services={ranked}
+              sort={sort}
+              onSortChange={setSort}
+              activeId={activeId}
+              onActiveChange={setActiveId}
+              highlightOf={extremeOf}
+            />
+
             {/* Rolagem horizontal só na tabela: com até 10 serviços, a página nunca ganha rolagem lateral (RNF01) */}
             {/* scroll-edge: sombra na borda direita enquanto há serviços escondidos (#263) */}
             <div className={matrixHasMore ? 'scroll-edge scroll-edge--more' : 'scroll-edge'}>
@@ -464,14 +543,17 @@ export default function ComparePage() {
               <table className="w-full border-collapse text-sm">
                 <thead>
                   <tr className="text-xs text-muted">
-                    <td className="px-5 py-2" />
-                    {data.services.map((service) => {
+                    <th scope="col" aria-sort={ariaSort(sort, 'name')} className="px-5 py-2 text-left align-bottom font-medium">
+                      <SortButton label="Serviço" sortKey="name" sort={sort} onSort={sortBy} />
+                    </th>
+                    {ranked.map((service) => {
                       const extreme = extremeOf(service.id);
                       return (
                         <th
                           key={service.id}
                           scope="col"
-                          className={`px-5 py-2 text-right align-bottom font-medium ${extreme?.tint ?? ''}`}
+                          className={`px-5 py-2 text-right align-bottom font-medium ${columnTint(service.id)}`}
+                          {...pointAt(service.id)}
                         >
                           {/* Acima do nome: o destaque é a primeira coisa lida na coluna */}
                           {extreme && (
@@ -488,7 +570,7 @@ export default function ComparePage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {rowsFor(data.services).map((group) => (
+                  {rowsFor(ranked).map((group) => (
                     <Fragment key={group.title}>
                       {/* Título do bloco: "Impacto" antes do detalhe, na leitura de quem decide (#328) */}
                       <tr className="border-t border-border">
@@ -503,18 +585,19 @@ export default function ComparePage() {
                       {/* Linhas alternadas; a cor da coluna em destaque é translúcida e deixa a alternância aparecer */}
                       {group.rows.map((row) => {
                         // Selo "mais eficiente" da linha (#329): o menor valor entre os serviços com dado no período
-                        const best = row.efficiency ? mostEfficient(data.services, row.efficiency) : null;
+                        const best = row.efficiency ? mostEfficient(ranked, row.efficiency) : null;
                         return (
                           <tr key={row.label} className="even:bg-surface-3">
                             <th
                               scope="row"
                               data-tooltip={row.note}
+                              aria-sort={ariaSort(sort, row.sortKey)}
                               className={`whitespace-nowrap px-5 py-2 text-left font-medium text-muted${row.note ? ' cursor-help' : ''}`}
                             >
-                              {row.label}
+                              {row.sortKey ? <SortButton label={row.label} sortKey={row.sortKey} sort={sort} onSort={sortBy} /> : row.label}
                             </th>
-                            {data.services.map((service) => (
-                              <td key={service.id} className={`px-5 py-2 text-right font-data ${extremeOf(service.id)?.tint ?? ''}`}>
+                            {ranked.map((service) => (
+                              <td key={service.id} className={`px-5 py-2 text-right font-data ${columnTint(service.id)}`} {...pointAt(service.id)}>
                                 {row.cell(service)}
                                 {best === service.id && row.badge && <EfficiencyBadge title={row.badge} />}
                               </td>
@@ -567,11 +650,11 @@ export default function ComparePage() {
               )}
             </figure>
 
-            <CompareChart services={data.services} highlightOf={extremeOf} />
-            <CompareScatter services={data.services} highlightOf={extremeOf} />
+            <CompareChart services={ranked} highlightOf={extremeOf} activeId={activeId} onActiveChange={setActiveId} />
+            <CompareScatter services={ranked} highlightOf={extremeOf} activeId={activeId} onActiveChange={setActiveId} />
 
             {/* Composição da potência média: mesma ordem de colunas da tabela (#328) */}
-            <PowerBreakdownChart services={data.services} />
+            <PowerBreakdownChart services={ranked} activeId={activeId} onActiveChange={setActiveId} />
 
           </section>
         )}

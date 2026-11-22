@@ -18,6 +18,9 @@ function shareText(watts: number, share: number): string {
 interface Props {
   /** Serviços na ordem das colunas da tabela, com `avgPowerBreakdown` de GET /api/services/compare. */
   services: ComparedService[];
+  /** Serviço sob o ponteiro ou o foco em qualquer bloco da comparação (destaque cruzado, #431). */
+  activeId?: string | null;
+  onActiveChange?: (id: string | null) => void;
 }
 
 /**
@@ -29,7 +32,7 @@ interface Props {
  * números. Sem `avgPowerBreakdown` (serviço sem as quatro médias no período) o serviço mostra "sem dado no período"
  * e não ganha barra.
  */
-export default function PowerBreakdownChart({ services }: Props) {
+export default function PowerBreakdownChart({ services, activeId = null, onActiveChange = () => {} }: Props) {
   const rows = services.map((service) => {
     const total = averagePower(service.avgPowerBreakdown);
     return { service, total, shares: resourceShares(service.avgPowerBreakdown) };
@@ -59,7 +62,12 @@ export default function PowerBreakdownChart({ services }: Props) {
 
       <ul className="power-breakdown m-0 flex list-none flex-col gap-4 p-0">
         {rows.map(({ service, total, shares }) => (
-          <li key={service.id}>
+          <li
+            key={service.id}
+            className={activeId === null ? undefined : activeId === service.id ? 'power-breakdown__row--active' : 'power-breakdown__row--dim'}
+            onPointerEnter={() => onActiveChange(service.id)}
+            onPointerLeave={() => onActiveChange(null)}
+          >
             <div className="flex flex-wrap items-baseline justify-between gap-x-3">
               <span className="text-sm text-text">{service.name}</span>
               <span className="font-data text-sm text-text">

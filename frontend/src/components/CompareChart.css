@@ -25,6 +25,20 @@
     font-family: var(--sans);
   }
 
+  /* Destaque cruzado (#431): o serviço apontado em qualquer bloco fica em evidência, os outros esmaecem */
+  .compare-chart__hit {
+    fill: transparent;
+  }
+
+  .compare-chart__row--dim {
+    opacity: 0.35;
+  }
+
+  .compare-chart__row--active .compare-chart__name {
+    fill: var(--text);
+    font-weight: 600;
+  }
+
   .compare-chart__track {
     fill: var(--border);
   }
