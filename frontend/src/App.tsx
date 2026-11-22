@@ -5,6 +5,7 @@ import ComparePage from './pages/ComparePage';
 import DashboardPage from './pages/DashboardPage';
 import EmissionsPage from './pages/EmissionsPage';
 import HelpPage from './pages/HelpPage';
+import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
 import RegisterPage from './pages/RegisterPage';
@@ -18,7 +19,8 @@ export default function App() {
     <AuthProvider>
       <MonitoringProvider>
         <Routes>
-          {/* Abertas sem sessão: o login e o cadastro por convite (#197), que só funciona com um convite válido */}
+          {/* Abertas sem sessão: a apresentação, o login e o cadastro por convite (#197), que só funciona com um convite válido */}
+          <Route path="/inicio" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/cadastro" element={<RegisterPage />} />
 
