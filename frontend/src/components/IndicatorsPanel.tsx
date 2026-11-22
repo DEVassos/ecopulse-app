@@ -16,6 +16,11 @@ interface Props {
    * A faixa de falha explica o motivo; aqui fica desde quando os valores que continuam na tela valem.
    */
   staleSince: string | null;
+  /**
+   * Ações à direita do título (#434): no Dashboard, a última atualização com o intervalo, Atualizar agora e Imprimir.
+   * Ficam na linha do título, centradas entre ele e o período; em tela estreita, descem para baixo deles.
+   */
+  actions?: ReactNode;
 }
 
 /** Base da comparação, como no contrato de GET /api/services/summary; o detalhe fica no tooltip. */
@@ -72,7 +77,7 @@ function formatBrasilia(iso: string): string {
  * mesma resposta de GET /api/services/summary. O estado dos serviços fica nos cards do KpiPanel; sem cálculo no
  * período, o valor é o traço do MissingValue, nunca zero.
  */
-export default function IndicatorsPanel({ summary, staleSince }: Props) {
+export default function IndicatorsPanel({ summary, staleSince, actions }: Props) {
   const stale = staleSince !== null;
   // Antes da primeira resposta: reticências e "Calculando…", nunca "—" (que quer dizer "sem cálculo") nem zero
   const pending = (
@@ -100,16 +105,20 @@ export default function IndicatorsPanel({ summary, staleSince }: Props) {
   const co2eScale = scaleFor('co2e', [current?.co2eGrams ?? null]);
   return (
     <section className="flex flex-col gap-3" aria-labelledby="summary-title" aria-busy={summary === null}>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <h2 id="summary-title" className="m-0 font-display text-lg font-semibold">
-          Energia e emissões nas últimas 24 h
-        </h2>
-        {/* Período sempre na tela, com o fuso: os números valem para esta janela */}
-        {summary && (
-          <p className="m-0 text-sm text-muted">
-            {formatBrasilia(summary.from)} a {formatBrasilia(summary.to)} (horário de Brasília)
-          </p>
-        )}
+      {/* Título com o período embaixo e, na mesma linha, as ações do painel (#434) */}
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h2 id="summary-title" className="m-0 font-display text-lg font-semibold">
+            Energia e emissões nas últimas 24 h
+          </h2>
+          {/* Período sempre na tela, com o fuso: os números valem para esta janela */}
+          {summary && (
+            <p className="m-0 text-sm text-muted">
+              {formatBrasilia(summary.from)} a {formatBrasilia(summary.to)} (horário de Brasília)
+            </p>
+          )}
+        </div>
+        {actions}
       </div>
       {/* Falha não apaga o número, mas ele não pode parecer atual (#234): a faixa acima diz o que falhou */}
       {staleSince && (

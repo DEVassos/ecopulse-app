@@ -115,6 +115,17 @@ describe('RegionDetail (#326)', () => {
     expect(html).toContain('Esta já é a região de menor intensidade de carbono.');
     expect(html).not.toContain('Ver alternativa mais limpa');
     expect(html).not.toContain('emitiria');
+    // Nenhum destino é "a mais limpa" quando a origem já é (#434): a etiqueta contradiria a frase
+    const markup = render({ overview, originCode: 'eu-north' });
+    expect(markup).not.toContain('region-detail__tag');
+    expect(markup).not.toContain('region-detail__row--cleanest');
+  });
+
+  it('separa a decisão da tabela de destinos em dois blocos, para o painel abrir em duas colunas (#434)', () => {
+    const html = render();
+    expect(html).toMatch(
+      /<div class="region-detail__body"><div class="region-detail__main"><h3 class="region-detail__subtitle">[\s\S]*?<\/div><div class="region-detail__scroll"><table/,
+    );
   });
 
   it('empate com outra região também conta como "já é a mais limpa"', () => {

@@ -1,6 +1,6 @@
 @layer components {
-  /* Mobile-first: em tela estreita são três linhas, sem nada sumir: marca com o nome e Sair, o menu (que rola na
-     horizontal) e a atualização. Na tela larga, tudo numa linha só */
+  /* Mobile-first: em tela estreita são duas linhas, sem nada sumir: marca com o nome e Sair, e o menu (que rola na
+     horizontal). Na tela larga, tudo numa linha só. A atualização do Dashboard mora na página, não aqui (#434) */
   .topbar {
     position: relative;
     border-bottom: 1px solid var(--border);
@@ -94,11 +94,6 @@
     gap: 8px;
     order: 1;
     margin-left: auto;
-  }
-
-  .topbar-status {
-    order: 3;
-    flex-basis: 100%;
   }
 
   /* Com sessão: nome de quem entrou e o botão "Sair" (o .btn-outline de styles/controls.css) */
@@ -341,8 +336,8 @@
 
   /* Tela larga: marca, menu e ações na mesma linha; 10 px na vertical deixa o cabeçalho com cerca de 56 px. As ações
      partem de largura zero e ficam com o espaço que sobra, encolhendo o texto como antes; só quando nem encolhidas
-     cabem (no dashboard, com o selo de atualização, abaixo de cerca de 1.215 px) descem inteiras para uma segunda
-     linha, à direita, em vez de sair da tela e criar rolagem lateral (#398) */
+     cabem (com o menu de seis páginas, abaixo de cerca de 1.110 px) descem inteiras para uma segunda linha, à direita,
+     em vez de sair da tela e criar rolagem lateral (#398) */
   @media (min-width: 961px) {
     .topbar-inner {
       flex-wrap: wrap;
@@ -364,8 +359,7 @@
       gap: 16px;
     }
 
-    .topbar-user,
-    .topbar-status {
+    .topbar-user {
       order: 0;
       flex-basis: auto;
       margin-left: 0;

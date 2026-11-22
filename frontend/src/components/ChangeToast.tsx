@@ -8,7 +8,7 @@ const TOAST_MS = 8000;
 const TOAST_LINES = 3;
 /** Até aqui o Dashboard põe o mapa das regiões no rodapé da tela; o aviso sai de baixo e encurta (#388). */
 const NARROW_QUERY = '(max-width: 599px)';
-/** Folga entre o aviso e a base do cabeçalho, ou o topo da janela quando o cabeçalho já saiu da tela (#388). */
+/** Folga entre o aviso e a base da âncora, ou o topo da janela quando ela já saiu da tela (#388). */
 const TOP_GAP = 8;
 
 const BOX =
@@ -16,25 +16,25 @@ const BOX =
   'text-[var(--text-2)] shadow-[0_8px_24px_rgb(0_0_0/0.25)] motion-safe:animate-[change-toast-in_180ms_ease-out]';
 
 /**
- * Topo do aviso no celular (#388): logo abaixo do cabeçalho enquanto ele aparece, para não cobrir "Atualizar agora"
- * na segunda linha dele; com a página rolada, o cabeçalho sai da tela e o aviso fica perto do topo da janela.
+ * Topo do aviso no celular (#388): logo abaixo da âncora enquanto ela aparece, para não cobrir "Atualizar agora" (desde a
+ * #434, na barra do topo do Dashboard); com a página rolada, a âncora sai da tela e o aviso fica perto do topo da janela.
  */
-export function narrowToastTop(headerBottom: number | null): number {
-  return Math.max(TOP_GAP, Math.round(headerBottom ?? 0) + TOP_GAP);
+export function narrowToastTop(anchorBottom: number | null): number {
+  return Math.max(TOP_GAP, Math.round(anchorBottom ?? 0) + TOP_GAP);
 }
 
 /** Onde o aviso aparece e quantas frases cabem, por largura da janela (#388). */
 export function toastLayout(
   narrow: boolean,
-  headerBottom: number | null = null,
+  anchorBottom: number | null = null,
 ): { lines: number; wrapper: string; box: string; style?: CSSProperties } {
   return narrow
     ? {
         lines: 1,
-        // Topo, abaixo do cabeçalho: o rodapé é do mapa, onde ficam o "+" e o "−" do zoom
+        // Topo, abaixo da barra de atualização: o rodapé é do mapa, onde ficam o "+" e o "−" do zoom
         wrapper: 'fixed right-4 left-4 z-30',
         box: `${BOX} py-2 pr-2 pl-3 text-[13px]`,
-        style: { top: narrowToastTop(headerBottom) },
+        style: { top: narrowToastTop(anchorBottom) },
       }
     : {
         lines: TOAST_LINES,
@@ -44,10 +44,14 @@ export function toastLayout(
 }
 
 /**
- * Base do cabeçalho na janela, medida antes da pintura e acompanhada ao rolar: o cabeçalho tem duas linhas no celular
- * (121 px em 390 px) e a faixa do modo demonstração o empurra para baixo, então um topo fixo cobria os controles dele.
+ * Base da âncora na janela, medida antes da pintura e acompanhada ao rolar. A âncora é o que o aviso não pode cobrir: a
+ * barra com "Atualizar agora" no topo do Dashboard (`data-toast-anchor`, #434), ou o cabeçalho quando ela não existe. A
+ * altura dos dois muda com a largura, e a faixa do modo demonstração os empurra para baixo: um topo fixo cobria os controles.
+ * A página também muda de altura sem rolar nem redimensionar (o período e o selo chegam depois, um aviso de falha entra
+ * acima): o ResizeObserver da página remede nesses casos, senão o aviso ficava por cima do Imprimir (#434). Observa a
+ * página (`#root > *`), não o body: html, body e #root têm altura fixa de 100% e não mudam com o conteúdo.
  */
-function useHeaderBottom(active: boolean): number | null {
+function useAnchorBottom(active: boolean): number | null {
   const [bottom, setBottom] = useState<number | null>(null);
 
   useLayoutEffect(() => {
@@ -55,8 +59,8 @@ function useHeaderBottom(active: boolean): number | null {
     let frame = 0;
     const measure = () => {
       frame = 0;
-      const header = document.querySelector('header.topbar');
-      setBottom(header ? header.getBoundingClientRect().bottom : null);
+      const anchor = document.querySelector('[data-toast-anchor]') ?? document.querySelector('header.topbar');
+      setBottom(anchor ? anchor.getBoundingClientRect().bottom : null);
     };
     const schedule = () => {
       if (frame === 0) frame = window.requestAnimationFrame(measure);
@@ -64,9 +68,12 @@ function useHeaderBottom(active: boolean): number | null {
     measure();
     window.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
+    observer?.observe(document.querySelector('#root > *') ?? document.body);
     return () => {
       window.removeEventListener('scroll', schedule);
       window.removeEventListener('resize', schedule);
+      observer?.disconnect();
       if (frame !== 0) window.cancelAnimationFrame(frame);
     };
   }, [active]);
@@ -97,7 +104,7 @@ export default function ChangeToast({ toast }: { toast: StatusChangesState['toas
   const [closedId, setClosedId] = useState<string | null>(null);
   const open = toast !== null && closedId !== toast.id;
   const narrow = useNarrowViewport();
-  const layout = toastLayout(narrow, useHeaderBottom(narrow && open));
+  const layout = toastLayout(narrow, useAnchorBottom(narrow && open));
 
   useEffect(() => {
     if (!toast) return;

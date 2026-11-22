@@ -344,25 +344,28 @@ export default function EmissionsPage() {
                     </p>
                   )}
                 </div>
-                <LastUpdated
-                  updatedAt={updatedAt}
-                  intervalSeconds={live ? refreshIntervalMs / 1000 : undefined}
-                  stale={error !== ''}
-                >
-                  {loading && <span className="emissions__spinner" aria-hidden="true" />}
-                </LastUpdated>
+                {/* Na linha do título, como no Dashboard (#434): a última atualização à esquerda de Baixar CSV e Imprimir, sem
+                    uma faixa só para os botões. Em tela estreita, o grupo desce para baixo do título */}
+                <div className="emissions__actions">
+                  <LastUpdated
+                    updatedAt={updatedAt}
+                    intervalSeconds={live ? refreshIntervalMs / 1000 : undefined}
+                    stale={error !== ''}
+                  >
+                    {loading && <span className="emissions__spinner" aria-hidden="true" />}
+                  </LastUpdated>
+                  {/* Exportação do período (#24, US13 #54): CSV com todas as coletas e PDF pela impressão do navegador */}
+                  <ExportButtons
+                    serviceId={service.id}
+                    serviceName={service.name}
+                    start={start}
+                    end={end}
+                    fromMs={range.fromMs}
+                    toMs={range.toMs}
+                    expectedCount={periodTotals?.collections ?? null}
+                  />
+                </div>
               </header>
-
-              {/* Exportação do período (#24, US13 #54): CSV com todas as coletas e PDF pela impressão do navegador */}
-              <ExportButtons
-                serviceId={service.id}
-                serviceName={service.name}
-                start={start}
-                end={end}
-                fromMs={range.fromMs}
-                toMs={range.toMs}
-                expectedCount={periodTotals?.collections ?? null}
-              />
 
               {error && <ErrorState message={error} onRetry={refresh} />}
 

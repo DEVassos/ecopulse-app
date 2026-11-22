@@ -43,15 +43,15 @@
     list-style: none;
   }
 
-  /* Alvo de toque de 44 px no celular (RNF01) */
+  /* Alvo de toque de 44 px no celular (RNF01). Três linhas (#434): nome e CO₂e, barra, serviços e rede */
   .region-list__item {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
     width: 100%;
     height: 100%;
     min-height: 44px;
-    padding: 8px 10px;
+    padding: 8px 12px;
     border: 1px solid var(--border);
     border-radius: 8px;
     background: transparent;
@@ -71,11 +71,13 @@
     background: var(--surface-3);
   }
 
+  /* Altura do selo de rede limpa: card com e sem selo ficam do mesmo tamanho */
   .region-list__top {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    min-height: 24px;
   }
 
   .region-list__name {
@@ -102,12 +104,16 @@
     color: var(--muted);
   }
 
-  /* Rede da região com o selo de rede limpa à frente (#324); em tela estreita, o texto desce para baixo do selo */
-  .region-list__grid {
+  /*
+   * Última linha (#434): serviços por estado à esquerda e a rede à direita, sem deixar a metade direita do card vazia.
+   * Quando os dois não cabem (card estreito, abaixo de 1100 px), a rede desce para a linha de baixo, alinhada à esquerda
+   */
+  .region-list__foot {
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 4px 8px;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 2px 12px;
   }
 
   /* Marca de estado: o tracejado distingue "sem métricas" sem depender da cor */

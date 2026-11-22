@@ -53,14 +53,24 @@ describe('RegionList', () => {
   it('guarda as regiões sem serviço hoje num grupo à parte, sem barra nem contagem', () => {
     const html = render();
     expect(html).toContain('<summary>Sem serviço hoje (1)</summary>');
-    expect(html).toMatch(/Estocolmo<small>eu-north<\/small><\/span><span class="region-list__value font-data">sem serviço hoje<\/span><\/span><span class="region-list__meta region-list__grid">[\s\S]*?25 gCO₂e\/kWh · 98% renovável/);
+    // Estocolmo é rede limpa: o selo fica no nome, e a última linha só tem a rede
+    expect(html).toMatch(
+      /Estocolmo<small>eu-north<\/small><span[^>]*>[\s\S]*?Rede limpa<\/span><\/span><span class="region-list__value font-data">sem serviço hoje<\/span><\/span><span class="region-list__foot"><span class="region-list__meta region-list__grid">25 gCO₂e\/kWh · 98% renovável<\/span><\/span>/,
+    );
+  });
+
+  it('junta os serviços e a rede na última linha do card (#434)', () => {
+    expect(render()).toContain(
+      '<span class="region-list__foot"><span class="region-list__meta">2 Ativos</span><span class="region-list__meta region-list__grid">377 gCO₂e/kWh · 22% renovável</span></span>',
+    );
   });
 
   it('põe o selo "Rede limpa" só nas regiões abaixo do limite, inclusive as sem serviço (#324)', () => {
     const html = render();
     // Estocolmo (25 g) tem o selo; Ashburn (377 g) e São Paulo (sem intensidade) não
     expect(html.match(/>Rede limpa</g)).toHaveLength(1);
-    expect(html).toMatch(/Rede limpa<\/span>25 gCO₂e\/kWh · 98% renovável/);
+    // Ao lado do nome, depois do código da região (#434)
+    expect(html).toMatch(/<small>eu-north<\/small><span data-tooltip="[^"]*"[^>]*>[\s\S]*?Rede limpa<\/span><\/span>/);
     expect(html).toContain('data-tooltip-value="25 g CO₂e/kWh · 98% renovável"');
   });
 

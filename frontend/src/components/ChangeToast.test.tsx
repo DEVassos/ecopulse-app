@@ -36,8 +36,8 @@ describe('toastLayout', () => {
     expect(layout.wrapper).toContain('w-[min(360px,calc(100vw-32px))]');
   });
 
-  it('no celular vai para o topo, 8 px abaixo da base do cabeçalho, e mostra uma frase', () => {
-    // 121 px: o cabeçalho de duas linhas em 390 px, com "Atualizar agora" na segunda (#388)
+  it('no celular vai para o topo, 8 px abaixo da base da âncora, e mostra uma frase', () => {
+    // 121 px: uma base medida no celular (#388); na tela, vem da barra de atualização do Dashboard (#434) ou do cabeçalho
     const layout = toastLayout(true, 121);
     expect(layout.lines).toBe(1);
     expect(layout.style).toEqual({ top: 129 });
@@ -46,7 +46,7 @@ describe('toastLayout', () => {
 });
 
 describe('narrowToastTop', () => {
-  it('acompanha a base do cabeçalho, inclusive empurrada pela faixa do modo demonstração', () => {
+  it('acompanha a base da âncora, inclusive empurrada pela faixa do modo demonstração', () => {
     expect(narrowToastTop(121)).toBe(129);
     expect(narrowToastTop(165.6)).toBe(174);
   });

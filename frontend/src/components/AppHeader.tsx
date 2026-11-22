@@ -188,13 +188,15 @@ function MobileMenu() {
 }
 
 interface Props {
-  /** Conteúdo à direita do menu (indicador de atualização, filtros da página). */
-  children?: ReactNode;
   /** Horário da última atualização dos dados, repassado ao logo para pulsar (só em páginas com polling). */
   updatedAt?: string | null;
 }
 
-export default function AppHeader({ children, updatedAt }: Props) {
+/**
+ * Cabeçalho comum às páginas: marca, menu e as ações da pessoa (tema, perfil, Sair). O que é da página, como a última
+ * atualização do Dashboard, fica dentro da página (#434): aqui ele fazia o menu quebrar em duas linhas em 1366 px.
+ */
+export default function AppHeader({ updatedAt }: Props) {
   const navRef = useRef<HTMLElement>(null);
   const { pathname } = useLocation();
   // Celular (#263): o menu rola na horizontal e o item ativo podia ficar cortado ("Con…"); a cada página, ele rola até
@@ -225,10 +227,8 @@ export default function AppHeader({ children, updatedAt }: Props) {
         </nav>
         <MobileMenu />
 
-        {/* No celular as duas caixas se separam: o nome e Sair sobem para a linha da marca e a atualização desce para
-            baixo do menu (AppHeader.css) */}
+        {/* No celular o nome e Sair sobem para a linha da marca (AppHeader.css) */}
         <div className="topbar-actions">
-          {children && <div className="topbar-status">{children}</div>}
           {/* Tema junto do Sair: as duas ações da pessoa, não da página (#265) */}
           <div className="topbar-user">
             {/* Abaixo de 600 px, o tema vai para o painel do Menu */}

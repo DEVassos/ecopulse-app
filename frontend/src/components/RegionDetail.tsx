@@ -181,70 +181,81 @@ export default function RegionDetail({ overview, originCode, destinationCode, on
         {origin.energyKwh === null ? 'energia sem cálculo' : `${formatQuantity('energy', origin.energyKwh)} de energia`} nas {periodLabel}
       </p>
 
-      <h3 className="region-detail__subtitle">
-        {chosen ? 'Destino escolhido' : 'Alternativa mais limpa'} nas {periodLabel}
-      </h3>
-      {noData ? (
-        <p className="region-detail__sentence">Sem dado no período para estimar.</p>
-      ) : shown?.estimate ? (
-        <Recommendation origin={origin} destination={shown.region} estimate={shown.estimate} periodLabel={periodLabel} stale={stale} />
-      ) : alreadyCleanest ? (
-        <p className="region-detail__sentence">Esta já é a região de menor intensidade de carbono.</p>
-      ) : (
-        <p className="region-detail__sentence">Nenhuma outra região tem intensidade da Carbon API agora.</p>
-      )}
+      {/* Duas colunas a partir de 1100 px (#434): a decisão à esquerda e as opções à direita, no lugar da metade vazia */}
+      <div className="region-detail__body">
+        <div className="region-detail__main">
+          <h3 className="region-detail__subtitle">
+            {chosen ? 'Destino escolhido' : 'Alternativa mais limpa'} nas {periodLabel}
+          </h3>
+          {noData ? (
+            <p className="region-detail__sentence">Sem dado no período para estimar.</p>
+          ) : shown?.estimate ? (
+            <Recommendation origin={origin} destination={shown.region} estimate={shown.estimate} periodLabel={periodLabel} stale={stale} />
+          ) : alreadyCleanest ? (
+            <p className="region-detail__sentence">Esta já é a região de menor intensidade de carbono.</p>
+          ) : (
+            <p className="region-detail__sentence">Nenhuma outra região tem intensidade da Carbon API agora.</p>
+          )}
 
-      <div className="region-detail__actions">
-        {cleanest && !alreadyCleanest && chosen?.region.code !== cleanest.region.code && (
-          <button type="button" className="region-detail__button" onClick={() => onDestination(cleanest.region.code, true)}>
-            Ver alternativa mais limpa
-          </button>
-        )}
-        {chosen && (
-          <button type="button" className="region-detail__button" onClick={() => onDestination(null, true)}>
-            Voltar para {origin.name}
-          </button>
-        )}
-      </div>
+          <div className="region-detail__actions">
+            {cleanest && !alreadyCleanest && chosen?.region.code !== cleanest.region.code && (
+              <button type="button" className="region-detail__button" onClick={() => onDestination(cleanest.region.code, true)}>
+                Ver alternativa mais limpa
+              </button>
+            )}
+            {chosen && (
+              <button type="button" className="region-detail__button" onClick={() => onDestination(null, true)}>
+                Voltar para {origin.name}
+              </button>
+            )}
+          </div>
+        </div>
 
-      <div className="region-detail__scroll">
-        <table className="region-detail__table">
-          <caption>
-            Simular outra região: da menor para a maior intensidade, com a energia de {origin.name} nas {periodLabel}
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Região</th>
-              {/* Cabeçalhos curtos para a tabela caber em 390 px; a legenda e o title dizem a unidade inteira */}
-              <th scope="col" title="Intensidade de carbono, em g CO₂e/kWh">g/kWh</th>
-              <th scope="col" title="CO₂e simulado com a energia da origem">Simulado</th>
-              <th scope="col">Diferença</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr key={row.region.code} className={row.cleanest ? 'region-detail__row--cleanest' : undefined}>
-                <th scope="row">
-                  <button
-                    type="button"
-                    className="region-detail__pick"
-                    aria-pressed={chosen?.region.code === row.region.code}
-                    disabled={!row.available}
-                    onClick={() => onDestination(row.region.code)}
-                  >
-                    {destinationName(row.region)}
-                    {row.cleanest && <span className="region-detail__tag">mais limpa</span>}
-                  </button>
-                </th>
-                <td className="font-data">
-                  {row.region.carbonIntensityGco2ePerKwh === null ? 'indisponível' : formatNumber(row.region.carbonIntensityGco2ePerKwh, 0)}
-                </td>
-                <td className="font-data">{row.estimate ? formatQuantity('co2e', row.estimate.grams) : '—'}</td>
-                <td className="font-data">{differenceCell(row)}</td>
+        <div className="region-detail__scroll">
+          <table className="region-detail__table">
+            <caption>
+              Simular outra região: da menor para a maior intensidade, com a energia de {origin.name} nas {periodLabel}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col">Região</th>
+                {/* Cabeçalhos curtos para a tabela caber em 390 px; a legenda e o title dizem a unidade inteira */}
+                <th scope="col" title="Intensidade de carbono, em g CO₂e/kWh">g/kWh</th>
+                <th scope="col" title="CO₂e simulado com a energia da origem">Simulado</th>
+                <th scope="col">Diferença</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                // Com a origem já na rede mais limpa, nenhum destino é "a mais limpa" (#434): a frase acima diz isso
+                const cleanestRow = row.cleanest && !alreadyCleanest;
+                return (
+                  <tr key={row.region.code} className={cleanestRow ? 'region-detail__row--cleanest' : undefined}>
+                    <th scope="row">
+                      <button
+                        type="button"
+                        className="region-detail__pick"
+                        aria-pressed={chosen?.region.code === row.region.code}
+                        disabled={!row.available}
+                        onClick={() => onDestination(row.region.code)}
+                      >
+                        {destinationName(row.region)}
+                        {cleanestRow && <span className="region-detail__tag">mais limpa</span>}
+                      </button>
+                    </th>
+                    <td className="font-data">
+                      {row.region.carbonIntensityGco2ePerKwh === null
+                        ? 'indisponível'
+                        : formatNumber(row.region.carbonIntensityGco2ePerKwh, 0)}
+                    </td>
+                    <td className="font-data">{row.estimate ? formatQuantity('co2e', row.estimate.grams) : '—'}</td>
+                    <td className="font-data">{differenceCell(row)}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <p className="region-detail__note">
