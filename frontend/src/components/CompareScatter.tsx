@@ -20,18 +20,26 @@ interface Props {
   services: ComparedService[];
   /** Destaque de CO₂e do serviço, o mesmo da tabela e das barras, ou null. */
   highlightOf: (id: string) => CompareHighlight | null;
+  /**
+   * Serviço sob o ponteiro ou o foco em qualquer bloco da comparação (destaque cruzado, #431): com a página no controle,
+   * apontar um serviço na tabela ou no ranking abre a dica dele aqui, e o ponto apontado aqui destaca os outros blocos.
+   */
+  activeId?: string | null;
+  onActiveChange?: (id: string | null) => void;
 }
 
 /**
  * Dispersão "Carga ou região?" (RF15, #399): energia no eixo X, CO₂e no Y, um ponto por serviço e uma reta tracejada
  * por região saindo da origem, com a intensidade do período de inclinação. A matriz acima é a tabela equivalente.
  */
-export default function CompareScatter({ services, highlightOf }: Props) {
+export default function CompareScatter({ services, highlightOf, activeId: sharedId, onActiveChange }: Props) {
   const { points, missing } = useMemo(() => scatterPoints(services), [services]);
   const rays = useMemo(() => regionRays(points), [points]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [localId, setLocalId] = useState<string | null>(null);
+  const activeId = sharedId === undefined ? localId : sharedId;
+  const setActiveId = onActiveChange ?? setLocalId;
 
   // Acompanha a largura do card: com 390 px o gráfico encolhe, sem rolagem lateral
   useLayoutEffect(() => {
@@ -120,7 +128,7 @@ export default function CompareScatter({ services, highlightOf }: Props) {
             aria-label="Gráfico Carga ou região? As setas percorrem os serviços, da menor para a maior energia; Esc limpa o destaque."
             onKeyDown={handleKeyDown}
             // Só o foco pelo teclado já mostra o primeiro serviço; no clique, quem escolhe é o ponteiro
-            onFocus={(event) => event.currentTarget.matches(':focus-visible') && setActiveId((id) => id ?? placed[0].id)}
+            onFocus={(event) => event.currentTarget.matches(':focus-visible') && setActiveId(activeId ?? placed[0].id)}
             onBlur={() => setActiveId(null)}
           >
             {width > 0 && (
