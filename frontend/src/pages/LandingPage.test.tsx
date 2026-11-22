@@ -12,6 +12,12 @@ vi.mock('react-router', async (importOriginal) => {
   return { ...actual, Navigate: ({ to }: { to: string }) => <p>vai para {to}</p> };
 });
 
+// Com backend: sem VITE_API_URL (como no CI) o app entra no modo demonstração, que abre as páginas sem login
+vi.mock('../services/services.service', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../services/services.service')>();
+  return { ...actual, isDemoMode: false };
+});
+
 // Sem DOM (renderToStaticMarkup): os efeitos não rodam. O AuthBackdrop lê o matchMedia no primeiro render, então o
 // window é simulado com "menos movimento" desligado; o vídeo e o pulso do logo foram conferidos no navegador (#438).
 function render(path: string, user: AuthContextValue['user']): string {
