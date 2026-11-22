@@ -287,11 +287,21 @@
     padding: 18px 16px 14px;
   }
 
+  /* Título e subtítulo à esquerda; à direita, a última atualização com Baixar CSV e Imprimir, centrados entre as linhas
+     do título (#434, como no Dashboard) */
   .emissions__header {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
+    gap: 8px 24px;
+  }
+
+  .emissions__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
     gap: 8px 16px;
   }
 
