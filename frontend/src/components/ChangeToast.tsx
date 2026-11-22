@@ -47,6 +47,9 @@ export function toastLayout(
  * Base da âncora na janela, medida antes da pintura e acompanhada ao rolar. A âncora é o que o aviso não pode cobrir: a
  * barra com "Atualizar agora" no topo do Dashboard (`data-toast-anchor`, #434), ou o cabeçalho quando ela não existe. A
  * altura dos dois muda com a largura, e a faixa do modo demonstração os empurra para baixo: um topo fixo cobria os controles.
+ * A página também muda de altura sem rolar nem redimensionar (o período e o selo chegam depois, um aviso de falha entra
+ * acima): o ResizeObserver da página remede nesses casos, senão o aviso ficava por cima do Imprimir (#434). Observa a
+ * página (`#root > *`), não o body: html, body e #root têm altura fixa de 100% e não mudam com o conteúdo.
  */
 function useAnchorBottom(active: boolean): number | null {
   const [bottom, setBottom] = useState<number | null>(null);
@@ -65,9 +68,12 @@ function useAnchorBottom(active: boolean): number | null {
     measure();
     window.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
+    observer?.observe(document.querySelector('#root > *') ?? document.body);
     return () => {
       window.removeEventListener('scroll', schedule);
       window.removeEventListener('resize', schedule);
+      observer?.disconnect();
       if (frame !== 0) window.cancelAnimationFrame(frame);
     };
   }, [active]);
