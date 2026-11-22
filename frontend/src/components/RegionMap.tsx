@@ -193,6 +193,13 @@ export default function RegionMap({ overview, selectedCode, onSelect, stale = fa
           if (zoomedRef.current || map.isMoving()) return;
           map.jumpTo({ zoom: fitZoom(HOME.zoom, clientWidth, clientHeight) });
         });
+        // Zoom feito pela pessoa ("+", "−", pinça, roda ou duplo clique; só esses trazem originalEvent): o mapa sai da
+        // visão geral, então girar o celular mantém o zoom escolhido, e o botão "Visão geral" aparece para voltar (#376)
+        map.on('zoomstart', (event) => {
+          if (!event.originalEvent) return;
+          zoomedRef.current = true;
+          setZoomed(true);
+        });
         map.addControl(new library.NavigationControl({ showCompass: false }), 'top-right');
         // Globo na visão geral; ao aproximar, o MapLibre passa sozinho para o plano
         map.on('style.load', () => map?.setProjection({ type: 'globe' }));
