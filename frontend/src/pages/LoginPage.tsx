@@ -58,7 +58,7 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthLayout title="Entrar" description="Entre para acompanhar o monitoramento dos serviços.">
+    <AuthLayout title="Entrar" description="Entre para acompanhar o monitoramento dos serviços." videoBackdrop>
       <form onSubmit={handleSubmit} noValidate>
         {registered && !submitError && (
           <div className="auth-notice" role="status">
