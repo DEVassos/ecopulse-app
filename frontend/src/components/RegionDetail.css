@@ -326,6 +326,17 @@
       grid-template-columns: minmax(0, 1fr) auto;
     }
 
+    /* Em 390 px a tabela passava 9 px da largura e cortava "Diferença" (#434): 4 px de cada lado fazem as quatro colunas
+       caberem; valores mais longos ainda rolam de lado, com a rolagem do .region-detail__scroll */
+    .region-detail__table th,
+    .region-detail__table td {
+      padding-inline: 4px;
+    }
+
+    .region-detail__table th:first-child {
+      padding-left: 0;
+    }
+
     .region-detail__bar-label {
       grid-column: 1 / -1;
       margin-bottom: -4px;
