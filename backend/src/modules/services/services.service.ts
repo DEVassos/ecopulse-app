@@ -1,7 +1,8 @@
 import type { ServiceStatus } from '../../shared/persistence.types';
+import { powerBreakdown, type PowerBreakdown } from '../../domain/carbon-calculator';
 import { MonitoringStatus } from '../../domain/monitoring-status';
 import { NotFoundError } from '../../shared/errors';
-import { ServiceRepository, type ServiceComparisonRow, type ServiceRankingMetric, type ServiceRankingRow, type ServiceWithLastReading } from './services.repository';
+import { ServiceRepository, type ServiceComparisonRow, type ServiceRankingMetric, type ServiceRankingRow, type ServiceSummaryTotalsRow, type ServiceWithLastReading } from './services.repository';
 
 export interface MonitoredService {
   id: string;
@@ -24,6 +25,8 @@ export interface MonitoredService {
   networkGb: number | null;
   powerWatts: number | null;
   carbonIntensityGco2ePerKwh: number | null;
+  /** Parcelas da potência da mesma última coleta, em W (#327); `null` quando `powerWatts` é `null`. */
+  powerBreakdown: PowerBreakdown | null;
 }
 
 export interface ServicesResponse {
@@ -33,6 +36,14 @@ export interface ServicesResponse {
 
 const PERIOD = 'última leitura (intervalo de coleta)';
 const numberOrNull = (value: string | null): number | null => value === null ? null : Number(value);
+
+/**
+ * Parcelas da potência a partir dos quatro recursos, ou `null` quando falta algum deles.
+ */
+function breakdownOf(cpu: string | null, memory: string | null, disk: string | null, network: string | null): PowerBreakdown | null {
+  if (cpu === null || memory === null || disk === null || network === null) return null;
+  return powerBreakdown({ cpuPercent: Number(cpu), memoryGb: Number(memory), diskGb: Number(disk), networkGb: Number(network) });
+}
 
 /** Expõe somente diagnósticos conhecidos; detalhes arbitrários continuam restritos ao banco/log. */
 function statusReason(service: ServiceWithLastReading): string | null {
@@ -67,6 +78,9 @@ function toMonitoredService(service: ServiceWithLastReading): MonitoredService {
     networkGb: numberOrNull(service.network_gb),
     powerWatts: numberOrNull(service.power_watts),
     carbonIntensityGco2ePerKwh: numberOrNull(service.carbon_intensity_gco2e_per_kwh),
+    powerBreakdown: service.power_watts === null
+      ? null
+      : breakdownOf(service.cpu_percent, service.memory_gb, service.disk_gb, service.network_gb),
   };
 }
 
@@ -74,22 +88,81 @@ export async function getServices(repository: ServiceRepository): Promise<Servic
   return { services: (await repository.findAllWithLastReading()).map(toMonitoredService), period: PERIOD };
 }
 
-export interface ServicesSummaryResponse { period: { from: string; to: string }; energyKwh: number | null; co2eGrams: number | null; services: { active: number; unavailable: number; withoutMetrics: number; removed: number } }
+export interface ServiceSummaryTotals {
+  collections: number;
+  failed: number;
+  notCalculated: number;
+  energyKwh: number | null;
+  co2eGrams: number | null;
+  carbonIntensityGco2ePerKwh: number | null;
+}
+export interface ServicesSummaryResponse {
+  from: string;
+  to: string;
+  totals: ServiceSummaryTotals;
+  previous: { from: string; to: string; totals: ServiceSummaryTotals };
+  servicesByStatus: { ativo: number; indisponivel: number; sem_metricas: number; removido: number; total: number };
+}
+
+function summaryTotals(row: ServiceSummaryTotalsRow): ServiceSummaryTotals {
+  const energyKwh = numberOrNull(row.energy_kwh);
+  const co2eGrams = numberOrNull(row.co2e_grams);
+  return {
+    collections: Number(row.collections),
+    failed: Number(row.failed),
+    notCalculated: Number(row.not_calculated),
+    energyKwh,
+    co2eGrams,
+    carbonIntensityGco2ePerKwh: energyKwh === null || energyKwh === 0 || co2eGrams === null
+      ? null
+      : co2eGrams / energyKwh,
+  };
+}
 
 export async function getServicesSummary(repository: ServiceRepository, period: { from: Date; to: Date }): Promise<ServicesSummaryResponse> {
-  const row = await repository.findSummary(period.from, period.to);
-  return { period: { from: period.from.toISOString(), to: period.to.toISOString() }, energyKwh: numberOrNull(row.energy_kwh), co2eGrams: numberOrNull(row.co2e_grams), services: { active: Number(row.active), unavailable: Number(row.unavailable), withoutMetrics: Number(row.without_metrics), removed: Number(row.removed) } };
+  const duration = period.to.getTime() - period.from.getTime();
+  const previous = { from: new Date(period.from.getTime() - duration), to: period.from };
+  // Em sequência de propósito: o repositório pode estar sobre um único client (withClient) e o pg desaconselha
+  // enfileirar consultas concorrentes nele.
+  const currentTotals = await repository.findSummaryTotals(period.from, period.to);
+  const previousTotals = await repository.findSummaryTotals(previous.from, previous.to);
+  const statusRows = await repository.countServicesByStatus();
+  const counts = new Map(statusRows.map(row => [row.status, Number(row.count)]));
+  const ativo = counts.get('ativo') ?? 0;
+  const indisponivel = counts.get('indisponivel') ?? 0;
+  const sem_metricas = counts.get('sem_metricas') ?? 0;
+  const removido = counts.get('removido') ?? 0;
+  return {
+    from: period.from.toISOString(),
+    to: period.to.toISOString(),
+    totals: summaryTotals(currentTotals),
+    previous: {
+      from: previous.from.toISOString(),
+      to: previous.to.toISOString(),
+      totals: summaryTotals(previousTotals),
+    },
+    servicesByStatus: { ativo, indisponivel, sem_metricas, removido, total: ativo + indisponivel + sem_metricas },
+  };
 }
 
 export interface ServiceComparisonInput { ids: string[]; from: Date; to: Date }
 export interface ServiceComparisonResponse {
   from: string; to: string;
   services: Array<{ id: string; name: string; region: string | null; collections: number; failed: number; notCalculated: number;
-    avgCpuPercent: number | null; avgMemoryGb: number | null; avgDiskGb: number | null; avgNetworkGb: number | null; energyKwh: number | null; co2eGrams: number | null }>;
+    avgCpuPercent: number | null; avgMemoryGb: number | null; avgDiskGb: number | null; avgNetworkGb: number | null;
+    /** Composição da potência média do período, em W (#327); `null` quando falta alguma das quatro médias. */
+    avgPowerBreakdown: PowerBreakdown | null;
+    energyKwh: number | null; co2eGrams: number | null;
+    /** Segundos monitorados das mesmas coletas de `energyKwh`: base da potência média do período (#329). */
+    monitoredSeconds: number | null }>;
 }
 function comparison(row: ServiceComparisonRow): ServiceComparisonResponse['services'][number] {
   return { id: row.id, name: row.name, region: row.region, collections: Number(row.collections), failed: Number(row.failed), notCalculated: Number(row.not_calculated),
-    avgCpuPercent: numberOrNull(row.avg_cpu_percent), avgMemoryGb: numberOrNull(row.avg_memory_gb), avgDiskGb: numberOrNull(row.avg_disk_gb), avgNetworkGb: numberOrNull(row.avg_network_gb), energyKwh: numberOrNull(row.energy_kwh), co2eGrams: numberOrNull(row.co2e_grams) };
+    avgCpuPercent: numberOrNull(row.avg_cpu_percent), avgMemoryGb: numberOrNull(row.avg_memory_gb), avgDiskGb: numberOrNull(row.avg_disk_gb),
+    avgNetworkGb: numberOrNull(row.avg_network_gb),
+    avgPowerBreakdown: breakdownOf(row.avg_cpu_percent, row.avg_memory_gb, row.avg_disk_gb, row.avg_network_gb),
+    energyKwh: numberOrNull(row.energy_kwh), co2eGrams: numberOrNull(row.co2e_grams),
+    monitoredSeconds: numberOrNull(row.monitored_seconds) };
 }
 export async function getServiceComparison(repository: ServiceRepository, input: ServiceComparisonInput): Promise<ServiceComparisonResponse> {
   const rows = await repository.compareByIds(input.ids, input.from, input.to);
@@ -106,6 +179,8 @@ export interface ServiceRankingResponse {
     position: number | null; id: string; name: string; region: string | null; status: ServiceStatus;
     energyKwh: number | null; co2eGrams: number | null;
     collections: number; failed: number; notCalculated: number;
+    /** Segundos monitorados das mesmas coletas de `energyKwh` (#329). */
+    monitoredSeconds: number | null;
   }>;
 }
 
@@ -122,6 +197,7 @@ function rankedService(row: ServiceRankingRow, metric: ServiceRankingMetric, pos
     collections: Number(row.collections),
     failed: Number(row.failed),
     notCalculated: Number(row.not_calculated),
+    monitoredSeconds: numberOrNull(row.monitored_seconds),
   };
 }
 

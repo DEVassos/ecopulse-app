@@ -6,7 +6,13 @@ Contrato do backend. A execução integrada usa os containers backend e PostgreS
 
 O dashboard roda em outra origem (`http://localhost:5173`) e chama a API pelo navegador. O backend envia `Access-Control-Allow-Origin` só para as origens de `CORS_ORIGIN` (padrão `http://localhost:5173`, lista separada por vírgula) e responde o preflight `OPTIONS` com `204`, liberando `Content-Type` e `Authorization`. Outra origem não recebe o cabeçalho, e o navegador bloqueia a resposta. Chamadas sem navegador (`curl`) não são afetadas.
 
-As rotas de dados abaixo exigem `Authorization: Bearer <JWT>` obtido em `POST /api/auth/login`. Token ausente, inválido ou expirado devolve `401 UNAUTHORIZED`. Permanecem públicas `GET /health`, `POST /api/auth/login` e `GET /api/monitoring-settings` (o `PUT` exige JWT).
+As rotas de dados abaixo exigem `Authorization: Bearer <JWT>` obtido em `POST /api/auth/login`. Token ausente, inválido ou expirado devolve `401 UNAUTHORIZED`. Permanecem públicas `GET /health`, `POST /api/auth/login`, `GET /api/monitoring-settings` (o `PUT` exige JWT), `GET /api/invitations/:token` e `POST /api/auth/register` (estas duas exigem um convite válido).
+
+### Papéis (#196)
+
+Cada conta tem o papel `admin` ou `usuario`, que vai no JWT emitido pelo login. As duas leem todas as rotas de dados. Só `admin` altera o que é compartilhado: `PUT /api/monitoring-settings` e `POST /api/invitations` devolvem `403 FORBIDDEN` para `usuario`. Token emitido antes da #196, sem papel, é recusado com `401` e a pessoa entra de novo.
+
+Os dois papéis alteram a própria conta (#400): o nome em [`PATCH /api/auth/me`](#patch-apiauthme) e a senha em [`PUT /api/auth/me/password`](#put-apiauthmepassword). O e-mail e o papel não mudam por essas rotas.
 
 ## GET /api/services
 
@@ -36,7 +42,13 @@ Resposta 200:
     "diskGb": 19.26,
     "networkGb": 0.45,
     "powerWatts": 64.06035,
-    "carbonIntensityGco2ePerKwh": 85
+    "carbonIntensityGco2ePerKwh": 85,
+    "powerBreakdown": {
+      "cpuW": 62.67,
+      "memoryW": 1.18875,
+      "diskW": 0.1926,
+      "networkW": 0.009
+    }
   }],
   "period": "última leitura (intervalo de coleta)"
 }
@@ -53,8 +65,9 @@ Campos da última coleta (#297), todos da mesma linha de `collections` que dá `
 | `memoryGb`, `diskGb`, `networkGb` | `memory_gb`, `disk_gb`, `network_gb`, em GB | número ≥ 0 ou `null` | idem |
 | `powerWatts` | `power_watts`, em W | número ≥ 0 ou `null` | cálculo não disponível |
 | `carbonIntensityGco2ePerKwh` | `carbon_intensity_gco2e_per_kwh`, o fator efetivamente usado, em gCO₂e/kWh | número ≥ 0 ou `null` | cálculo não disponível (sem região, região sem fator, API de carbono fora) |
+| `powerBreakdown` | parcelas da potência calculadas dos quatro recursos, em W, cada uma arredondada a seis casas | objeto com `cpuW`, `memoryW`, `diskW` e `networkW`, ou `null` | sem potência calculada ou sem algum recurso |
 
-Invariantes úteis na verificação: `emissionsG ≈ energyKwh × carbonIntensityGco2ePerKwh` e `powerWatts ≈ energyKwh × 3 600 000 ÷ collectionIntervalSeconds` ([`docs/calculos.md`](calculos.md)). O fator é o mesmo de `GET /api/collections?service_id=<id>&limit=1` → `collections[0].carbonIntensityGco2ePerKwh`. `energyKwh` e `emissionsG` são da última coleta, que cobre um intervalo de cerca de 30 s, e não acumulados.
+Invariantes úteis na verificação: `emissionsG ≈ energyKwh × carbonIntensityGco2ePerKwh`, `powerWatts ≈ energyKwh × 3 600 000 ÷ collectionIntervalSeconds` e a soma das quatro parcelas de `powerBreakdown` coincide com `powerWatts` à precisão de seis casas ([`docs/calculos.md`](calculos.md)). O fator é o mesmo de `GET /api/collections?service_id=<id>&limit=1` → `collections[0].carbonIntensityGco2ePerKwh`. `energyKwh` e `emissionsG` são da última coleta, que cobre um intervalo de cerca de 30 s, e não acumulados.
 
 `status` do serviço: `ativo` (última métrica válida), `indisponivel` (falha do agregador ou métrica inválida), `sem_metricas` (404 do agregador para um serviço ainda listado) ou `removido` (saiu da lista do agregador; volta a `ativo` quando reaparece).
 
@@ -80,7 +93,7 @@ Sem registro, esse é o padrão e nenhuma linha é inserida. Tabela ausente ou b
 
 ## PUT /api/monitoring-settings
 
-Exige `Authorization: Bearer <JWT>` do login existente. Corpo JSON:
+Exige `Authorization: Bearer <JWT>` de uma conta `admin` (#196). Corpo JSON:
 
 ```json
 {"refreshIntervalSeconds":60}
@@ -96,13 +109,32 @@ Somente números inteiros 15, 30 ou 60 são aceitos. Campo ausente, string, bool
 |---|---|---|
 | 400 | `VALIDATION_ERROR` | Corpo ou intervalo inválido |
 | 401 | `UNAUTHORIZED` | PUT sem JWT, inválido ou expirado |
+| 403 | `FORBIDDEN` | conta com papel `usuario` |
 | 500 | `DATABASE_ERROR` | Falha no banco, inclusive migração não aplicada |
 
 Erros seguem `{"error":{"code":"VALIDATION_ERROR","message":"refreshIntervalSeconds deve ser 15, 30 ou 60."}}`; respostas não expõem SQL ou stack. Aplicação em volumes existentes: [migração do banco](../database/README.md#configuração-de-monitoramento-250).
 
+## GET /api/regions
+
+Lista as regiões fornecidas pela Carbon API para o mapa (RF13, #319). Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`.
+
+`GET /api/regions`
+
+Cada região sempre traz coordenadas, intensidade de carbono e percentual renovável válidos. `monitoredServices` é a quantidade atual de serviços com o mesmo `code` e estado diferente de `removido`; uma região sem serviço monitorado aparece com `0`. `source: "cache"` informa que a Carbon API falhou e a resposta veio do último cache disponível; por uma hora ele é usado sem nova requisição e, vencido, ainda é a alternativa segura se a atualização falhar.
+
+```json
+{"regions":[{"code":"us-east","country":"United States","region":"Virginia","city":"Ashburn","latitude":39.04,"longitude":-77.49,"carbonIntensityGco2ePerKwh":378,"renewableSharePercent":22,"monitoredServices":2}],"source":"api","fetchedAt":"2026-11-12T13:00:00.000Z"}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 401 | `UNAUTHORIZED` | JWT ausente, inválido ou expirado |
+| 502 | `EXTERNAL_API_ERROR` | Carbon API indisponível ou resposta fora do contrato e não há cache válido/anterior |
+| 500 | `DATABASE_ERROR` | falha ao contar os serviços monitorados |
+
 ## GET /api/services/summary
 
-Indicadores agregados do dashboard (RF08, #175). Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`.
+Indicadores agregados do dashboard (RF08, #234). Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`.
 
 `GET /api/services/summary?from=2026-10-20T00:00:00Z&to=2026-10-21T00:00:00Z`
 
@@ -115,20 +147,24 @@ Regras:
 
 - Sem `from` e `to`, o período são as **últimas 24 h** até o instante da requisição. Enviar só um dos dois devolve 400.
 - O período é fechado no início e aberto no fim: entra a coleta de `from` e fica de fora a de `to`, como em `GET /api/collections/series` e `GET /api/services/compare`.
+- `from` e `to` no topo da resposta ecoam o período resolvido em UTC. `previous` sempre contém o intervalo imediatamente anterior, com a mesma duração.
+- `collections` conta todas as coletas no intervalo; `failed` conta `status <> 'ok'`; `notCalculated` conta `calculation_status <> 'disponivel'`. As duas últimas contagens podem se sobrepor.
 - `energyKwh` e `co2eGrams` somam **só as coletas com cálculo disponível** no período. Sem nenhuma, vêm `null` ("não calculado"), nunca `0`; `0` é um total calculado igual a zero.
-- `services` é o **estado atual** de cada serviço, contado uma vez por serviço, e **não depende do período**.
-- O dashboard chama a rota duas vezes por ciclo: as últimas 24 h e as 24 h anteriores a elas, para a variação percentual.
+- `carbonIntensityGco2ePerKwh` é `co2eGrams ÷ energyKwh`; vem `null` sem energia calculada ou quando a energia é zero.
+- `servicesByStatus` conta o estado **atual** dos serviços e não depende do período. Os quatro estados sempre aparecem; `total` soma `ativo`, `indisponivel` e `sem_metricas`, sem os removidos.
+- `previous.totals` usa as mesmas regras do período atual. A variação percentual é calculada pelo frontend.
+- O dashboard consulta esta rota uma vez por ciclo para obter os totais atuais e anteriores.
 
 Resposta 200:
 
 ```json
-{"period":{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z"},"energyKwh":0.0124,"co2eGrams":1.05,"services":{"active":3,"unavailable":0,"withoutMetrics":0,"removed":1}}
+{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z","totals":{"collections":23040,"failed":90,"notCalculated":90,"energyKwh":11.016,"co2eGrams":936.36,"carbonIntensityGco2ePerKwh":85},"previous":{"from":"2026-10-19T00:00:00.000Z","to":"2026-10-20T00:00:00.000Z","totals":{"collections":22980,"failed":12,"notCalculated":12,"energyKwh":10.512,"co2eGrams":893.52,"carbonIntensityGco2ePerKwh":85}},"servicesByStatus":{"ativo":6,"indisponivel":1,"sem_metricas":1,"removido":2,"total":8}}
 ```
 
 Sem coleta calculada no período:
 
 ```json
-{"period":{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z"},"energyKwh":null,"co2eGrams":null,"services":{"active":3,"unavailable":0,"withoutMetrics":0,"removed":1}}
+{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z","totals":{"collections":0,"failed":0,"notCalculated":0,"energyKwh":null,"co2eGrams":null,"carbonIntensityGco2ePerKwh":null},"previous":{"from":"2026-10-19T00:00:00.000Z","to":"2026-10-20T00:00:00.000Z","totals":{"collections":0,"failed":0,"notCalculated":0,"energyKwh":null,"co2eGrams":null,"carbonIntensityGco2ePerKwh":null}},"servicesByStatus":{"ativo":3,"indisponivel":0,"sem_metricas":0,"removido":1,"total":3}}
 ```
 
 Erros:
@@ -136,20 +172,21 @@ Erros:
 | HTTP | Código | Situação |
 |---|---|---|
 | 400 | VALIDATION_ERROR | só `from` ou só `to`; data sem hora, inexistente (30/02) ou texto; `from` igual ou posterior a `to`; período acima de 31 dias |
+| 401 | UNAUTHORIZED | JWT ausente, inválido ou expirado |
 | 500 | DATABASE_ERROR | falha de conexão ou de consulta no PostgreSQL |
 
 ```json
 {"error":{"code":"VALIDATION_ERROR","message":"from deve ser anterior a to."}}
 ```
 
-O formato desta rota (`period{}` e `services{}`) é diferente do de `GET /api/collections/series` e `GET /api/services/compare` (`from`/`to` no topo, contagens `collections`/`failed`/`notCalculated`). O alinhamento ao contrato combinado na #175 ficou para a Sprint 3.
+Erros usam o envelope global `{"error":{"code":"VALIDATION_ERROR","message":"from deve ser anterior a to."}}`. O `previous` é sempre incluído, mesmo quando não há coleta calculada no período anterior.
 
 ## GET /api/collections
 
 Histórico de coletas. Requer autenticação; sem token válido devolve `401 UNAUTHORIZED`. Não recebe corpo. Parâmetros opcionais:
 
 - `service_id`: inteiro positivo;
-- `from` e `to`: data **com hora** em ISO 8601, como `2026-10-18T00:00:00Z` ou `2026-10-18T00:00:00-03:00`. Só a data (`2026-10-18`) devolve 400, e `from` precisa ser anterior ou igual a `to`;
+- `from` e `to`: data **com hora** em ISO 8601, como `2026-10-18T00:00:00Z` ou `2026-10-18T00:00:00-03:00`. Só a data (`2026-10-18`) devolve 400, e `from` precisa ser anterior a `to`;
 - `limit`: de 1 a 500, padrão 50.
 
 A lista sai sempre da coleta mais recente para a mais antiga. `status` da coleta: `ok`, `erro` (falha do agregador ou métrica inválida, com `errorMessage`) ou `sem_metricas`.
@@ -167,10 +204,10 @@ Cada coleta traz o resultado do cálculo de energia e CO₂e ([fórmulas](calcul
 `collectionIntervalSeconds` é o intervalo informado pela API de métricas naquela coleta, em segundos; é `null` quando a coleta não trouxe métricas (`erro` ou `sem_metricas`). O dashboard usa esse valor para distinguir o intervalo normal entre coletas de um período sem nenhum registro.
 
 ```json
-{"collections":[{"id":"2","serviceId":"1","collectedAt":"2026-10-14T20:00:00.000Z","status":"ok","collectionIntervalSeconds":27,"cpuPercent":42.5,"memoryGb":1.2,"diskGb":10,"networkGb":0.3,"errorMessage":null,"calculationStatus":"disponivel","energyKwh":0.000480452625,"co2eGrams":0.040838473125,"carbonIntensityGco2ePerKwh":85},{"id":"1","serviceId":"1","collectedAt":"2026-10-14T19:45:00.000Z","status":"erro","collectionIntervalSeconds":null,"cpuPercent":null,"memoryGb":null,"diskGb":null,"networkGb":null,"errorMessage":"Timeout","calculationStatus":"nao_calculado","energyKwh":null,"co2eGrams":null,"carbonIntensityGco2ePerKwh":null}],"period":{"from":"2026-10-14T00:00:00.000Z","to":"2026-10-14T23:59:59.999Z"}}
+{"collections":[{"id":"2","serviceId":"1","collectedAt":"2026-10-14T20:00:00.000Z","status":"ok","collectionIntervalSeconds":27,"cpuPercent":42.5,"memoryGb":1.2,"diskGb":10,"networkGb":0.3,"errorMessage":null,"calculationStatus":"disponivel","energyKwh":0.000480452625,"co2eGrams":0.040838473125,"carbonIntensityGco2ePerKwh":85},{"id":"1","serviceId":"1","collectedAt":"2026-10-14T19:45:00.000Z","status":"erro","collectionIntervalSeconds":null,"cpuPercent":null,"memoryGb":null,"diskGb":null,"networkGb":null,"errorMessage":"Timeout","calculationStatus":"nao_calculado","energyKwh":null,"co2eGrams":null,"carbonIntensityGco2ePerKwh":null}],"period":{"from":"2026-10-14T00:00:00.000Z","to":"2026-10-15T00:00:00.000Z"}}
 ```
 
-O limite `to` é **inclusivo** (`collected_at <= to`): quem precisa de um período com fim aberto deve recuar 1 ms no parâmetro.
+O período é fechado no início e aberto no fim (`collected_at >= from AND collected_at < to`), igual às agregações. Uma coleta exatamente em `to` não aparece; `from` precisa ser anterior a `to`.
 
 Parâmetro inválido devolve 400 `VALIDATION_ERROR`; `service_id` inexistente devolve 404 `NOT_FOUND`; falha de banco devolve 500 no envelope global, sem stack ou SQL.
 
@@ -224,10 +261,12 @@ Compara de 2 a 10 serviços no mesmo período. Requer autenticação; sem token 
 - `ids`: ids inteiros positivos, distintos e separados por vírgula;
 - `from` e `to`: instantes ISO 8601 obrigatórios, com intervalo `[from, to)` de até 31 dias.
 
-Resposta 200 ecoa `from` e `to` e traz, por serviço, contagens de coletas, falhas e coletas sem cálculo, médias de CPU/memória/disco/rede e somas de energia e CO₂e. Um serviço sem coleta permanece na resposta com `collections: 0` e métricas agregadas `null`; um id inexistente devolve 404. Entrada inválida devolve 400 `VALIDATION_ERROR`.
+Resposta 200 ecoa `from` e `to` e traz, por serviço, contagens de coletas, falhas e coletas sem cálculo, médias de CPU/memória/disco/rede ponderadas por `collection_interval_seconds`, a decomposição `avgPowerBreakdown` dessas médias, somas de energia e CO₂e e o tempo monitorado (`monitoredSeconds`, #329). As médias usam as coletas com `status = 'ok'`; `avgPowerBreakdown` é `null` quando não há as quatro médias. Um serviço sem coleta permanece na resposta com `collections: 0` e métricas agregadas `null`; um id inexistente devolve 404. Entrada inválida devolve 400 `VALIDATION_ERROR`.
+
+`monitoredSeconds` (#329) é a soma dos `collection_interval_seconds` das **mesmas coletas** que entram em `energyKwh` e `co2eGrams` (`calculation_status = 'disponivel'`): inteiro ≥ 0, ou `null` quando nenhuma coleta do período foi calculada. Com ele e `energyKwh` sai a potência média do período em W, `energyKwh × 3 600 000 ÷ monitoredSeconds` — a eficiência energética e de carbono descrita em [calculos.md](calculos.md#eficiência-energética-e-de-carbono). Essa média **não** é `AVG(power_watts)` (conjunto diferente de coletas, só `status = 'ok'`) nem a carga de trabalho do serviço.
 
 ```json
-{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z","services":[{"id":"1","name":"Demo","region":"Sul","collections":12,"failed":0,"notCalculated":0,"avgCpuPercent":42.5,"avgMemoryGb":2.1,"avgDiskGb":10,"avgNetworkGb":0.3,"energyKwh":0.01,"co2eGrams":0.85}]}
+{"from":"2026-10-20T00:00:00.000Z","to":"2026-10-21T00:00:00.000Z","services":[{"id":"1","name":"Demo","region":"Sul","collections":12,"failed":0,"notCalculated":0,"avgCpuPercent":42.5,"avgMemoryGb":2.1,"avgDiskGb":10,"avgNetworkGb":0.3,"avgPowerBreakdown":{"cpuW":42.5,"memoryW":0.7875,"diskW":0.1,"networkW":0.006},"energyKwh":0.01,"co2eGrams":0.85,"monitoredSeconds":43200}]}
 ```
 
 ## GET /api/services/ranking
@@ -244,7 +283,7 @@ Ordena os serviços pelo consumo de energia ou pelas emissões de CO₂e no per�
 
 Sem limites, usa as últimas 24 horas até o instante da consulta. A resposta ecoa o período em UTC. Inclui os serviços atuais; um serviço removido só aparece se tiver ao menos uma coleta no período, e seu estado atual é mantido.
 
-As duas somas são sempre devolvidas. Entram apenas coletas com `calculation_status = 'disponivel'`; `null` significa que não houve cálculo disponível, enquanto zero é um total calculado. `collections` conta todas as coletas no período, `failed` conta status diferente de `ok` e `notCalculated` conta cálculo diferente de `disponivel` (essas duas contagens podem se sobrepor, conforme `/api/services/compare`).
+As duas somas são sempre devolvidas, junto do tempo monitorado `monitoredSeconds` (#329): a soma dos `collection_interval_seconds` das mesmas coletas com `calculation_status = 'disponivel'`, inteiro ≥ 0 ou `null` quando nenhuma foi calculada. `energyKwh × 3 600 000 ÷ monitoredSeconds` é a potência média do período em W ([calculos.md](calculos.md#eficiência-energética-e-de-carbono)), usada na coluna "Potência média (W)" da lista de serviços. Entram apenas coletas com `calculation_status = 'disponivel'`; `null` significa que não houve cálculo disponível, enquanto zero é um total calculado. `collections` conta todas as coletas no período, `failed` conta status diferente de `ok` e `notCalculated` conta cálculo diferente de `disponivel` (essas duas contagens podem se sobrepor, conforme `/api/services/compare`).
 
 A ordenação usa a métrica escolhida em ordem decrescente, com desempate por `name` crescente e depois `id` crescente. Valores `null` ficam ao final com `position: null`; os demais recebem posições sequenciais. IDs são strings para preservar `bigint`.
 
@@ -254,8 +293,8 @@ A ordenação usa a métrica escolhida em ordem decrescente, com desempate por `
   "from": "2026-11-02T03:00:00.000Z",
   "to": "2026-11-03T03:00:00.000Z",
   "services": [
-    { "position": 1, "id": "3", "name": "Fraud Detector", "region": "us-east", "status": "ativo", "energyKwh": 1.712, "co2eGrams": 645.4, "collections": 2880, "failed": 0, "notCalculated": 0 },
-    { "position": null, "id": "7", "name": "Inventory Sync", "region": "ca-central", "status": "sem_metricas", "energyKwh": null, "co2eGrams": null, "collections": 2880, "failed": 0, "notCalculated": 2880 }
+    { "position": 1, "id": "3", "name": "Fraud Detector", "region": "us-east", "status": "ativo", "energyKwh": 1.712, "co2eGrams": 645.4, "monitoredSeconds": 172800, "collections": 2880, "failed": 0, "notCalculated": 0 },
+    { "position": null, "id": "7", "name": "Inventory Sync", "region": "ca-central", "status": "sem_metricas", "energyKwh": null, "co2eGrams": null, "monitoredSeconds": null, "collections": 2880, "failed": 0, "notCalculated": 2880 }
   ]
 }
 ```
@@ -268,27 +307,150 @@ A ordenação usa a métrica escolhida em ordem decrescente, com desempate por `
 
 Exemplo de erro de validação: `{"error":{"code":"VALIDATION_ERROR","message":"metric deve ser energy ou co2e."}}`.
 
+## GET /api/regions/summary
+
+Resumo ambiental regional da #320. Exige `Authorization: Bearer <JWT>`. Não consulta a Carbon API nem depende da lista de regiões da #319.
+
+| Parâmetro | Obrigatório | Regra |
+|---|---|---|
+| `from`, `to` | juntos, ou ambos ausentes | ISO 8601 com hora, `from < to`, até 31 dias; sem ambos, últimas 24 horas |
+
+O período `[from,to)` é ecoado em UTC. Agrupa por **services.region_code atual**, incluindo o histórico de removidos nas somas, como `/api/services/summary`. Só `calculation_status = 'disponivel'` entra em `energyKwh` (kWh) e `co2eGrams` (g); ausência de cálculo é `null`, zero calculado é `0`. `collections` conta todas as coletas da janela; `failed` conta `status <> 'ok'`; `notCalculated` conta `calculation_status <> 'disponivel'` (as contagens podem se sobrepor).
+
+Contagens de serviços são distintas e consideram o estado **atual**, sem removidos. Precedência: `indisponivel > sem_metricas > ativo`; sem serviços nesses estados, `worstStatus: null`. Região só com removidos pode aparecer, com contagens zeradas e histórico preservado. Um único grupo `code: null` reúne serviços sem região. Região com serviço mas sem coletas tem somas nulas e contagens de coletas zero; região sem serviço cadastrado não é inventada. Sem serviços, `regions: []`. Ordem por `code` crescente, com `null` ao final.
+
+Exemplo 200 (ilustrativo):
+
+```json
+{"from":"2026-04-01T00:00:00.000Z","to":"2026-04-03T00:00:00.000Z","regions":[{"code":"us-east","energyKwh":7,"co2eGrams":35,"collections":4,"failed":0,"notCalculated":1,"services":{"ativo":1,"indisponivel":1,"sem_metricas":0},"worstStatus":"indisponivel"}]}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | limite ausente, data inválida/sem hora, início igual/posterior ao fim ou janela maior que 31 dias |
+| 401 | `UNAUTHORIZED` | JWT ausente, inválido ou expirado |
+| 500 | `DATABASE_ERROR` | falha de consulta ou conexão PostgreSQL |
+
+Erros seguem o envelope global `{"error":{"code":"VALIDATION_ERROR","message":"from deve ser anterior a to."}}`. A soma regional e o resumo geral devem ser comparados com **os mesmos instantes** e dados estáveis, incluindo NULL quando não há cálculo; snapshots de requisições durante a coleta podem diferir. Testes, SQL independente e EXPLAIN: [verificação da #320](arquitetura/verificacao-regions-summary.md).
+
 ## POST /api/auth/login
 
-Autentica o administrador sem expor senha ou hash. Use as credenciais `ADMIN_EMAIL` e `ADMIN_PASSWORD` definidas no `.env`; o `.env.example` contém apenas valores de desenvolvimento. Corpo JSON obrigatório:
+Autentica uma conta sem expor senha ou hash. O administrador inicial usa as credenciais `ADMIN_EMAIL` e `ADMIN_PASSWORD` definidas no `.env`; o `.env.example` contém apenas valores de desenvolvimento. Contas criadas por convite entram com o e-mail do convite e a senha escolhida no cadastro. Corpo JSON obrigatório:
 
 ```json
 {"email":"admin@ecopulse.local","password":"admin1234"}
 ```
 
-Com credenciais válidas, devolve `200`; e-mail inexistente e senha incorreta devolvem o mesmo `401 UNAUTHORIZED`; corpo sem `email` ou `password` devolve `400 VALIDATION_ERROR`. O token é assinado com HS256 usando `JWT_SECRET` e expira conforme `JWT_EXPIRES_IN`.
+Com credenciais válidas, devolve `200`; e-mail inexistente e senha incorreta devolvem o mesmo `401 UNAUTHORIZED`; corpo sem `email` ou `password` devolve `400 VALIDATION_ERROR`. Em volume criado antes da #196, sem a coluna `role`, o login devolve `500 DATABASE_ERROR` com a mensagem que aponta a migração `003-users-role-invitations.sql`, em vez de emitir um token sem papel. O token é assinado com HS256 usando `JWT_SECRET`, leva o e-mail e o papel (`role`) e expira conforme `JWT_EXPIRES_IN`. A resposta traz também a conta, sem hash de senha (#196):
 
 ```json
-{"token":"<JWT>"}
+{"token":"<JWT>","user":{"id":"1","email":"admin@ecopulse.local","name":"Administrador","role":"admin"}}
 ```
 
 ## GET /api/auth/me
 
-Rota mínima protegida para verificar o middleware. Envie `Authorization: Bearer <JWT>`; token ausente, inválido ou expirado devolve `401 UNAUTHORIZED`. Com token válido, devolve `200` com o `id` e o `email` do usuário autenticado.
+Confirma a sessão no banco. Envie `Authorization: Bearer <JWT>`; token ausente, inválido ou expirado devolve `401 UNAUTHORIZED`, e conta que não existe mais também. Com token válido, devolve `200` com a conta lida do banco: `id`, `email`, `name` e `role` (#196).
 
 ```json
-{"id":"1","email":"admin@ecopulse.local"}
+{"id":"1","email":"admin@ecopulse.local","name":"Administrador","role":"admin"}
 ```
+
+## PATCH /api/auth/me
+
+Altera o nome da própria conta (#400), para os papéis `admin` e `usuario`. Exige `Authorization: Bearer <JWT>`. Corpo JSON:
+
+```json
+{"name":"Ana Souza"}
+```
+
+`name` segue a regra do cadastro: de 1 a 100 caracteres, sem os espaços das pontas. O e-mail e o papel não mudam por esta rota, porque o e-mail identifica a conta e vai dentro do JWT, e o papel vem do convite; campos `email` ou `role` no corpo são ignorados. A alteração grava `users.updated_at`. Resposta `200` com a conta atualizada, sem hash; a partir daí `GET /api/auth/me` devolve o nome novo, e o JWT da sessão continua valendo.
+
+```json
+{"id":"2","email":"usuario@ecopulse.local","name":"Ana Souza","role":"usuario"}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | corpo sem `name` ou com `name` que não é texto (`Informe name.`); nome vazio ou com mais de 100 caracteres |
+| 401 | `UNAUTHORIZED` | JWT ausente, inválido ou expirado; conta que não existe mais |
+| 500 | `DATABASE_ERROR` | falha no PostgreSQL |
+
+## PUT /api/auth/me/password
+
+Troca a senha da própria conta (#400), para os papéis `admin` e `usuario`. Exige `Authorization: Bearer <JWT>`. Corpo JSON:
+
+```json
+{"currentPassword":"usuario1234","newPassword":"nova12345"}
+```
+
+A nova senha segue a regra do cadastro (8 a 72 caracteres, com pelo menos uma letra e um número), precisa ser diferente da atual e é gravada com bcrypt (10 rounds), junto com `updated_at`. Resposta `204`, sem corpo; a partir daí o login aceita só a senha nova.
+
+- **Senha atual errada responde `400`, não `401`.** O `401` quer dizer sessão inválida, e o frontend encerra a sessão quando o recebe; quem só errou a senha atual continua logado e vê o erro no campo. A resposta é a mesma se outra solicitação mudar a senha entre a conferência e a gravação.
+- **Trocar a senha não encerra as outras sessões.** O JWT não tem lista de revogação: os tokens emitidos antes da troca, o desta sessão e os de outros navegadores, continuam valendo até expirar (`JWT_EXPIRES_IN`, padrão 8 h). Encerrar todas as sessões antes disso exige trocar `JWT_SECRET` e reiniciar o backend, o que vale para todas as contas.
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | corpo sem `currentPassword` ou `newPassword`; nova senha fora da regra; senha atual errada (`A senha atual não confere.`); nova igual à atual (`A nova senha deve ser diferente da atual.`) |
+| 401 | `UNAUTHORIZED` | JWT ausente, inválido ou expirado; conta que não existe mais |
+| 500 | `DATABASE_ERROR` | falha no PostgreSQL |
+
+## POST /api/invitations
+
+Emite um convite de cadastro (#196). Exige `Authorization: Bearer <JWT>` de uma conta `admin`. Corpo JSON, com `role` igual a `admin` ou `usuario`:
+
+```json
+{"email":"ana@exemplo.com","role":"usuario"}
+```
+
+O e-mail é gravado em minúsculas. O token do link tem 32 bytes aleatórios (`crypto.randomBytes`, base64url); o banco guarda só o SHA-256 dele. O link usa a primeira origem de `CORS_ORIGIN` e vale `INVITATION_TTL_HOURS` horas (padrão 72). Sem envio de e-mail: o administrador copia o link. Resposta `201`:
+
+```json
+{"inviteUrl":"http://localhost:5173/cadastro?convite=jav-t9mhiWzKLvkFREXj6hyLzCcvzrf8dGCLAxrFQpY","expiresAt":"2026-11-24T03:05:31.492Z"}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | e-mail ausente ou inválido; `role` diferente de `admin` e `usuario` |
+| 401 | `UNAUTHORIZED` | JWT ausente, inválido ou expirado |
+| 403 | `FORBIDDEN` | conta com papel `usuario` |
+| 409 | `CONFLICT` | já existe conta com esse e-mail |
+| 500 | `DATABASE_ERROR` | falha no PostgreSQL |
+
+## GET /api/invitations/:token
+
+Público: quem abre o link ainda não tem conta. `:token` é o valor de `convite=` do link. Devolve o que a tela de cadastro mostra em somente leitura:
+
+```json
+{"email":"ana@exemplo.com","role":"usuario","expiresAt":"2026-11-24T03:05:31.492Z"}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 404 | `NOT_FOUND` | convite inexistente ou token fora do formato |
+| 410 | `GONE` | convite já usado (`Este convite já foi usado.`) ou expirado |
+| 500 | `DATABASE_ERROR` | falha no PostgreSQL |
+
+## POST /api/auth/register
+
+Cria uma conta a partir de um convite (#196). Público, mas sem convite válido não há cadastro. Corpo JSON:
+
+```json
+{"token":"jav-t9mhiWzKLvkFREXj6hyLzCcvzrf8dGCLAxrFQpY","name":"Ana","password":"senha1234"}
+```
+
+O e-mail e o papel vêm do convite; campos `email` ou `role` no corpo são ignorados. `name` tem de 1 a 100 caracteres (espaços nas pontas são removidos). A senha tem de 8 a 72 caracteres, com pelo menos uma letra e um número, e é gravada com bcrypt (10 rounds). A conta é criada e o convite é marcado como usado na mesma transação: duas tentativas simultâneas com o mesmo link criam uma conta só. Resposta `201`, sem hash:
+
+```json
+{"id":"2","email":"ana@exemplo.com","name":"Ana","role":"usuario"}
+```
+
+| HTTP | Código | Situação |
+|---|---|---|
+| 400 | `VALIDATION_ERROR` | corpo sem `token`, `name` ou `password`; nome vazio ou longo; senha fora da regra |
+| 404 | `NOT_FOUND` | convite inexistente |
+| 409 | `CONFLICT` | o e-mail do convite ganhou conta depois da emissão (o convite continua disponível) |
+| 410 | `GONE` | convite já usado ou expirado |
+| 500 | `DATABASE_ERROR` | falha no PostgreSQL |
 
 ## GET /health
 
@@ -312,9 +474,12 @@ Health comprova conectividade, não valida existência de tabelas, persistência
 
 | HTTP | Código | Situação |
 |---|---|---|
-| 400 | VALIDATION_ERROR | JSON inválido com Content-Type application/json; parâmetro inválido em `GET /api/collections`, `GET /api/collections/series`, `GET /api/services/summary`, `GET /api/services/compare`, `GET /api/services/ranking` ou no login |
-| 401 | UNAUTHORIZED | credenciais inválidas no login; token ausente, inválido ou expirado nas rotas de dados e em `GET /api/auth/me` |
-| 404 | NOT_FOUND | rota não registrada, incluindo métodos não registrados; `service_id` inexistente em `GET /api/collections` e em `GET /api/collections/series` |
+| 400 | VALIDATION_ERROR | JSON inválido com Content-Type application/json; parâmetro inválido em `GET /api/collections`, `GET /api/collections/series`, `GET /api/services/summary`, `GET /api/services/compare`, `GET /api/services/ranking` ou no login; corpo inválido ou senha atual errada em `PATCH /api/auth/me` e `PUT /api/auth/me/password` |
+| 401 | UNAUTHORIZED | credenciais inválidas no login; token ausente, inválido, expirado ou sem papel nas rotas de dados, em `GET /api/auth/me` e nas rotas de alteração |
+| 403 | FORBIDDEN | conta `usuario` em `PUT /api/monitoring-settings` ou `POST /api/invitations` |
+| 404 | NOT_FOUND | rota não registrada, incluindo métodos não registrados; `service_id` inexistente em `GET /api/collections` e em `GET /api/collections/series`; convite inexistente |
+| 409 | CONFLICT | e-mail que já tem conta em `POST /api/invitations` ou `POST /api/auth/register` |
+| 410 | GONE | convite já usado ou expirado |
 | 500 | DATABASE_ERROR | falha de conexão ou de consulta no PostgreSQL |
 | 500 | INTERNAL_ERROR | erro inesperado, sem detalhes internos |
 
@@ -324,4 +489,4 @@ Envelope único, sem stack, credenciais ou consulta SQL:
 {"error":{"code":"VALIDATION_ERROR","message":"JSON inválido no corpo da requisição."}}
 ```
 
-Roteiro de verificação, configuração e scripts: [backend/README.md](../backend/README.md). A autenticação está em `POST /api/auth/login` e protege as rotas de dados e `GET /api/auth/me`; a autenticação das rotas de configuração e de auditoria de entradas continua prevista para a Sprint 2.
+Roteiro de verificação, configuração e scripts: [backend/README.md](../backend/README.md). A autenticação está em `POST /api/auth/login` e protege as rotas de dados e `GET /api/auth/me`; `PUT /api/monitoring-settings` e `POST /api/invitations` exigem também o papel `admin`. Não existe rota de auditoria de entradas: a tabela `access_entries` está no schema, sem uso no código.

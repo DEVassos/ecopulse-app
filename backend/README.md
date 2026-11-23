@@ -7,11 +7,17 @@ API REST em Node.js com Express 5 e TypeScript estrito, persistência no Postgre
 - grava o histórico no PostgreSQL (#14, #19);
 - expõe `GET /health`, `GET /api/services` e `GET /api/collections` (#8, #111, #112), com CORS liberado para o dashboard (#118). Na Sprint 2, `GET /api/collections/series` passou a devolver a série temporal de um serviço em intervalos (#189).
 
-`POST /api/auth/login` autentica administradores com bcrypt e emite JWT. As rotas de dados (`/api/services` e `/api/collections`) e `GET /api/auth/me` exigem `Authorization: Bearer <JWT>` (#257); `/health`, o login e `GET /api/monitoring-settings` continuam públicos. O módulo `modules/monitoring-settings` separa routes/controller/service/repository: GET público e PUT autenticado em `/api/monitoring-settings`, com intervalos 15/30/60 s para a tela (#250). O worker mantém seu agendamento individual. Contrato e erros: [API](../docs/api.md#get-apimonitoring-settings); volumes existentes exigem a [migração 001](../database/README.md#configuração-de-monitoramento-250). Nenhuma variável ou dependência nova.
+`POST /api/auth/login` autentica administradores com bcrypt e emite JWT. As rotas de dados (`/api/services` e `/api/collections`) e `GET /api/auth/me` exigem `Authorization: Bearer <JWT>` (#257); `/health`, o login e `GET /api/monitoring-settings` continuam públicos. O módulo `modules/monitoring-settings` separa routes/controller/service/repository: GET público e PUT autenticado em `/api/monitoring-settings`, com intervalos 15/30/60 s para a tela (#250). O worker mantém seu agendamento individual. Contrato e erros: [API](../docs/api.md#get-apimonitoring-settings); volumes existentes exigem a [migração 001](../database/README.md#configuração-de-monitoramento-250).
+
+Papéis e convites (#196): o JWT leva o papel da conta (`admin` ou `usuario`), e `requireAdmin` (`middlewares/auth.ts`) deixa só administradores alterarem a configuração e emitirem convites (403 para `usuario`). `modules/invitations` emite o convite (`POST /api/invitations`), mostra o convite para a tela de cadastro (`GET /api/invitations/:token`) e cria a conta (`POST /api/auth/register`) dentro de `withTransaction`. Variável nova: `INVITATION_TTL_HOURS`. Volumes existentes exigem a [migração 003](../database/README.md#papéis-e-convites-196).
+
+Perfil (#400): qualquer papel altera o próprio nome (`PATCH /api/auth/me`) e a própria senha (`PUT /api/auth/me/password`) no módulo `usuarios`, com `authMiddleware` e sem `requireAdmin`. A senha atual errada responde 400, não 401, para o frontend não encerrar a sessão; a troca não revoga os JWTs já emitidos, que valem até `JWT_EXPIRES_IN`. As regras de nome e senha e as rodadas do bcrypt ficam em `shared/account-rules.ts`, usado pelo cadastro por convite e pelo perfil. Sem mudança de schema: as duas rotas gravam `users.updated_at`. Testes HTTP em `tests/profile.test.ts`, com o banco em memória dos convites.
 
 `GET /api/services` também devolve `statusReason` seguro somente para `indisponivel` (#251). Os 14 casos de `status-reason.test.ts` e o caso PostgreSQL em `repositories.integration.test.ts` cobrem estados, mensagens sensíveis, recuperação e desempate; a apresentação na tela é da #176 (frontend). Contrato em [API](../docs/api.md#get-apiservices).
 
 ## Organização
+
+O módulo `modules/regions/regions-summary.*` da #320 mantém routes/controller/service/repository para `GET /api/regions/summary`, com JWT e SQL regional; os arquivos `regions.*` ficam reservados à lista da #319. Usa o pool e as variáveis existentes. Contrato em [API](../docs/api.md#get-apiregionssummary); testes em `tests/regions-summary.test.ts` (`npm test`, com PostgreSQL descartável via `REPOSITORY_TEST_DATABASE_URL` como no CI).
 
 ```
 src/
@@ -23,11 +29,11 @@ src/
 ├── domain/                 carbon-calculator.ts — potência, energia e CO₂e de uma coleta
 ├── jobs/collector.ts       descoberta, reconciliação e coleta periódica (worker)
 ├── middlewares/            auth.ts (JWT), cors.ts e error-handler.ts
-├── modules/                health, services, collections, usuarios e monitoring-settings em routes/controller/service/repository
-└── shared/                 errors.ts (AppError e subclasses) e persistence.types.ts (tipos das linhas do banco)
+├── modules/                health, services, collections, usuarios, invitations e monitoring-settings em routes/controller/service/repository
+└── shared/                 errors.ts (AppError e subclasses), persistence.types.ts (tipos das linhas do banco) e account-rules.ts (regras de nome e senha)
 ```
 
-SQL só existe nos arquivos `*.repository.ts`, sempre com parâmetros `$1…$n`. `modules/usuarios/` contém repository, service, controller e rotas de autenticação; `middlewares/auth.ts` protege também o PUT de `monitoring-settings`.
+SQL só existe nos arquivos `*.repository.ts`, sempre com parâmetros `$1…$n`. `modules/usuarios/` contém repository, service, controller e rotas de autenticação; `middlewares/auth.ts` protege também o PUT de `monitoring-settings`, que exige papel `admin` (`requireAdmin`). `modules/invitations/` contém os convites e o cadastro por convite (#196).
 
 O `tsconfig.json` usa ES2022, Node16 para módulo e resolução, `strict`, `rootDir` `src` e `outDir` `dist`. Sem `type=module`, o build emite CommonJS. Os testes ficam fora de `src`.
 
@@ -40,10 +46,15 @@ Contrato completo, com exemplos e erros, em [`docs/api.md`](../docs/api.md).
 | `GET /health` | consulta o PostgreSQL a cada chamada | 200 `{"status":"ok","db":"ok"}`; 500 `DATABASE_ERROR` |
 | `GET /api/services` | lista os serviços com estado, região e a última coleta (métricas, energia e CO₂e) ([#111](https://github.com/DEVassos/ecopulse-app/issues/111), [#133](https://github.com/DEVassos/ecopulse-app/issues/133)) | 200 `{ services, period }`; 401 `UNAUTHORIZED`; 500 `DATABASE_ERROR` |
 | `GET /api/collections` | histórico de coletas, com filtros `service_id`, `from`, `to` e `limit` (1–500, padrão 50) ([#112](https://github.com/DEVassos/ecopulse-app/issues/112)) | 200 `{ collections, period }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 404 `NOT_FOUND`; 500 |
-| `POST /api/auth/login` | valida e-mail e senha com bcrypt e emite JWT HS256 | 200 `{ token }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 |
-| `GET /api/auth/me` | devolve o administrador autenticado pelo JWT | 200 `{ id, email }`; 401 `UNAUTHORIZED`; 500 |
+| `POST /api/auth/login` | valida e-mail e senha com bcrypt e emite JWT HS256 com o papel da conta | 200 `{ token, user }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 |
+| `GET /api/auth/me` | devolve a conta do JWT, lida do banco ([#196](https://github.com/DEVassos/ecopulse-app/issues/196)) | 200 `{ id, email, name, role }`; 401 `UNAUTHORIZED`; 500 |
+| `PATCH /api/auth/me` | a própria conta, de qualquer papel, troca o nome; e-mail e papel não mudam ([#400](https://github.com/DEVassos/ecopulse-app/issues/400)) | 200 `{ id, email, name, role }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 |
+| `PUT /api/auth/me/password` | a própria conta troca a senha, conferindo a atual com bcrypt; outros JWTs continuam valendo até expirar ([#400](https://github.com/DEVassos/ecopulse-app/issues/400)) | 204 sem corpo; 400 `VALIDATION_ERROR` (inclusive senha atual errada); 401 `UNAUTHORIZED`; 500 |
+| `POST /api/invitations` | emite convite de cadastro com papel `admin` ou `usuario`; só administrador ([#196](https://github.com/DEVassos/ecopulse-app/issues/196)) | 201 `{ inviteUrl, expiresAt }`; 400; 401; 403 `FORBIDDEN`; 409 `CONFLICT`; 500 |
+| `GET /api/invitations/:token` | público; e-mail, papel e validade do convite para a tela de cadastro | 200 `{ email, role, expiresAt }`; 404 `NOT_FOUND`; 410 `GONE`; 500 |
+| `POST /api/auth/register` | público; cria a conta do convite e marca o convite como usado na mesma transação | 201 `{ id, email, name, role }`; 400; 404; 409; 410; 500 |
 | `GET /api/monitoring-settings` | consulta pública do intervalo da tela; padrão sem gravação | 200 `{ refreshIntervalSeconds, allowedIntervalsSeconds, updatedAt }`; 500 |
-| `PUT /api/monitoring-settings` | salva intervalo inteiro 15/30/60, exigindo JWT | 200 no mesmo formato do GET; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 |
+| `PUT /api/monitoring-settings` | salva intervalo inteiro 15/30/60, exigindo JWT de administrador | 200 no mesmo formato do GET; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 403 `FORBIDDEN`; 500 |
 | `GET /api/services/ranking` | ordena por energia ou CO₂e num período, com totais, contagens e estado; exige JWT | 200 `{ metric, from, to, services }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 500 `DATABASE_ERROR` |
 | `GET /api/collections/series` | série temporal de um serviço: agrupa as coletas do período em intervalos, com contagem, energia e CO₂e por intervalo e o total do período; parâmetros obrigatórios `service_id`, `from`, `to` (período de até 31 dias) e `bucket` (`15min`, `1h` ou `1d`) ([#189](https://github.com/DEVassos/ecopulse-app/issues/189)) | 200 `{ serviceId, from, to, bucket, buckets, totals }`; 400 `VALIDATION_ERROR`; 401 `UNAUTHORIZED`; 404 `NOT_FOUND`; 500 |
 
@@ -61,6 +72,7 @@ JSON inválido no corpo devolve 400; rota inexistente, 404; erro inesperado, 500
 | `CORS_ORIGIN` | `http://localhost:5173` | origens http(s) separadas por vírgula, sem caminho; só elas recebem `Access-Control-Allow-Origin`, e o preflight `OPTIONS` responde 204 |
 | `JWT_SECRET` | sem padrão | obrigatória; ao menos 16 caracteres; assina os JWTs |
 | `JWT_EXPIRES_IN` | `8h` | inteiro positivo com unidade `s`, `m`, `h` ou `d` |
+| `INVITATION_TTL_HOURS` | `72` | inteiro de 1 a 720; validade do link de convite. O link usa a primeira origem de `CORS_ORIGIN` ([#196](https://github.com/DEVassos/ecopulse-app/issues/196)) |
 
 Só `config/env.ts` lê `process.env`, e não há leitura automática de `.env`: o ambiente é fornecido ao processo (no caminho oficial, pelo `compose.yaml` a partir do `.env` da raiz). Ambiente inválido impede o boot com mensagem clara. `JWT_SECRET` é obrigatório e tem ao menos 16 caracteres; `JWT_EXPIRES_IN` é positivo e usa unidade, como `8h` ou `7d`. Não registre URLs com credenciais em logs.
 
@@ -138,7 +150,8 @@ Antes do INSERT, as medidas são validadas contra as faixas das colunas e arredo
 
 - `ServiceRepository` (`modules/services`): lista com a última coleta, busca por ID, upsert por `external_id`, atualização de estado e marcação de ausentes como removidos.
 - `CollectionRepository` (`modules/collections`): insere coletas (com os campos de cálculo) e lista o histórico com filtros; `findSeries` agrupa as coletas de um serviço por `date_bin` e devolve os intervalos e o total do período na mesma consulta, com `GROUPING SETS`.
-- `UserRepository` (`modules/usuarios`): busca por e-mail sem distinção de caixa; o hash é interno, nunca vai para resposta HTTP nem log.
+- `UserRepository` (`modules/usuarios`): busca por e-mail sem distinção de caixa e por ID; insere a conta criada por convite; troca o nome e o hash da senha com `UPDATE users … updated_at = now() WHERE id = $1` (#400); o hash é interno, nunca vai para resposta HTTP nem log.
+- `InvitationRepository` (`modules/invitations`): insere o convite com validade calculada pelo banco, busca pelo hash do token e reivindica o convite com `UPDATE … WHERE used_at IS NULL AND expires_at > now() RETURNING *`; no cadastro, roda na mesma transação que o `INSERT` em `users`.
 - `MonitoringSettingsRepository` (`modules/monitoring-settings`): consulta e upsert parametrizado da configuração única; leitura sem registro não insere o padrão.
 - `withTransaction(database, async tx => { ... })` (`db/transaction.repository.ts`) executa BEGIN/COMMIT/ROLLBACK na mesma conexão; os repositories do callback são criados com `tx`, nunca com o pool. Erros do PostgreSQL viram `DatabaseError` com a causa preservada.
 
@@ -163,6 +176,7 @@ Com o compose da raiz (`cp .env.example .env && docker compose up --build -d`):
 5. Queda da API de carbono: `CARBON_API_URL=http://127.0.0.1:9 docker compose up -d --force-recreate backend`. As coletas seguintes ficam com `calculation_status = indisponivel`, e `curl -H "Authorization: Bearer $TOKEN" http://localhost:3000/api/services` devolve `energyKwh: null` e `emissionsG: null` com o serviço `ativo`. Para restaurar: `docker compose up -d --force-recreate backend`.
 6. Banco fora: `docker compose stop postgres` → `/health` responde 500 `DATABASE_ERROR` e o backend continua no ar; `docker compose start postgres` → volta a 200.
 7. `curl -i http://localhost:3000/inexistente` → 404 `NOT_FOUND`.
+8. Perfil (#400), com o `TOKEN` do passo 2: `curl -s -X PATCH http://localhost:3000/api/auth/me -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"name":"Novo Nome"}'` → 200 com `"name":"Novo Nome"`, e `GET /api/auth/me` devolve o nome novo. `curl -s -o /dev/null -w '%{http_code}\n' -X PUT http://localhost:3000/api/auth/me/password -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"currentPassword":"errada","newPassword":"nova12345"}'` → 400; com `"currentPassword":"admin1234"` → 204; o login com `nova12345` → 200 e com `admin1234` → 401; sem o cabeçalho `Authorization` → 401. No banco, `docker compose exec postgres psql -U ecopulse -d ecopulse_db -c "SELECT email, updated_at, char_length(password_hash) FROM users"` mostra `updated_at` novo e o hash com 60 caracteres.
 
 ## Testes
 
@@ -184,7 +198,7 @@ npm run build
 
 `npm test` (Vitest) cobre configuração, boot e encerramento, rotas e erros HTTP, CORS, os dois clientes de API (sucesso, formato inválido, 404, 500, rede, timeout, cancelamento e cache), o coletor (descoberta, prazos, isolamento de falhas, rollback e cálculo disponível ou indisponível) e o `CarbonCalculator`. O job `backend` do CI roda `npx tsc --noEmit` e `npm test` a cada PR com um PostgreSQL 16 descartável, então as suítes de integração também executam e nenhum teste fica pulado (#162). O job `compose` constrói a imagem, o que executa o build.
 
-As suítes de integração com PostgreSQL real (`tests/repositories.integration.test.ts` e `tests/collector.integration.test.ts`) leem `REPOSITORY_TEST_DATABASE_URL` e `WORKER_TEST_DATABASE_URL` e são puladas sem elas. Cada uma precisa de um banco próprio, novo e descartável, com `database/schema.sql` aplicado; a fixture fica no próprio teste (`tests/*-test.repository.ts`): IDs de `services` acima de `Number.MAX_SAFE_INTEGER` e, na de repositories, um usuário com hash sintético só no formato exigido pelo CHECK, não credencial. No CI, o job `backend` cria os bancos `repositories_test` e `worker_test` e define as duas variáveis. Para rodar localmente, a partir de `backend/`:
+As suítes de integração com PostgreSQL real (`tests/repositories.integration.test.ts`, `tests/collector.integration.test.ts`, `tests/monitoring-settings.integration.test.ts` e `tests/repositories-period.integration.test.ts`) leem `REPOSITORY_TEST_DATABASE_URL` e `WORKER_TEST_DATABASE_URL` e são puladas sem elas. Cada uma precisa de um banco próprio, novo e descartável, com `database/schema.sql` aplicado; a fixture fica no próprio teste (`tests/*-test.repository.ts`): IDs de `services` acima de `Number.MAX_SAFE_INTEGER` e, na de repositories, um usuário com hash sintético só no formato exigido pelo CHECK, não credencial. No CI, o job `backend` cria os bancos `repositories_test` e `worker_test` e define as duas variáveis. Para rodar localmente, a partir de `backend/`:
 
 ```bash
 docker run -d --rm --name ecopulse-testes -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:16
@@ -200,8 +214,13 @@ docker stop ecopulse-testes   # o --rm apaga o container e os dois bancos
 
 `tests/monitoring-settings.integration.test.ts` usa também `REPOSITORY_TEST_DATABASE_URL`, alterando somente `monitoring_settings`, sem interferir nas fixtures de serviços/coletas. Cobre leitura inicial, constraints, upsert e persistência em outra conexão. Os testes HTTP cobrem JWT, validação estrita e falhas de banco (#250).
 
+`tests/repositories-period.integration.test.ts` (#349) também usa `REPOSITORY_TEST_DATABASE_URL` e não deixa linha no banco: seed, repositories e o oráculo escrito à mão rodam na mesma conexão, dentro de uma transação desfeita com `ROLLBACK` no `finally`, como em `tests/regions-summary.test.ts`. É o que permite os arquivos rodarem em paralelo no mesmo banco sem uma suíte enxergar os serviços da outra.
+
+Esperado: as quatro suítes de integração na lista e o resumo `Tests` só com `passed`, sem `skipped`. Para repetir, recrie o container: as suítes deixam dados nos bancos. Se a porta 55432 estiver ocupada, troque-a no `-p` e nas duas URLs. Para limitar memória, acrescente `-- --maxWorkers=1` a `npm test`.
+`tests/invitations.integration.test.ts` (#196) também usa `REPOSITORY_TEST_DATABASE_URL`, com um administrador próprio (`convites-admin@example.test`): confere que só o hash do token é gravado, que o cadastro marca o convite na mesma transação, que dois cadastros simultâneos com o mesmo link criam uma conta só e que os CHECKs recusam papel desconhecido. `tests/invitations.test.ts` cobre as três rotas, o 403 de `usuario` e o ROLLBACK do cadastro com um banco em memória (`tests/invitations-test.repository.ts`).
+
 Esperado: as três suítes de integração na lista e o resumo `Tests` só com `passed`, sem `skipped`. Para repetir, recrie o container: as suítes deixam dados nos bancos. Se a porta 55432 estiver ocupada, troque-a no `-p` e nas duas URLs. Para limitar memória, acrescente `-- --maxWorkers=1` a `npm test`.
 
-As variáveis de teste pertencem só ao processo de testes, não à configuração do backend, e as suítes alteram dados. A suíte de repositories voltou a passar em 28/10 (7/7, #175): as coletas de teste ganharam os campos de cálculo que o #139 tornou obrigatórios, e um caso cobre `findSummary` com 2 serviços e várias coletas cada.
+As variáveis de teste pertencem só ao processo de testes, não à configuração do backend, e as suítes alteram dados. A suíte de repositories voltou a passar em 28/10 (7/7, #175): as coletas de teste ganharam os campos de cálculo que o #139 tornou obrigatórios, e o resumo do período é coberto dos dois lados: `tests/repositories.test.ts` confere o SQL de `findSummaryTotals` com o pool falso, e `tests/repositories.integration.test.ts` (caso "resume totais e contagens por estado") monta três serviços com várias coletas cada em PostgreSQL e confere `totals`, `previous` e `servicesByStatus`, inclusive a sobreposição de `failed` e `notCalculated` de [docs/api.md](../docs/api.md#get-apiservicessummary) (#234).
 
 Verificações registradas na Sprint 1: 31/31 testes com PostgreSQL descartável em 11/10 (#94), 82/82 e o snapshot combinado 125/125 em 13/10 (#99), e o compose integrado com persistência após restart em 14/10 (#113). Detalhes em [`docs/sprints/sprint-1.md`](../docs/sprints/sprint-1.md) § Verificações realizadas.

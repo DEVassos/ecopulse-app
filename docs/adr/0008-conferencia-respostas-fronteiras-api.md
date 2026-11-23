@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Status | proposto |
+| Status | aceito (PR #238) |
 | Data | 2026-10-30 |
 | Decisores | @travensolli (SM, responsável pela #161 e pela #236) |
 | Rastreabilidade | issue #236 · frontend: #161 (PR #235) e #237 · épico #41 · requisito RNF04 · critérios TP02, TP03 e DW02 |

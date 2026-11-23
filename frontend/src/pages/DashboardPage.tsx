@@ -1,78 +1,113 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import AppHeader from '../components/AppHeader';
+import ChangeToast from '../components/ChangeToast';
 import EmptyState from '../components/EmptyState';
 import ErrorState from '../components/ErrorState';
 import KpiPanel from '../components/KpiPanel';
 import LastUpdated from '../components/LastUpdated';
 import LoadingState from '../components/LoadingState';
+import PrintButton from '../components/PrintButton';
+import { PrintPageHeader } from '../components/PrintReport';
+import RecentChanges from '../components/RecentChanges';
+import RegionDetail from '../components/RegionDetail';
+import RegionList from '../components/RegionList';
 import ServiceDetailsDialog from '../components/ServiceDetailsDialog';
 import ServicesTable from '../components/ServicesTable';
 import UpdateFailedBanner from '../components/UpdateFailedBanner';
 import { useMonitoring } from '../hooks/useMonitoring';
+import { usePrintReport } from '../hooks/usePrintReport';
 import { useServices } from '../hooks/useServices';
+import { useStatusChanges } from '../hooks/useStatusChanges';
 import { isDemoMode } from '../services/services.service';
-import { fetchServicesSummary } from '../services/services.service';
-import type { ServicesSummaryResponse } from '../services/services.types';
 import { fetchServicesRanking } from '../services/ranking.service';
 import type { ServicesRankingResponse } from '../services/ranking.types';
+import { pageWarnings } from '../utils/page-warnings';
+import { formatDayTime } from '../utils/format';
 import { rankingIsStale, rankingShares, rankingSentence } from '../utils/ranking';
-import SummaryPanel from '../components/SummaryPanel';
+import IndicatorsPanel from '../components/IndicatorsPanel';
+import { useSummary } from '../hooks/useSummary';
 import { summarizeStatus } from '../utils/summary';
+import { fetchRegions, fetchRegionsSummary } from '../services/regions.service';
+import {
+  buildRegionOverview,
+  mapDestination,
+  nextPresentationCode,
+  PRESENTATION_ARRIVAL_TIMEOUT_MS,
+  PRESENTATION_PAUSE_RESET_MS,
+  PRESENTATION_DWELL_MS,
+  presentationOrder,
+} from '../utils/region-map';
+import type { PresentationStatus } from '../components/RegionMap';
+import type { RegionOverview } from '../utils/region-map';
+import { gridByCode } from '../utils/regions';
+import { dashboardPeriod } from '../utils/dashboard-period';
+import type { RegionGrid } from '../utils/regions';
 import './DashboardPage.css';
+
+// O mapa (MapLibre, mais pesado que o app inteiro) fica num arquivo à parte e só baixa quando há regiões (ADR 0010)
+const RegionMap = lazy(() => import('../components/RegionMap'));
 
 export default function DashboardPage() {
   const { data, loading, error, updatedAt, refresh } = useServices();
   const { refreshIntervalMs } = useMonitoring();
+  // Relatório impresso / PDF (#408): a folha A4 com o cabeçalho e o rodapé do painel, sempre no tema claro
+  usePrintReport('dashboard');
+  // Mudanças de estado entre uma lista e a seguinte (#331), com a mesma resposta do polling: nenhuma requisição nova
+  const changes = useStatusChanges(data?.services ?? null, updatedAt);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [summary, setSummary] = useState<ServicesSummaryResponse | null>(null);
-  const [previousSummary, setPreviousSummary] = useState<ServicesSummaryResponse | null>(null);
-  const [summaryError, setSummaryError] = useState('');
-  const [comparisonError, setComparisonError] = useState('');
-  const [comparisonLoading, setComparisonLoading] = useState(false);
+  // Um único intervalo por atualização: os três totais precisam comparar exatamente as mesmas coletas (#375).
+  const period = useMemo(() => dashboardPeriod(updatedAt), [updatedAt]);
+  const { summary, error: summaryError } = useSummary(period);
   const [ranking, setRanking] = useState<ServicesRankingResponse | null>(null);
   const [rankingError, setRankingError] = useState('');
   const shares = useMemo(() => (ranking ? rankingShares(ranking) : null), [ranking]);
   const sentence = ranking ? rankingSentence(ranking, 'das últimas 24 h') : null;
   // Parte de cada serviço no CO₂e das 24 h (#260): em cinza quando a última busca do ranking ou da lista falhou
   const rankingStale = rankingIsStale(rankingError, error);
-  useEffect(() => {
-    if (isDemoMode) return;
-    const controller = new AbortController(); const to = new Date(); const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
-    const previousFrom = new Date(from.getTime() - (to.getTime() - from.getTime()));
-    void (async () => {
-      try {
-        const current = await fetchServicesSummary(from.toISOString(), to.toISOString(), controller.signal);
-        if (controller.signal.aborted) return;
-        setSummary(current);
-        setSummaryError('');
-        // A variação anterior continua na tela até chegar a nova resposta, sem piscar "Comparando…" a cada ciclo
-        setComparisonError('');
-        setComparisonLoading(true);
-        try {
-          const previous = await fetchServicesSummary(previousFrom.toISOString(), from.toISOString(), controller.signal);
-          if (!controller.signal.aborted) setPreviousSummary(previous);
-        } catch (reason: unknown) {
-          if (!controller.signal.aborted) setComparisonError(reason instanceof Error ? reason.message : 'Não foi possível carregar a comparação.');
-        } finally {
-          // Também quando cancelada: o ciclo seguinte não herda "Comparando…" de uma busca que não terminou
-          setComparisonLoading(false);
-        }
-      } catch (reason: unknown) {
-        if (!controller.signal.aborted) setSummaryError(reason instanceof Error ? reason.message : 'Não foi possível carregar os indicadores.');
-      }
-    })();
-    return () => controller.abort();
-  }, [updatedAt]);
+  const [regions, setRegions] = useState<RegionOverview | null>(null);
+  const [regionsError, setRegionsError] = useState('');
+  // Rede de cada região, só de GET /api/regions (#324): o selo "Rede limpa" da tabela não depende dos totais do período,
+  // então continua na tela quando só GET /api/regions/summary falha. Falhou a lista, fica o último dado em cinza
+  const [regionGrids, setRegionGrids] = useState<Map<string, RegionGrid> | null>(null);
+  const [regionGridsFailed, setRegionGridsFailed] = useState(false);
+  // Uma seleção para a lista de regiões e a tabela (#342); o mapa da #322 entra nela. Clicar de novo desfaz.
+  const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
+  const toggleRegion = (code: string) => setSelectedRegion((current) => (current === code ? null : code));
+  // Modo apresentação do mapa (#323): percorre as regiões da maior para a menor emissão, 6 s em cada uma depois que o
+  // mapa chega. Nunca liga sozinho, e sair do Dashboard desmonta o estado (volta desligado)
+  const [presenting, setPresenting] = useState<PresentationStatus>('off');
+  const [arrivedRegion, setArrivedRegion] = useState<string | null>(null);
+  /** Escolha feita pela pessoa (mapa, lista ou tabela): pausa a apresentação, que não passa por cima dela. */
+  const pickRegion = (code: string) => {
+    setPresenting((status) => (status === 'playing' ? 'paused' : status));
+    toggleRegion(code);
+  };
+  // Destino da simulação de migração (#326), guardado com a origem: trocar a origem zera o destino sem efeito extra, e a
+  // atualização periódica não mexe nele, porque fica pelo `code`
+  const [simulation, setSimulation] = useState<{ origin: string; destination: string } | null>(null);
+  const destinationCode = simulation !== null && simulation.origin === selectedRegion ? simulation.destination : null;
+  const regionAreaRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * `reveal`: os botões do painel trazem o mapa à vista quando ele saiu da tela por cima (no celular, o painel fica
+   * abaixo do mapa e da lista), para a câmera andar à vista (#326). Escolher uma linha da tabela não rola a página.
+   */
+  const chooseDestination = (code: string | null, reveal = false) => {
+    setSimulation(code === null || selectedRegion === null ? null : { origin: selectedRegion, destination: code });
+    const area = regionAreaRef.current;
+    if (reveal && area && area.getBoundingClientRect().top < 0) {
+      const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      area.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+    }
+  };
+  // Como o ranking e as regiões, espera a primeira lista: antes, a busca do primeiro render era cancelada logo em seguida
   // Ranking de CO₂e das mesmas 24 h do painel (#260): busca a cada ciclo, inclusive no modo demonstração. Esperar a
   // primeira lista evita duas buscas no mesmo instante; numa falha, a última parte continua na tela, em cinza.
   useEffect(() => {
-    if (updatedAt === null) return;
+    if (period === null) return;
     const controller = new AbortController();
-    const to = new Date();
-    const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
     void (async () => {
       try {
-        const current = await fetchServicesRanking('co2e', from.toISOString(), to.toISOString(), controller.signal);
+        const current = await fetchServicesRanking('co2e', period.from, period.to, controller.signal);
         if (controller.signal.aborted) return;
         setRanking(current);
         setRankingError('');
@@ -84,12 +119,110 @@ export default function DashboardPage() {
       }
     })();
     return () => controller.abort();
-  }, [updatedAt]);
-  // Um aviso por página (#271): com a lista falhando e dados na tela, basta a faixa de falha; sem dados, o aviso grande;
-  // com a lista em dia, o primeiro erro entre resumo, comparação e ranking. Nunca avisos iguais empilhados.
-  const pageError = error ? (data ? '' : error) : summaryError || comparisonError || rankingError;
+  }, [period]);
+  // Regiões (#342): as mesmas 24 h dos KPIs, a cada ciclo. Uma falha aqui (ex.: Carbon API fora do ar) fica só no lugar
+  // da lista, com o último dado em cinza se houver: o resto do Dashboard continua funcionando
+  useEffect(() => {
+    if (period === null) return;
+    const controller = new AbortController();
+    void (async () => {
+      // allSettled, e não all: a lista de regiões serve sozinha ao selo de rede limpa da tabela (#324)
+      const [list, totals] = await Promise.allSettled([
+        fetchRegions(controller.signal),
+        fetchRegionsSummary(period.from, period.to, controller.signal),
+      ]);
+      if (controller.signal.aborted) return;
+      if (list.status === 'fulfilled') setRegionGrids(gridByCode(list.value.regions));
+      setRegionGridsFailed(list.status === 'rejected');
+      if (list.status === 'fulfilled' && totals.status === 'fulfilled') {
+        setRegions(buildRegionOverview(list.value, totals.value));
+        setRegionsError('');
+        return;
+      }
+      const reason: unknown = list.status === 'rejected' ? list.reason : totals.status === 'rejected' ? totals.reason : null;
+      setRegionsError(reason instanceof Error ? reason.message : 'não foi possível carregar as regiões.');
+    })();
+    return () => controller.abort();
+  }, [period]);
+  const presentationCodes = useMemo(() => (regions ? presentationOrder(regions) : []), [regions]);
+  const presentationKey = presentationCodes.join(',');
+  // Próxima região: 6 s depois da chegada do mapa; se o mapa não avisar (sem WebGL), 6 s depois de 8 s de espera
+  useEffect(() => {
+    if (presenting !== 'playing') return;
+    const order = presentationKey === '' ? [] : presentationKey.split(',');
+    const delay = arrivedRegion === selectedRegion ? PRESENTATION_DWELL_MS : PRESENTATION_ARRIVAL_TIMEOUT_MS + PRESENTATION_DWELL_MS;
+    const timer = window.setTimeout(() => setSelectedRegion(nextPresentationCode(order, selectedRegion)), delay);
+    return () => window.clearTimeout(timer);
+  }, [presenting, selectedRegion, arrivedRegion, presentationKey]);
+  // Pausado por 1 min, o modo desliga e o botão volta a "Apresentar"; cada nova pausa recomeça a contagem
+  useEffect(() => {
+    if (presenting !== 'paused') return;
+    const timer = window.setTimeout(() => setPresenting('off'), PRESENTATION_PAUSE_RESET_MS);
+    return () => window.clearTimeout(timer);
+  }, [presenting]);
+  const presentation = {
+    status: presenting,
+    onStart: () => {
+      setPresenting('playing');
+      // Começa na região já selecionada, se ela estiver no ciclo; senão, na de maior emissão
+      setSelectedRegion((current) => (current !== null && presentationCodes.includes(current) ? current : nextPresentationCode(presentationCodes, null)));
+    },
+    onToggle: () => setPresenting((status) => (status === 'playing' ? 'paused' : 'playing')),
+    onInteract: () => setPresenting((status) => (status === 'playing' ? 'paused' : status)),
+    onArrive: setArrivedRegion,
+  };
+  // Um aviso por página (#271): com dados na tela, basta a faixa de falha; sem dados, o aviso grande. O resumo entra na
+  // mesma regra da lista (#234): com energia e CO₂e antigos na tela, a faixa avisa e o painel diz desde quando eles valem
+  const warnings = pageWarnings({
+    services: error,
+    hasServices: data !== null,
+    servicesAt: updatedAt,
+    summary: summaryError,
+    summaryAt: summary?.to ?? null,
+    ranking: rankingError,
+  });
+  // Números do período parados: a lista falhou (o resumo só é rebuscado quando ela dá certo) ou a busca do resumo falhou
+  const summaryStaleSince = (error !== '' || summaryError !== '') && summary ? summary.to : null;
   // A janela usa a linha atual da lista: status, CPU e última leitura acompanham cada atualização
   const selected = data?.services.find((service) => service.id === selectedId) ?? null;
+
+  // Última atualização, intervalo, Atualizar agora e Imprimir (#434). Com o painel de energia e emissões na tela, a barra
+  // entra na linha do título dele; sem o painel (carregando, falha, nenhum serviço, demonstração), fica sozinha no topo,
+  // para a última atualização nunca sumir (DW05). No celular, o aviso de mudança aparece abaixo dela (data-toast-anchor),
+  // sem cobrir o botão. No papel ela some, e o cabeçalho do relatório já traz a última atualização
+  const toolbar = (
+    <div className="print-toolbar" data-toast-anchor>
+      <LastUpdated updatedAt={updatedAt} intervalSeconds={refreshIntervalMs / 1000} stale={error !== ''}>
+        <button
+          type="button"
+          // aria-disabled em vez de disabled: o botão não perde o foco do teclado a cada ciclo
+          onClick={() => {
+            if (!loading) refresh();
+          }}
+          aria-disabled={loading}
+          aria-label="Atualizar agora"
+          data-tooltip="Atualizar agora"
+          className="btn-outline grid size-11 place-items-center"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            className={loading ? 'size-4 motion-safe:animate-spin' : 'size-4'}
+          >
+            <path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" />
+            <path d="M21 3v5h-5" />
+          </svg>
+        </button>
+      </LastUpdated>
+      <PrintButton />
+    </div>
+  );
+  const showIndicators = Boolean(summary || (data && data.services.length > 0 && !isDemoMode && !summaryError));
 
   return (
     <div className="page">
@@ -99,42 +232,27 @@ export default function DashboardPage() {
         </div>
       )}
 
-      <AppHeader updatedAt={updatedAt}>
-        <LastUpdated updatedAt={updatedAt} intervalSeconds={refreshIntervalMs / 1000} stale={error !== ''}>
-          <button
-            type="button"
-            // aria-disabled em vez de disabled: o botão não perde o foco do teclado a cada ciclo
-            onClick={() => {
-              if (!loading) refresh();
-            }}
-            aria-disabled={loading}
-            aria-label="Atualizar agora"
-            data-tooltip="Atualizar agora"
-            className="btn-outline grid size-11 place-items-center"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-              className={loading ? 'size-4 motion-safe:animate-spin' : 'size-4'}
-            >
-              <path d="M21 12a9 9 0 1 1-2.64-6.36L21 8" />
-              <path d="M21 3v5h-5" />
-            </svg>
-          </button>
-        </LastUpdated>
-      </AppHeader>
+      <AppHeader updatedAt={updatedAt} />
 
       <main id="conteudo" tabIndex={-1} className="content">
         <h1 className="sr-only">Dashboard de energia e emissões</h1>
 
+        {/* Papel (#408): o Dashboard não tem título na tela, então a folha ganha o cabeçalho do relatório e o botão que
+            abre a impressão do navegador ("Salvar como PDF"). Os dois somem na tela e no papel, respectivamente */}
+        <PrintPageHeader
+          label="Relatório do painel · DEVassos"
+          title="Dashboard de energia e emissões"
+          items={[
+            { label: 'Período', value: 'últimas 24 h' },
+            ...(updatedAt ? [{ label: 'Última atualização', value: formatDayTime(updatedAt) }] : []),
+            ...(data ? [{ label: 'Serviços', value: `${data.services.length} monitorados` }] : []),
+          ]}
+        />
+        {!showIndicators && toolbar}
+
         {/* Falha não apaga o que já estava na tela: com dados, faixa compacta junto do último dado; sem dados, o aviso grande */}
-        {data && <UpdateFailedBanner message={error} updatedAt={updatedAt} onRetry={refresh} />}
-        {pageError && <ErrorState message={pageError} onRetry={refresh} />}
+        {(data || summary) && <UpdateFailedBanner message={warnings.banner} updatedAt={warnings.bannerAt} onRetry={refresh} />}
+        {warnings.page && <ErrorState message={warnings.page} onRetry={refresh} />}
 
         {loading && !data && <LoadingState message="Carregando serviços…" />}
 
@@ -147,15 +265,16 @@ export default function DashboardPage() {
 
         {/* Impacto primeiro (#259): energia e CO₂e do período no topo. Com os serviços na tela e o resumo a caminho, o painel
             já ocupa o lugar dele em "Calculando…", para a página não pular quando a resposta chega */}
-        {(summary || (data && data.services.length > 0 && !isDemoMode && !summaryError)) && (
-          <SummaryPanel summary={summary} previousSummary={previousSummary} comparisonLoading={comparisonLoading} stale={error !== '' || summaryError !== ''} />
-        )}
+        {showIndicators && <IndicatorsPanel summary={summary} staleSince={summaryStaleSince} actions={toolbar} />}
 
         {/* Estado dos serviços logo abaixo, em cards compactos. Sem dado ainda, os cards não aparecem (nunca zeros inventados);
             depois de uma falha, mostram o último dado */}
         {data && data.services.length > 0 && (
           <KpiPanel summary={summarizeStatus(data.services)} staleSince={error ? updatedAt : null} compact />
         )}
+
+        {/* Logo abaixo dos cards de estado (#331): o que mudou desde que a página abriu, nunca na primeira carga */}
+        {data && data.services.length > 0 && <RecentChanges changes={changes.recent} />}
 
         {/* Leitura do período em uma frase (#260): quem respondeu pela maior parte do CO₂e das 24 h. Some enquanto o
             ranking não chegou; depois de uma falha, fica em cinza com a última resposta. Sem aria-live: a parte muda a cada
@@ -167,6 +286,47 @@ export default function DashboardPage() {
           </p>
         )}
 
+        {/* Onde está o impacto (#342, RF13): entre a leitura do período e a tabela. A falha só das regiões fica neste lugar */}
+        {data && data.services.length > 0 && regionsError && (
+          <p className="region-list-error" role="status">
+            {regions ? 'Regiões desatualizadas' : 'Regiões indisponíveis'}: {regionsError}
+          </p>
+        )}
+        {/* Mapa e lista lado a lado; no celular, o mapa em cima e a lista embaixo (#322, RNF01) */}
+        {data && data.services.length > 0 && regions && (
+          <div className="region-area" ref={regionAreaRef}>
+            <Suspense fallback={<LoadingState message="Carregando o mapa…" />}>
+              <RegionMap
+                overview={regions}
+                selectedCode={selectedRegion}
+                onSelect={pickRegion}
+                stale={regionsError !== '' || error !== ''}
+                destination={mapDestination(regions, selectedRegion, destinationCode)}
+                presentation={presentation}
+              />
+            </Suspense>
+            <RegionList
+              overview={regions}
+              selectedCode={selectedRegion}
+              onSelect={pickRegion}
+              periodLabel="últimas 24 h"
+              stale={regionsError !== '' || error !== ''}
+            />
+          </div>
+        )}
+        {/* Simulação de migração da região selecionada (#326, RF15): abaixo do mapa e da lista, com o último dado em cinza
+            depois de uma falha; região sem serviço não tem o que migrar e não abre o painel */}
+        {data && data.services.length > 0 && regions && selectedRegion !== null && (
+          <RegionDetail
+            overview={regions}
+            originCode={selectedRegion}
+            destinationCode={destinationCode}
+            onDestination={chooseDestination}
+            periodLabel="últimas 24 h"
+            stale={regionsError !== '' || error !== ''}
+          />
+        )}
+
         {data && data.services.length > 0 && (
           <ServicesTable
             services={data.services}
@@ -174,12 +334,20 @@ export default function DashboardPage() {
             stale={error !== ''}
             shares={shares}
             sharesStale={rankingStale}
+            selectedRegion={selectedRegion}
+            onSelectRegion={pickRegion}
+            regionGrids={regionGrids}
+            regionGridsStale={regionGridsFailed || error !== ''}
+            changedIds={changes.changedIds}
+            trends={changes.trends}
           />
         )}
 
         {/* Montada só enquanto aberta: fechar desmonta e cancela o polling do histórico */}
         {selected && <ServiceDetailsDialog key={selected.id} service={selected} onClose={() => setSelectedId(null)} />}
       </main>
+
+      <ChangeToast toast={changes.toast} />
 
       <footer className="page-footer">EcoPulse · DEVassos · Fatec Jacareí 2DSM 2026-2</footer>
     </div>

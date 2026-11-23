@@ -5,16 +5,58 @@
 // Uso: npm run mock  →  http://localhost:3000  (com VITE_API_URL=http://localhost:3000 no .env da raiz)
 
 import { createServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 const PORT = Number(process.env.MOCK_PORT ?? 3000);
 const COLLECTION_GAP_SCENARIO = process.env.MOCK_COLLECTION_GAP === 'true';
 
 /** Administrador do mock: o mesmo do .env.example (no backend real ele vem do seed, #6). */
-const ADMIN = { id: '1', email: 'admin@ecopulse.local', password: 'admin1234' };
+const ADMIN = { id: '1', email: 'admin@ecopulse.local', password: 'admin1234', name: 'Administrador', role: 'admin' };
 
-/** Tokens emitidos desde que o mock subiu. Reiniciar o mock invalida todos (bom para testar o 401). */
-const validTokens = new Set();
+/**
+ * Contas do mock (#196/#197): o administrador e um usuário comum, para ver a Configuração em leitura sem passar pelo
+ * convite. As criadas por convite entram aqui e somem ao reiniciar o mock.
+ */
+const USERS = [ADMIN, { id: '2', email: 'usuario@ecopulse.local', password: 'usuario1234', name: 'Usuária', role: 'usuario' }];
+
+/** Convites emitidos desde que o mock subiu, pelo SHA-256 do token (como no banco real, o token não fica guardado). */
+const invitations = new Map();
+const INVITATION_TTL_MS = 72 * 3_600_000;
+const PASSWORD_RULE = 'A senha deve ter de 8 a 72 caracteres, com pelo menos uma letra e um número.';
+
+/** Token emitido → conta. Reiniciar o mock invalida todos (bom para testar o 401). */
+const validTokens = new Map();
+
+function publicUser(user) {
+  return { id: user.id, email: user.email, name: user.name, role: user.role };
+}
+
+function sessionUser(req) {
+  const token = bearerToken(req);
+  return token === null ? null : (validTokens.get(token) ?? null);
+}
+
+function tokenHash(token) {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+/** Convite pelo token do link: 404 inexistente, 410 usado ou expirado (mesmas mensagens do backend). */
+function availableInvitation(res, token) {
+  const invitation = /^[A-Za-z0-9_-]{43}$/.test(token) ? invitations.get(tokenHash(token)) : undefined;
+  if (!invitation) {
+    send(res, 404, { error: { code: 'NOT_FOUND', message: 'Convite não encontrado.' } });
+    return null;
+  }
+  if (invitation.usedAt) {
+    send(res, 410, { error: { code: 'GONE', message: 'Este convite já foi usado.' } });
+    return null;
+  }
+  if (invitation.expiresAt <= Date.now()) {
+    send(res, 410, { error: { code: 'GONE', message: 'Este convite expirou. Peça um novo ao administrador.' } });
+    return null;
+  }
+  return invitation;
+}
 
 /** Token do cabeçalho Authorization: Bearer <token>, ou null. */
 function bearerToken(req) {
@@ -44,11 +86,17 @@ async function readJson(req) {
  *   MOCK_SERVICES=ranking-instavel: a 1ª chamada de GET /services/ranking responde e as seguintes dão 500, para ver a
  *   parte já calculada em cinza no ciclo seguinte sem reiniciar o mock, o que invalidaria o token (#257, #260)
  *   MOCK_SERVICES=ranking-falha: toda chamada de GET /services/ranking responde 500, para ver a coluna sem ranking (#260)
+ *   MOCK_SERVICES=mudancas: a cada chamada de GET /services o Checkout Worker alterna entre indisponível e ativo, e a
+ *   Billing API entra e sai da lista a cada 3 chamadas, para ver os avisos de mudança de estado (#331)
+ *   MOCK_REGIONS=falha: GET /regions responde 502, como a Carbon API fora do ar sem cache (#319, #322)
  */
 const SERVICES_SCENARIO = process.env.MOCK_SERVICES ?? 'normal';
+const REGIONS_SCENARIO = process.env.MOCK_REGIONS ?? 'normal';
 
 /** Chamadas de GET /services/ranking desde que o mock subiu (cenário MOCK_SERVICES=ranking-instavel). */
 let rankingCalls = 0;
+/** Chamadas de GET /services desde que o mock subiu (cenário MOCK_SERVICES=mudancas). */
+let servicesCalls = 0;
 
 const SERVICES = [
 // region é o nome e regionCode o código, como no backend (#297); o Inventory Sync não tem região e por isso não tem cálculo
@@ -59,6 +107,16 @@ const SERVICES = [
   { id: 'reporting-batch', name: 'Reporting Batch', country: 'Canadá', regionCode: 'ca-central', region: 'Quebec', city: 'Montreal', cpu: 52, kwh: 0.0726, gramsPerKwh: 40, memoryGb: 4.5, diskGb: 120.4, networkGb: 2.1, status: 'ativo' },
   { id: 'email-dispatcher', name: 'Email Dispatcher', country: 'Brasil', regionCode: 'br-sudeste', region: 'Sudeste', city: 'São Paulo', status: 'indisponivel', reason: 'Serviço indisponível (HTTP 500).' },
   { id: 'inventory-sync', name: 'Inventory Sync', country: 'Canadá', regionCode: null, region: 'Ontario', city: null, status: 'sem_metricas' },
+];
+
+/** Regiões da Carbon API no backend falso (#319), com coordenadas aproximadas da cidade. */
+const REGIONS = [
+  { code: 'us-east', country: 'Estados Unidos', region: 'Virgínia', city: 'Ashburn', latitude: 39.04, longitude: -77.49, carbonIntensityGco2ePerKwh: 377, renewableSharePercent: 22 },
+  { code: 'eu-west', country: 'Irlanda', region: 'Leinster', city: 'Dublin', latitude: 53.35, longitude: -6.26, carbonIntensityGco2ePerKwh: 295, renewableSharePercent: 41 },
+  { code: 'jp-east', country: 'Japão', region: 'Kanto', city: 'Tóquio', latitude: 35.69, longitude: 139.69, carbonIntensityGco2ePerKwh: 465, renewableSharePercent: 20 },
+  { code: 'ca-central', country: 'Canadá', region: 'Quebec', city: 'Montreal', latitude: 45.5, longitude: -73.57, carbonIntensityGco2ePerKwh: 40, renewableSharePercent: 94 },
+  { code: 'br-sudeste', country: 'Brasil', region: 'Sudeste', city: 'São Paulo', latitude: -23.55, longitude: -46.63, carbonIntensityGco2ePerKwh: 94, renewableSharePercent: 83 },
+  { code: 'eu-north', country: 'Suécia', region: 'Estocolmo', city: 'Estocolmo', latitude: 59.33, longitude: 18.07, carbonIntensityGco2ePerKwh: 25, renewableSharePercent: 98 },
 ];
 
 /** Intervalo da leitura do backend falso: a energia de cada serviço é de uma hora, então a potência sai em dezenas de W. */
@@ -161,10 +219,35 @@ function sumOrNull(items, field) {
   return values.length === 0 ? null : values.reduce((total, value) => total + value, 0);
 }
 
+/**
+ * Segundos monitorados das coletas calculadas — a base da potência média, como o `FILTER (WHERE calculation_status =
+ * 'disponivel')` da rota real (#329). `null` quando nenhuma coleta do período foi calculada.
+ */
+function monitoredSecondsOf(items) {
+  const seconds = items.filter((item) => item.calculationStatus === 'disponivel').map((item) => item.collectionIntervalSeconds);
+  return seconds.length === 0 ? null : seconds.reduce((total, value) => total + value, 0);
+}
+
 /** Média do campo entre os itens que têm valor, ou null quando nenhum tem. */
 function averageOrNull(items, field) {
   const total = sumOrNull(items, field);
   return total === null ? null : total / items.filter((item) => item[field] !== null).length;
+}
+
+/**
+ * Parcelas da potência a partir das médias dos quatro recursos, com os mesmos coeficientes de
+ * `backend/src/domain/carbon-calculator.ts` (CPU 100 W, RAM 0,375 W/GB, disco 0,01 W/GB, rede 0,02 W/GB).
+ * `null` quando falta alguma média, como no backend (`docs/api.md`, GET /api/services/compare).
+ */
+function breakdownFromAverages(cpu, memory, disk, network) {
+  if ([cpu, memory, disk, network].includes(null)) return null;
+  const watts = (value) => Number(value.toFixed(6));
+  return {
+    cpuW: watts((cpu / 100) * 100),
+    memoryW: watts(memory * 0.375),
+    diskW: watts(disk * 0.01),
+    networkW: watts(network * 0.02),
+  };
 }
 
 /**
@@ -208,9 +291,10 @@ let monitoringSettings = {
 };
 
 const UNAUTHORIZED = { error: { code: 'UNAUTHORIZED', message: 'Token ausente, inválido ou expirado.' } };
+const FORBIDDEN = { error: { code: 'FORBIDDEN', message: 'Só administradores podem fazer esta ação.' } };
 
 /** Rotas de dados que, como no backend real (#257), só respondem com token válido. */
-const PROTECTED = new Set(['GET /services', 'GET /services/summary', 'GET /services/compare', 'GET /services/ranking', 'GET /collections', 'GET /collections/series']);
+const PROTECTED = new Set(['GET /services', 'GET /services/summary', 'GET /services/compare', 'GET /services/ranking', 'GET /collections', 'GET /collections/series', 'GET /regions', 'GET /regions/summary']);
 
 function hasValidToken(req) {
   const token = bearerToken(req);
@@ -224,26 +308,102 @@ const routes = {
     if (!body || typeof body.email !== 'string' || body.email.trim() === '' || typeof body.password !== 'string' || body.password === '') {
       return validationError(res, 'Informe email e password.');
     }
-    if (body.email.trim() !== ADMIN.email || body.password !== ADMIN.password) {
-      return send(res, 401, { error: { code: 'UNAUTHORIZED', message: 'Credenciais inválidas.' } });
-    }
+    const user = USERS.find((item) => item.email === body.email.trim().toLowerCase() && item.password === body.password);
+    if (!user) return send(res, 401, { error: { code: 'UNAUTHORIZED', message: 'Credenciais inválidas.' } });
     const token = `mock.${randomUUID()}`;
-    validTokens.add(token);
-    return send(res, 200, { token });
+    validTokens.set(token, user);
+    return send(res, 200, { token, user: publicUser(user) });
   },
 
   // US07 / #20 — rota mínima protegida: só responde com token válido
   'GET /auth/me': async (req, res) => {
-    if (!hasValidToken(req)) return send(res, 401, UNAUTHORIZED);
-    return send(res, 200, { id: ADMIN.id, email: ADMIN.email });
+    const user = sessionUser(req);
+    if (!user) return send(res, 401, UNAUTHORIZED);
+    return send(res, 200, publicUser(user));
+  },
+
+  // #400/#401 — perfil: qualquer papel troca o próprio nome; e-mail e papel não mudam
+  'PATCH /auth/me': async (req, res) => {
+    const user = sessionUser(req);
+    if (!user) return send(res, 401, UNAUTHORIZED);
+    const body = await readJson(req);
+    if (!body || typeof body.name !== 'string') return validationError(res, 'Informe name.');
+    const name = body.name.trim();
+    if (name === '' || name.length > 100) return validationError(res, 'O nome deve ter de 1 a 100 caracteres.');
+    user.name = name;
+    return send(res, 200, publicUser(user));
+  },
+
+  // #400/#401 — troca de senha: senha atual errada é 400 (não 401), para a tela não encerrar a sessão
+  'PUT /auth/me/password': async (req, res) => {
+    const user = sessionUser(req);
+    if (!user) return send(res, 401, UNAUTHORIZED);
+    const body = await readJson(req);
+    if (!body || typeof body.currentPassword !== 'string' || body.currentPassword === '' || typeof body.newPassword !== 'string') {
+      return validationError(res, 'Informe currentPassword e newPassword.');
+    }
+    const next = body.newPassword;
+    if (next.length < 8 || Buffer.byteLength(next) > 72 || !/\p{L}/u.test(next) || !/\d/.test(next)) {
+      return validationError(res, PASSWORD_RULE);
+    }
+    if (body.currentPassword !== user.password) return validationError(res, 'A senha atual não confere.');
+    if (next === body.currentPassword) return validationError(res, 'A nova senha deve ser diferente da atual.');
+    // Os tokens já emitidos continuam valendo, como no backend real (o JWT não tem revogação)
+    user.password = next;
+    return send(res, 204);
+  },
+
+  // #196 — convite de cadastro: só administrador; o link aponta para o Vite (MOCK_APP_URL, padrão http://localhost:5173)
+  'POST /invitations': async (req, res) => {
+    const user = sessionUser(req);
+    if (!user) return send(res, 401, UNAUTHORIZED);
+    if (user.role !== 'admin') return send(res, 403, FORBIDDEN);
+    const body = await readJson(req);
+    const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !['admin', 'usuario'].includes(body?.role)) {
+      return validationError(res, 'Informe email válido e role "admin" ou "usuario".');
+    }
+    if (USERS.some((item) => item.email === email)) {
+      return send(res, 409, { error: { code: 'CONFLICT', message: 'Já existe uma conta com este e-mail.' } });
+    }
+    const token = randomBytes(32).toString('base64url');
+    const expiresAt = Date.now() + INVITATION_TTL_MS;
+    invitations.set(tokenHash(token), { email, role: body.role, expiresAt, usedAt: null });
+    const inviteUrl = new URL('/cadastro', process.env.MOCK_APP_URL ?? 'http://localhost:5173');
+    inviteUrl.searchParams.set('convite', token);
+    return send(res, 201, { inviteUrl: inviteUrl.toString(), expiresAt: new Date(expiresAt).toISOString() });
+  },
+
+  // #196 — cadastro por convite: e-mail e papel vêm do convite; o convite vale para um cadastro só
+  'POST /auth/register': async (req, res) => {
+    const body = await readJson(req);
+    if (!body || typeof body.token !== 'string' || typeof body.name !== 'string' || typeof body.password !== 'string') {
+      return validationError(res, 'Informe token, name e password.');
+    }
+    const name = body.name.trim();
+    if (name === '' || name.length > 100) return validationError(res, 'O nome deve ter de 1 a 100 caracteres.');
+    const { password } = body;
+    if (password.length < 8 || Buffer.byteLength(password) > 72 || !/\p{L}/u.test(password) || !/\d/.test(password)) {
+      return validationError(res, PASSWORD_RULE);
+    }
+    const invitation = availableInvitation(res, body.token);
+    if (!invitation) return undefined;
+    if (USERS.some((item) => item.email === invitation.email)) {
+      return send(res, 409, { error: { code: 'CONFLICT', message: 'Já existe uma conta com este e-mail.' } });
+    }
+    invitation.usedAt = Date.now();
+    const user = { id: String(USERS.length + 1), email: invitation.email, password, name, role: invitation.role };
+    USERS.push(user);
+    return send(res, 201, publicUser(user));
   },
 
   // #176 — intervalo de atualização do dashboard: leitura pública, troca só com token (contrato na issue)
   'GET /monitoring-settings': async (_req, res) => send(res, 200, monitoringSettings),
 
   'PUT /monitoring-settings': async (req, res) => {
-    const token = bearerToken(req);
-    if (!token || !validTokens.has(token)) return send(res, 401, UNAUTHORIZED);
+    const user = sessionUser(req);
+    if (!user) return send(res, 401, UNAUTHORIZED);
+    if (user.role !== 'admin') return send(res, 403, FORBIDDEN);
     const body = await readJson(req);
     if (!body || !ALLOWED_INTERVALS.includes(body.refreshIntervalSeconds)) {
       return validationError(res, 'refreshIntervalSeconds deve ser 15, 30 ou 60.');
@@ -255,7 +415,15 @@ const routes = {
   // US01 / US04 — serviços monitorados (exige token desde a #257)
   'GET /services': async (_req, res) => {
     if (SERVICES_SCENARIO === 'erro') return send(res, 500, { error: { code: 'INTERNAL_ERROR', message: 'Falha simulada no backend falso.' } });
-    const services = SERVICES_SCENARIO === 'vazio' ? [] : SERVICES.map(readService);
+    let catalog = SERVICES_SCENARIO === 'vazio' ? [] : SERVICES;
+    if (SERVICES_SCENARIO === 'mudancas') {
+      const call = ++servicesCalls;
+      const down = { status: 'indisponivel', reason: 'Serviço indisponível (HTTP 503).' };
+      catalog = SERVICES.map((service) => (service.id === 'checkout-worker' && call % 2 === 0 ? { ...service, ...down } : service));
+      const audit = SERVICES.find((service) => service.id === 'audit-stream');
+      if (Math.floor(call / 3) % 2 === 1) catalog.push({ ...audit, id: 'billing-api', name: 'Billing API' });
+    }
+    const services = catalog.map(readService);
     const checkout = services.find((service) => service.id === 'checkout-worker');
     if (SERVICES_SCENARIO === 'sem-id' && checkout) delete checkout.id;
     if (SERVICES_SCENARIO === 'cpu-texto' && services[0]) services[0].cpuPercent = String(services[0].cpuPercent);
@@ -333,16 +501,34 @@ const routes = {
       return validationError(res, 'Informe from e to com data e hora (ISO 8601), from antes de to e até 31 dias.');
     }
     const services = listedServices();
-    const collections = services.flatMap((service) => collectionsBetween(service, from, to));
-    const count = (status) => services.filter((service) => service.status === status).length;
-    const summary = {
-      period: { from: new Date(from).toISOString(), to: new Date(to).toISOString() },
-      // Só as coletas calculadas têm energia e CO₂e; as outras vêm null e ficam fora da soma
-      energyKwh: sumOrNull(collections, 'energyKwh'),
-      co2eGrams: sumOrNull(collections, 'co2eGrams'),
-      services: { active: count('ativo'), unavailable: count('indisponivel'), withoutMetrics: count('sem_metricas'), removed: count('removido') },
+    // Mesmas regras de docs/api.md § GET /api/services/summary: energia e CO₂e só das coletas calculadas, null sem nenhuma
+    const totalsBetween = (start, end) => {
+      const items = services.flatMap((service) => collectionsBetween(service, start, end));
+      const energyKwh = sumOrNull(items, 'energyKwh');
+      const co2eGrams = sumOrNull(items, 'co2eGrams');
+      return {
+        collections: items.length,
+        failed: items.filter((item) => item.status !== 'ok').length,
+        notCalculated: items.filter((item) => item.calculationStatus !== 'disponivel').length,
+        energyKwh,
+        co2eGrams,
+        carbonIntensityGco2ePerKwh: energyKwh === null || energyKwh === 0 || co2eGrams === null ? null : co2eGrams / energyKwh,
+      };
     };
-    if (SERVICES_SCENARIO === 'resumo-texto') summary.energyKwh = String(summary.energyKwh);
+    const previousFrom = from - (to - from);
+    const count = (status) => services.filter((service) => service.status === status).length;
+    const ativo = count('ativo');
+    const indisponivel = count('indisponivel');
+    const sem_metricas = count('sem_metricas');
+    const removido = count('removido');
+    const summary = {
+      from: new Date(from).toISOString(),
+      to: new Date(to).toISOString(),
+      totals: totalsBetween(from, to),
+      previous: { from: new Date(previousFrom).toISOString(), to: new Date(from).toISOString(), totals: totalsBetween(previousFrom, from) },
+      servicesByStatus: { ativo, indisponivel, sem_metricas, removido, total: ativo + indisponivel + sem_metricas },
+    };
+    if (SERVICES_SCENARIO === 'resumo-texto') summary.totals.energyKwh = String(summary.totals.energyKwh);
     return send(res, 200, summary);
   },
 
@@ -393,7 +579,9 @@ const routes = {
           co2eGrams,
           collections: items.length,
           failed: items.filter((item) => item.status !== 'ok').length,
-          notCalculated: items.filter((item) => item.status === 'ok' && item.co2eGrams === null).length,
+          // Como no backend (docs/api.md): sem cálculo inclui as falhas, então calculadas = collections − notCalculated
+          notCalculated: items.filter((item) => item.calculationStatus !== 'disponivel').length,
+          monitoredSeconds: monitoredSecondsOf(items),
         };
         // MOCK_SERVICES=ranking-texto: o 1º lugar vem com o CO₂e em texto, para ver a tela recusar a resposta
         if (SERVICES_SCENARIO === 'ranking-texto' && entry.position === 1) entry.co2eGrams = String(entry.co2eGrams);
@@ -426,11 +614,18 @@ const routes = {
           region: service.region,
           collections: items.length,
           failed: items.filter((item) => item.status !== 'ok').length,
-          notCalculated: items.filter((item) => item.status === 'ok' && item.co2eGrams === null).length,
+          notCalculated: items.filter((item) => item.calculationStatus !== 'disponivel').length,
+          monitoredSeconds: monitoredSecondsOf(items),
           avgCpuPercent: averageOrNull(items, 'cpuPercent'),
           avgMemoryGb: averageOrNull(items, 'memoryGb'),
           avgDiskGb: averageOrNull(items, 'diskGb'),
           avgNetworkGb: averageOrNull(items, 'networkGb'),
+          avgPowerBreakdown: breakdownFromAverages(
+            averageOrNull(items, 'cpuPercent'),
+            averageOrNull(items, 'memoryGb'),
+            averageOrNull(items, 'diskGb'),
+            averageOrNull(items, 'networkGb'),
+          ),
           energyKwh: sumOrNull(items, 'energyKwh'),
           co2eGrams: sumOrNull(items, 'co2eGrams'),
         };
@@ -439,17 +634,63 @@ const routes = {
     if (SERVICES_SCENARIO === 'comparacao-sem-id') delete comparison.services[0].id;
     return send(res, 200, comparison);
   },
+  // Regiões da Carbon API (#319): coordenadas aproximadas da cidade; a eu-north não tem serviço (destino possível)
+  'GET /regions': async (_req, res) => {
+    if (REGIONS_SCENARIO === 'falha') return send(res, 502, { error: { code: 'EXTERNAL_API_ERROR', message: 'Não foi possível consultar a API de intensidade de carbono.' } });
+    const listed = listedServices().filter((service) => service.status !== 'removido');
+    const regions = REGIONS.map((region) => ({ ...region, monitoredServices: listed.filter((service) => service.regionCode === region.code).length }));
+    return send(res, 200, { regions, source: 'api', fetchedAt: new Date().toISOString() });
+  },
+
+  // Totais por região no período (#320): a mesma regra do ranking, com o pior estado entre os serviços não removidos
+  'GET /regions/summary': async (req, res) => {
+    if (SERVICES_SCENARIO === 'erro') return simulatedFailure(res);
+    const query = new URL(req.url ?? '/', `http://localhost:${PORT}`).searchParams;
+    if (query.has('from') !== query.has('to')) return validationError(res, 'Informe from e to juntos, ou nenhum dos dois.');
+    const to = query.has('to') ? parseInstant(query.get('to')) : Date.now();
+    const from = query.has('from') ? parseInstant(query.get('from')) : to - DAY_MS;
+    if (from === null || to === null || from >= to || to - from > MAX_SPAN_MS) {
+      return validationError(res, 'Informe from e to com data e hora (ISO 8601), from antes de to e até 31 dias.');
+    }
+    const groups = new Map();
+    for (const service of listedServices().filter((item) => item.status !== 'removido')) {
+      groups.set(service.regionCode, [...(groups.get(service.regionCode) ?? []), service]);
+    }
+    const regions = [...groups].map(([code, services]) => {
+      const collections = services.flatMap((service) => collectionsBetween(service, from, to));
+      const count = (status) => services.filter((service) => service.status === status).length;
+      const counts = { ativo: count('ativo'), indisponivel: count('indisponivel'), sem_metricas: count('sem_metricas') };
+      const worstStatus = counts.indisponivel > 0 ? 'indisponivel' : counts.sem_metricas > 0 ? 'sem_metricas' : counts.ativo > 0 ? 'ativo' : null;
+      return {
+        code,
+        energyKwh: sumOrNull(collections, 'energyKwh'),
+        co2eGrams: sumOrNull(collections, 'co2eGrams'),
+        collections: collections.length,
+        failed: collections.filter((item) => item.status !== 'ok').length,
+        notCalculated: collections.filter((item) => item.calculationStatus !== 'disponivel').length,
+        services: counts,
+        worstStatus,
+      };
+    });
+    return send(res, 200, { from: new Date(from).toISOString(), to: new Date(to).toISOString(), regions });
+  },
 };
 
 createServer(async (req, res) => {
   // CORS: o Vite roda em outra porta (5173)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, OPTIONS');
   if (req.method === 'OPTIONS') return send(res, 204);
 
   // Aceita as rotas com ou sem o prefixo /api (o .env.example usa VITE_API_URL=http://localhost:3000/api)
   const path = new URL(req.url ?? '/', `http://localhost:${PORT}`).pathname.replace(/^\/api(?=\/)/, '');
+  // GET /invitations/:token é a única rota com parâmetro no caminho
+  if (req.method === 'GET' && path.startsWith('/invitations/')) {
+    const invitation = availableInvitation(res, decodeURIComponent(path.slice('/invitations/'.length)));
+    if (invitation) send(res, 200, { email: invitation.email, role: invitation.role, expiresAt: new Date(invitation.expiresAt).toISOString() });
+    return undefined;
+  }
   const route = routes[`${req.method} ${path}`];
   console.log(`${new Date().toLocaleTimeString('pt-BR')}  ${req.method} ${path}${bearerToken(req) ? '  (com Bearer)' : ''}`);
 
@@ -459,6 +700,7 @@ createServer(async (req, res) => {
 }).listen(PORT, () => {
   console.log(`Backend falso em http://localhost:${PORT}`);
   console.log(`GET /services: cenário "${SERVICES_SCENARIO}" (MOCK_SERVICES=normal|vazio|erro|sem-id|cpu-texto|resumo-texto|comparacao-sem-id|ranking-texto|ranking-instavel|ranking-falha)`);
-  console.log(`Login: ${ADMIN.email} / ${ADMIN.password} (exigido nas rotas de dados, #257; reiniciar o mock invalida os tokens)`);
+  console.log(`GET /regions: cenário "${REGIONS_SCENARIO}" (MOCK_REGIONS=normal|falha)`);
+  console.log(`Login: ${ADMIN.email} / ${ADMIN.password} (admin) ou ${USERS[1].email} / ${USERS[1].password} (usuário, #197); reiniciar o mock invalida os tokens e os convites`);
   console.log(`GET /monitoring-settings: intervalo inicial ${monitoringSettings.refreshIntervalSeconds} s (MOCK_REFRESH_INTERVAL_SECONDS)`);
 });

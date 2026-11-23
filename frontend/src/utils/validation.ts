@@ -13,3 +13,37 @@ export function validateEmail(value: string): string {
 export function validatePassword(value: string): string {
   return value === '' ? 'Informe sua senha.' : '';
 }
+
+/** Mesma regra do backend (POST /auth/register, #196): 8 a 72 caracteres, com letra e número. */
+export const PASSWORD_RULE = 'Use de 8 a 72 caracteres, com pelo menos uma letra e um número.';
+
+export function validateName(value: string): string {
+  const name = value.trim();
+  if (name === '') return 'Informe seu nome.';
+  return name.length > 100 ? 'Use no máximo 100 caracteres.' : '';
+}
+
+/** Senha nova no cadastro por convite. O limite de 72 é em bytes, como no bcrypt do backend. */
+export function validateNewPassword(value: string): string {
+  if (value === '') return 'Crie uma senha.';
+  const bytes = new TextEncoder().encode(value).length;
+  return value.length < 8 || bytes > 72 || !/\p{L}/u.test(value) || !/\d/.test(value) ? PASSWORD_RULE : '';
+}
+
+export function validatePasswordConfirmation(password: string, confirmation: string): string {
+  if (confirmation === '') return 'Repita a senha.';
+  return confirmation === password ? '' : 'As senhas não são iguais.';
+}
+
+/** Senha atual na troca de senha do perfil (#401): aqui só conferimos se foi digitada; quem confere é o backend. */
+export function validateCurrentPassword(value: string): string {
+  return value === '' ? 'Informe a senha atual.' : '';
+}
+
+/** Nova senha no perfil (#401): a regra do cadastro e diferente da atual, como no backend (#400). */
+export function validateChangedPassword(current: string, next: string): string {
+  if (next === '') return 'Informe a nova senha.';
+  const rule = validateNewPassword(next);
+  if (rule) return rule;
+  return next === current ? 'A nova senha deve ser diferente da atual.' : '';
+}

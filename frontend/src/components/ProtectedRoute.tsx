@@ -6,7 +6,7 @@ import { returnPath } from '../utils/login-redirect';
 import type { LoginRedirectState } from '../utils/login-redirect';
 
 /**
- * Guarda de todas as páginas (#257): sem sessão, manda para /login e volta à mesma tela depois do login.
+ * Guarda de todas as páginas (#257): sem sessão, manda para /login (na raiz, para a apresentação em /inicio) e volta à mesma tela depois do login.
  * Sem sessão nenhuma página monta, então nenhuma busca nem polling começa; ao sair ou com um 401, as páginas
  * desmontam e o polling para junto (usePolling cancela no desmonte).
  * Só melhora a navegação: quem protege os dados é o backend (401 sem token válido).
@@ -19,6 +19,8 @@ export default function ProtectedRoute({ children, allowDemo = true }: { childre
   const location = useLocation();
 
   if (!user && !(isDemoMode && allowDemo)) {
+    // Visitante que chega na raiz vê a página de apresentação; nas outras telas, o login
+    if (location.pathname === '/' && !location.search && !location.hash) return <Navigate to="/inicio" replace />;
     const state: LoginRedirectState = { from: returnPath(location) };
     return <Navigate to="/login" replace state={state} />;
   }

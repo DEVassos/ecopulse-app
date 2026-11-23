@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 |---|---|
-| Status | proposto |
+| Status | aceito (PR #269) |
 | Data | 2026-11-04 |
 | Decisores | @DeaTuribio (frontend), @viniciusaugusto1997 (backend), @travensolli (SM, autor da #257), @henriqueptbd-cell (PO) |
 | Rastreabilidade | issue #257 · contrato da #176 · requisitos RP06, RNF05 · critério DW06 |

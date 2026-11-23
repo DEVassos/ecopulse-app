@@ -52,9 +52,11 @@ interface MetricBarsProps {
   metric: Metric;
   services: ComparedService[];
   highlightOf: (id: string) => CompareHighlight | null;
+  activeId: string | null;
+  onActiveChange: (id: string | null) => void;
 }
 
-function MetricBars({ metric, services, highlightOf }: MetricBarsProps) {
+function MetricBars({ metric, services, highlightOf, activeId, onActiveChange }: MetricBarsProps) {
   const titleId = useId();
   const descId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,7 +88,14 @@ function MetricBars({ metric, services, highlightOf }: MetricBarsProps) {
     <div className="flex min-w-0 flex-col gap-2">
       <h3 className="m-0 font-display text-sm font-semibold">{metric.title}</h3>
       <div ref={containerRef} className="compare-chart">
-        <svg role="img" aria-labelledby={titleId} aria-describedby={descId} width={width} height={rows.length * ROW_HEIGHT}>
+        <svg
+          role="img"
+          aria-labelledby={titleId}
+          aria-describedby={descId}
+          width={width}
+          height={rows.length * ROW_HEIGHT}
+          viewBox={`0 0 ${width} ${rows.length * ROW_HEIGHT}`}
+        >
           <title id={titleId}>{`${metric.title} por serviço`}</title>
           <desc id={descId}>{`${description}.`}</desc>
           {rows.map(({ service, value, text, highlight }, index) => {
@@ -95,7 +104,14 @@ function MetricBars({ metric, services, highlightOf }: MetricBarsProps) {
             const nameRoom = width - text.length * DATA_CHAR - 12 - flag.length * SANS_CHAR;
             const barWidth = value === null || max === 0 ? 0 : Math.max((value / max) * width, value > 0 ? MIN_BAR : 0);
             return (
-              <g key={service.id}>
+              <g
+                key={service.id}
+                className={activeId === null ? undefined : activeId === service.id ? 'compare-chart__row--active' : 'compare-chart__row--dim'}
+                onPointerEnter={() => onActiveChange(service.id)}
+                onPointerLeave={() => onActiveChange(null)}
+              >
+                {/* Área invisível da linha inteira: o ponteiro entre o nome e a barra continua no serviço */}
+                <rect className="compare-chart__hit" x={0} y={top} width={width} height={ROW_HEIGHT} />
                 <text className="compare-chart__name" x={0} y={top + TEXT_Y}>
                   {highlight && <tspan className={`compare-chart__flag--${highlight.kind}`}>{flag}</tspan>}
                   {truncate(service.name, Math.floor(nameRoom / SANS_CHAR))}
@@ -136,6 +152,9 @@ interface Props {
   services: ComparedService[];
   /** Destaque de CO₂e do serviço, o mesmo da tabela, ou null. */
   highlightOf: (id: string) => CompareHighlight | null;
+  /** Serviço sob o ponteiro ou o foco em qualquer bloco da comparação (destaque cruzado, #431). */
+  activeId?: string | null;
+  onActiveChange?: (id: string | null) => void;
 }
 
 /**
@@ -144,7 +163,7 @@ interface Props {
  */
 const SCALE_NOTE = 'Cada gráfico tem a sua escala: a barra mais longa é o maior valor daquela grandeza no período.';
 
-export default function CompareChart({ services, highlightOf }: Props) {
+export default function CompareChart({ services, highlightOf, activeId = null, onActiveChange = () => {} }: Props) {
   const found = new Map(
     services.flatMap((service) => {
       const highlight = highlightOf(service.id);
@@ -157,7 +176,14 @@ export default function CompareChart({ services, highlightOf }: Props) {
     <figure className="m-0 flex flex-col gap-3 border-t border-border px-5 py-4">
       <div className="grid gap-x-8 gap-y-5 md:grid-cols-2">
         {metricsFor(services).map((metric) => (
-          <MetricBars key={metric.title} metric={metric} services={services} highlightOf={highlightOf} />
+          <MetricBars
+            key={metric.title}
+            metric={metric}
+            services={services}
+            highlightOf={highlightOf}
+            activeId={activeId}
+            onActiveChange={onActiveChange}
+          />
         ))}
       </div>
       {/* A regra da escala vai no tooltip da legenda (#272); o leitor de tela ouve a frase inteira */}

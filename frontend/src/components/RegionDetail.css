@@ -1,0 +1,365 @@
+@layer components {
+  /* Painel da região selecionada com a simulação de migração (#326, RF15). Mesma superfície da lista de regiões */
+  .region-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+
+  .region-detail__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 16px;
+  }
+
+  .region-detail__title {
+    margin: 0;
+    font-family: var(--display);
+    font-size: 18px;
+    font-weight: 600;
+  }
+
+  .region-detail__title small {
+    margin-left: 4px;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--muted);
+  }
+
+  .region-detail__subtitle {
+    margin: 6px 0 0;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .region-detail__period,
+  .region-detail__totals,
+  .region-detail__math,
+  .region-detail__note {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .region-detail__sentence {
+    margin: 0;
+    font-size: 15px;
+    color: var(--text);
+  }
+
+  /* Decisão (frase ou cartão, por quê e botões) e opções (tabela de destinos): empilhadas abaixo de 1100 px e no papel */
+  .region-detail__body,
+  .region-detail__main {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  /*
+   * Lado a lado a partir de 1100 px, o mesmo corte do mapa com a lista (#434): o cartão e a tabela paravam em 720 px e a
+   * metade direita do painel ficava vazia. A margem da tabela alinha a legenda dela com o subtítulo da esquerda
+   */
+  @media (min-width: 1100px) {
+    .region-detail__body {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      align-items: start;
+      gap: 8px 32px;
+    }
+
+    .region-detail__body .region-detail__reco,
+    .region-detail__body .region-detail__table {
+      max-width: none;
+    }
+
+    .region-detail__body > .region-detail__scroll {
+      margin-top: 6px;
+    }
+  }
+
+  .region-detail__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .region-detail__actions:empty {
+    display: none;
+  }
+
+  /* Alvos de 44 px no celular (RNF01) */
+  .region-detail__button {
+    min-height: 44px;
+    padding: 8px 14px;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .region-detail__button:hover {
+    background: var(--surface-2);
+  }
+
+  /* relative: o texto sr-only das células (position: absolute) fica dentro da rolagem, sem alargar a página no celular */
+  .region-detail__scroll {
+    position: relative;
+    overflow-x: auto;
+  }
+
+  /* No computador, a tabela não se espalha pela largura toda: os números ficam perto do nome da região */
+  .region-detail__table {
+    width: 100%;
+    max-width: 720px;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .region-detail__table caption {
+    padding-bottom: 6px;
+    font-size: 13px;
+    color: var(--text-2);
+    text-align: left;
+  }
+
+  .region-detail__table th,
+  .region-detail__table td {
+    padding: 2px 6px;
+    border-top: 1px solid var(--border);
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .region-detail__table thead th {
+    border-top: 0;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  .region-detail__table th:first-child {
+    padding-left: 0;
+    text-align: left;
+  }
+
+  /* A mais limpa em destaque: fundo e a etiqueta "mais limpa", nunca só a cor */
+  .region-detail__row--cleanest {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+
+  .region-detail__pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 6px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .region-detail__pick:hover:not(:disabled) {
+    background: var(--surface-2);
+  }
+
+  .region-detail__pick[aria-pressed='true'] {
+    border-color: var(--accent);
+    background: var(--surface-3);
+  }
+
+  .region-detail__pick:disabled {
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+
+  .region-detail__tag {
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--surface);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  /*
+   * Cartão da simulação (#395): veredito, antes e depois no mesmo eixo e a diferença. Borda e fundo no tom do resultado
+   * (redução em verde, aumento em laranja), sempre com o verbo do veredito e a palavra da diferença ao lado.
+   */
+  /* Mesma largura máxima da tabela de destinos: no computador, as barras não se esticam pela tela toda */
+  .region-detail__reco {
+    display: grid;
+    gap: 10px;
+    max-width: 720px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+
+  .region-detail__reco--reducao {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+  }
+
+  .region-detail__reco--aumento {
+    border-color: color-mix(in srgb, var(--warning) 45%, var(--border));
+    background: color-mix(in srgb, var(--warning) 7%, var(--surface));
+  }
+
+  .region-detail__verdict {
+    margin: 0;
+    font-family: var(--display);
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text);
+    text-wrap: balance;
+  }
+
+  .region-detail__badge {
+    margin-left: 8px;
+    vertical-align: 2px;
+  }
+
+  /* Duas linhas, rótulo · barra · valor; no celular o rótulo sobe para cima da barra */
+  .region-detail__bars {
+    display: grid;
+    grid-template-columns: minmax(110px, auto) minmax(80px, 1fr) auto;
+    align-items: center;
+    gap: 6px 10px;
+    font-size: 13px;
+  }
+
+  .region-detail__bar-label {
+    color: var(--text-2);
+  }
+
+  .region-detail__bar-value {
+    font-weight: 600;
+    text-align: right;
+    color: var(--text);
+  }
+
+  .region-detail__track {
+    display: block;
+    height: 12px;
+    overflow: hidden;
+    border-radius: 4px;
+    background: var(--surface-3);
+  }
+
+  .region-detail__fill {
+    display: block;
+    height: 100%;
+    border-radius: 0 4px 4px 0;
+    background: var(--faint);
+  }
+
+  .region-detail__fill--reducao {
+    background: var(--accent);
+  }
+
+  .region-detail__fill--aumento {
+    background: var(--warning);
+  }
+
+  .region-detail__delta {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .region-detail__reco--reducao .region-detail__delta {
+    color: var(--accent-hover);
+  }
+
+  .region-detail__reco--aumento .region-detail__delta {
+    color: var(--warning);
+  }
+
+  .region-detail__why-title {
+    margin: 4px 0 4px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .region-detail__why-list {
+    display: grid;
+    gap: 4px;
+    margin: 0;
+    padding-left: 18px;
+    font-size: 13px;
+    color: var(--text-2);
+  }
+
+  .region-detail__why-list strong {
+    color: var(--text);
+  }
+
+  .region-detail__diff--reducao {
+    color: var(--accent-hover);
+  }
+
+  .region-detail__diff--aumento {
+    color: var(--warning);
+  }
+
+  @media (max-width: 599px) {
+    .region-detail__bars {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    /* Em 390 px a tabela passava 9 px da largura e cortava "Diferença" (#434): 4 px de cada lado fazem as quatro colunas
+       caberem; valores mais longos ainda rolam de lado, com a rolagem do .region-detail__scroll */
+    .region-detail__table th,
+    .region-detail__table td {
+      padding-inline: 4px;
+    }
+
+    .region-detail__table th:first-child {
+      padding-left: 0;
+    }
+
+    .region-detail__bar-label {
+      grid-column: 1 / -1;
+      margin-bottom: -4px;
+    }
+  }
+
+  /* Dado da atualização anterior: apagado, como a lista e o mapa (#261) */
+  .region-detail--stale .region-detail__sentence,
+  .region-detail--stale .region-detail__verdict,
+  .region-detail--stale .region-detail__delta,
+  .region-detail--stale .region-detail__bar-value,
+  .region-detail--stale .region-detail__diff,
+  .region-detail--stale .region-detail__table td {
+    color: var(--muted);
+  }
+
+  .region-detail--stale .region-detail__fill {
+    background: var(--faint);
+  }
+
+  .region-detail--stale .region-detail__reco,
+  .region-detail--stale .region-detail__row--cleanest {
+    border-color: var(--border);
+    background: transparent;
+  }
+}

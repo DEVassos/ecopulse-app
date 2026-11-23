@@ -1,4 +1,5 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { KeyboardEvent, PointerEvent, RefObject } from 'react';
 import type { EmissionPoint, EmissionsBucket } from '../services/emissions.types';
 import type { TimeSpan } from '../utils/emissions';
@@ -23,8 +24,11 @@ import {
   typicalIntervalMs,
 } from '../utils/emissions';
 import { CHAR_WIDTH, freeBaseline, labelBox, labelsOverlap } from '../utils/chart-labels';
+import { barPath, intervalBars } from '../utils/emission-bars';
 import { scaleFor } from '../utils/units';
+import { describeWindow, dragSpan } from '../utils/zoom';
 import type { LabelAnchor, LabelBox } from '../utils/chart-labels';
+import type { ZoomWindow } from '../utils/zoom';
 import './EmissionsChart.css';
 
 /** `intervalo`: a emissão de cada ponto (coleta ou intervalo); `acumulado`: a soma ao longo do período. */
@@ -41,6 +45,13 @@ interface Props {
   missing?: TimeSpan[];
   /** A última atualização falhou: o gráfico fica apagado, como o resumo. */
   stale?: boolean;
+  /** Início do monitoramento depois de boa parte do período (#332): linha tracejada no instante, com o texto da marca. */
+  startMark?: { t: number; label: string };
+  /** Arrastar com o mouse ou a caneta seleciona um trecho (#397), que a página amplia; sem a prop, não há arrasto. */
+  onZoom?: (span: ZoomWindow) => void;
+  /** Duplo clique e Esc (depois de fechar a dica) restauram o período, quando há um trecho ampliado (#397). */
+  onZoomReset?: () => void;
+  zoomed?: boolean;
 }
 
 const MARGIN = { top: 16, right: 20, bottom: 50, left: 64 };
@@ -67,7 +78,17 @@ function calculatedOf(point: EmissionPoint): number {
   return point.collections - point.failed - point.notCalculated;
 }
 
-/** Largura do contêiner, acompanhando o redimensionamento da janela. */
+/**
+ * Largura útil de uma folha A4 retrato com as margens do print.css (210 mm − 24 mm ≈ 186 mm ≈ 700 px a 96 dpi): o
+ * gráfico do relatório impresso (#13) é desenhado nesta largura, com letras do mesmo tamanho da tela.
+ */
+export const PRINT_CHART_WIDTH = 700;
+
+/**
+ * Largura do contêiner, acompanhando o redimensionamento da janela. Na impressão (#13), o ResizeObserver não roda:
+ * o `beforeprint` redesenha na largura da folha com flushSync (antes de o navegador montar a página), e o `afterprint`
+ * volta à largura da tela.
+ */
 function useWidth<T extends HTMLElement>(): [RefObject<T | null>, number] {
   const ref = useRef<T>(null);
   const [width, setWidth] = useState(0);
@@ -76,7 +97,15 @@ function useWidth<T extends HTMLElement>(): [RefObject<T | null>, number] {
     if (!element) return undefined;
     const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
     observer.observe(element);
-    return () => observer.disconnect();
+    const beforePrint = () => flushSync(() => setWidth(PRINT_CHART_WIDTH));
+    const afterPrint = () => setWidth(element.clientWidth);
+    window.addEventListener('beforeprint', beforePrint);
+    window.addEventListener('afterprint', afterPrint);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('beforeprint', beforePrint);
+      window.removeEventListener('afterprint', afterPrint);
+    };
   }, []);
   return [ref, width];
 }
@@ -95,17 +124,32 @@ function nearestIndex(times: number[], t: number): number {
 }
 
 /**
- * Gráfico de linha da emissão de CO₂e ao longo do tempo (SVG próprio, sem biblioteca).
- * Agrupado, cada ponto é a soma do intervalo, desenhada no meio dele, com uma faixa clara de onde a soma estaria se
- * todas as coletas fossem a menor ou a maior do intervalo (o pico de uma coleta não some na soma).
- * A linha é interrompida onde não há cálculo ou onde a coleta parou; falhas aparecem na faixa acima do eixo do tempo.
+ * Gráfico da emissão de CO₂e ao longo do tempo (SVG próprio, sem biblioteca).
+ * Por intervalo, uma barra por intervalo (ou por coleta): cada valor é uma quantidade daquele intervalo, e a barra
+ * ocupa o intervalo inteiro, com um traço de onde a soma estaria se todas as coletas fossem a menor ou a maior do
+ * intervalo (o pico de uma coleta não some na soma). Sem cálculo, não há barra; falhas aparecem na faixa acima do eixo
+ * do tempo. No Acumulado, uma linha: o total corrido é contínuo e só cresce.
  */
 /** Sem trechos sem coleta: a mesma referência em toda renderização. */
 const NO_SPANS: TimeSpan[] = [];
 
-export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, missing = NO_SPANS, stale = false }: Props) {
+export default function EmissionsChart({
+  points,
+  bucket,
+  mode,
+  fromMs,
+  toMs,
+  missing = NO_SPANS,
+  stale = false,
+  startMark,
+  onZoom,
+  onZoomReset,
+  zoomed = false,
+}: Props) {
   const [containerRef, width] = useWidth<HTMLDivElement>();
   const [hover, setHover] = useState<number | null>(null);
+  // Arrasto do mouse (#397): onde começou e onde está, em px a partir da borda esquerda da área do gráfico
+  const [drag, setDrag] = useState<{ x0: number; x1: number; width: number } | null>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const [tooltipW, setTooltipW] = useState(0);
   // useId traz caracteres que não servem em url(#…): fica só o que é letra, número ou hífen
@@ -206,6 +250,33 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
     // eslint-disable-next-line react-hooks/exhaustive-deps -- listar x e y refaria os caminhos do gráfico a cada renderização
   }, [points, times, values, band, stepMs, grouped, openIndex, plotW, plotH, fromMs, toMs, yMax]);
 
+  // Por intervalo: barras, como no protótipo da Sprint 3; o Acumulado continua em linha (é um total corrido)
+  const barsMode = mode === 'intervalo';
+  const bars = useMemo(
+    () =>
+      barsMode
+        ? intervalBars({
+            // Agrupado, o tempo do ponto é o meio do intervalo; por coleta, o próprio instante: a barra centra nele
+            starts: times.map((t) => t - stepMs / 2),
+            stepMs,
+            values,
+            openIndex,
+            peakIndex,
+            ranges: band.length > 0 ? band : values.map(() => null),
+            x,
+            y,
+            baseline: MARGIN.top + plotH,
+            plotLeft: MARGIN.left,
+            plotRight: MARGIN.left + plotW,
+          })
+        : [],
+    // x e y dependem só de plotW, plotH, fromMs, toMs e yMax, que estão na lista
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- listar x e y refaria as barras a cada renderização
+    [barsMode, times, stepMs, values, openIndex, peakIndex, band, plotW, plotH, fromMs, toMs, yMax],
+  );
+  const hasRange = bars.some((bar) => bar.range !== null);
+  const hasOpenBar = bars.some((bar) => bar.kind === 'open');
+
   // Intervalo em andamento: o meio dele passa de "agora", então o ponto fica no fim do plot
   const openValue = openIndex !== null ? values[openIndex] : null;
   const open = openIndex !== null && openValue !== null ? { cx: x(Math.min(times[openIndex], toMs)), cy: y(openValue) } : null;
@@ -233,13 +304,43 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
   function handlePointer(event: PointerEvent<SVGRectElement>) {
     if (points.length === 0) return;
     const rect = event.currentTarget.getBoundingClientRect();
+    if (drag) setDrag({ ...drag, x1: event.clientX - rect.left });
     setHover(nearestIndex(times, fromMs + ((event.clientX - rect.left) / rect.width) * span));
+  }
+
+  // Trecho do arrasto, já encaixado: null enquanto o arrasto não passa do limiar (aí ainda é um clique)
+  const selection = drag ? dragSpan(drag.x0, drag.x1, drag.width, { fromMs, toMs }, stepMs) : null;
+  // "20/11 12:00 → 16:00 (4 h)" no alto da faixa, sem passar das bordas do gráfico
+  const selectionLabel = selection ? describeWindow(selection) : '';
+  const selectionHalf = (selectionLabel.length * CHAR_WIDTH.sans11) / 2;
+  const selectionX = selection
+    ? Math.min(Math.max((x(selection.fromMs) + x(selection.toMs)) / 2, MARGIN.left + selectionHalf), MARGIN.left + plotW - selectionHalf)
+    : 0;
+
+  /** Só mouse e caneta: no toque, o arrasto continua percorrendo os pontos, e os botões da página cobrem o zoom. */
+  function startDrag(event: PointerEvent<SVGRectElement>) {
+    handlePointer(event);
+    if (!onZoom || event.pointerType === 'touch' || event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const rect = event.currentTarget.getBoundingClientRect();
+    setDrag({ x0: event.clientX - rect.left, x1: event.clientX - rect.left, width: rect.width });
+  }
+
+  function endDrag() {
+    if (selection && onZoom) {
+      setHover(null);
+      onZoom(selection);
+    }
+    setDrag(null);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (points.length === 0) return;
+    // Esc fecha primeiro o que já fechava (o arrasto, a dica); depois, com um trecho ampliado, restaura o período
     if (event.key === 'Escape') {
-      setHover(null);
+      if (drag) setDrag(null);
+      else if (hover !== null) setHover(null);
+      else if (zoomed) onZoomReset?.();
       return;
     }
     const current = hover ?? points.length - 1;
@@ -298,6 +399,11 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
     const chip = labelBox(peakText, peak.cx, peak.cy - 14, peakAnchor, CHAR_WIDTH.data12, 12);
     labelObstacles.push({ left: chip.left - 6, right: chip.right + 6, top: chip.top - 3, bottom: peak.cy + 10 });
   }
+  // Marca do início do monitoramento (#332): o texto vai à esquerda da linha, no trecho vazio, quando cabe nele;
+  // senão fica só a linha, e a legenda diz o que ela é
+  const startX = startMark && startMark.t > fromMs ? x(startMark.t) : null;
+  const startLabelFits =
+    startMark !== undefined && startX !== null && startX - MARGIN.left >= startMark.label.length * CHAR_WIDTH.sans11 + 12;
   // Embaixo primeiro (no trecho sem coleta não há linha perto do zero), depois no meio e no alto
   const nodataBaselines = [MARGIN.top + plotH - 10, MARGIN.top + plotH / 2 + 4, MARGIN.top + 18];
   // Fundo do chip do pico na medida do texto já desenhado; sem getBBox (jsdom), o rótulo fica sem fundo
@@ -311,7 +417,8 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
     } else {
       setPeakBox(null);
     }
-  }, [peakText, width, mode, bucket, points]);
+    // fromMs entra porque o ajuste do eixo ao trecho com dados (#332) move o chip sem mudar os pontos
+  }, [peakText, width, mode, bucket, points, fromMs, toMs]);
 
   return (
     <div
@@ -319,7 +426,9 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
       ref={containerRef}
       tabIndex={0}
       role="group"
-      aria-label="Gráfico de emissões. Use as setas para percorrer os pontos; Esc fecha o detalhe."
+      aria-label={`Gráfico de emissões. Use as setas para percorrer os pontos; Esc fecha o detalhe${
+        zoomed ? ' e, de novo, restaura o período' : ''
+      }.${onZoom ? ' Com o mouse, arraste para ampliar um trecho; duplo clique restaura o período.' : ''}`}
       onKeyDown={handleKeyDown}
       onFocus={(event) => {
         // Só o foco pelo teclado abre o último ponto; no clique, o ponteiro já escolhe o ponto
@@ -330,9 +439,12 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
       onBlur={() => setHover(null)}
     >
       {width > 0 && (
+        // viewBox do mesmo tamanho: na tela nada muda; na impressão (#13), o CSS põe largura 100% e o gráfico encolhe
+        // inteiro até a folha, já que o ResizeObserver não roda durante a impressão
         <svg
           width={width}
           height={height}
+          viewBox={`0 0 ${width} ${height}`}
           role="img"
           aria-label={`Emissão de CO₂e ${mode === 'acumulado' ? 'acumulada' : unit} entre ${formatPointTime(fromMs)} e ${formatPointTime(toMs)}`}
           aria-describedby={reading.length > 0 ? `${ids}-reading` : undefined}
@@ -388,13 +500,37 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
                 fill={`url(#${ids}-nodata)`}
               />
             ))}
-            {bandPath && <path d={bandPath} className="emissions-chart__band" />}
-            {/* Com a faixa mín./máx., a área preenchida embaixo da linha ficaria pesada demais */}
-            {!bandPath && <path d={area} fill={`url(#${ids}-area)`} />}
-            <path d={line} className="emissions-chart__line" />
-            {dots.map((dot) => (
-              <circle key={dot.cx} className="emissions-chart__single" cx={dot.cx} cy={dot.cy} r={3} />
-            ))}
+            {barsMode ? (
+              <g className="emissions-chart__bars">
+                {bars.map((bar) => (
+                  <g key={bar.index}>
+                    <path
+                      d={barPath(bar)}
+                      className={`emissions-chart__bar emissions-chart__bar--${bar.kind}${hover === bar.index ? ' emissions-chart__bar--hover' : ''}`}
+                    />
+                    {bar.range && (
+                      <line
+                        className="emissions-chart__range"
+                        x1={bar.x + bar.width / 2}
+                        x2={bar.x + bar.width / 2}
+                        y1={bar.range.top}
+                        y2={bar.range.bottom}
+                      />
+                    )}
+                  </g>
+                ))}
+              </g>
+            ) : (
+              <>
+                {bandPath && <path d={bandPath} className="emissions-chart__band" />}
+                {/* Com a faixa mín./máx., a área preenchida embaixo da linha ficaria pesada demais */}
+                {!bandPath && <path d={area} fill={`url(#${ids}-area)`} />}
+                <path d={line} className="emissions-chart__line" />
+                {dots.map((dot) => (
+                  <circle key={dot.cx} className="emissions-chart__single" cx={dot.cx} cy={dot.cy} r={3} />
+                ))}
+              </>
+            )}
             {openLink && <line className="emissions-chart__open-link" {...openLink} />}
 
             {mean !== null && (
@@ -407,10 +543,21 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
             )}
           </g>
 
-          {open && <circle className="emissions-chart__open" cx={open.cx} cy={open.cy} r={4} pointerEvents="none" />}
+          {startMark && startX !== null && (
+            <g className="emissions-chart__start" pointerEvents="none">
+              <line className="emissions-chart__start-line" x1={startX} x2={startX} y1={MARGIN.top} y2={MARGIN.top + plotH} />
+              {startLabelFits && (
+                <text className="emissions-chart__start-label" x={startX - 6} y={MARGIN.top + 12} textAnchor="end">
+                  {startMark.label}
+                </text>
+              )}
+            </g>
+          )}
 
-          {/* Maior ponto, em cor neutra (o neon fica com o tile do pico); fora do clip para o halo e o rótulo não serem cortados */}
-          {peak && (
+          {open && !barsMode && <circle className="emissions-chart__open" cx={open.cx} cy={open.cy} r={4} pointerEvents="none" />}
+
+          {/* Maior ponto da linha, em cor neutra (o neon fica com o tile do pico); nas barras, o destaque é a própria barra */}
+          {peak && !barsMode && (
             <g className="emissions-chart__peak" pointerEvents="none">
               <circle className="emissions-chart__peak-halo" cx={peak.cx} cy={peak.cy} r={10} />
               <circle className="emissions-chart__peak-dot" cx={peak.cx} cy={peak.cy} r={4.5} />
@@ -456,21 +603,39 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
             />
           ))}
 
-          {/* Cursor */}
-          {hovered && hover !== null && (
+          {/* Cursor (some durante o arrasto, como a dica); nas barras, a barra sob o ponteiro já se destaca, e o cursor
+              só aparece onde não há barra (intervalo sem cálculo) */}
+          {hovered && hover !== null && !selection && (!barsMode || hoveredValue === null) && (
             <g pointerEvents="none">
               <line className="emissions-chart__cursor" x1={hoverX} x2={hoverX} y1={MARGIN.top} y2={MARGIN.top + plotH} />
               {hoveredValue !== null && <circle className="emissions-chart__dot" cx={hoverX} cy={y(hoveredValue)} r={4} />}
             </g>
           )}
+          {/* Trecho que o arrasto vai ampliar (#397): faixa sombreada com início, fim e duração */}
+          {selection && (
+            <g className="emissions-chart__selection" pointerEvents="none">
+              <rect x={x(selection.fromMs)} y={MARGIN.top} width={Math.max(1, x(selection.toMs) - x(selection.fromMs))} height={plotH} />
+              <text x={selectionX} y={MARGIN.top + 14} textAnchor="middle">
+                {selectionLabel}
+              </text>
+            </g>
+          )}
           <rect
+            className={onZoom ? 'emissions-chart__hit emissions-chart__hit--zoom' : 'emissions-chart__hit'}
             x={MARGIN.left}
             y={MARGIN.top}
             width={plotW}
             height={plotH + STRIP_H + 6}
             fill="transparent"
             onPointerMove={handlePointer}
-            onPointerDown={handlePointer}
+            onPointerDown={startDrag}
+            onPointerUp={endDrag}
+            onPointerCancel={() => setDrag(null)}
+            onDoubleClick={() => {
+              if (!zoomed || !onZoomReset) return;
+              setHover(null);
+              onZoomReset();
+            }}
             // No toque, o dedo saindo da tela não fecha o detalhe: ele fica até o próximo toque
             onPointerLeave={(event) => event.pointerType !== 'touch' && setHover(null)}
           />
@@ -496,7 +661,13 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
         </svg>
       )}
 
-      <div ref={tooltipRef} className="emissions-chart__tooltip" aria-live="polite" hidden={!hovered} style={{ left: tooltipLeft, top: MARGIN.top }}>
+      <div
+        ref={tooltipRef}
+        className="emissions-chart__tooltip"
+        aria-live="polite"
+        hidden={!hovered || selection !== null}
+        style={{ left: tooltipLeft, top: MARGIN.top }}
+      >
         {hovered && hover !== null && (
           <>
             <strong>
@@ -536,12 +707,30 @@ export default function EmissionsChart({ points, bucket, mode, fromMs, toMs, mis
         </p>
       )}
 
-      {(presentGaps.size > 0 || bandPath || missing.length > 0) && (
+      {(presentGaps.size > 0 || (!barsMode && bandPath) || hasRange || hasOpenBar || missing.length > 0 || startX !== null) && (
         <ul className="emissions-chart__legend" aria-label="Legenda do gráfico">
-          {bandPath && (
+          {startMark && startX !== null && (
+            <li>
+              <span className="emissions-chart__swatch emissions-chart__swatch--start" aria-hidden="true" />
+              {startMark.label.charAt(0).toUpperCase() + startMark.label.slice(1)}
+            </li>
+          )}
+          {!barsMode && bandPath && (
             <li>
               <span className="emissions-chart__swatch emissions-chart__swatch--band" aria-hidden="true" />
               Faixa: menor e maior coleta do intervalo
+            </li>
+          )}
+          {hasRange && (
+            <li>
+              <span className="emissions-chart__swatch emissions-chart__swatch--range" aria-hidden="true" />
+              Traço: a soma se todas as coletas fossem a menor ou a maior do intervalo
+            </li>
+          )}
+          {hasOpenBar && (
+            <li>
+              <span className="emissions-chart__swatch emissions-chart__swatch--open" aria-hidden="true" />
+              Intervalo em andamento: soma parcial
             </li>
           )}
           {missing.length > 0 && (

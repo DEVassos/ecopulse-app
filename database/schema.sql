@@ -55,18 +55,32 @@ CREATE TABLE IF NOT EXISTS services (
     )
 );
 
+-- #196: users sem papel é da versão anterior; a migração 003 acrescenta name e role preservando as contas.
+DO $users_guard$
+BEGIN
+    IF to_regclass('users') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM pg_attribute
+        WHERE attrelid = to_regclass('users') AND NOT attisdropped AND attname = 'role') THEN
+        RAISE EXCEPTION 'users sem papel detectada: aplique database/migrations/003-users-role-invitations.sql; dados preservados';
+    END IF;
+END;
+$users_guard$;
+
 CREATE TABLE IF NOT EXISTS users (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     email text NOT NULL,
     password_hash text NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
     updated_at timestamptz NOT NULL DEFAULT now(),
+    name text NOT NULL,
+    role text NOT NULL DEFAULT 'usuario',
     CONSTRAINT users_email_format_valid CHECK (
         email ~* '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'
     ),
     CONSTRAINT users_password_hash_bcrypt_valid CHECK (
         password_hash ~ '^\$2[aby]\$[0-9]{2}\$' AND char_length(password_hash) = 60
-    )
+    ),
+    CONSTRAINT users_name_valid CHECK (btrim(name) <> ''),
+    CONSTRAINT users_role_valid CHECK (role IN ('admin', 'usuario'))
 );
 
 CREATE TABLE IF NOT EXISTS collections (
@@ -165,11 +179,32 @@ CREATE TABLE IF NOT EXISTS access_entries (
     entered_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS invitations (
+    id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    email text NOT NULL,
+    role text NOT NULL,
+    token_hash text NOT NULL,
+    invited_by bigint NOT NULL,
+    expires_at timestamptz NOT NULL,
+    used_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT invitations_email_format_valid CHECK (
+        email ~* '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$'
+    ),
+    CONSTRAINT invitations_role_valid CHECK (role IN ('admin', 'usuario')),
+    CONSTRAINT invitations_token_hash_unique UNIQUE (token_hash),
+    CONSTRAINT invitations_token_hash_valid CHECK (token_hash ~ '^[0-9a-f]{64}$'),
+    CONSTRAINT invitations_expires_after_created CHECK (expires_at > created_at),
+    CONSTRAINT invitations_used_after_created CHECK (used_at IS NULL OR used_at >= created_at),
+    CONSTRAINT invitations_invited_by_fk FOREIGN KEY (invited_by)
+        REFERENCES users (id) ON DELETE RESTRICT
+);
+
 CREATE UNIQUE INDEX IF NOT EXISTS users_email_lower_unique
     ON users (lower(email));
 
 CREATE INDEX IF NOT EXISTS collections_service_collected_at_idx
-    ON collections (service_id, collected_at DESC);
+    ON collections (service_id, collected_at DESC, id DESC);
 
 CREATE INDEX IF NOT EXISTS collections_collected_at_idx
     ON collections (collected_at DESC);
@@ -195,6 +230,12 @@ COMMENT ON COLUMN collections.disk_gb IS 'Disco em GB conforme contrato externo.
 COMMENT ON COLUMN collections.network_gb IS 'Rede em GB conforme contrato externo; não presumir taxa por segundo.';
 COMMENT ON TABLE users IS 'Usuários autorizados da área de configuração.';
 COMMENT ON COLUMN users.password_hash IS 'Hash bcrypt da senha; nunca armazena senha em texto puro.';
+COMMENT ON COLUMN users.name IS 'Nome exibido na aplicação; o administrador do seed é "Administrador".';
+COMMENT ON COLUMN users.role IS 'Papel: admin altera a configuração e convida; usuario só consulta.';
+COMMENT ON TABLE invitations IS 'Convites de cadastro emitidos por administradores; uso único e com validade.';
+COMMENT ON COLUMN invitations.role IS 'Papel que a conta criada pelo convite recebe.';
+COMMENT ON COLUMN invitations.token_hash IS 'SHA-256 (hex) do token do link; o token em si nunca é gravado.';
+COMMENT ON COLUMN invitations.used_at IS 'Instante do cadastro; preenchido na mesma transação que cria a conta.';
 COMMENT ON TABLE access_entries IS 'IP e instante de entrada por sessão de navegação em uma aba; fluxo ainda não implementado.';
 COMMENT ON COLUMN access_entries.ip_address IS 'IP observado pelo backend considerando somente proxies confiáveis.';
 COMMENT ON COLUMN access_entries.entered_at IS 'Instante definido pelo servidor; polling e worker não representam entradas.';

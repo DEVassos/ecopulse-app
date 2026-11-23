@@ -1,0 +1,145 @@
+import { useEffect, useLayoutEffect, useState, type CSSProperties } from 'react';
+import type { StatusChangesState } from '../hooks/useStatusChanges';
+import { ChangeLine } from './RecentChanges';
+import './StatusChanges.css';
+
+/** Tempo na tela de cada lote; depois, o mesmo texto continua em "Últimas mudanças". */
+const TOAST_MS = 8000;
+const TOAST_LINES = 3;
+/** Até aqui o Dashboard põe o mapa das regiões no rodapé da tela; o aviso sai de baixo e encurta (#388). */
+const NARROW_QUERY = '(max-width: 599px)';
+/** Folga entre o aviso e a base da âncora, ou o topo da janela quando ela já saiu da tela (#388). */
+const TOP_GAP = 8;
+
+const BOX =
+  'flex items-start gap-2 rounded-[10px] border border-l-[3px] border-border border-l-primary bg-surface ' +
+  'text-[var(--text-2)] shadow-[0_8px_24px_rgb(0_0_0/0.25)] motion-safe:animate-[change-toast-in_180ms_ease-out]';
+
+/**
+ * Topo do aviso no celular (#388): logo abaixo da âncora enquanto ela aparece, para não cobrir "Atualizar agora" (desde a
+ * #434, na barra do topo do Dashboard); com a página rolada, a âncora sai da tela e o aviso fica perto do topo da janela.
+ */
+export function narrowToastTop(anchorBottom: number | null): number {
+  return Math.max(TOP_GAP, Math.round(anchorBottom ?? 0) + TOP_GAP);
+}
+
+/** Onde o aviso aparece e quantas frases cabem, por largura da janela (#388). */
+export function toastLayout(
+  narrow: boolean,
+  anchorBottom: number | null = null,
+): { lines: number; wrapper: string; box: string; style?: CSSProperties } {
+  return narrow
+    ? {
+        lines: 1,
+        // Topo, abaixo da barra de atualização: o rodapé é do mapa, onde ficam o "+" e o "−" do zoom
+        wrapper: 'fixed right-4 left-4 z-30',
+        box: `${BOX} py-2 pr-2 pl-3 text-[13px]`,
+        style: { top: narrowToastTop(anchorBottom) },
+      }
+    : {
+        lines: TOAST_LINES,
+        wrapper: 'fixed right-4 bottom-4 z-30 w-[min(360px,calc(100vw-32px))]',
+        box: `${BOX} py-2.5 pr-2 pl-3.5 text-sm`,
+      };
+}
+
+/**
+ * Base da âncora na janela, medida antes da pintura e acompanhada ao rolar. A âncora é o que o aviso não pode cobrir: a
+ * barra com "Atualizar agora" no topo do Dashboard (`data-toast-anchor`, #434), ou o cabeçalho quando ela não existe. A
+ * altura dos dois muda com a largura, e a faixa do modo demonstração os empurra para baixo: um topo fixo cobria os controles.
+ * A página também muda de altura sem rolar nem redimensionar (o período e o selo chegam depois, um aviso de falha entra
+ * acima): o ResizeObserver da página remede nesses casos, senão o aviso ficava por cima do Imprimir (#434). Observa a
+ * página (`#root > *`), não o body: html, body e #root têm altura fixa de 100% e não mudam com o conteúdo.
+ */
+function useAnchorBottom(active: boolean): number | null {
+  const [bottom, setBottom] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (!active) return;
+    let frame = 0;
+    const measure = () => {
+      frame = 0;
+      const anchor = document.querySelector('[data-toast-anchor]') ?? document.querySelector('header.topbar');
+      setBottom(anchor ? anchor.getBoundingClientRect().bottom : null);
+    };
+    const schedule = () => {
+      if (frame === 0) frame = window.requestAnimationFrame(measure);
+    };
+    measure();
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(schedule);
+    observer?.observe(document.querySelector('#root > *') ?? document.body);
+    return () => {
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      observer?.disconnect();
+      if (frame !== 0) window.cancelAnimationFrame(frame);
+    };
+  }, [active]);
+
+  return bottom;
+}
+
+/** Largura da janela acompanhada ao vivo: girar o celular ou encolher a janela troca o layout sem recarregar. */
+function useNarrowViewport(): boolean {
+  const [narrow, setNarrow] = useState(() => typeof window !== 'undefined' && window.matchMedia(NARROW_QUERY).matches);
+
+  useEffect(() => {
+    const media = window.matchMedia(NARROW_QUERY);
+    const update = () => setNarrow(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
+  }, []);
+
+  return narrow;
+}
+
+/**
+ * Aviso discreto das mudanças da última atualização (#331): some sozinho, não recebe foco e é anunciado uma vez pelo
+ * leitor de tela. A região viva fica sempre montada (vazia sem aviso), para o anúncio não se perder.
+ */
+export default function ChangeToast({ toast }: { toast: StatusChangesState['toast'] }) {
+  const [closedId, setClosedId] = useState<string | null>(null);
+  const open = toast !== null && closedId !== toast.id;
+  const narrow = useNarrowViewport();
+  const layout = toastLayout(narrow, useAnchorBottom(narrow && open));
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setClosedId(toast.id), TOAST_MS);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  const extra = open ? toast.changes.length - layout.lines : 0;
+
+  return (
+    // change-toast: a classe que a impressão do Dashboard (#408) usa para tirar o aviso do papel
+    <div className={`change-toast ${layout.wrapper} ${open ? layout.box : ''}`} style={layout.style}>
+      <div role="status" aria-live="polite" className="flex-1">
+        {open && (
+          <>
+            <ul className="m-0 grid list-none gap-0.5 p-0">
+              {toast.changes.slice(0, layout.lines).map((change) => (
+                <ChangeLine key={change.key} change={change} />
+              ))}
+            </ul>
+            {extra > 0 && <p className="mt-1 mb-0 ml-3.5 text-xs text-muted">e mais {extra} em “Últimas mudanças”.</p>}
+          </>
+        )}
+      </div>
+      {/* Fora da região viva: o leitor de tela anuncia só as mudanças, não o rótulo do botão */}
+      {open && (
+        <button
+          type="button"
+          onClick={() => setClosedId(toast.id)}
+          aria-label="Fechar aviso"
+          className="size-6 shrink-0 cursor-pointer rounded-md border-0 bg-transparent text-lg leading-none text-muted hover:text-text"
+        >
+          <span aria-hidden="true">×</span>
+        </button>
+      )}
+    </div>
+  );
+}

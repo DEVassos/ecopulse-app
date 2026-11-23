@@ -115,7 +115,8 @@
     color: var(--text);
   }
 
-  .emissions__btn:disabled {
+  .emissions__btn:disabled,
+  .emissions__btn[aria-disabled='true'] {
     opacity: 0.4;
     cursor: not-allowed;
   }
@@ -167,14 +168,90 @@
 
   /* Por coleta (ou intervalo) / Acumulado: botões colados, o escolhido em destaque */
   /* Forma de exibir o gráfico, no card e à direita, logo acima dele (#267) */
-  .emissions__chart-bar {
+  /* Exportação do período (#24): botões à direita, com o progresso e o aviso ao lado */
+  .emissions__export {
     display: flex;
+    flex-wrap: wrap;
+    align-items: center;
     justify-content: flex-end;
+    gap: 8px;
   }
 
+  .emissions__export-progress,
+  .emissions__export-error {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .emissions__export-error {
+    color: var(--danger);
+  }
+
+  .emissions__chart-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* A forma de exibir fica sempre à direita; zoom e ajuste do eixo, à esquerda (#332, #396) */
   .emissions__segmented {
     display: inline-flex;
     gap: 0;
+    margin-left: auto;
+  }
+
+  /* Zoom (#396): Aproximar, Afastar, ◀ e ▶ juntos, à esquerda */
+  .emissions__zoom {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .emissions__btn:hover[aria-disabled='true'] {
+    border-color: var(--border);
+    color: var(--text-2);
+  }
+
+  /* Faixa do trecho ampliado: o que é, quanto pesa no período e os totais do período inteiro */
+  .emissions__zoom-band {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 10px 12px;
+    border: 1px solid color-mix(in srgb, var(--sky) 40%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--sky) 8%, transparent);
+    font-size: 13px;
+    color: var(--text-2);
+  }
+
+  .emissions__zoom-band p {
+    margin: 0;
+  }
+
+  .emissions__zoom-band strong {
+    color: var(--text);
+  }
+
+  .emissions__zoom-total {
+    margin-top: 2px;
+    color: var(--muted);
+  }
+
+  /* Dica do arrasto (#397): só com mouse ou caneta, onde o arrasto amplia; fica fora da impressão */
+  .emissions__hint {
+    display: none;
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  @media screen and (hover: hover) and (pointer: fine) {
+    .emissions__hint {
+      display: block;
+    }
   }
 
   .emissions__segmented .emissions__btn {
@@ -210,11 +287,21 @@
     padding: 18px 16px 14px;
   }
 
+  /* Título e subtítulo à esquerda; à direita, a última atualização com Baixar CSV e Imprimir, centrados entre as linhas
+     do título (#434, como no Dashboard) */
   .emissions__header {
     display: flex;
     flex-wrap: wrap;
     justify-content: space-between;
-    align-items: flex-start;
+    align-items: center;
+    gap: 8px 24px;
+  }
+
+  .emissions__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
     gap: 8px 16px;
   }
 
@@ -238,6 +325,11 @@
     margin: 2px 0 0;
     font-size: 13px;
     color: var(--muted);
+  }
+
+  /* Aviso do eixo ajustado (#332): os KPIs acima seguem o período inteiro */
+  .emissions__subtitle--fit {
+    color: var(--text-2);
   }
 
   .emissions__spinner {

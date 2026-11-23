@@ -3,6 +3,7 @@
 import './styles/global.css';
 import './styles/layout.css';
 import './styles/controls.css';
+import './styles/print.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router';
