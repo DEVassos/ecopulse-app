@@ -40,6 +40,8 @@ O que está entregue, por requisito do desafio, com as issues e os Pull Requests
 
 **Vídeo da Sprint 2:** [EcoPulse — Sprint 2 | DEVassos (FATEC Jacareí) — De Monitoramento a Investigação de Emissões](https://youtu.be/an9g07c_nIs), com o produto como foi entregue na Sprint 2 (`release/sprint-2`).
 
+**Vídeo da Sprint 3:** [EcoPulse — Sprint 3 | DEVassos (FATEC Jacareí) — Da Investigação à Decisão](https://youtu.be/l-femMC6UP4), com o produto como foi entregue na Sprint 3 (`release/sprint-3`).
+
 | Requisito | O que o EcoPulse faz | Issues e PRs | Detalhe |
 |---|---|---|---|
 | RF01–RF04 — descoberta, monitoramento dinâmico e coleta | O backend descobre os serviços no agregador, consulta as métricas de cada um, grava o histórico no PostgreSQL e reconcilia os serviços que aparecem, ficam indisponíveis ou voltam a exportar métricas | #95, #98, #99 | [Coleta, cálculo e plataforma](docs/funcionalidades.md#10-coleta-cálculo-e-plataforma) |

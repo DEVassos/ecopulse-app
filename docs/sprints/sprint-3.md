@@ -9,7 +9,7 @@
 | Burndown | [sprint-3/burndown.md](sprint-3/burndown.md) — Story Points por dia, gerado por `.github/scripts/burndown.sh 3` |
 | Versão entregue | branch `release/sprint-3`, criada em 23/11 de `develop` no commit [`4bd0c29`](https://github.com/DEVassos/ecopulse-app/commit/4bd0c29) (merge do PR #430, 23/11 13h02). O congelamento estava marcado para 22/11 às 20h e foi feito em 23/11; o último merge de código é o PR #439, de 22/11 às 15h54. Entrega acompanhada pela [#442](https://github.com/DEVassos/ecopulse-app/issues/442) |
 | Participação | [sprint-3/contribuicao.md](sprint-3/contribuicao.md) |
-| Review | [sprint-3/review.md](sprint-3/review.md) |
+| Review | [sprint-3/review.md](sprint-3/review.md) · vídeo [EcoPulse — Sprint 3](https://youtu.be/l-femMC6UP4) |
 
 ## 1. Objetivo da sprint
 

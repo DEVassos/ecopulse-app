@@ -4,10 +4,11 @@
 |---|---|
 | Data e horário | 23/11/2026 19h30 |
 | Local | videochamada |
-| Formato | apresentação do vídeo da Sprint 3, preparado pelo PO, seguida da conversa com o cliente. Não há demonstração individual por integrante |
+| Formato | apresentação do vídeo da Sprint 3, seguida da conversa com o cliente. Não há demonstração individual por integrante |
 | Condução | @henriqueptbd-cell (PO) e @travensolli (SM, escriba) |
 | Cliente / avaliadores | convidados: Otávio Abreu dos Santos Silva (UniLaunch, cliente) e Prof. Arley Souza (Fatec Jacareí, avaliação da entrega), como nas Sprints 1 e 2 |
 | Versão demonstrada | branch `release/sprint-3`, criada de `develop` no commit [`4bd0c29`](https://github.com/DEVassos/ecopulse-app/commit/4bd0c29) em 23/11. O último merge de código é o do PR [#439](https://github.com/DEVassos/ecopulse-app/pull/439), em 22/11 às 15h54; depois dele só entrou documentação. O congelamento estava marcado para 22/11 às 20h e foi feito em 23/11 |
+| Vídeo da demonstração | [EcoPulse — Sprint 3 \| DEVassos (FATEC Jacareí) — Da Investigação à Decisão](https://youtu.be/l-femMC6UP4) (YouTube), 3 min 21 s, produzido por @henriqueptbd-cell e @DeaTuribio, com o produto como está na `release/sprint-3` |
 | Ambiente | `docker compose up --build` num clone limpo de `develop` em `4bd0c29`, em 23/11/2026: compose no ar, `/health` 200, persistência após `restart` e `schema.sql` em banco vazio ([sprint-3.md § 5.3](../sprint-3.md#53-verificações-do-congelamento-2311)) |
 
 ## 1. Objetivo da sprint e resultado
