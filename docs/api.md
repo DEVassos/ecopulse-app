@@ -489,4 +489,4 @@ Envelope único, sem stack, credenciais ou consulta SQL:
 {"error":{"code":"VALIDATION_ERROR","message":"JSON inválido no corpo da requisição."}}
 ```
 
-Roteiro de verificação, configuração e scripts: [backend/README.md](../backend/README.md). A autenticação está em `POST /api/auth/login` e protege as rotas de dados e `GET /api/auth/me`; a autenticação das rotas de configuração e de auditoria de entradas continua prevista para a Sprint 2.
+Roteiro de verificação, configuração e scripts: [backend/README.md](../backend/README.md). A autenticação está em `POST /api/auth/login` e protege as rotas de dados e `GET /api/auth/me`; `PUT /api/monitoring-settings` e `POST /api/invitations` exigem também o papel `admin`. Não existe rota de auditoria de entradas: a tabela `access_entries` está no schema, sem uso no código.
