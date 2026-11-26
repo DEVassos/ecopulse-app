@@ -212,7 +212,7 @@ A [#375](https://github.com/DEVassos/ecopulse-app/issues/375), a [#376](https://
 | [#311](https://github.com/DEVassos/ecopulse-app/issues/311), [#167](https://github.com/DEVassos/ecopulse-app/issues/167) e [#169](https://github.com/DEVassos/ecopulse-app/issues/169) (processo) | retrospectiva da Sprint 2 consolidada, com a revisão das duas ações da Sprint 1 | fecharam no merge do PR [#441](https://github.com/DEVassos/ecopulse-app/pull/441), em 23/11 às 18h23 |
 | [#310](https://github.com/DEVassos/ecopulse-app/issues/310) Daily — Sprint 3 | aberta até o fechamento, como issue fixada das dailies | fecha no fechamento |
 | [#335](https://github.com/DEVassos/ecopulse-app/issues/335) e [#336](https://github.com/DEVassos/ecopulse-app/issues/336) (processo) | registro da review e participação da sprint | fecham no fechamento, pelo PR de sincronização |
-| [#440](https://github.com/DEVassos/ecopulse-app/issues/440) Retrospectiva da Sprint 3 — respostas individuais | 3 de 5 respostas até o prazo de 24/11, às 18h (@travensolli, @viniciusaugusto1997 e @henriqueptbd-cell), consolidadas em [retrospectiva.md](sprint-3/retrospectiva.md) | fecha no fechamento, pelo PR de sincronização |
+| [#440](https://github.com/DEVassos/ecopulse-app/issues/440) Retrospectiva da Sprint 3 — respostas individuais | 3 de 5 respostas até o prazo de 24/11, às 18h (@travensolli, @viniciusaugusto1997 e @henriqueptbd-cell), mais a do @LUCASAMR23 fora do prazo, em 26/11, às 20h09; consolidadas em [retrospectiva.md](sprint-3/retrospectiva.md) | fecha no fechamento, pelo PR de sincronização |
 | [#442](https://github.com/DEVassos/ecopulse-app/issues/442) Entrega da Sprint 3 | release, tag e sincronização da `develop` | fecha no fechamento |
 
 ## 7. Review (25/11/2026)
