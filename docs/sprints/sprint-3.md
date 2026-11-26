@@ -2,12 +2,12 @@
 
 | Campo | Valor |
 |---|---|
-| Período | 10/11 a 23/11/2026 · checkpoint 17/11 · congelamento 22/11 20h · review 23/11 19h30 (a confirmar) |
+| Período | 10/11 a 23/11/2026 · checkpoint 17/11 · congelamento 22/11 20h · review 25/11 21h, remarcada a pedido do cliente (estava marcada para 23/11 19h30) |
 | Milestone | [Sprint 3](https://github.com/DEVassos/ecopulse-app/milestone/3) |
 | Plano | [docs/plano-de-entregas.md § Sprint 3](../plano-de-entregas.md#sprint-3): critérios previstos, denominador e situação de cada critério |
-| Atas | [planning](sprint-3/planning.md) · [dailies](sprint-3/dailies/) |
+| Atas | [planning](sprint-3/planning.md) · [dailies](sprint-3/dailies/) · [retrospectiva](sprint-3/retrospectiva.md) |
 | Burndown | [sprint-3/burndown.md](sprint-3/burndown.md) — Story Points por dia, gerado por `.github/scripts/burndown.sh 3` |
-| Versão entregue | branch `release/sprint-3`, criada em 23/11 de `develop` no commit [`4bd0c29`](https://github.com/DEVassos/ecopulse-app/commit/4bd0c29) (merge do PR #430, 23/11 13h02). O congelamento estava marcado para 22/11 às 20h e foi feito em 23/11; o último merge de código é o PR #439, de 22/11 às 15h54. Entrega acompanhada pela [#442](https://github.com/DEVassos/ecopulse-app/issues/442) |
+| Versão entregue | branch `release/sprint-3`, criada em 23/11 de `develop` no commit [`4bd0c29`](https://github.com/DEVassos/ecopulse-app/commit/4bd0c29) (merge do PR #430, 23/11 13h02). O congelamento estava marcado para 22/11 às 20h e foi feito em 23/11; o último merge de código é o PR #439, de 22/11 às 15h54. Entrega acompanhada pela [#442](https://github.com/DEVassos/ecopulse-app/issues/442) A entrega foi mergeada em `main` em 23/11 às 18h20 pelo PR [#443](https://github.com/DEVassos/ecopulse-app/pull/443); depois do fechamento, fica na tag [`sprint-3`](https://github.com/DEVassos/ecopulse-app/releases/tag/sprint-3) |
 | Participação | [sprint-3/contribuicao.md](sprint-3/contribuicao.md) |
 | Review | [sprint-3/review.md](sprint-3/review.md) · vídeo [EcoPulse — Sprint 3](https://youtu.be/l-femMC6UP4) |
 
@@ -209,8 +209,54 @@ A [#375](https://github.com/DEVassos/ecopulse-app/issues/375), a [#376](https://
 |---|---|---|
 | [#55](https://github.com/DEVassos/ecopulse-app/issues/55) US14 — polimento, validação de carga e documentação de portfólio | aceite do PO em 21/11; continua aberta porque o README, a documentação alinhada e o teste do avaliador de 23/11 entram pela release | fecha no fechamento, pelo PR de sincronização da `develop` |
 | [#275](https://github.com/DEVassos/ecopulse-app/issues/275) Prova de qualidade visual automatizada no CI | não foi iniciada e não será feita; fechada como "não planejada" em 23/11 | [histórico do plano](../plano-de-entregas.md#histórico-de-alterações-do-plano), 23/11 |
-| [#311](https://github.com/DEVassos/ecopulse-app/issues/311), [#167](https://github.com/DEVassos/ecopulse-app/issues/167) e [#169](https://github.com/DEVassos/ecopulse-app/issues/169) (processo) | retrospectiva da Sprint 2 consolidada, com a revisão das duas ações da Sprint 1 | fecham no merge do PR [#441](https://github.com/DEVassos/ecopulse-app/pull/441) |
+| [#311](https://github.com/DEVassos/ecopulse-app/issues/311), [#167](https://github.com/DEVassos/ecopulse-app/issues/167) e [#169](https://github.com/DEVassos/ecopulse-app/issues/169) (processo) | retrospectiva da Sprint 2 consolidada, com a revisão das duas ações da Sprint 1 | fecharam no merge do PR [#441](https://github.com/DEVassos/ecopulse-app/pull/441), em 23/11 às 18h23 |
 | [#310](https://github.com/DEVassos/ecopulse-app/issues/310) Daily — Sprint 3 | aberta até o fechamento, como issue fixada das dailies | fecha no fechamento |
 | [#335](https://github.com/DEVassos/ecopulse-app/issues/335) e [#336](https://github.com/DEVassos/ecopulse-app/issues/336) (processo) | registro da review e participação da sprint | fecham no fechamento, pelo PR de sincronização |
-| [#440](https://github.com/DEVassos/ecopulse-app/issues/440) Retrospectiva da Sprint 3 — respostas individuais | respostas até 24/11 às 18h | fecha no fechamento |
+| [#440](https://github.com/DEVassos/ecopulse-app/issues/440) Retrospectiva da Sprint 3 — respostas individuais | 3 de 5 respostas até o prazo de 24/11, às 18h (@travensolli, @viniciusaugusto1997 e @henriqueptbd-cell), consolidadas em [retrospectiva.md](sprint-3/retrospectiva.md) | fecha no fechamento, pelo PR de sincronização |
 | [#442](https://github.com/DEVassos/ecopulse-app/issues/442) Entrega da Sprint 3 | release, tag e sincronização da `develop` | fecha no fechamento |
+
+## 7. Review (25/11/2026)
+
+Ata completa: [review.md](sprint-3/review.md).
+
+### 7.1 Demonstrado
+
+- **Formato:** presencial, em 25/11 às 21h, com Otávio Abreu dos Santos Silva (UniLaunch, cliente) e o Prof. Rodrigo Silva Peres (Fatec Jacareí, ponto focal). A review estava marcada para 23/11 às 19h30 e foi remarcada a pedido do cliente. O time apresentou o [vídeo da Sprint 3](https://youtu.be/l-femMC6UP4) e, em seguida, a aplicação: o PO mostrou as funcionalidades enquanto o SM navegava.
+- **Roteiro:** 13 itens por requisito, da página inicial ao processo ([review.md § 2](sprint-3/review.md#2-roteiro-da-demonstração-por-requisito)).
+- **Versão:** a entrega já estava em `main` desde 23/11 às 18h20 (PR [#443](https://github.com/DEVassos/ecopulse-app/pull/443)), com o teste do avaliador em clone limpo (§ 5.3).
+
+### 7.2 Feedback do cliente
+
+- Gostou da visualização do gráfico de colunas na página Emissões e da impressão em PDF.
+- Ficou impressionado com o carregamento rápido da tela.
+- Disse que o time trouxe "a experiência de escritório para o trabalho": a exportação para Excel e PDF foi além dos requisitos e é um pedido comum no mundo corporativo.
+- Nenhum comentário pede mudança. As perguntas de produto do roteiro ficaram sem resposta específica ([review.md § 3](sprint-3/review.md#3-feedback-do-cliente)).
+
+### 7.3 Decisões e alterações no backlog
+
+- **Nenhuma issue `feedback-cliente`:** a reunião não trouxe apontamento acionável, e a Sprint 3 é a última do projeto.
+- **Critérios:** nenhum muda de sprint e o denominador continua 46. A situação de cada um está no [plano de entregas](../plano-de-entregas.md#sprint-3), com a entrada de 26/11 no "Histórico de alterações do plano".
+
+## 8. Participação
+
+Relatório ES09 gerado por `evidencias.sh 3` em 23/11: [contribuicao.md](sprint-3/contribuicao.md).
+
+- **Sem lacunas:** os cinco têm PR mergeado na sprint, ligado a issue e revisado por outra conta. De 11 a 23/11 foram 64 PRs mergeados em `develop`: @travensolli 27, @henriqueptbd-cell 17, @DeaTuribio 13, @LUCASAMR23 4 e @viniciusaugusto1997 3. Os cinco também revisaram PRs dos colegas.
+- **Commits sem login:** dois commits de @viniciusaugusto1997 no PR #430 (`fe99279` e `5ba30a8`) saíram com um e-mail que não está ligado à conta. As outras entregas dele (#354, #371 e #428) e as revisões estão no relatório.
+- **Concentração:** @travensolli é autor de 27 dos 64 PRs (na Sprint 2, 41 de 71), 22 deles de 17 a 23/11. O tema está na [retrospectiva](sprint-3/retrospectiva.md#3-o-que-parar).
+- **Review:** sem demonstração individual por integrante, porque o formato foi vídeo e demonstração conduzida pelo PO e pelo SM. O vídeo foi produzido por @henriqueptbd-cell e @DeaTuribio.
+
+## 9. Métricas
+
+| Métrica | Valor |
+|---|---|
+| Issues da milestone | 79, das quais 73 fechadas (abertas: #55, #310, #335, #336, #440 e #442, que fecham no fechamento) |
+| Story Points: escopo inicial / final / concluídos | 75 / 161 / 156 ([burndown](sprint-3/burndown.md)); o escopo estava em 97 no checkpoint de 17/11 |
+| PRs mergeados em `develop` | 64, de 11 a 23/11 (62 até o congelamento, mais o #430 e o #441 em 23/11), e a entrega em `main` pelo #443 |
+| Merges por dia em `develop` | 11/11: 2 · 12/11: 1 · 13/11: 5 · 15/11: 1 · 16/11: 5 · 17/11: 9 · 18/11: 2 · 19/11: 4 · 20/11: 4 · 21/11: 26 · 22/11: 3 · 23/11: 2 (horário de Brasília) |
+| Merges por integrante (10–16/11 · 17–23/11) | Andrea 4 · 9 · Gabriel 5 · 22 · Henrique 4 · 13 · Lucas 1 · 3 · Vinicius 0 · 3 |
+| PRs com primeira revisão em mais de 24h | 8: #354 (73h), #337 e #379 (47h), #334 (46h), #353 (40h), #339 e #355 (30h), #357 (26h). Sprint 2: 6 |
+| PRs mergeados sem revisão | 0. Sprint 2: 2 |
+| Atas de daily / dias úteis | 10 / 10, de 10 a 23/11; a de 20/11, feriado, teve um só respondente no dia |
+| Regressões (`regressao`) | 0 |
+| Nota estimada (`/auditar 3`, 23/11) | 32,5 de 46 antes do registro pós-review; 44,5 de 46 com o fechamento executado |
