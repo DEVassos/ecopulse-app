@@ -2,12 +2,12 @@
 
 | Campo | Valor |
 |---|---|
-| Data e horário | 23/11/2026 19h30 |
-| Local | videochamada |
-| Formato | apresentação do vídeo da Sprint 3, seguida da conversa com o cliente. Não há demonstração individual por integrante |
+| Data e horário | 25/11/2026 21h. A review estava marcada para 23/11 às 19h30 e foi remarcada a pedido do cliente |
+| Local | presencial, com o cliente na sala |
+| Formato | apresentação do vídeo da Sprint 3, seguida da demonstração da aplicação: o PO apresentou as funcionalidades enquanto o SM navegava pelas telas. Não houve demonstração individual por integrante |
 | Condução | @henriqueptbd-cell (PO) e @travensolli (SM, escriba) |
-| Cliente / avaliadores | convidados: Otávio Abreu dos Santos Silva (UniLaunch, cliente) e Prof. Arley Souza (Fatec Jacareí, avaliação da entrega), como nas Sprints 1 e 2 |
-| Versão demonstrada | branch `release/sprint-3`, criada de `develop` no commit [`4bd0c29`](https://github.com/DEVassos/ecopulse-app/commit/4bd0c29) em 23/11. O último merge de código é o do PR [#439](https://github.com/DEVassos/ecopulse-app/pull/439), em 22/11 às 15h54; depois dele só entrou documentação. O congelamento estava marcado para 22/11 às 20h e foi feito em 23/11 |
+| Cliente / avaliadores | Otávio Abreu dos Santos Silva (UniLaunch, cliente) e Prof. Rodrigo Silva Peres (Fatec Jacareí, ponto focal) |
+| Versão demonstrada | branch `release/sprint-3`, criada de `develop` no commit [`4bd0c29`](https://github.com/DEVassos/ecopulse-app/commit/4bd0c29) em 23/11. O último merge de código é o do PR [#439](https://github.com/DEVassos/ecopulse-app/pull/439), em 22/11 às 15h54; depois dele só entrou documentação. O congelamento estava marcado para 22/11 às 20h e foi feito em 23/11. A entrega foi mergeada em `main` em 23/11 às 18h20, antes da review, pelo PR [#443](https://github.com/DEVassos/ecopulse-app/pull/443); depois do fechamento, a versão fica na tag [`sprint-3`](https://github.com/DEVassos/ecopulse-app/releases/tag/sprint-3) |
 | Vídeo da demonstração | [EcoPulse — Sprint 3 \| DEVassos (FATEC Jacareí) — Da Investigação à Decisão](https://youtu.be/l-femMC6UP4) (YouTube), 3 min 21 s, produzido por @henriqueptbd-cell e @DeaTuribio, com o produto como está na `release/sprint-3` |
 | Ambiente | `docker compose up --build` num clone limpo de `develop` em `4bd0c29`, em 23/11/2026: compose no ar, `/health` 200, persistência após `restart` e `schema.sql` em banco vazio ([sprint-3.md § 5.3](../sprint-3.md#53-verificações-do-congelamento-2311)) |
 
@@ -32,7 +32,7 @@ O resumo por requisito está no [README § 3](../../../README.md#3-funcionalidad
 
 ## 2. Roteiro da demonstração (por requisito)
 
-A review apresenta o vídeo da Sprint 3 e segue com a conversa do PO e do SM com o cliente. A tabela lista, na ordem do produto, o que a release entrega, onde cada item aparece e quem o entregou no GitHub. Ela serve de guia para a conversa e não descreve o vídeo cena a cena.
+A review apresentou o vídeo da Sprint 3 e, em seguida, a aplicação: o PO mostrou as funcionalidades enquanto o SM navegava. A tabela lista, na ordem do produto, o que a release entrega, onde cada item aparece e quem o entregou no GitHub. Ela serviu de guia para a demonstração e não descreve o vídeo cena a cena.
 
 | Ordem | Requisito | O que a entrega mostra | Onde (URL, tela) | Entregue por |
 |---|---|---|---|---|
@@ -66,11 +66,37 @@ São as perguntas da [review da Sprint 2 § 2.2](../sprint-2/review.md#22-pergun
 - As informações mostradas justificam o espaço que ocupam na interface? Quais filtros devem ficar visíveis e como os recursos devem ser organizados?
 - A distinção entre dado mensurável e informação contextualizada está clara?
 
+## 3. Feedback do cliente
+
+A review aconteceu em 25/11/2026, às 21h, com o cliente na sala, depois de remarcada a pedido dele. O retorno abaixo é o que o cliente disse na reunião, registrado pelo SM em 26/11.
+
+| Item demonstrado | Comentário do cliente | Classificação | Ação |
+|---|---|---|---|
+| Emissões em barras por intervalo (RF10, roteiro item 6; PR [#415](https://github.com/DEVassos/ecopulse-app/pull/415)) | Gostou da visualização do gráfico de colunas na página Emissões | aceito | nenhuma |
+| Impressão e PDF (RNF05, roteiro item 8; PRs [#387](https://github.com/DEVassos/ecopulse-app/pull/387) e [#409](https://github.com/DEVassos/ecopulse-app/pull/409)) | Gostou da impressão em PDF | aceito | nenhuma |
+| Desempenho das telas (RNF03) | Ficou impressionado com o carregamento rápido da tela | aceito | nenhuma |
+| Exportação em planilha e PDF (RNF05, roteiro itens 7 e 8) | Disse que o time trouxe "a experiência de escritório para o trabalho": a exportação para Excel e PDF foi além dos requisitos e é um pedido comum no mundo corporativo. No EcoPulse, a planilha sai em CSV, que abre no Excel | aceito | nenhuma |
+| Perguntas de produto da § 2.2 | Sem resposta específica além dos comentários acima | sem resposta | nenhuma: a Sprint 3 é a última do projeto |
+
+## 4. Decisões e alterações no backlog
+
+| Decisão | Issue criada ou alterada | Label | Milestone |
+|---|---|---|---|
+| A review foi remarcada de 23/11, às 19h30, para 25/11, às 21h, a pedido do cliente. A entrega já estava em `main` desde 23/11, às 18h20 (PR [#443](https://github.com/DEVassos/ecopulse-app/pull/443)); o registro pós-review foi feito em 26/11 | [#442](https://github.com/DEVassos/ecopulse-app/issues/442) | — | Sprint 3 |
+| Nenhuma issue `feedback-cliente`: os comentários do cliente aprovam o que foi entregue e não pedem mudança | — | — | — |
+| Nenhum critério muda de sprint e o denominador da Sprint 3 continua 46. Como esta é a última sprint do projeto, não há backlog de sprint seguinte a adaptar | — | — | — |
+
+Registrado no "Histórico de alterações do plano" em 26/11.
+
+## 5. Pendências e perguntas em aberto
+
+Nenhuma pendência com o cliente: os comentários não pedem mudança, e esta foi a última review do projeto. As perguntas de produto da § 2.2 ficaram sem resposta específica.
+
 ## 6. Encaminhamentos pós-review (até 24/11)
 
-- Feedback do cliente, decisões e pendências registrados neste arquivo, nas seções 3 a 5 (@travensolli, com @henriqueptbd-cell).
-- Uma issue `feedback-cliente` para cada apontamento acionável. Como a Sprint 3 é a última, elas ficam no Backlog, sem milestone.
-- Situação de cada critério da Sprint 3 verificada no plano, com permalink, e entrada no "Histórico de alterações do plano" (@henriqueptbd-cell).
-- `docs/sprints/sprint-3.md` com a review, a participação e as métricas; `contribuicao.md`, backlog e burndown finais (@travensolli).
+- [x] Feedback do cliente, decisões e pendências registrados neste arquivo, nas seções 3 a 5 (@travensolli, 26/11, depois da review remarcada para 25/11)
+- [x] N/A — issues `feedback-cliente`: a reunião não trouxe apontamento acionável (§ 4)
+- [x] Situação de cada critério da Sprint 3 no plano, com permalink, e entrada no "Histórico de alterações do plano" (@travensolli, 26/11; @henriqueptbd-cell confere na revisão do PR da 2ª etapa)
+- [x] `docs/sprints/sprint-3.md` com a review, a participação e as métricas; backlog, burndown e retrospectiva finais (@travensolli, 26/11)
 
 O segundo PR da `release/sprint-3` para `main`, a tag `sprint-3` e a GitHub Release vêm depois desse registro, pela [#442](https://github.com/DEVassos/ecopulse-app/issues/442).
