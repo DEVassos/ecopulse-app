@@ -1,6 +1,6 @@
 # Product Backlog — EcoPulse
 
-_Exportado das issues de [DEVassos/ecopulse-app](https://github.com/DEVassos/ecopulse-app/issues) em 18/11/2026 15:03 por `.github/scripts/backlog-export.sh`. A fonte da verdade é o GitHub Issues; este arquivo é um retrato versionado para a avaliação (ES01)._
+_Exportado das issues de [DEVassos/ecopulse-app](https://github.com/DEVassos/ecopulse-app/issues) em 26/11/2026 19:26 por `.github/scripts/backlog-export.sh`. A fonte da verdade é o GitHub Issues; este arquivo é um retrato versionado para a avaliação (ES01)._
 
 Legenda — Prioridade: **must** (obrigatório), **should** (importante), **could** (desejável, ex.: RF13). Estado: aberta/fechada.
 
@@ -40,9 +40,9 @@ Legenda — Prioridade: **must** (obrigatório), **should** (importante), **coul
 | [#48](https://github.com/DEVassos/ecopulse-app/issues/48) | US07 — Autenticação segura JWT (backend e frontend) | RNF05 | historia | Sprint 2 | fechada | @LUCASAMR23 |
 | [#49](https://github.com/DEVassos/ecopulse-app/issues/49) | US08 — Histórico de coletas e consultas SQL de análise | RF04, RF10 | historia | Sprint 2 | fechada | @LUCASAMR23 |
 | [#50](https://github.com/DEVassos/ecopulse-app/issues/50) | US09 — Ranking de impacto e eficiência energética | RF14 | historia | Sprint 2 | fechada | @DeaTuribio |
-| [#51](https://github.com/DEVassos/ecopulse-app/issues/51) | US10 — Visualização geográfica por bolhas (mapa) | RF12, RF13 | historia | Sprint 3 | aberta | @DeaTuribio |
+| [#51](https://github.com/DEVassos/ecopulse-app/issues/51) | US10 — Visualização geográfica por bolhas (mapa) | RF12, RF13 | historia | Sprint 3 | fechada | @DeaTuribio |
 | [#52](https://github.com/DEVassos/ecopulse-app/issues/52) | US11 — Módulo de comparação entre serviços | RF15 | historia | Sprint 2 | fechada | @DeaTuribio |
-| [#53](https://github.com/DEVassos/ecopulse-app/issues/53) | US12 — Simulação de migração regional (matriz mais limpa) | RF15 | historia | Sprint 3 | aberta | @viniciusaugusto1997 |
+| [#53](https://github.com/DEVassos/ecopulse-app/issues/53) | US12 — Simulação de migração regional (matriz mais limpa) | RF15 | historia | Sprint 3 | fechada | @viniciusaugusto1997 |
 | [#55](https://github.com/DEVassos/ecopulse-app/issues/55) | US14 — Polimento, validação de carga e documentação de portfólio | RNF03, RNF05 | historia | Sprint 3 | aberta | @travensolli |
 | [#56](https://github.com/DEVassos/ecopulse-app/issues/56) | [PO-03] Importar o histórico do repositório Projeto-GreenER (autoria preservada) | RNF05 | processo | Sprint 1 | fechada | @travensolli |
 | [#58](https://github.com/DEVassos/ecopulse-app/issues/58) | [PO-04] Checklist de início: configuração do ambiente e Sprint 1 (por integrante) |  | processo | Sprint 1 | fechada | @travensolli, @DeaTuribio, @LUCASAMR23, @henriqueptbd-cell, @viniciusaugusto1997 |
@@ -70,7 +70,7 @@ Legenda — Prioridade: **must** (obrigatório), **should** (importante), **coul
 | [#158](https://github.com/DEVassos/ecopulse-app/issues/158) | [processo] Retrospectiva da Sprint 1 — respostas individuais |  | processo | Sprint 1 | fechada | @travensolli |
 | [#159](https://github.com/DEVassos/ecopulse-app/issues/159) | [processo] Priorizar a comparação entre serviços e a análise dos dados (feedback da Review 1) | RF14, RF15 | processo | Sprint 2 | fechada | @henriqueptbd-cell |
 | [#166](https://github.com/DEVassos/ecopulse-app/issues/166) | [processo] Enviar ao cliente as dúvidas estruturadas sobre o objetivo do produto |  | processo | Sprint 2 | fechada | @henriqueptbd-cell |
-| [#172](https://github.com/DEVassos/ecopulse-app/issues/172) | Daily — Sprint 2 |  | processo | Sprint 2 | aberta | @travensolli |
+| [#172](https://github.com/DEVassos/ecopulse-app/issues/172) | Daily — Sprint 2 |  | processo | Sprint 2 | fechada | @travensolli |
 | [#173](https://github.com/DEVassos/ecopulse-app/issues/173) | [tarefa] Classes de domínio com encapsulamento e testes (TP01) | RF02, RF07 | tarefa | Sprint 2 | fechada | @LUCASAMR23 |
 | [#174](https://github.com/DEVassos/ecopulse-app/issues/174) | [tarefa] Erros tipados e middleware de tratamento (TP03) | RF02, RF05, RF06, RNF04 | tarefa | Sprint 2 | fechada | @henriqueptbd-cell, @viniciusaugusto1997 |
 | [#175](https://github.com/DEVassos/ecopulse-app/issues/175) | [tarefa] Painel de indicadores agregados no dashboard (RF08) | RF08 | tarefa | Sprint 2 | fechada | @DeaTuribio, @LUCASAMR23 |
@@ -86,7 +86,7 @@ Legenda — Prioridade: **must** (obrigatório), **should** (importante), **coul
 | [#293](https://github.com/DEVassos/ecopulse-app/issues/293) | [tarefa] Alinha a documentação de access_entries ao que existe | RNF05 | tarefa | Sprint 2 | fechada | @viniciusaugusto1997 |
 | [#294](https://github.com/DEVassos/ecopulse-app/issues/294) | [bug] Parametriza ordenação SQL do ranking conforme BD02 | RF14 | bug | Sprint 2 | fechada | @viniciusaugusto1997 |
 | [#310](https://github.com/DEVassos/ecopulse-app/issues/310) | Daily — Sprint 3 |  | processo | Sprint 3 | aberta | @travensolli |
-| [#311](https://github.com/DEVassos/ecopulse-app/issues/311) | [processo] Retrospectiva da Sprint 2 — respostas individuais |  | processo | Sprint 3 | aberta | @travensolli |
+| [#311](https://github.com/DEVassos/ecopulse-app/issues/311) | [processo] Retrospectiva da Sprint 2 — respostas individuais |  | processo | Sprint 3 | fechada | @travensolli |
 | [#313](https://github.com/DEVassos/ecopulse-app/issues/313) | [tarefa] Conferência das consultas agregadas por período e índices (BD04) | RF14, RF15, RNF03 | tarefa | Sprint 3 | fechada | @LUCASAMR23, @viniciusaugusto1997 |
 | [#316](https://github.com/DEVassos/ecopulse-app/issues/316) | [processo] Registra no plano o corte da #226 e o novo escopo da #53 |  | processo | Sprint 3 | fechada | @henriqueptbd-cell |
 | [#318](https://github.com/DEVassos/ecopulse-app/issues/318) | [tarefa] ADR da biblioteca de mapas e das imagens de satélite | RF13 | tarefa | Sprint 3 | fechada | @DeaTuribio |
@@ -95,12 +95,14 @@ Legenda — Prioridade: **must** (obrigatório), **should** (importante), **coul
 | [#321](https://github.com/DEVassos/ecopulse-app/issues/321) | [tarefa] Funções de região no frontend: agregação, pior estado, alternativa e estimativa | RF13, RF15 | tarefa | Sprint 3 | fechada | @travensolli |
 | [#322](https://github.com/DEVassos/ecopulse-app/issues/322) | [tarefa] Mapa de bolhas por região no Dashboard | RF12, RF13, RNF01 | tarefa | Sprint 3 | fechada | @DeaTuribio |
 | [#325](https://github.com/DEVassos/ecopulse-app/issues/325) | [tarefa] Fórmulas da simulação de migração, eficiência e rede limpa em calculos.md | RF07, RF15 | tarefa | Sprint 3 | fechada | @henriqueptbd-cell |
-| [#326](https://github.com/DEVassos/ecopulse-app/issues/326) | [tarefa] Alternativa mais limpa no mapa: destino e redução estimada | RF15 | tarefa | Sprint 3 | aberta | @DeaTuribio |
+| [#326](https://github.com/DEVassos/ecopulse-app/issues/326) | [tarefa] Alternativa mais limpa no mapa: destino e redução estimada | RF15 | tarefa | Sprint 3 | fechada | @DeaTuribio |
 | [#341](https://github.com/DEVassos/ecopulse-app/issues/341) | [tarefa] Dados das regiões no frontend: service, tipos e backend falso | RF13 | tarefa | Sprint 3 | fechada | @DeaTuribio |
 | [#342](https://github.com/DEVassos/ecopulse-app/issues/342) | [tarefa] Lista de regiões no Dashboard com seleção compartilhada | RF12, RF13, RNF01 | tarefa | Sprint 3 | fechada | @DeaTuribio |
-| [#351](https://github.com/DEVassos/ecopulse-app/issues/351) | [tarefa] Liga lista e mapa de regiões ao backend real e publica o README com print do compose | RF12, RF13, RNF01 | tarefa | Sprint 3 | aberta | @DeaTuribio, @viniciusaugusto1997 |
+| [#351](https://github.com/DEVassos/ecopulse-app/issues/351) | [tarefa] Liga lista e mapa de regiões ao backend real e publica o README com print do compose | RF12, RF13, RNF01 | tarefa | Sprint 3 | fechada | @DeaTuribio, @viniciusaugusto1997 |
 | [#356](https://github.com/DEVassos/ecopulse-app/issues/356) | [processo] Atualizar o agilekit para a 2.3.11 |  | processo | Sprint 3 | fechada | @travensolli |
 | [#362](https://github.com/DEVassos/ecopulse-app/issues/362) | [processo] Atualizar o agilekit para a 2.3.12 |  | processo | Sprint 3 | fechada | @travensolli |
+| [#382](https://github.com/DEVassos/ecopulse-app/issues/382) | [tarefa] Contas e painel da simulação de migração | RF15 | tarefa | Sprint 3 | fechada | @DeaTuribio |
+| [#440](https://github.com/DEVassos/ecopulse-app/issues/440) | [processo] Retrospectiva da Sprint 3 — respostas individuais |  | processo | Sprint 3 | aberta | @travensolli |
 
 ## Prioridade should
 
@@ -123,54 +125,75 @@ Legenda — Prioridade: **must** (obrigatório), **should** (importante), **coul
 | [#163](https://github.com/DEVassos/ecopulse-app/issues/163) | [tarefa] Atualizar o Vitest do backend e eliminar os alertas do npm audit |  | tarefa | Sprint 2 | fechada | @viniciusaugusto1997 |
 | [#164](https://github.com/DEVassos/ecopulse-app/issues/164) | [processo] Rulesets: checks do CI obrigatórios e validação cruzada sem bypass |  | processo | Sprint 2 | fechada | @travensolli |
 | [#165](https://github.com/DEVassos/ecopulse-app/issues/165) | [processo] Permalinks com SHA no plano e uma fonte principal por assunto |  | processo | Sprint 2 | fechada | @henriqueptbd-cell |
-| [#167](https://github.com/DEVassos/ecopulse-app/issues/167) | [processo] Contrato de integração na issue antes do primeiro commit |  | processo | Sprint 3 | aberta | @DeaTuribio |
+| [#167](https://github.com/DEVassos/ecopulse-app/issues/167) | [processo] Contrato de integração na issue antes do primeiro commit |  | processo | Sprint 3 | fechada | @DeaTuribio |
 | [#168](https://github.com/DEVassos/ecopulse-app/issues/168) | [processo] Revisão cruzada em todo PR |  | processo | Sprint 2 | fechada | @travensolli |
-| [#169](https://github.com/DEVassos/ecopulse-app/issues/169) | [processo] Daily por texto respondida no mesmo dia |  | processo | Sprint 3 | aberta | @travensolli |
+| [#169](https://github.com/DEVassos/ecopulse-app/issues/169) | [processo] Daily por texto respondida no mesmo dia |  | processo | Sprint 3 | fechada | @travensolli |
 | [#180](https://github.com/DEVassos/ecopulse-app/issues/180) | [tarefa] Fundo azul com verde nos destaques e logo que pulsa a cada atualização | RNF01 | tarefa | Sprint 2 | fechada | @DeaTuribio |
 | [#181](https://github.com/DEVassos/ecopulse-app/issues/181) | [processo] Desligar os PRs automáticos do Dependabot |  | processo | Sprint 2 | fechada | @travensolli |
 | [#186](https://github.com/DEVassos/ecopulse-app/issues/186) | [processo] Refs #n não deve fechar a issue no merge |  | processo | Sprint 2 | fechada | @travensolli |
-| [#195](https://github.com/DEVassos/ecopulse-app/issues/195) | US15 — Cadastro de usuário por convite do administrador | RNF05 | historia | Sprint 3 | aberta | @LUCASAMR23 |
+| [#195](https://github.com/DEVassos/ecopulse-app/issues/195) | US15 — Cadastro de usuário por convite do administrador | RNF05 | historia | Sprint 3 | fechada | @LUCASAMR23 |
 | [#205](https://github.com/DEVassos/ecopulse-app/issues/205) | [processo] Burndown ignora tarefas omitidas pelo gh project item-list |  | processo | Sprint 2 | fechada | @travensolli |
 | [#210](https://github.com/DEVassos/ecopulse-app/issues/210) | [processo] Check pr aceita corpo de PR sem a DoD-PR |  | processo | Sprint 2 | fechada | @travensolli |
 | [#231](https://github.com/DEVassos/ecopulse-app/issues/231) | [tarefa] Marcar o ADR 0007 como aceito após o PR #230 | RNF05 | tarefa | Sprint 2 | fechada | @travensolli |
-| [#234](https://github.com/DEVassos/ecopulse-app/issues/234) | [tarefa] Resumo do dashboard no contrato de 23/10, com IndicatorsPanel (RF08) | RF08 | tarefa | Sprint 3 | aberta | @DeaTuribio, @LUCASAMR23 |
+| [#234](https://github.com/DEVassos/ecopulse-app/issues/234) | [tarefa] Resumo do dashboard no contrato de 23/10, com IndicatorsPanel (RF08) | RF08 | tarefa | Sprint 3 | fechada | @DeaTuribio, @LUCASAMR23, @henriqueptbd-cell |
 | [#236](https://github.com/DEVassos/ecopulse-app/issues/236) | [tarefa] Registrar em ADR a conferência de respostas nas fronteiras de API | RNF04 | tarefa | Sprint 2 | fechada | @travensolli |
 | [#237](https://github.com/DEVassos/ecopulse-app/issues/237) | [tarefa] Conferir as respostas do resumo e da comparação no frontend | RF08, RF15, RNF04 | tarefa | Sprint 2 | fechada | @DeaTuribio |
 | [#239](https://github.com/DEVassos/ecopulse-app/issues/239) | [tarefa] Implementar resumo e comparação no backend falso do frontend | RF08, RF15 | tarefa | Sprint 2 | fechada | @travensolli |
 | [#246](https://github.com/DEVassos/ecopulse-app/issues/246) | [bug] Backend reinicia na primeira subida do compose (healthcheck do banco) |  | bug | Sprint 2 | fechada | @DeaTuribio |
 | [#324](https://github.com/DEVassos/ecopulse-app/issues/324) | [tarefa] Selo de rede limpa na tabela e no mapa | RF12, RF13 | tarefa | Sprint 3 | fechada | @travensolli |
-| [#327](https://github.com/DEVassos/ecopulse-app/issues/327) | [tarefa] Potência por recurso (powerBreakdown) em /api/services e /api/services/compare | RF07, RF15 | tarefa | Sprint 3 | aberta | @LUCASAMR23 |
-| [#328](https://github.com/DEVassos/ecopulse-app/issues/328) | [tarefa] Comparação com impacto primeiro, intensidade da região e potência por recurso | RF07, RF15 | tarefa | Sprint 3 | aberta | @henriqueptbd-cell |
-| [#329](https://github.com/DEVassos/ecopulse-app/issues/329) | [tarefa] Eficiência energética e de carbono no ranking e na comparação | RF14, RF15 | tarefa | Sprint 3 | aberta | @henriqueptbd-cell |
+| [#327](https://github.com/DEVassos/ecopulse-app/issues/327) | [tarefa] Potência por recurso (powerBreakdown) em /api/services e /api/services/compare | RF07, RF15 | tarefa | Sprint 3 | fechada | @LUCASAMR23 |
+| [#328](https://github.com/DEVassos/ecopulse-app/issues/328) | [tarefa] Comparação com impacto primeiro, intensidade da região e potência por recurso | RF07, RF15 | tarefa | Sprint 3 | fechada | @henriqueptbd-cell |
+| [#329](https://github.com/DEVassos/ecopulse-app/issues/329) | [tarefa] Eficiência energética e de carbono no ranking e na comparação | RF14, RF15 | tarefa | Sprint 3 | fechada | @henriqueptbd-cell |
 | [#330](https://github.com/DEVassos/ecopulse-app/issues/330) | [tarefa] Tabela do Dashboard com energia e CO₂e das 24 h e parte de cada serviço | RF09, RF14 | tarefa | Sprint 3 | fechada | @travensolli |
-| [#331](https://github.com/DEVassos/ecopulse-app/issues/331) | [tarefa] Avisos de mudança de estado dos serviços a cada atualização | RF02, RF05, RF06, RNF04 | tarefa | Sprint 3 | aberta | @travensolli |
+| [#331](https://github.com/DEVassos/ecopulse-app/issues/331) | [tarefa] Avisos de mudança de estado dos serviços a cada atualização | RF02, RF05, RF06, RNF04 | tarefa | Sprint 3 | fechada | @travensolli |
 | [#332](https://github.com/DEVassos/ecopulse-app/issues/332) | [tarefa] Eixo do gráfico de Emissões ajustado ao trecho com dados | RF09, RNF01 | tarefa | Sprint 3 | fechada | @travensolli |
 | [#346](https://github.com/DEVassos/ecopulse-app/issues/346) | [tarefa] Índice (service_id, collected_at DESC, id DESC) para findAllWithLastReading | RF14, RNF03 | tarefa | Sprint 3 | fechada | @viniciusaugusto1997 |
 | [#348](https://github.com/DEVassos/ecopulse-app/issues/348) | [tarefa] Borda do GET /api/collections: alinhar o fim do período com as agregações | RF14 | tarefa | Sprint 3 | fechada | @LUCASAMR23 |
-| [#349](https://github.com/DEVassos/ecopulse-app/issues/349) | [tarefa] Teste de repositório que fixa os totais por período e muda a janela | RF14, RNF03 | tarefa | Sprint 3 | aberta | @viniciusaugusto1997 |
+| [#349](https://github.com/DEVassos/ecopulse-app/issues/349) | [tarefa] Teste de repositório que fixa os totais por período e muda a janela | RF14, RNF03 | tarefa | Sprint 3 | fechada | @viniciusaugusto1997 |
+| [#394](https://github.com/DEVassos/ecopulse-app/issues/394) | [tarefa] Gráfico do histórico alterna entre CPU, memória, disco e rede | RF09, RF10 | tarefa | Sprint 3 | fechada | @henriqueptbd-cell |
+| [#395](https://github.com/DEVassos/ecopulse-app/issues/395) | [tarefa] Recomendação de região em cartão: veredito, antes e depois, e por quê | RF15, RNF01 | tarefa | Sprint 3 | fechada | @travensolli |
+| [#396](https://github.com/DEVassos/ecopulse-app/issues/396) | [tarefa] Aproximar um trecho do gráfico de Emissões com botões e teclado | RF10, RNF01 | tarefa | Sprint 3 | fechada | @travensolli |
+| [#397](https://github.com/DEVassos/ecopulse-app/issues/397) | [tarefa] Selecionar o trecho do gráfico de Emissões arrastando o mouse | RF10, RNF01 | tarefa | Sprint 3 | fechada | @travensolli |
+| [#398](https://github.com/DEVassos/ecopulse-app/issues/398) | [tarefa] Página Ajuda com abas: como usar e o que só o administrador altera | RNF01, RNF05 | tarefa | Sprint 3 | fechada | @travensolli |
+| [#399](https://github.com/DEVassos/ecopulse-app/issues/399) | [tarefa] Dispersão "Carga ou região?" na Comparação | RF07, RF15 | tarefa | Sprint 3 | fechada | @travensolli |
+| [#400](https://github.com/DEVassos/ecopulse-app/issues/400) | [tarefa] Rotas para a pessoa alterar o próprio nome e a própria senha | RNF05 | tarefa | Sprint 3 | fechada | @travensolli |
+| [#401](https://github.com/DEVassos/ecopulse-app/issues/401) | [tarefa] Tela de perfil para alterar o próprio nome e a própria senha | RNF01, RNF05 | tarefa | Sprint 3 | fechada | @travensolli |
+| [#404](https://github.com/DEVassos/ecopulse-app/issues/404) | [tarefa] Ajuda: guia de leitura e fórmulas com o exemplo oficial | RF07, RNF05 | tarefa | Sprint 3 | fechada | @travensolli |
+| [#406](https://github.com/DEVassos/ecopulse-app/issues/406) | [tarefa] Linhas de CO₂e dos serviços comparados no mesmo gráfico | RF07, RF15, RNF01 | tarefa | Sprint 3 | fechada | @henriqueptbd-cell |
+| [#410](https://github.com/DEVassos/ecopulse-app/issues/410) | [tarefa] Emissões em barras por intervalo, com a miniatura do período no zoom | RF10, RNF01 | tarefa | Sprint 3 | fechada | @travensolli |
+| [#434](https://github.com/DEVassos/ecopulse-app/issues/434) | [tarefa] Dashboard: regiões em três linhas, painel em duas colunas e atualização na página | RF13, RF15, RNF01, RNF02 | tarefa | Sprint 3 | fechada | @travensolli |
+| [#436](https://github.com/DEVassos/ecopulse-app/issues/436) | [tarefa] Vídeo em looping no fundo da tela de login | RNF01 | tarefa | Sprint 3 | fechada | @henriqueptbd-cell |
+| [#438](https://github.com/DEVassos/ecopulse-app/issues/438) | [tarefa] Página inicial de apresentação em /inicio | RNF01 | tarefa | Sprint 3 | fechada | @DeaTuribio |
 
 ## Prioridade could
 
 | # | Título | Requisito | Tipo | Sprint | Estado | Responsáveis |
 |---|---|---|---|---|---|---|
-| [#13](https://github.com/DEVassos/ecopulse-app/issues/13) | [UI-04] Layout do Relatório Executivo para Impressão e PDF |  | tarefa | Sprint 3 | aberta | @travensolli, @DeaTuribio |
-| [#24](https://github.com/DEVassos/ecopulse-app/issues/24) | [FE-05] Módulo Global de Exportação de Dados em CSV e PDF Executivo |  | tarefa | Sprint 3 | aberta | @DeaTuribio |
-| [#54](https://github.com/DEVassos/ecopulse-app/issues/54) | US13 — Exportação de relatórios gerenciais (PDF e CSV) | RNF05 | historia | Sprint 3 | aberta | @DeaTuribio |
+| [#13](https://github.com/DEVassos/ecopulse-app/issues/13) | [UI-04] Layout do Relatório Executivo para Impressão e PDF |  | tarefa | Sprint 3 | fechada | @travensolli, @DeaTuribio |
+| [#24](https://github.com/DEVassos/ecopulse-app/issues/24) | [FE-05] Módulo Global de Exportação de Dados em CSV e PDF Executivo |  | tarefa | Sprint 3 | fechada | @DeaTuribio |
+| [#54](https://github.com/DEVassos/ecopulse-app/issues/54) | US13 — Exportação de relatórios gerenciais (PDF e CSV) | RNF05 | historia | Sprint 3 | fechada | @DeaTuribio |
 | [#122](https://github.com/DEVassos/ecopulse-app/issues/122) | [processo] Renomear o repositório greener-app para EcoPulse |  | processo | Sprint 2 | fechada | @travensolli |
-| [#323](https://github.com/DEVassos/ecopulse-app/issues/323) | [tarefa] Modo apresentação do mapa com pausa | RF13, RNF01 | tarefa | Sprint 3 | aberta | @DeaTuribio |
+| [#323](https://github.com/DEVassos/ecopulse-app/issues/323) | [tarefa] Modo apresentação do mapa com pausa | RF13, RNF01 | tarefa | Sprint 3 | fechada | @DeaTuribio |
 | [#333](https://github.com/DEVassos/ecopulse-app/issues/333) | [tarefa] Equivalências do CO₂e com fatores citados | RF07 | tarefa | Sprint 3 | fechada | @henriqueptbd-cell |
 | [#347](https://github.com/DEVassos/ecopulse-app/issues/347) | [tarefa] FILTER em co2e_grams na série de findSeries | RF14 | tarefa | Sprint 3 | fechada | @LUCASAMR23 |
+| [#375](https://github.com/DEVassos/ecopulse-app/issues/375) | [tarefa] Janela única de 24 h para resumo, ranking e regiões | RF12, RF13 | tarefa | Sprint 3 | fechada |  |
+| [#376](https://github.com/DEVassos/ecopulse-app/issues/376) | [tarefa] Manter o zoom manual do mapa ao girar o celular | RF13, RNF01 | tarefa | Sprint 3 | fechada | @DeaTuribio |
+| [#388](https://github.com/DEVassos/ecopulse-app/issues/388) | [tarefa] Aviso de mudança de estado sem cobrir o mapa no celular | RF02, RNF01 | tarefa | Sprint 3 | fechada | @travensolli |
+| [#402](https://github.com/DEVassos/ecopulse-app/issues/402) | [tarefa] Regras do relatório do período: tendência, causa e concentração | RF08, RF14 | tarefa | Sprint 3 | fechada | @travensolli |
+| [#403](https://github.com/DEVassos/ecopulse-app/issues/403) | [tarefa] Página Relatório com os achados do período | RF08, RF14 | tarefa | Sprint 3 | fechada | @travensolli |
+| [#408](https://github.com/DEVassos/ecopulse-app/issues/408) | [FE-07] Impressão / PDF no Dashboard e na Comparação | RNF05 | tarefa | Sprint 3 | fechada | @henriqueptbd-cell |
+| [#431](https://github.com/DEVassos/ecopulse-app/issues/431) | [tarefa] Ranking por CO₂e com ordenação sincronizada, CSV e destaque cruzado na Comparação | RF15, RNF01 | tarefa | Sprint 3 | fechada | @DeaTuribio |
 
 ## Sem prioridade definida
 
 | # | Título | Requisito | Tipo | Sprint | Estado | Responsáveis |
 |---|---|---|---|---|---|---|
-| [#35](https://github.com/DEVassos/ecopulse-app/issues/35) | EP1 — Descoberta e monitoramento dinâmico dos serviços | RF01, RF02, RF05, RF06 | epico | — | aberta |  |
-| [#36](https://github.com/DEVassos/ecopulse-app/issues/36) | EP2 — Coleta de métricas e histórico | RF03, RF04, RF10 | epico | — | aberta |  |
-| [#37](https://github.com/DEVassos/ecopulse-app/issues/37) | EP3 — Cálculo ambiental e indicadores | RF07, RF08 | epico | — | aberta |  |
-| [#38](https://github.com/DEVassos/ecopulse-app/issues/38) | EP4 — Dashboard, atualização contínua e relatórios | RF09, RF11, RF12, RF13, RNF01, RNF02 | epico | — | aberta |  |
-| [#39](https://github.com/DEVassos/ecopulse-app/issues/39) | EP5 — Análises: ranking, comparação e simulação | RF14, RF15 | epico | — | aberta |  |
-| [#40](https://github.com/DEVassos/ecopulse-app/issues/40) | EP6 — Área de configuração autenticada (JWT) |  | epico | — | aberta |  |
+| [#35](https://github.com/DEVassos/ecopulse-app/issues/35) | EP1 — Descoberta e monitoramento dinâmico dos serviços | RF01, RF02, RF05, RF06 | epico | — | fechada |  |
+| [#36](https://github.com/DEVassos/ecopulse-app/issues/36) | EP2 — Coleta de métricas e histórico | RF03, RF04, RF10 | epico | — | fechada |  |
+| [#37](https://github.com/DEVassos/ecopulse-app/issues/37) | EP3 — Cálculo ambiental e indicadores | RF07, RF08 | epico | — | fechada |  |
+| [#38](https://github.com/DEVassos/ecopulse-app/issues/38) | EP4 — Dashboard, atualização contínua e relatórios | RF09, RF11, RF12, RF13, RNF01, RNF02 | epico | — | fechada |  |
+| [#39](https://github.com/DEVassos/ecopulse-app/issues/39) | EP5 — Análises: ranking, comparação e simulação | RF14, RF15 | epico | — | fechada |  |
+| [#40](https://github.com/DEVassos/ecopulse-app/issues/40) | EP6 — Área de configuração autenticada (JWT) |  | epico | — | fechada |  |
 | [#41](https://github.com/DEVassos/ecopulse-app/issues/41) | EP7 — Plataforma, qualidade e documentação | RNF03, RNF04, RNF05 | epico | — | aberta |  |
 | [#63](https://github.com/DEVassos/ecopulse-app/issues/63) | [processo] Avaliar e cadastrar a história da página de cadastro de usuário |  | processo | — | fechada | @henriqueptbd-cell |
 | [#109](https://github.com/DEVassos/ecopulse-app/issues/109) | [processo] Sincronizar develop com a atualização das actions (PR #96) |  | processo | Sprint 1 | fechada | @travensolli |
@@ -186,14 +209,14 @@ Legenda — Prioridade: **must** (obrigatório), **should** (importante), **coul
 | [#190](https://github.com/DEVassos/ecopulse-app/issues/190) | [tarefa] Página Emissões com gráfico de CO₂e por estação | RF07, RF09, RF10 | tarefa | Sprint 2 | fechada | @travensolli, @DeaTuribio |
 | [#193](https://github.com/DEVassos/ecopulse-app/issues/193) | [tarefa] Comparação entre serviços em GET /api/services/compare | RF15 | tarefa | Sprint 2 | fechada | @LUCASAMR23 |
 | [#194](https://github.com/DEVassos/ecopulse-app/issues/194) | [tarefa] Tela de comparação entre serviços | RF15 | tarefa | Sprint 2 | fechada | @travensolli |
-| [#196](https://github.com/DEVassos/ecopulse-app/issues/196) | [tarefa] Convites e cadastro por convite no backend | RNF05 | tarefa | Sprint 3 | aberta | @LUCASAMR23, @viniciusaugusto1997 |
-| [#197](https://github.com/DEVassos/ecopulse-app/issues/197) | [tarefa] Telas de convite e de cadastro por convite | RNF05 | tarefa | Sprint 3 | aberta | @DeaTuribio |
+| [#196](https://github.com/DEVassos/ecopulse-app/issues/196) | [tarefa] Convites e cadastro por convite no backend | RNF05 | tarefa | Sprint 3 | fechada | @travensolli, @LUCASAMR23, @viniciusaugusto1997 |
+| [#197](https://github.com/DEVassos/ecopulse-app/issues/197) | [tarefa] Telas de convite e de cadastro por convite | RNF05 | tarefa | Sprint 3 | fechada | @travensolli, @DeaTuribio |
 | [#198](https://github.com/DEVassos/ecopulse-app/issues/198) | [processo] Registrar as mudanças de escopo da Sprint 2 de 22/10 |  | processo | Sprint 2 | fechada | @travensolli |
 | [#203](https://github.com/DEVassos/ecopulse-app/issues/203) | [tarefa] Tabela e aviso de falha legíveis em notebook | RF09, RF11, RNF01 | tarefa | Sprint 2 | fechada | @travensolli |
 | [#212](https://github.com/DEVassos/ecopulse-app/issues/212) | [bug] Tempo real continua ligado depois do Voltar do navegador em /emissoes | RF07 | bug | Sprint 2 | fechada | @travensolli |
 | [#218](https://github.com/DEVassos/ecopulse-app/issues/218) | [tarefa] Gráfico de energia e CO₂e na tela de comparação | RF15 | tarefa | Sprint 2 | fechada | @travensolli |
 | [#222](https://github.com/DEVassos/ecopulse-app/issues/222) | [tarefa] Refazer o print da página Emissões com o backend real | RF10 | tarefa | Sprint 2 | fechada | @DeaTuribio |
-| [#226](https://github.com/DEVassos/ecopulse-app/issues/226) | US11b — Comparação orientada à decisão: Energia × intensidade = CO₂e | RF07, RF15 | historia | Sprint 3 | aberta | @henriqueptbd-cell |
+| [#226](https://github.com/DEVassos/ecopulse-app/issues/226) | US11b — Comparação orientada à decisão: Energia × intensidade = CO₂e | RF07, RF15 | historia | Sprint 3 | fechada | @henriqueptbd-cell |
 | [#256](https://github.com/DEVassos/ecopulse-app/issues/256) | [bug] Emissões conta de novo coletas inválidas ao buscar a página seguinte | RF09, RNF04 | bug | Sprint 3 | fechada | @travensolli |
 | [#258](https://github.com/DEVassos/ecopulse-app/issues/258) | [tarefa] Polimento visual das telas (acessibilidade, consistência e celular) | RNF01 | tarefa | Sprint 2 | fechada | @travensolli |
 | [#259](https://github.com/DEVassos/ecopulse-app/issues/259) | [tarefa] Dashboard com o impacto primeiro e colunas da última leitura | RF08, RF09 | tarefa | Sprint 2 | fechada | @travensolli |
@@ -208,11 +231,11 @@ Legenda — Prioridade: **must** (obrigatório), **should** (importante), **coul
 | [#272](https://github.com/DEVassos/ecopulse-app/issues/272) | [tarefa] Saliência e texto: calma no saudável, ação no problema | RF09, RNF01 | tarefa | Sprint 2 | fechada | @travensolli |
 | [#273](https://github.com/DEVassos/ecopulse-app/issues/273) | [tarefa] Seletor de período com atalhos e calendário | RF15, RNF01 | tarefa | Sprint 2 | fechada | @travensolli |
 | [#274](https://github.com/DEVassos/ecopulse-app/issues/274) | [tarefa] Menu em grade no celular, tooltip único e cor por grandeza | RNF01 | tarefa | Sprint 2 | fechada | @travensolli |
-| [#275](https://github.com/DEVassos/ecopulse-app/issues/275) | [processo] Prova de qualidade visual automatizada no CI | RNF01 | processo | Sprint 3 | aberta | @travensolli |
+| [#275](https://github.com/DEVassos/ecopulse-app/issues/275) | [processo] Prova de qualidade visual automatizada no CI | RNF01 | processo | Sprint 3 | fechada | @travensolli |
 | [#297](https://github.com/DEVassos/ecopulse-app/issues/297) | [tarefa] Expõe fator, potência, recursos e intervalo em GET /api/services | RF09, RF12 | tarefa | Sprint 2 | fechada | @travensolli |
 | [#298](https://github.com/DEVassos/ecopulse-app/issues/298) | [tarefa] Fator da região e detalhes da coleta na tabela de serviços | RF09, RF12 | tarefa | Sprint 2 | fechada | @travensolli |
 | [#301](https://github.com/DEVassos/ecopulse-app/issues/301) | [tarefa] Alinha o README raiz ao congelamento da Sprint 2 | RNF05 | tarefa | Sprint 2 | fechada | @travensolli |
-| [#305](https://github.com/DEVassos/ecopulse-app/issues/305) | [processo] Entrega da Sprint 2 |  | processo | Sprint 2 | aberta | @travensolli |
+| [#305](https://github.com/DEVassos/ecopulse-app/issues/305) | [processo] Entrega da Sprint 2 |  | processo | Sprint 2 | fechada | @travensolli |
 | [#307](https://github.com/DEVassos/ecopulse-app/issues/307) | [tarefa] Adiciona o vídeo da Sprint 2 ao README raiz | RNF05 | tarefa | Sprint 2 | fechada | @travensolli |
 | [#312](https://github.com/DEVassos/ecopulse-app/issues/312) | [processo] Planejamento da Sprint 3 |  | processo | Sprint 3 | fechada | @travensolli |
 | [#335](https://github.com/DEVassos/ecopulse-app/issues/335) | [processo] Sprint 3 — Review registrada e backlog adaptado (ES06) |  | processo | Sprint 3 | aberta | @travensolli |
@@ -220,28 +243,34 @@ Legenda — Prioridade: **must** (obrigatório), **should** (importante), **coul
 | [#352](https://github.com/DEVassos/ecopulse-app/issues/352) | [processo] Sprint 3 — refinamento da US11b registrado no plano (ES03) | RF07, RF15 | processo | Sprint 3 | fechada | @henriqueptbd-cell |
 | [#359](https://github.com/DEVassos/ecopulse-app/issues/359) | [processo] Sprint 3 — aceite do BD04 executado no compose e registrado no plano (ES07, BD04) |  | processo | Sprint 3 | fechada | @henriqueptbd-cell |
 | [#365](https://github.com/DEVassos/ecopulse-app/issues/365) | [processo] Atas das dailies — Sprint 3, semana 1 |  | processo | Sprint 3 | fechada | @travensolli |
+| [#378](https://github.com/DEVassos/ecopulse-app/issues/378) | [processo] Sprint 3 — situação dos critérios ES01–ES09 e DW01 no plano (ES04) |  | processo | Sprint 3 | fechada | @henriqueptbd-cell |
+| [#380](https://github.com/DEVassos/ecopulse-app/issues/380) | [processo] Preenche a situação dos 13 critérios da Sprint 2 no plano (ES04) |  | processo | Sprint 3 | fechada | @henriqueptbd-cell |
+| [#423](https://github.com/DEVassos/ecopulse-app/issues/423) | [processo] Plano: registra o escopo de 21/11 e o aceite da US10 (#51) no histórico |  | processo | Sprint 3 | fechada | @henriqueptbd-cell |
+| [#426](https://github.com/DEVassos/ecopulse-app/issues/426) | [processo] Atas das dailies — Sprint 3, semana 2 |  | processo | Sprint 3 | fechada | @travensolli |
+| [#429](https://github.com/DEVassos/ecopulse-app/issues/429) | [processo] Sprint 3 — Verificações realizadas e reteste de regressão (ES07) |  | processo | Sprint 3 | fechada | @henriqueptbd-cell |
+| [#442](https://github.com/DEVassos/ecopulse-app/issues/442) | [processo] Entrega da Sprint 3 |  | processo | Sprint 3 | aberta | @travensolli |
 
 ## Cobertura do escopo obrigatório
 
 | Requisito | Issues |
 |---|---|
 | RF01 | #111, #42, #35, #15 |
-| RF02 | #331, #289, #174, #173, #129, #42, #35, #19 |
+| RF02 | #388, #331, #289, #174, #173, #129, #42, #35, #19 |
 | RF03 | #112, #97, #42, #36, #19, #15 |
 | RF04 | #189, #140, #97, #49, #42, #36, #19 |
 | RF05 | #331, #251, #176, #174, #42, #35, #16 |
 | RF06 | #331, #251, #176, #174, #42, #35, #16 |
-| RF07 | #352, #333, #328, #327, #325, #289, #271, #226, #212, #190, #189, #188, #173, #134, #133, #103, #43, #37, #18, #17 |
-| RF08 | #289, #271, #259, #239, #237, #234, #175, #45, #37, #21 |
-| RF09 | #332, #330, #298, #297, #289, #272, #261, #259, #256, #203, #190, #131, #120, #118, #111, #45, #38, #22, #21 |
-| RF10 | #222, #190, #189, #188, #140, #132, #131, #112, #97, #49, #44, #36, #19, #14, #5 |
+| RF07 | #406, #404, #399, #352, #333, #328, #327, #325, #289, #271, #226, #212, #190, #189, #188, #173, #134, #133, #103, #43, #37, #18, #17 |
+| RF08 | #403, #402, #289, #271, #259, #239, #237, #234, #175, #45, #37, #21 |
+| RF09 | #394, #332, #330, #298, #297, #289, #272, #261, #259, #256, #203, #190, #131, #120, #118, #111, #45, #38, #22, #21 |
+| RF10 | #410, #397, #396, #394, #222, #190, #189, #188, #140, #132, #131, #112, #97, #49, #44, #36, #19, #14, #5 |
 | RF11 | #250, #203, #176, #106, #45, #38, #23 |
-| RF12 | #351, #342, #324, #322, #298, #297, #289, #51, #43, #38, #22 |
-| RF13 | #351, #342, #341, #324, #323, #322, #321, #320, #319, #318, #289, #51, #38 |
-| RF14 | #349, #348, #347, #346, #330, #329, #320, #313, #294, #287, #260, #159, #50, #39 |
-| RF15 | #352, #329, #328, #327, #326, #325, #321, #319, #313, #273, #267, #239, #237, #226, #218, #194, #193, #159, #53, #52, #39 |
-| RNF01 | #351, #342, #332, #323, #322, #289, #275, #274, #273, #272, #271, #267, #266, #265, #263, #262, #258, #203, #180, #120, #87, #66, #45, #38, #11, #10, #9 |
-| RNF02 | #250, #176, #106, #104, #45, #38, #23, #12, #7 |
+| RF12 | #375, #351, #342, #324, #322, #298, #297, #289, #51, #43, #38, #22 |
+| RF13 | #434, #376, #375, #351, #342, #341, #324, #323, #322, #321, #320, #319, #318, #289, #51, #38 |
+| RF14 | #403, #402, #349, #348, #347, #346, #330, #329, #320, #313, #294, #287, #260, #159, #50, #39 |
+| RF15 | #434, #431, #406, #399, #395, #382, #352, #329, #328, #327, #326, #325, #321, #319, #313, #273, #267, #239, #237, #226, #218, #194, #193, #159, #53, #52, #39 |
+| RNF01 | #438, #436, #434, #431, #410, #406, #401, #398, #397, #396, #395, #388, #376, #351, #342, #332, #323, #322, #289, #275, #274, #273, #272, #271, #267, #266, #265, #263, #262, #258, #203, #180, #120, #87, #66, #45, #38, #11, #10, #9 |
+| RNF02 | #434, #250, #176, #106, #104, #45, #38, #23, #12, #7 |
 | RNF03 | #349, #346, #313, #55, #41 |
 | RNF04 | #331, #261, #256, #237, #236, #174, #162, #161, #97, #42, #41, #19, #16 |
-| RNF05 | #307, #301, #293, #257, #231, #197, #196, #195, #160, #146, #80, #67, #65, #64, #56, #55, #54, #48, #47, #46, #41, #27, #26, #25, #8, #4 |
+| RNF05 | #408, #404, #401, #400, #398, #307, #301, #293, #257, #231, #197, #196, #195, #160, #146, #80, #67, #65, #64, #56, #55, #54, #48, #47, #46, #41, #27, #26, #25, #8, #4 |

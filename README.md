@@ -106,7 +106,7 @@ O que cada sprint previa e a situação de cada critério estão no [plano de en
 |---|---|---|---|---|---|
 | 1 | 29/09 → 19/10/2026 | 19/10 às 19h30 (realizada) | Pipeline de coleta persistido em Docker e primeira tela do dashboard (serviços com estado e localização, atualizando sem recarregar) | Concluída: tag [`sprint-1`](https://github.com/DEVassos/ecopulse-app/releases/tag/sprint-1) | [sprint-1.md](docs/sprints/sprint-1.md) |
 | 2 | 20/10 → 09/11/2026 | 09/11 às 19h30 (realizada) | Dashboard completo com energia, CO₂e, tolerância a falhas e área de configuração protegida por JWT | Concluída: tag [`sprint-2`](https://github.com/DEVassos/ecopulse-app/releases/tag/sprint-2) | [sprint-2.md](docs/sprints/sprint-2.md) |
-| 3 | 10/11 → 23/11/2026 | 23/11 às 19h30 | Ranking de impacto, comparação entre serviços, mapa e repositório pronto como portfólio | Em fechamento: `release/sprint-3` criada em 23/11 | [sprint-3.md](docs/sprints/sprint-3.md) |
+| 3 | 10/11 → 23/11/2026 | 25/11 às 21h (realizada; remarcada a pedido do cliente) | Ranking de impacto, comparação entre serviços, mapa e repositório pronto como portfólio | Concluída: tag [`sprint-3`](https://github.com/DEVassos/ecopulse-app/releases/tag/sprint-3) | [sprint-3.md](docs/sprints/sprint-3.md) |
 
 Critérios previstos, responsáveis, evidências e a situação de cada critério: [docs/plano-de-entregas.md](docs/plano-de-entregas.md). Verificações, review e participação de cada sprint ficam no registro da sprint.
 
